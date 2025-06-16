@@ -1,0 +1,38 @@
+{
+    "commands": [
+        {
+            "dispatch_barrier" : {
+                "image_barrier_refs": [
+                    "img_barrier0",
+                    "img_barrier1"
+                ],
+                "tensor_barrier_refs": [
+                    "tsr_barrier0",
+                    "tsr_barrier1"
+                ],
+                "buffer_barrier_refs": [
+                    "bfr_barrier0",
+                    "bfr_barrier1"
+                ],
+                "memory_barrier_refs" : [
+                    "mem_barrier0",
+                    "mem_barrier1"
+                ]
+            }
+        },
+        {
+            "dispatch_barrier" : {
+                "image_barrier_refs": [
+                ],
+                "tensor_barrier_refs": [
+                ],
+                "buffer_barrier_refs": [
+                ],
+                "memory_barrier_refs" : [
+                ]
+            }
+        }
+    ],
+    "resources" : [
+    ]
+}

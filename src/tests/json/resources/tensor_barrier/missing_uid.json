@@ -1,0 +1,13 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "tensor_barrier": {
+                "src_access": "compute_shader_write",
+                "dst_access": "compute_shader_read",
+                "tensor_resource": "tensor0"
+            }
+        }
+    ]
+}

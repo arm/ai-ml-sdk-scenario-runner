@@ -1,0 +1,17 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "image_barrier": {
+                "uid": "image_barrier0",
+                "src_access": "compute_shader_write",
+                "dst_access": "compute_shader_read",
+                "image_resource": "image0",
+                "old_layout": "general",
+                "new_layout": "tensor_aliasing",
+                "this_is_an_invalid_property": "oops"
+            }
+        }
+    ]
+}

@@ -1,0 +1,12 @@
+{
+    "commands":[
+        {
+            "dispatch_compute": {
+                "push_data_ref": "RawData",
+                "rangeND": [10, 1, 1],
+                "shader_ref": "add_shader"
+            }
+        }
+    ],
+    "resources" : []
+}

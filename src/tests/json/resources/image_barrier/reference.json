@@ -1,0 +1,66 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "image_barrier": {
+                "uid": "image_barrier0",
+                "src_access": "compute_shader_write",
+                "dst_access": "compute_shader_read",
+                "image_resource": "image0",
+                "old_layout": "general",
+                "new_layout": "tensor_aliasing",
+                "subresource_range": {
+                    "base_mip_level": 0,
+                    "level_count": 1,
+                    "base_array_layer": 0,
+                    "layer_count": 1
+                }
+            }
+        },
+        {
+            "image_barrier": {
+                "uid": "image_barrier1",
+                "src_access": "graph_write",
+                "dst_access": "graph_read",
+                "image_resource": "image0",
+                "old_layout": "general",
+                "new_layout": "tensor_aliasing"
+            }
+        },
+        {
+            "image_barrier": {
+                "uid": "image_barrier2",
+                "src_access": "memory_write",
+                "dst_access": "memory_read",
+                "image_resource": "image0",
+                "old_layout": "general",
+                "new_layout": "tensor_aliasing"
+            }
+        },
+        {
+            "image_barrier": {
+                "uid": "image_barrier3",
+                "src_access": "memory_write",
+                "dst_access": "memory_read",
+                "src_stage": ["compute"],
+                "dst_stage": ["compute"],
+                "image_resource": "image0",
+                "old_layout": "general",
+                "new_layout": "general"
+            }
+        },
+        {
+            "image_barrier": {
+                "uid": "image_barrier4",
+                "src_access": "memory_write",
+                "dst_access": "memory_read",
+                "src_stage": ["all"],
+                "dst_stage": ["all"],
+                "image_resource": "image0",
+                "old_layout": "general",
+                "new_layout": "general"
+            }
+        }
+    ]
+}

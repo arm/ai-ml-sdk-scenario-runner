@@ -1,0 +1,12 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "raw_data":{
+                "uid": "raw1",
+                "src": "raw_data.npy"
+            }
+        }
+    ]
+}

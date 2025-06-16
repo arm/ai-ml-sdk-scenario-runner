@@ -1,0 +1,20 @@
+/*
+* SPDX-FileCopyrightText: Copyright 2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
+* SPDX-License-Identifier: Apache-2.0
+*/
+#version 450
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(binding = 0) buffer in1 { float inBuffer[10]; };
+layout(binding = 1) buffer out1 { float outBuffer[10]; };
+
+void main()
+{
+    float value = inBuffer[gl_GlobalInvocationID.x];
+    value += float(CONSTANT_0);
+#ifdef DIVIDE_BY_TWO
+    value /= float(2.0);
+#endif // DIVIDE_BY_TWO
+    outBuffer[gl_GlobalInvocationID.x] = value;
+}

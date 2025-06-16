@@ -1,0 +1,21 @@
+/*
+* SPDX-FileCopyrightText: Copyright 2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
+* SPDX-License-Identifier: Apache-2.0
+*/
+#version 450
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(binding = 0) buffer in1 { float In1BufferAA[10]; };
+
+layout(push_constant) uniform constants
+{
+    float data[10];
+} PushConstants;
+
+layout(binding = 1) buffer out1 { float OutBufferAddPush[10]; };
+
+void main()
+{
+    OutBufferAddPush[gl_GlobalInvocationID.x] = In1BufferAA[gl_GlobalInvocationID.x] + PushConstants.data[gl_GlobalInvocationID.x];
+}

@@ -1,0 +1,60 @@
+{
+    "$id": "urn:scenario:resource:graph",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "push_constants_size": {
+            "type": "integer",
+            "default": 0
+        },
+        "specialization_constants_map": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "specialization_constants": {
+                        "$ref":"urn:scenario:specialization_constants"
+                    },
+                    "shader_target": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "shader_target",
+                    "specialization_constants"
+                ]
+            }
+        },
+        "shader_substitutions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "shader_ref": {
+                        "type" : "string"
+                    },
+                    "target" : {
+                        "type": "string"
+                    }
+                },
+                "required" : [
+                    "shader_ref",
+                    "target"
+                ]
+            }
+        },
+        "src": {
+            "type": "string"
+        },
+        "uid": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "src",
+        "uid"
+    ]
+}

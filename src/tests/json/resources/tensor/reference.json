@@ -1,0 +1,33 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "tensor":{
+                "uid": "tensor0",
+                "dims" : [1, 128, 256, 3],
+                "format": "vk_float32",
+                "shader_access":"readwrite",
+                "alias_target": "my-image-to-alias"
+            }
+        },
+        {
+            "tensor":{
+                "uid": "tensor1",
+                "src": "in.npy",
+                "dims" : [1, 128, 256, 3],
+                "format": "vk_float32",
+                "shader_access":"readonly"
+            }
+        },
+        {
+            "tensor":{
+                "uid": "tensor2",
+                "dst": "out.npy",
+                "dims" : [12, 24],
+                "format": "vk_float32",
+                "shader_access":"writeonly"
+            }
+        }
+    ]
+}

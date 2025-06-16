@@ -1,0 +1,106 @@
+{
+    "commands": [
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "set": 0,
+                        "id": 0,
+                        "resource_ref": "all_lods"
+                    },
+                    {
+                        "set": 1,
+                        "id": 0,
+                        "resource_ref": "lod0"
+                    },
+                    {
+                        "set": 1,
+                        "id": 1,
+                        "resource_ref": "lod1"
+                    },
+                    {
+                        "set": 1,
+                        "id": 2,
+                        "resource_ref": "lod2"
+                    }
+                ],
+                "shader_ref": "read",
+                "rangeND": [
+                    64,
+                    32,
+                    1
+                ]
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "uid": "read",
+                "src": "read_from_mipmaps.spv",
+                "entry": "main",
+                "type": "SPIR-V"
+            }
+        },
+        {
+            "image": {
+                "uid": "all_lods",
+                "dims": [
+                    1,
+                    64,
+                    32,
+                    1
+                ],
+                "mips": 3,
+                "format": "VK_FORMAT_R32G32B32A32_SFLOAT",
+                "shader_access": "readonly",
+                "src": "base_layer.dds"
+            }
+        },
+        {
+            "image": {
+                "uid": "lod0",
+                "dims": [
+                    1,
+                    64,
+                    32,
+                    1
+                ],
+                "mips": 1,
+                "format": "VK_FORMAT_R32G32B32A32_SFLOAT",
+                "shader_access": "writeonly",
+                "dst": "lod0.dds"
+            }
+        },
+        {
+            "image": {
+                "uid": "lod1",
+                "dims": [
+                    1,
+                    32,
+                    16,
+                    1
+                ],
+                "mips": 1,
+                "format": "VK_FORMAT_R32G32B32A32_SFLOAT",
+                "shader_access": "writeonly",
+                "dst": "lod1.dds"
+            }
+        },
+        {
+            "image": {
+                "uid": "lod2",
+                "dims": [
+                    1,
+                    16,
+                    8,
+                    1
+                ],
+                "mips": 1,
+                "format": "VK_FORMAT_R32G32B32A32_SFLOAT",
+                "shader_access": "writeonly",
+                "dst": "lod2.dds"
+            }
+        }
+    ]
+}

@@ -1,0 +1,11 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "graph":{
+                "uid": "graph1"
+            }
+        }
+    ]
+}

@@ -1,0 +1,27 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "memory_barrier": {
+                "uid": "shader_mem_barrier",
+                "src_access": "compute_shader_write",
+                "dst_access": "compute_shader_read"
+            }
+        },
+        {
+            "memory_barrier": {
+                "uid": "graph_mem_barrier",
+                "src_access": "graph_write",
+                "dst_access": "graph_read"
+            }
+        },
+        {
+            "memory_barrier": {
+                "uid": "graph_mem_barrier",
+                "src_access": "memory_write",
+                "dst_access": "memory_read"
+            }
+        }
+    ]
+}

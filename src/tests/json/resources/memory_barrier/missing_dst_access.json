@@ -1,0 +1,12 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "memory_barrier": {
+                "uid": "graph_mem_barrier",
+                "src_access": "compute_shader_write"
+            }
+        }
+    ]
+}

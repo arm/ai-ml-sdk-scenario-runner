@@ -1,0 +1,30 @@
+{
+    "$id": "urn:scenario:resource:buffer",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "shader_access": {
+            "type": "string",
+            "enum": ["readonly", "writeonly", "readwrite"]
+        },
+        "size": {
+            "type": "integer"
+        },
+        "src": {
+            "type": "string"
+        },
+        "uid": {
+            "type": "string"
+        },
+        "dst": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "shader_access",
+        "size",
+        "uid"
+    ],
+    "$ref" : "urn:scenario:common#/definitions/mutually_exclusive_optional_src_dst"
+}

@@ -1,0 +1,10 @@
+{
+    "commands": [
+        {
+            "not_a_real_command":{
+            }
+        }
+    ],
+    "resources": [
+    ]
+}

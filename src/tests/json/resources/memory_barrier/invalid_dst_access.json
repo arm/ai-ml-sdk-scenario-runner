@@ -1,0 +1,13 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "memory_barrier":{
+                "uid": "shader_mem_barrier",
+                "src_access": "compute_shader_read",
+                "dst_access": "NONE"
+            }
+        }
+    ]
+}

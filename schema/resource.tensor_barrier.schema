@@ -1,0 +1,38 @@
+{
+    "$id": "urn:scenario:resource:tensor_barrier",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "uid": {
+            "type": "string"
+        },
+        "src_access": {
+            "$ref": "urn:scenario:common#/definitions/memory_access"
+        },
+        "dst_access": {
+             "$ref": "urn:scenario:common#/definitions/memory_access"
+        },
+        "src_stage": {
+            "type": "array",
+            "items": {
+                "$ref": "urn:scenario:common#/definitions/pipeline_stage"
+            }
+        },
+        "dst_stage": {
+            "type": "array",
+            "items": {
+                "$ref": "urn:scenario:common#/definitions/pipeline_stage"
+            }
+        },
+        "tensor_resource": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "uid",
+        "src_access",
+        "dst_access",
+        "tensor_resource"
+    ]
+}

@@ -1,0 +1,17 @@
+{
+    "commands":[
+        {
+            "dispatch_graph": {
+                "bindings": [
+                    {
+                        "id": -1,
+                        "set": 0,
+                        "resource_ref": "InTensor"
+                    }
+                ],
+                "graph_ref": "myGraph"
+            }
+        }
+    ],
+    "resources" : []
+}

@@ -1,0 +1,49 @@
+{
+    "$id": "urn:scenario:resource:image_barrier",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "uid": {
+            "type": "string"
+        },
+        "src_access": {
+            "$ref": "urn:scenario:common#/definitions/memory_access"
+        },
+        "dst_access": {
+             "$ref": "urn:scenario:common#/definitions/memory_access"
+        },
+        "src_stage": {
+            "type": "array",
+            "items": {
+                "$ref": "urn:scenario:common#/definitions/pipeline_stage"
+            }
+        },
+        "dst_stage": {
+            "type": "array",
+            "items": {
+                "$ref": "urn:scenario:common#/definitions/pipeline_stage"
+            }
+        },
+        "image_resource": {
+            "type": "string"
+        },
+        "old_layout": {
+            "$ref": "urn:scenario:common#/definitions/image_layout"
+        },
+        "new_layout": {
+            "$ref": "urn:scenario:common#/definitions/image_layout"
+        },
+        "subresource_range": {
+            "$ref": "urn:scenario:subresource_range"
+        }
+    },
+    "required": [
+        "uid",
+        "src_access",
+        "dst_access",
+        "image_resource",
+        "old_layout",
+        "new_layout"
+    ]
+}

@@ -1,0 +1,102 @@
+{
+    "commands": [
+        {
+            "dispatch_compute": {
+                {IMPL_BARRIER}
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "inDDS"
+                    },
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "intermediateDDS"
+                    }
+                ],
+                "rangeND": [16, 1, 1],
+                "shader_ref": "output_input"
+            }
+        },
+        {BARRIER_DISPATCH}
+        {
+            "dispatch_compute": {
+                {IMPL_BARRIER}
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "intermediateDDS"
+                    },
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "outDDS"
+                    }
+                ],
+                "rangeND": [64, 4, 1],
+                "shader_ref": "output_input"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "entry": "main",
+                "src": "outputInput.spv",
+                "type": "SPIR-V",
+                "uid": "output_input"
+            }
+        },
+        {
+            "shader": {
+                "entry": "main",
+                "src": "outputInput1.spv",
+                "type": "SPIR-V",
+                "uid": "output_input1"
+            }
+        },
+        {
+            "image": {
+                "shader_access": "image_read",
+                "dims": [1, 64, 4, 1],
+                "format": "VK_FORMAT_R16G16B16A16_SFLOAT",
+                "src": "input.dds",
+                "uid": "inDDS",
+                "border_address_mode": "CLAMP_BORDER",
+                "border_color": "FLOAT_OPAQUE_BLACK"
+            }
+        },
+        {
+            "image": {
+                "shader_access": "image_read",
+                "dims": [1, 64, 4, 1],
+                "format": "VK_FORMAT_R16G16B16A16_SFLOAT",
+                "uid": "intermediateDDS",
+                "border_address_mode": "CLAMP_BORDER",
+                "border_color": "FLOAT_OPAQUE_BLACK"
+            }
+        },
+        {
+            "image": {
+                "dst": "output.dds",
+                "shader_access": "writeonly",
+                "dims": [1, 64, 4, 1],
+                "format": "VK_FORMAT_R16G16B16A16_SFLOAT",
+                "uid": "outDDS"
+            }
+        },
+        {
+            "image_barrier": {
+                "uid": "inDDSImageBarrier",
+                "src_access": "compute_shader_write",
+                "dst_access": "compute_shader_read",
+                {STAGES}
+                "old_layout": "general",
+                "new_layout": "general",
+                "image_resource": "intermediateDDS"
+            }
+        }
+    ]
+}

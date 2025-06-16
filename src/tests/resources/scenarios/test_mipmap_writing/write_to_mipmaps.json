@@ -1,0 +1,146 @@
+{
+    "commands": [
+      {
+        "dispatch_compute": {
+          "bindings": [
+            { "set": 0, "id": 0, "resource_ref": "all_lods", "lod" : 0, "descriptor_type" : "VK_DESCRIPTOR_TYPE_STORAGE_IMAGE" }
+          ],
+          "shader_ref": "save",
+          "rangeND": [256, 256, 1],
+          "push_data_ref": "red"
+        }
+      },
+      {
+        "dispatch_compute": {
+          "bindings": [
+            { "set": 0, "id": 0, "resource_ref": "all_lods", "lod" : 1, "descriptor_type" : "VK_DESCRIPTOR_TYPE_STORAGE_IMAGE" }
+          ],
+          "shader_ref": "save",
+          "rangeND": [128, 128, 1],
+          "push_data_ref": "green"
+        }
+      },
+      {
+        "dispatch_compute": {
+          "bindings": [
+            { "set": 0, "id": 0, "resource_ref": "all_lods", "lod" : 2, "descriptor_type" : "VK_DESCRIPTOR_TYPE_STORAGE_IMAGE" }
+          ],
+          "shader_ref": "save",
+          "rangeND": [64, 64, 1],
+          "push_data_ref": "blue"
+        }
+      },
+      {
+        "dispatch_barrier": {
+          "image_barrier_refs": ["lod_Barrier"],
+          "tensor_barrier_refs": [],
+          "memory_barrier_refs": [],
+          "buffer_barrier_refs": []
+        }
+      },
+      {
+        "dispatch_compute": {
+          "bindings": [
+            { "set": 0, "id": 0, "resource_ref": "all_lods" },
+            { "set": 1, "id": 0, "resource_ref": "lod0" },
+            { "set": 1, "id": 1, "resource_ref": "lod1"},
+            { "set": 1, "id": 2, "resource_ref": "lod2"}
+          ],
+          "shader_ref": "read",
+          "rangeND": [256, 256, 1]
+        }
+      }
+    ],
+    "resources": [
+      {
+        "shader": {
+          "uid": "save",
+          "src": "write_to_mipmaps.spv",
+          "entry": "main",
+          "type": "SPIR-V",
+          "push_constants_size": 16
+        }
+      },
+      {
+        "shader": {
+          "uid": "read",
+          "src": "read_from_mipmaps.spv",
+          "entry": "main",
+          "type": "SPIR-V"
+        }
+      },
+      {
+        "image": {
+          "uid": "all_lods",
+          "dims": [1, 256, 256, 1],
+          "mips": 3,
+          "format": "VK_FORMAT_R32G32B32A32_SFLOAT",
+          "shader_access": "readwrite"
+        }
+      },
+      {
+        "image": {
+          "uid": "lod0",
+          "dims": [1, 256, 256, 1],
+          "mips": 1,
+          "format": "VK_FORMAT_R32G32B32A32_SFLOAT",
+          "shader_access": "writeonly",
+          "dst" : "lod0.dds"
+        }
+      },
+      {
+        "image": {
+          "uid": "lod1",
+          "dims": [1, 128, 128, 1],
+          "mips": 1,
+          "format": "VK_FORMAT_R32G32B32A32_SFLOAT",
+          "shader_access": "writeonly",
+          "dst" : "lod1.dds"
+        }
+      },
+      {
+        "image": {
+          "uid": "lod2",
+          "dims": [1, 64, 64, 1],
+          "mips": 1,
+          "format": "VK_FORMAT_R32G32B32A32_SFLOAT",
+          "shader_access": "writeonly",
+          "dst" : "lod2.dds"
+        }
+      },
+      {
+        "image_barrier": {
+          "uid": "lod_Barrier",
+          "src_access": "compute_shader_write",
+          "dst_access": "compute_shader_read",
+          "old_layout": "general",
+          "new_layout": "general",
+          "image_resource": "all_lods",
+          "subresource_range": {
+            "base_mip_level": 0,
+            "level_count": 3,
+            "base_array_layer": 0,
+            "layer_count": 1
+          }
+        }
+      },
+      {
+        "raw_data": {
+          "uid": "red",
+          "src": "red.npy"
+        }
+      },
+      {
+        "raw_data": {
+          "uid": "green",
+          "src": "green.npy"
+        }
+      },
+      {
+        "raw_data": {
+          "uid": "blue",
+          "src": "blue.npy"
+        }
+      }
+    ]
+}

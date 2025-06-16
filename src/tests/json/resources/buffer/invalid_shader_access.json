@@ -1,0 +1,14 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "buffer":{
+                "uid": "buff1",
+                "src": "in.npy",
+                "size" : 1024,
+                "shader_access":"writeread"
+            }
+        }
+    ]
+}

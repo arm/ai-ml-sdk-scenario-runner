@@ -1,0 +1,27 @@
+{
+    "commands":[
+        {
+            "dispatch_graph": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "resource_ref": "InTensor1",
+                        "set": 0
+                    },
+                    {
+                        "id": 1,
+                        "resource_ref": "InTensor2",
+                        "set": 0
+                    },
+                    {
+                        "id": 2,
+                        "resource_ref": "OutTensorr",
+                        "set": 0
+                    }
+                ],
+                "graph_ref": "simple_graph"
+            }
+        }
+    ],
+    "resources" : []
+}

@@ -1,0 +1,74 @@
+{
+    "commands":[
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "resource_ref": "InBuffer1",
+                        "set": 0
+                    },
+                    {
+                        "id": 1,
+                        "resource_ref": "InBuffer2",
+                        "set": 0
+                    },
+                    {
+                        "id": 2,
+                        "resource_ref": "OutBuffer",
+                        "set": 0
+                    }
+                ],
+                "push_data_ref": "RawData",
+                "rangeND": [10, 1, 1],
+                "shader_ref": "add_shader"
+            }
+        },
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "resource_ref": "InBuffer1",
+                        "set": 0
+                    },
+                    {
+                        "id": 1,
+                        "resource_ref": "InBuffer2",
+                        "set": 0
+                    },
+                    {
+                        "id": 2,
+                        "resource_ref": "OutBuffer",
+                        "set": 0
+                    }
+                ],
+                "push_data_ref": "RawData",
+                "rangeND": [10, 1, 1],
+                "shader_ref": "mull_shader"
+            }
+        },
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "resource_ref": "outBuffer",
+                        "set": 0,
+                        "descriptor_type": "VK_DESCRIPTOR_TYPE_AUTO"
+                    },
+                    {
+                        "id": 1,
+                        "resource_ref": "outImage",
+                        "set": 0,
+                        "descriptor_type": "VK_DESCRIPTOR_TYPE_STORAGE_IMAGE"
+                    }
+                ],
+                "push_data_ref": "RawData",
+                "rangeND": [10, 1, 1],
+                "shader_ref": "save_image"
+            }
+        }
+    ],
+    "resources" : []
+}

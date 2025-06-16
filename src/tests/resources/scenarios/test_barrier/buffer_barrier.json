@@ -1,0 +1,90 @@
+{
+    "commands": [
+        {
+            "dispatch_compute": {
+                {IMPL_BARRIER}
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "inputBuffer"
+                    },
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "intermediateBuffer"
+                    }
+                ],
+                "rangeND": [256, 1, 1],
+                "shader_ref": "addOne"
+            }
+        },
+        {BARRIER_DISPATCH}
+        {
+            "dispatch_compute": {
+                {IMPL_BARRIER}
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "intermediateBuffer"
+                    },
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "outputBuffer"
+                    }
+                ],
+                "rangeND": [256, 1, 1],
+                "shader_ref": "addOne"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "entry": "main",
+                "src": "addOne.spv",
+                "type": "SPIR-V",
+                "uid": "addOne"
+            }
+        },
+        {
+            "buffer": {
+                "uid": "inputBuffer",
+                "shader_access": "readonly",
+                "size": 256,
+                "format": "VK_FORMAT_R8_SINT",
+                "src": "input.npy"
+            }
+        },
+        {
+            "buffer": {
+                "uid": "intermediateBuffer",
+                "shader_access": "readwrite",
+                "size": 256,
+                "format": "VK_FORMAT_R8_SINT"
+            }
+        },
+        {
+            "buffer": {
+                "uid": "outputBuffer",
+                "shader_access": "writeonly",
+                "size": 256,
+                "format": "VK_FORMAT_R8_SINT",
+                "dst": "output.npy"
+            }
+        },
+        {
+            "buffer_barrier": {
+                "uid": "bufferBarrier",
+                "src_access": "compute_shader_write",
+                "dst_access": "compute_shader_read",
+                {STAGES}
+                "buffer_resource": "intermediateBuffer",
+                "size": 256,
+                "offset": 0
+            }
+        }
+    ]
+}

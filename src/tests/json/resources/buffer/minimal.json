@@ -1,0 +1,13 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "buffer":{
+                "uid": "buff1",
+                "size" : 1024,
+                "shader_access":"readwrite"
+            }
+        }
+    ]
+}

@@ -1,0 +1,12 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "shader":{
+                "uid": "minimal_shader",
+                "entry": "main"
+            }
+        }
+    ]
+}

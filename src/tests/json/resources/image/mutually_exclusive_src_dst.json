@@ -1,0 +1,16 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "image":{
+                "uid": "img0",
+                "format": "VK_FLOAT",
+                "dims": [128, 256],
+                "shader_access": "readwrite",
+                "src": "in.npy",
+                "dst": "out.npy"
+            }
+        }
+    ]
+}

@@ -1,0 +1,14 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "tensor_barrier":{
+                "uid": "tensor_barrier",
+                "src_access": "compute_shader_read",
+                "dst_access": "NONE",
+                "tensor_resource": "tensor0"
+            }
+        }
+    ]
+}

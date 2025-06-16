@@ -1,0 +1,15 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "buffer":{
+                "uid": "buff1",
+                "size" : 1024,
+                "src": "in.npy",
+                "dst": "out.npy",
+                "shader_access":"readwrite"
+            }
+        }
+    ]
+}

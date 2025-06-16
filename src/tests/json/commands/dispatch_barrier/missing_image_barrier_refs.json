@@ -1,0 +1,16 @@
+{
+    "commands": [
+        {
+            "dispatch_barrier" : {
+                "tensor_barrier_refs": [
+                ],
+                "buffer_barrier_refs": [
+                ],
+                "memory_barrier_refs" : [
+                ]
+            }
+        }
+    ],
+    "resources" : [
+    ]
+}

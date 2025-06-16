@@ -1,0 +1,39 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "image": {
+                "uid": "aliasImage",
+                "dims": [
+                    1,
+                    64,
+                    10,
+                    1
+                ],
+                "format": "VK_FORMAT_R16G16_SFLOAT",
+                "shader_access": "readonly",
+                "tiling": "OPTIMAL",
+                "src": "temp.dds",
+                "dst": "alias_image.dds"
+            }
+        },
+        {
+            "tensor": {
+                "uid": "aliasTensor",
+                "dims": [
+                    1,
+                    10,
+                    64,
+                    2
+                ],
+                "format": "VK_FORMAT_R16_UINT",
+                "shader_access": "readonly",
+                "tiling": "OPTIMAL",
+                "alias_target": {
+                    "resource_ref": "aliasImage"
+                },
+                "dst": "output.npy"
+            }
+        }
+    ]
+}

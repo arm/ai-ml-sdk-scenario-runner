@@ -1,0 +1,23 @@
+{
+    "$id": "urn:scenario:commands",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+            "dispatch_graph": {
+                "$ref" : "urn:scenario:command:dispatch_graph"
+            },
+            "dispatch_compute": {
+                "$ref" : "urn:scenario:command:dispatch_compute"
+            },
+            "dispatch_barrier": {
+                "$ref": "urn:scenario:command:dispatch_barrier"
+            },
+            "mark_boundary": {
+                "$ref" : "urn:scenario:command:mark_boundary"
+            }
+        }
+    }
+}

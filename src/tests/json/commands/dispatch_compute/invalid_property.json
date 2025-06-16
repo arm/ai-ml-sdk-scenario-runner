@@ -1,0 +1,30 @@
+{
+    "commands":[
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "resource_ref": "InBuffer1",
+                        "set": 0
+                    },
+                    {
+                        "id": 1,
+                        "resource_ref": "InBuffer2",
+                        "set": 0
+                    },
+                    {
+                        "id": 2,
+                        "resource_ref": "OutBuffer",
+                        "set": 0
+                    }
+                ],
+                "push_data_ref": "RawData",
+                "rangeND": [10, 1, 1],
+                "shader_ref": "add_shader",
+                "this_is_an_invalid_property" : {}
+            }
+        }
+    ],
+    "resources" : []
+}

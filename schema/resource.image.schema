@@ -1,0 +1,88 @@
+{
+    "$id": "urn:scenario:resource:image",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "uid": {
+            "type": "string"
+        },
+        "format": {
+            "type": "string"
+        },
+        "dims": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+                "type": "integer",
+                "minimum": 0
+            }
+        },
+        "shader_access": {
+            "type": "string",
+            "enum": ["readonly", "writeonly", "readwrite", "image_read"]
+        },
+        "mips": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "src": {
+            "type": "string"
+        },
+        "dst": {
+            "type": "string"
+        },
+        "mag_filter": {
+            "type": "string",
+            "enum": ["NEAREST", "LINEAR"]
+        },
+        "min_filter": {
+            "type": "string",
+            "enum": ["NEAREST", "LINEAR"]
+        },
+        "mip_filter": {
+            "type": "string",
+            "enum": ["NEAREST", "LINEAR"]
+        },
+        "border_address_mode": {
+            "type": "string",
+            "enum" : [
+                "CLAMP_BORDER",
+                "CLAMP_EDGE",
+                "REPEAT",
+                "MIRRORED_REPEAT"
+            ]
+        },
+        "border_color": {
+            "default": "FLOAT_TRANSPARENT_BLACK",
+            "enum": [
+                "FLOAT_TRANSPARENT_BLACK",
+                "FLOAT_OPAQUE_BLACK",
+                "FLOAT_OPAQUE_WHITE",
+                "INT_TRANSPARENT_BLACK",
+                "INT_OPAQUE_BLACK",
+                "INT_OPAQUE_WHITE",
+                "FLOAT_CUSTOM_EXT",
+                "INT_CUSTOM_EXT"
+            ]
+        },
+        "custom_border_color" : {
+            "type": "array",
+            "maxItems": 4,
+             "items": {
+                "type": "number"
+            }
+        },
+        "tiling" : {
+            "type": "string",
+            "enum" : ["OPTIMAL","LINEAR"]
+        }
+    },
+    "required": [
+        "uid",
+        "format",
+        "dims",
+        "shader_access"
+    ],
+    "$ref" : "urn:scenario:common#/definitions/mutually_exclusive_optional_src_dst"
+}

@@ -1,0 +1,11 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "raw_data":{
+                "src": "raw_data.npy"
+            }
+        }
+    ]
+}

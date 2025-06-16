@@ -1,0 +1,38 @@
+{
+    "$id": "urn:scenario:resource:shader",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "build_options": {
+            "type": "string"
+        },
+        "entry": {
+            "type": "string"
+        },
+        "specialization_constants": {
+            "$ref":"urn:scenario:specialization_constants"
+        },
+        "src": {
+            "type": "string"
+        },
+        "type": {
+            "type": "string",
+            "enum": ["GLSL", "SPIR-V"]
+        },
+        "include_dirs": {
+            "type": "string"
+        },
+        "push_constants_size": {
+            "type": "integer"
+        },
+        "uid": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "entry",
+        "src",
+        "uid"
+    ]
+}

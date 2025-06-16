@@ -1,0 +1,95 @@
+{
+    "commands": [
+        {
+            "dispatch_graph": {
+                "graph_ref": "graph_ref",
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "maxpoolInput"
+                    },
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "conv2dInput"
+                    },
+                    {
+                        "id": 2,
+                        "set": 0,
+                        "resource_ref": "maxpoolOutput"
+                    },
+                    {
+                        "id": 3,
+                        "set": 0,
+                        "resource_ref": "conv2dOutput"
+                    }
+                ]
+            }
+        }
+    ],
+    "resources": [
+        {
+            "graph": {
+                "uid": "graph_ref",
+                "src": "multiple_modules.vgf"
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "readonly",
+                "dims": [
+                    1,
+                    16,
+                    16,
+                    16
+                ],
+                "src": "maxpoolInput.npy",
+                "format": "VK_FORMAT_R8_SINT",
+                "uid": "maxpoolInput"
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "readonly",
+                "dims": [
+                    1,
+                    16,
+                    16,
+                    16
+                ],
+                "src": "conv2dInput.npy",
+                "format": "VK_FORMAT_R8_SINT",
+                "uid": "conv2dInput"
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "writeonly",
+                "dims": [
+                    1,
+                    8,
+                    8,
+                    16
+                ],
+                "dst": "maxpoolOutput.npy",
+                "format": "VK_FORMAT_R8_SINT",
+                "uid": "maxpoolOutput"
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "writeonly",
+                "dims": [
+                    1,
+                    8,
+                    8,
+                    16
+                ],
+                "dst": "conv2dOutput.npy",
+                "format": "VK_FORMAT_R8_SINT",
+                "uid": "conv2dOutput"
+            }
+        }
+    ]
+}

@@ -1,0 +1,29 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "buffer":{
+                "uid": "buff1",
+                "size" : 1024,
+                "shader_access":"readwrite"
+            }
+        },
+        {
+            "buffer":{
+                "uid": "buff2",
+                "src": "data/in.npy",
+                "size" : 2048,
+                "shader_access":"readonly"
+            }
+        },
+        {
+            "buffer":{
+                "uid": "buff3",
+                "dst": "data/out.npy",
+                "size" : 4096,
+                "shader_access":"writeonly"
+            }
+        }
+    ]
+}

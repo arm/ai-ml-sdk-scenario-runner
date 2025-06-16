@@ -1,0 +1,36 @@
+{
+    "resources": [
+        {
+            "tensor": {
+                "uid": "tensorX",
+                "dims": [
+                    1,
+                    8,
+                    8,
+                    1
+                ],
+                "format": "VK_FORMAT_R32_UINT",
+                "shader_access": "readwrite",
+                "tiling": "OPTIMAL",
+                "alias_target": {
+                    "resource_ref": "imageX"
+                }
+            }
+        },
+        {
+            "image": {
+                "uid": "imageX",
+                "dims": [
+                    1,
+                    8,
+                    8,
+                    1
+                ],
+                "format": "VK_FORMAT_R32_UINT",
+                "shader_access": "readonly",
+                "tiling": "LINEAR"
+            }
+        }
+    ],
+    "commands": []
+}

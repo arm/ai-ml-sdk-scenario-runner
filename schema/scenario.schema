@@ -1,0 +1,17 @@
+{
+    "$id": "urn:scenario:scenario",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "commands": {
+            "$ref" : "urn:scenario:commands"
+         },
+        "resources": {
+            "$ref" : "urn:scenario:resources"
+        }
+    },
+    "required": [
+        "commands",
+        "resources"
+    ]
+}

@@ -1,0 +1,32 @@
+{
+    "$id": "urn:scenario:command:dispatch_compute",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "bindings": {
+            "$ref":"urn:scenario:common#/definitions/bindings"
+        },
+        "push_data_ref": {
+            "type": "string"
+        },
+        "rangeND": {
+            "type": "array",
+            "items": {
+                "type": "integer",
+                "minimum": 1
+            },
+            "minItems":3,
+            "maxItems":3
+
+        },
+        "shader_ref": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "bindings",
+        "rangeND",
+        "shader_ref"
+    ]
+}

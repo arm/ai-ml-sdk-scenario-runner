@@ -1,0 +1,46 @@
+{
+    "$id": "urn:scenario:resource:tensor",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "uid": {
+            "type": "string"
+        },
+        "dims": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+                "type": "integer",
+                "minimum": 1
+            }
+        },
+        "format": {
+            "type": "string"
+        },
+        "shader_access": {
+            "type": "string",
+            "enum": ["readonly", "writeonly", "readwrite", "image_read"]
+        },
+        "src": {
+            "type": "string"
+        },
+        "dst": {
+            "type": "string"
+        },
+        "alias_target": {
+            "type": "string"
+        },
+        "tiling" : {
+            "type": "string",
+            "enum" : ["OPTIMAL","LINEAR"]
+        }
+    },
+    "required": [
+        "uid",
+        "dims",
+        "format",
+        "shader_access"
+    ],
+    "$ref" : "urn:scenario:common#/definitions/mutually_exclusive_optional_src_dst"
+}

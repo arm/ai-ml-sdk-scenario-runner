@@ -1,0 +1,41 @@
+{
+    "$id": "urn:scenario:resources",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+            "shader": {
+                "$ref": "urn:scenario:resource:shader"
+            },
+            "buffer": {
+                "$ref": "urn:scenario:resource:buffer"
+            },
+            "raw_data": {
+                "$ref": "urn:scenario:resource:raw_data"
+            },
+            "graph": {
+                "$ref": "urn:scenario:resource:graph"
+                },
+            "tensor": {
+                "$ref": "urn:scenario:resource:tensor"
+            },
+            "image": {
+                "$ref": "urn:scenario:resource:image"
+            },
+            "memory_barrier": {
+                "$ref":  "urn:scenario:resource:memory_barrier"
+            },
+            "buffer_barrier": {
+                "$ref":  "urn:scenario:resource:buffer_barrier"
+            },
+            "tensor_barrier": {
+                "$ref":  "urn:scenario:resource:tensor_barrier"
+            },
+            "image_barrier": {
+                "$ref":  "urn:scenario:resource:image_barrier"
+            }
+        }
+    }
+}

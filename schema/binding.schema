@@ -1,0 +1,35 @@
+{
+    "$id" : "urn:scenario:binding",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "minimum":0
+        },
+        "resource_ref": {
+            "type": "string"
+        },
+        "set": {
+            "type": "integer",
+            "minimum": 0
+        },
+        "lod": {
+            "type": "integer",
+            "minimum": 0
+        },
+        "descriptor_type": {
+            "type": "string",
+            "default": "VK_DESCRIPTOR_TYPE_AUTO",
+            "enum": [
+                "VK_DESCRIPTOR_TYPE_AUTO",
+                "VK_DESCRIPTOR_TYPE_STORAGE_IMAGE"
+            ]
+        }
+    },
+    "required": [
+        "id",
+        "resource_ref",
+        "set"
+    ]
+}

@@ -1,0 +1,52 @@
+{
+    "commands": [
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "input"
+                    },
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "output"
+                    }
+                ],
+                "rangeND": [10],
+                "shader_ref": "tensor_shader"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "entry": "main",
+                "src": "tensor_shader.spv",
+                "type": "SPIR-V",
+                "uid": "tensor_shader"
+            }
+        },
+        {
+            "tensor": {
+                "uid": "input",
+                "dims": [1, 10, 1, 1],
+                "format": "VK_FORMAT_R8_SINT",
+                "src": "inTensor.npy",
+                "shader_access": "readonly",
+                "tiling": "OPTIMAL"
+            }
+        },
+        {
+            "tensor": {
+                "uid": "output",
+                "dims": [1, 10, 1, 1],
+                "format": "VK_FORMAT_R8_SINT",
+                "dst": "outTensor.npy",
+                "shader_access": "readwrite",
+                "tiling": "OPTIMAL"
+            }
+        }
+    ]
+}

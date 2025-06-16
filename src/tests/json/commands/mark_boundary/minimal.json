@@ -1,0 +1,15 @@
+{
+    "commands": [
+        {
+            "mark_boundary" : {
+                "frame_id" : 0,
+                "resources" : [
+                    "one",
+                    "two"
+                ]
+            }
+        }
+    ],
+    "resources" : [
+    ]
+}

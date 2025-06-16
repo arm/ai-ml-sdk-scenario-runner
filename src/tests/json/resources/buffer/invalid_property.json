@@ -1,0 +1,14 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "buffer":{
+                "uid": "buff1",
+                "size" : 1024,
+                "shader_access":"readwrite",
+                "this_is_an_invalid_property" : "oops"
+            }
+        }
+    ]
+}

@@ -1,0 +1,12 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "buffer":{
+                "size" : 1024,
+                "shader_access":"readwrite"
+            }
+        }
+    ]
+}

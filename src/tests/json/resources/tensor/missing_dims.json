@@ -1,0 +1,13 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "tensor":{
+                "uid": "tensor0",
+                "format": "vk_float32",
+                "shader_access":"readwrite"
+            }
+        }
+    ]
+}

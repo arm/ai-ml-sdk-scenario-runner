@@ -1,0 +1,14 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "buffer_barrier": {
+                "uid": "buffer_barrier0",
+                "size": 512,
+                "src_access": "compute_shader_write",
+                "buffer_resource": "buffer0"
+            }
+        }
+    ]
+}

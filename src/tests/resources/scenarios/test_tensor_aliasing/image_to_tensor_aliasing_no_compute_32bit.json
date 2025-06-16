@@ -1,0 +1,41 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "image": {
+                "shader_access": "readonly",
+                "dims": [
+                    1,
+                    17,
+                    31,
+                    1
+                ],
+                "format": "VK_FORMAT_R32_SFLOAT",
+                "mips": 1,
+                "min_filter": "LINEAR",
+                "mag_filter": "LINEAR",
+                "mip_filter": "NEAREST",
+                "src": "temp.dds",
+                "uid": "_testImage",
+                "dst": "outputImage.dds"
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "readonly",
+                "dims": [
+                    1,
+                    31,
+                    17,
+                    1
+                ],
+                "format": "VK_FORMAT_R32_UINT",
+                "uid": "_testTensor",
+                "dst": "output.npy",
+                "alias_target": {
+                    "resource_ref": "_testImage"
+                }
+            }
+        }
+    ]
+}

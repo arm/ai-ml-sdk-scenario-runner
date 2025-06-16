@@ -1,0 +1,13 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "tensor_barrier": {
+                "uid": "graph_mem_barrier",
+                "dst_access": "compute_shader_write",
+                "tensor_resource": "tensor0"
+            }
+        }
+    ]
+}

@@ -1,0 +1,16 @@
+/*
+* SPDX-FileCopyrightText: Copyright 2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
+* SPDX-License-Identifier: Apache-2.0
+*/
+#version 430
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(binding = 0, rg16) uniform readonly image2D in01;
+layout(binding = 1, rg16) uniform writeonly image2D out1;
+
+void main()
+{
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+    vec4 test = imageLoad(in01, coord);
+    imageStore(out1, coord, test);
+}

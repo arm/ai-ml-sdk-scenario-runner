@@ -1,0 +1,12 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "shader":{
+                "uid": "minimal_shader",
+                "src": "minimal_add.glsl"
+            }
+        }
+    ]
+}

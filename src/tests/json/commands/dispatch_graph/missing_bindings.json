@@ -1,0 +1,10 @@
+{
+    "commands":[
+        {
+            "dispatch_graph": {
+                "graph_ref": "simple_graph"
+            }
+        }
+    ],
+    "resources" : []
+}

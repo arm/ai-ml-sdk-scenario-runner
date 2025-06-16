@@ -1,0 +1,13 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "raw_data":{
+                "uid": "raw1",
+                "src": "raw_data.npy",
+                "this_is_an_invalid_property" : "oops"
+            }
+        }
+    ]
+}

@@ -1,0 +1,34 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "graph":{
+                "uid": "graph1",
+                "src": "my_graph.vgf",
+                "push_constants_size": 16,
+                "shader_substitutions": [
+                    {
+                        "shader_ref": "my_shader",
+                        "target": "placeholder0"
+                    }
+                ],
+                "specialization_constants_map" : [
+                    {
+                        "specialization_constants": [
+                            {
+                                "id": 0,
+                                "value": 64
+                            },
+                            {
+                                "id": 1,
+                                "value" : 3.5
+                            }
+                        ],
+                        "shader_target": "my_shader"
+                    }
+                ]
+            }
+        }
+    ]
+}

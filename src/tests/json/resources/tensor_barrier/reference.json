@@ -1,0 +1,60 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "tensor_barrier": {
+                "uid": "shader_mem_barrier",
+                "src_access": "compute_shader_write",
+                "dst_access": "compute_shader_read",
+                "tensor_resource": "tensor0"
+            }
+        },
+        {
+            "tensor_barrier": {
+                "uid": "graph_mem_barrier",
+                "src_access": "graph_write",
+                "dst_access": "graph_read",
+                "tensor_resource": "tensor0"
+            }
+        },
+        {
+            "tensor_barrier": {
+                "uid": "graph_mem_barrier",
+                "src_access": "memory_write",
+                "dst_access": "memory_read",
+                "tensor_resource": "tensor0"
+            }
+        },
+        {
+            "tensor_barrier": {
+                "uid": "graph_mem_barrier",
+                "src_access": "memory_write",
+                "dst_access": "memory_read",
+                "src_stage": ["graph", "compute"],
+                "dst_stage": ["graph", "compute"],
+                "tensor_resource": "tensor0"
+            }
+        },
+        {
+            "tensor_barrier": {
+                "uid": "graph_mem_barrier",
+                "src_access": "memory_write",
+                "dst_access": "memory_read",
+                "src_stage": ["all"],
+                "dst_stage": ["all"],
+                "tensor_resource": "tensor0"
+            }
+        },
+        {
+            "tensor_barrier": {
+                "uid": "graph_mem_barrier",
+                "src_access": "memory_write",
+                "dst_access": "memory_read",
+                "src_stage": ["graph"],
+                "dst_stage": ["compute"],
+                "tensor_resource": "tensor0"
+            }
+        }
+    ]
+}

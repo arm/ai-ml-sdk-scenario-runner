@@ -1,0 +1,22 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "image_barrier": {
+                "uid": "image_barrier0",
+                "src_access": "compute_shader_write",
+                "dst_access": "compute_shader_read",
+                "image_resource": "image0",
+                "old_layout": "general",
+                "new_layout": "tensor_aliasing",
+                "subresource_range": {
+                    "base_mip_level": 0,
+                    "level_count": 1,
+                    "base_array_layer": -1,
+                    "layer_count": 1
+                }
+            }
+        }
+    ]
+}

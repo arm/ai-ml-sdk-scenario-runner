@@ -1,0 +1,14 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "shader":{
+                "uid": "minimal_shader",
+                "entry": "main",
+                "src": "minimal_add.glsl",
+                "this_is_an_invalid_property" : "oops"
+            }
+        }
+    ]
+}

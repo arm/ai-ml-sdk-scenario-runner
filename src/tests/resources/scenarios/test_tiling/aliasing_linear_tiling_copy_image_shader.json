@@ -1,0 +1,85 @@
+{
+    "commands": [
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "set": 0,
+                        "id": 0,
+                        "resource_ref": "input_image"
+                    },
+                    {
+                        "set": 0,
+                        "id": 1,
+                        "resource_ref": "output_image"
+                    }
+                ],
+                "shader_ref": "image_shader",
+                "rangeND": [
+                    64,
+                    64,
+                    1
+                ]
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "uid": "image_shader",
+                "src": "image_shader.spv",
+                "entry": "main",
+                "type": "SPIR-V",
+                "push_constants_size": 0
+            }
+        },
+        {
+            "image": {
+                "uid": "input_image",
+                "dims": [
+                    1,
+                    64,
+                    64,
+                    1
+                ],
+                "shader_access": "image_read",
+                "format": "VK_FORMAT_R16G16_SFLOAT",
+                "src": "input_image.dds",
+                "tiling": "OPTIMAL"
+            }
+        },
+        {
+            "image": {
+                "uid": "output_image",
+                "dims": [
+                    1,
+                    64,
+                    64,
+                    1
+                ],
+                "format": "VK_FORMAT_R16G16_SFLOAT",
+                "shader_access": "writeonly",
+                "dst": "output_image.dds",
+                "tiling": "LINEAR"
+            }
+        },
+        {
+            "tensor": {
+                "uid": "output_tensor",
+                "dims": [
+                    1,
+                    64,
+                    64,
+                    2
+                ],
+                "format": "VK_FORMAT_R16_UINT",
+                "shader_access": "readwrite",
+                "alias_target": {
+                    "resource_ref": "output_image"
+                },
+                "dst": "output_tensor.npy",
+                "tiling": "LINEAR"
+            }
+        }
+    ]
+}

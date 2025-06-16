@@ -1,0 +1,16 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "image":{
+                "uid": "img0",
+                "format": "VK_FLOAT",
+                "dims": [128, 256, 512, 1024],
+                "shader_access": "readwrite",
+
+                "custom_border_color": [128, 256, 512, 1024, 321]
+            }
+        }
+    ]
+}

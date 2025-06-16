@@ -1,0 +1,14 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "shader":{
+                "uid": "pascal_shader",
+                "entry": "main",
+                "src": "invalid.pas",
+                "type" : "PASCAL"
+            }
+        }
+    ]
+}

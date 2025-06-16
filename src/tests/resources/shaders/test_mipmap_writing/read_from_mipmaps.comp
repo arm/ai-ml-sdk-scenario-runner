@@ -1,0 +1,24 @@
+/*
+* SPDX-FileCopyrightText: Copyright 2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
+* SPDX-License-Identifier: Apache-2.0
+*/
+#version 450
+#define OUTPUT_IMG_FORMAT rgba32f
+
+layout(set = 0, binding = 0)uniform mediump sampler2D _lod;
+layout(set=1, binding=0, OUTPUT_IMG_FORMAT) uniform writeonly mediump image2D _lod0;
+layout(set=1, binding=1, OUTPUT_IMG_FORMAT) uniform writeonly mediump image2D _lod1;
+layout(set=1, binding=2, OUTPUT_IMG_FORMAT) uniform writeonly mediump image2D _lod2;
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+void main()
+{
+    highp uvec2 tId = gl_GlobalInvocationID.xy;
+    vec4 lod0 = texelFetch(_lod, ivec2(tId), 0).rgba;
+    vec4 lod1 = texelFetch(_lod, ivec2(tId), 1).rgba;
+    vec4 lod2 = texelFetch(_lod, ivec2(tId), 2).rgba;
+
+    imageStore(_lod0, ivec2(tId), lod0);
+    imageStore(_lod1, ivec2(tId), lod1);
+    imageStore(_lod2, ivec2(tId), lod2);
+}

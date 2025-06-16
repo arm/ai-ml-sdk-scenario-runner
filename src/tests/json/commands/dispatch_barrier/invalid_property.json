@@ -1,0 +1,20 @@
+
+{
+    "commands": [
+        {
+            "dispatch_barrier" : {
+                "image_barrier_refs": [
+                ],
+                "tensor_barrier_refs": [
+                ],
+                "memory_barrier_refs" : [
+                ],
+                "buffer_barrier_refs" : [
+                ],
+                "this_is_an_invalid_property" : "oops"
+            }
+        }
+    ],
+    "resources" : [
+    ]
+}

@@ -1,0 +1,15 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "image":{
+                "uid": "img0",
+                "format": "VK_FLOAT",
+                "dims": [128, 256],
+                "shader_access": "readwrite",
+                "mip_filter": "nope"
+            }
+        }
+    ]
+}

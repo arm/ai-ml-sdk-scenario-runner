@@ -1,0 +1,54 @@
+;
+; SPDX-FileCopyrightText: Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+; SPDX-License-Identifier: Apache-2.0
+;
+                OpCapability GraphARM
+                OpCapability Int8
+                OpCapability TensorsARM
+                OpCapability Shader
+                OpCapability VulkanMemoryModel
+                OpCapability Int16
+                OpCapability Int64
+                OpCapability Matrix
+                OpExtension "SPV_ARM_graph"
+                OpExtension "SPV_ARM_tensors"
+                OpExtension "SPV_KHR_vulkan_memory_model"
+          %29 = OpExtInstImport "TOSA.001000.1"
+                OpMemoryModel Logical Vulkan
+                OpName %main_arg_0 "main_arg_0"
+                OpName %main_res_0 "main_res_0"
+                OpDecorate %main_arg_0 Binding INPUT_BINDING
+                OpDecorate %main_arg_0 DescriptorSet INPUT_SET
+                OpDecorate %main_res_0 Binding OUTPUT_BINDING
+                OpDecorate %main_res_0 DescriptorSet OUTPUT_SET
+       %uchar = OpTypeInt 8 0
+        %uint = OpTypeInt 32 0
+      %uint_4 = OpConstant %uint 4
+ %_arr_uint_uint_4 = OpTypeArray %uint %uint_4
+      %uint_1 = OpConstant %uint 1
+     %uint_16 = OpConstant %uint 16
+           %7 = OpConstantComposite %_arr_uint_uint_4 %uint_1 %uint_16 %uint_16 %uint_16
+           %2 = OpTypeTensorARM %uchar %uint_4 %7
+ %_ptr_UniformConstant_2 = OpTypePointer UniformConstant %2
+  %main_arg_0 = OpVariable %_ptr_UniformConstant_2 UniformConstant
+      %uint_8 = OpConstant %uint 8
+          %13 = OpConstantComposite %_arr_uint_uint_4 %uint_1 %uint_8 %uint_8 %uint_16
+          %12 = OpTypeTensorARM %uchar %uint_4 %13
+ %_ptr_UniformConstant_12 = OpTypePointer UniformConstant %12
+  %main_res_0 = OpVariable %_ptr_UniformConstant_12 UniformConstant
+          %17 = OpTypeGraphARM 1 %2 %12
+      %uint_0 = OpConstant %uint 0
+ %_arr_uint_uint_1 = OpTypeArray %uint %uint_1
+      %uint_2 = OpConstant %uint 2
+          %22 = OpConstantComposite %_arr_uint_uint_1 %uint_2
+          %20 = OpTypeTensorARM %uint %uint_1 %22
+          %24 = OpConstantComposite %20 %uint_2 %uint_2
+          %26 = OpConstantComposite %_arr_uint_uint_1 %uint_4
+          %25 = OpTypeTensorARM %uint %uint_1 %26
+          %27 = OpConstantNull %25
+                OpGraphEntryPointARM %16 "main" %main_arg_0 %main_res_0
+          %16 = OpGraphARM %17
+          %18 = OpGraphInputARM %2 %uint_0
+          %28 = OpExtInst %12 %29 MAX_POOL2D %24 %24 %27 %uint_1 %18
+                OpGraphSetOutputARM %28 %uint_0
+                OpGraphEndARM

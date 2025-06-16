@@ -1,0 +1,44 @@
+{
+    "$id" : "urn:scenario:common",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "definitions": {
+        "bindings": {
+            "$ref": "urn:scenario:bindings"
+        },
+        "specialization_constants" : {
+            "$ref" : "urn:scenario:specialization_constants"
+        },
+        "mutually_exclusive_optional_src_dst": {
+            "oneOf" : [
+                {
+                    "required" : ["dst"]
+                },
+                {
+                    "required" : ["src"]
+                },
+                {
+                    "allOf" : [
+                        {"not" : {"required" : ["src"]}},
+                        {"not" : {"required" : ["dst"]}}
+                    ]
+                }
+            ]
+        },
+        "memory_access": {
+            "type": "string",
+            "enum": ["compute_shader_write", "compute_shader_read", "graph_write", "graph_read", "memory_write", "memory_read"]
+        },
+        "pipeline_stage": {
+            "type": "string",
+            "enum": ["graph", "compute", "all"]
+        },
+        "image_layout": {
+            "type": "string",
+            "enum": [
+                "general",
+                "tensor_aliasing"
+            ]
+        }
+    }
+}

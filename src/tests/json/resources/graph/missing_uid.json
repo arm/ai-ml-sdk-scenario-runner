@@ -1,0 +1,11 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "graph":{
+                "src": "my_graph.vgf"
+            }
+        }
+    ]
+}

@@ -1,0 +1,46 @@
+{
+    "commands": [
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "outTensor"
+                    }
+                ],
+                "rangeND": [
+                    64,
+                    64,
+                    1
+                ],
+                "shader_ref": "tensor_write_fixed_shader"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "entry": "main",
+                "src": "tensor_write_fixed.spv",
+                "type": "SPIR-V",
+                "uid": "tensor_write_fixed_shader"
+            }
+        },
+        {
+            "tensor": {
+                "uid": "outTensor",
+                "dst": "output_tensor.npy",
+                "dims": [
+                    1,
+                    2,
+                    64,
+                    64
+                ],
+                "format": "VK_FORMAT_R16_UINT",
+                "shader_access": "writeonly",
+                "tiling": "OPTIMAL"
+            }
+        }
+    ]
+}

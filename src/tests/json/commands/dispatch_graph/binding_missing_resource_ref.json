@@ -1,0 +1,16 @@
+{
+    "commands":[
+        {
+            "dispatch_graph": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0
+                    }
+                ],
+                "graph_ref": "myGraph"
+            }
+        }
+    ],
+    "resources" : []
+}

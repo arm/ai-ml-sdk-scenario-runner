@@ -1,0 +1,25 @@
+{
+    "$id": "urn:scenario:command:dispatch_graph",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "bindings": {
+            "$ref":"urn:scenario:common#/definitions/bindings"
+        },
+        "graph_ref": {
+            "type": "string"
+        },
+        "shader_substitutions": {
+            "type": "array",
+            "items": {
+                "shader_ref": "string",
+                "target": "string"
+            }
+        }
+    },
+    "required": [
+        "bindings",
+        "graph_ref"
+    ]
+}

@@ -1,0 +1,19 @@
+/*
+* SPDX-FileCopyrightText: Copyright 2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
+* SPDX-License-Identifier: Apache-2.0
+*/
+#version 450
+#define OUTPUT_IMG_FORMAT rgba32f
+
+layout(set=0, binding=0, OUTPUT_IMG_FORMAT) uniform writeonly mediump image2D _lod;
+layout(push_constant) uniform constants
+{
+    vec4 color;
+} PushConstants;
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+void main()
+{
+    highp uvec2 tId = gl_GlobalInvocationID.xy;
+    imageStore(_lod, ivec2(tId), PushConstants.color);
+}

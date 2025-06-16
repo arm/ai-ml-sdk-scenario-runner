@@ -1,0 +1,48 @@
+{
+    "commands": [
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "inBuffer"
+                    },
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "outBuffer"
+                    }
+                ],
+                "rangeND": [10],
+                "shader_ref": "shader"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "entry": "main",
+                "src": "shader_build_opts.spv",
+                "type": "SPIR-V",
+                "uid": "shader"
+            }
+        },
+        {
+            "buffer": {
+                "shader_access": "readonly",
+                "size": 40,
+                "src": "inBuffer.npy",
+                "uid": "inBuffer"
+            }
+        },
+        {
+            "buffer": {
+                "dst": "outBuffer.npy",
+                "shader_access": "readwrite",
+                "size": 40,
+                "uid": "outBuffer"
+            }
+        }
+    ]
+}

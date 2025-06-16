@@ -1,0 +1,51 @@
+{
+    "commands": [
+      {
+        "mark_boundary": {
+          "resources": [],
+          "frame_id": 0
+        }
+      },
+      {
+        "dispatch_compute": {
+          "shader_ref": "shader",
+          "rangeND": [
+            1,
+            1,
+            1
+          ],
+          "bindings": [
+            {
+              "set": 0,
+              "id": 0,
+              "resource_ref": "out_ref"
+            }
+          ]
+        }
+      },
+      {
+        "mark_boundary": {
+          "resources": [],
+          "frame_id": 1
+        }
+      }
+    ],
+    "resources": [
+      {
+        "shader": {
+          "uid": "shader",
+          "src": "shader.spv",
+          "entry": "main",
+          "type": "SPIR-V"
+        }
+      },
+      {
+        "buffer": {
+          "uid": "out_ref",
+          "size": 4,
+          "shader_access": "writeonly",
+          "dst": "out_data.npy"
+        }
+      }
+    ]
+  }

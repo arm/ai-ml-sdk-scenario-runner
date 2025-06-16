@@ -1,0 +1,21 @@
+{
+    "$id": "urn:scenario:command:mark_boundary",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "frame_id": {
+            "type": "integer"
+        },
+        "resources": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        }
+    },
+    "required": [
+        "frame_id",
+        "resources"
+    ]
+}

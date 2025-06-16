@@ -1,0 +1,38 @@
+{
+    "$id": "urn:scenario:command:dispatch_barrier",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "image_barrier_refs": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "tensor_barrier_refs": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "buffer_barrier_refs": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "memory_barrier_refs": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        }
+    },
+    "required": [
+        "image_barrier_refs",
+        "tensor_barrier_refs",
+        "buffer_barrier_refs",
+        "memory_barrier_refs"
+    ]
+}

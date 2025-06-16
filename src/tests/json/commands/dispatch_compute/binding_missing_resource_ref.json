@@ -1,0 +1,17 @@
+{
+    "commands":[
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0
+                    }
+                ],
+                "rangeND": [10, 1, 1],
+                "shader_ref": "add_shader"
+            }
+        }
+    ],
+    "resources" : []
+}

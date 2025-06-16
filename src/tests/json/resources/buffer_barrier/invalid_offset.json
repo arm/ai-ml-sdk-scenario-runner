@@ -1,0 +1,16 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "buffer_barrier":{
+                "uid": "shader_mem_barrier",
+                "src_access": "compute_shader_read",
+                "dst_access": "compute_shader_read",
+                "size": 512,
+                "offset": -1,
+                "buffer_resource": "buffer0"
+            }
+        }
+    ]
+}

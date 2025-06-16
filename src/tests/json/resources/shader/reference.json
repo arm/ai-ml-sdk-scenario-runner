@@ -1,0 +1,25 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "shader":{
+                "uid": "reference_shader",
+                "entry": "main",
+                "src": "ref_add.glsl",
+                "build_options": "-Werror -Os",
+                "type" : "GLSL",
+                "specialization_constants" : [
+                    {
+                        "id": 0,
+                        "value": 64
+                    },
+                    {
+                        "id": 1,
+                        "value" : 3.5
+                    }
+                ]
+            }
+        }
+    ]
+}

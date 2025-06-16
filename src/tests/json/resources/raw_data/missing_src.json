@@ -1,0 +1,11 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "raw_data":{
+                "uid": "raw1"
+            }
+        }
+    ]
+}

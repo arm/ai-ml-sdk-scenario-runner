@@ -1,0 +1,14 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "memory_barrier": {
+                "uid": "shader_mem_barrier",
+                "src_access": "compute_shader_write",
+                "dst_access": "compute_shader_read",
+                "this_is_an_invalid_property": "oops"
+            }
+        }
+    ]
+}

@@ -1,0 +1,56 @@
+{
+    "commands": [
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "inBuffer"
+                    },
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "outBuffer"
+                    }
+                ],
+                "push_data_ref": "data",
+                "rangeND": [10],
+                "shader_ref": "shader"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "entry": "main",
+                "push_constants_size": 36,
+                "src": "add_shader_unstructured_push_constants.spv",
+                "type": "SPIR-V",
+                "uid": "shader"
+            }
+        },
+        {
+            "buffer": {
+                "shader_access": "readonly",
+                "size": 40,
+                "src": "inBufferAA.npy",
+                "uid": "inBuffer"
+            }
+        },
+        {
+            "raw_data": {
+                "uid": "data",
+                "src": "data.npy"
+            }
+        },
+        {
+            "buffer": {
+                "dst": "outBufferUnstructuredPush.npy",
+                "shader_access": "readwrite",
+                "size": 40,
+                "uid": "outBuffer"
+            }
+        }
+    ]
+}

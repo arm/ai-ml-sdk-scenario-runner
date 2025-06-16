@@ -1,0 +1,58 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "buffer_barrier": {
+                "uid": "buffer_barrier0",
+                "src_access": "compute_shader_write",
+                "dst_access": "compute_shader_read",
+                "buffer_resource": "buffer0",
+                "size": 512,
+                "offset": 64
+            }
+        },
+        {
+            "buffer_barrier": {
+                "uid": "buffer_barrier1",
+                "src_access": "graph_write",
+                "dst_access": "graph_read",
+                "buffer_resource": "buffer1",
+                "size": 1024
+            }
+        },
+        {
+            "buffer_barrier": {
+                "uid": "buffer_barrier2",
+                "src_access": "memory_write",
+                "dst_access": "memory_read",
+                "buffer_resource": "buffer2",
+                "size": 2048
+            }
+        },
+        {
+            "buffer_barrier": {
+                "uid": "buffer_barrier3",
+                "src_access": "compute_shader_write",
+                "dst_access": "compute_shader_read",
+                "buffer_resource": "buffer0",
+                "src_stage": ["compute"],
+                "dst_stage": ["compute"],
+                "size": 512,
+                "offset": 64
+            }
+        },
+        {
+            "buffer_barrier": {
+                "uid": "buffer_barrier4",
+                "src_access": "compute_shader_write",
+                "dst_access": "compute_shader_read",
+                "buffer_resource": "buffer0",
+                "src_stage": ["all"],
+                "dst_stage": ["all"],
+                "size": 512,
+                "offset": 64
+            }
+        }
+    ]
+}

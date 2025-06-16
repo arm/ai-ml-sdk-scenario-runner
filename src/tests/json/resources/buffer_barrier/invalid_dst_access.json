@@ -1,0 +1,15 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "buffer_barrier":{
+                "uid": "buffer_barrier0",
+                "src_access": "compute_shader_read",
+                "dst_access": "NONE",
+                "size": 512,
+                "buffer_resource": "buffer0"
+            }
+        }
+    ]
+}

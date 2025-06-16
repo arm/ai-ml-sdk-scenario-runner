@@ -1,0 +1,14 @@
+{
+    "commands": [
+        {
+            "mark_boundary" : {
+                "resources" : [
+                    "one",
+                    "two"
+                ]
+            }
+        }
+    ],
+    "resources" : [
+    ]
+}

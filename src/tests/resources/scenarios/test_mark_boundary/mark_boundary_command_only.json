@@ -1,0 +1,31 @@
+{
+    "commands": [
+        {
+            "mark_boundary":{
+                "resources": [
+                   "inBufferA",
+                   "inBufferB"
+                ],
+                "frame_id" : 0
+            }
+        }
+    ],
+    "resources": [
+        {
+            "buffer": {
+                "shader_access": "readonly",
+                "size": 40,
+                "src": "inBufferA.npy",
+                "uid": "inBufferA"
+            }
+        },
+        {
+            "buffer": {
+                "shader_access": "readonly",
+                "size": 40,
+                "src": "inBufferB.npy",
+                "uid": "inBufferB"
+            }
+        }
+    ]
+}

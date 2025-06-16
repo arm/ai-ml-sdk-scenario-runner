@@ -1,0 +1,13 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "tensor":{
+                "dims" : [1, 128, 256, 3],
+                "format": "vk_float32",
+                "shader_access":"readwrite"
+            }
+        }
+    ]
+}

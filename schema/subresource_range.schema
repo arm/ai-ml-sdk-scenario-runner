@@ -1,0 +1,29 @@
+{
+    "$id" : "urn:scenario:subresource_range",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "base_mip_level": {
+            "type": "integer",
+            "minimum":0
+        },
+        "level_count": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "base_array_layer": {
+            "type": "integer",
+            "minimum":0
+        },
+        "layer_count": {
+            "type": "integer",
+            "minimum": 1
+        }
+    },
+    "required": [
+        "base_mip_level",
+        "level_count",
+        "base_array_layer",
+        "layer_count"
+    ]
+}

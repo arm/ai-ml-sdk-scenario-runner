@@ -1,0 +1,47 @@
+{
+    "$id": "urn:scenario:resource:buffer_barrier",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "uid": {
+            "type": "string"
+        },
+        "src_access": {
+            "$ref": "urn:scenario:common#/definitions/memory_access"
+        },
+        "dst_access": {
+             "$ref": "urn:scenario:common#/definitions/memory_access"
+        },
+        "src_stage": {
+            "type": "array",
+            "items": {
+                "$ref": "urn:scenario:common#/definitions/pipeline_stage"
+            }
+        },
+        "dst_stage": {
+            "type": "array",
+            "items": {
+                "$ref": "urn:scenario:common#/definitions/pipeline_stage"
+            }
+        },
+        "buffer_resource": {
+            "type": "string"
+        },
+        "size": {
+            "type": "integer",
+            "minimum": 0
+        },
+        "offset": {
+            "type": "integer",
+            "minimum": 0
+        }
+    },
+    "required": [
+        "uid",
+        "src_access",
+        "dst_access",
+        "buffer_resource",
+        "size"
+    ]
+}

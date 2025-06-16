@@ -1,0 +1,64 @@
+{
+    "commands": [
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "inDDS"
+                    },
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "outDDS"
+                    }
+                ],
+                "rangeND": [
+                    1,
+                    16,
+                    1
+                ],
+                "shader_ref": "output_input"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "entry": "main",
+                "src": "outputInput.spv",
+                "type": "SPIR-V",
+                "uid": "output_input"
+            }
+        },
+        {
+            "image": {
+                "shader_access": "readonly",
+                "dims": [
+                    1,
+                    1,
+                    16,
+                    1
+                ],
+                "format": "VK_FORMAT_R16G16_SFLOAT",
+                "src": "temp.dds",
+                "uid": "inDDS"
+            }
+        },
+        {
+            "image": {
+                "dst": "output.dds",
+                "shader_access": "writeonly",
+                "dims": [
+                    1,
+                    1,
+                    16,
+                    1
+                ],
+                "format": "VK_FORMAT_R16G16_SFLOAT",
+                "uid": "outDDS"
+            }
+        }
+    ]
+}

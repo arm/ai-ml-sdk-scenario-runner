@@ -1,0 +1,15 @@
+/*
+* SPDX-FileCopyrightText: Copyright 2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
+* SPDX-License-Identifier: Apache-2.0
+*/
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) buffer in1 { int8_t In1Buffer[5]; };
+layout(set = 0, binding = 1) buffer out1 { int8_t OutBuffer[5]; };
+
+void main()
+{
+    OutBuffer[gl_GlobalInvocationID.x] = In1Buffer[gl_GlobalInvocationID.x] + int8_t(1);
+}
