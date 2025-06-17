@@ -62,11 +62,19 @@ ScenarioSpec::ScenarioSpec(std::istream *is, const std::filesystem::path &workDi
 }
 
 void ScenarioSpec::addResource(std::unique_ptr<ResourceDesc> resource) {
-    this->resourceRefs[resource->guid] = static_cast<uint32_t>(this->resources.size());
-    this->resources.emplace_back(std::move(resource));
+    resourceRefs[resource->guid] = static_cast<uint32_t>(resources.size());
+    resources.emplace_back(std::move(resource));
 }
 
-void ScenarioSpec::addCommand(std::unique_ptr<CommandDesc> command) { this->commands.emplace_back(std::move(command)); }
+void ScenarioSpec::addCommand(std::unique_ptr<CommandDesc> command) { commands.emplace_back(std::move(command)); }
+
+bool ScenarioSpec::isLastCommand(CommandType type) const { return commands.back()->commandType == type; }
+
+uint64_t ScenarioSpec::commandCount(CommandType type) const {
+    return static_cast<uint64_t>(
+        std::count_if(commands.begin(), commands.end(),
+                      [type](const std::unique_ptr<CommandDesc> &cmd) { return cmd->commandType == type; }));
+}
 
 Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
     : _opts{opts}, _ctx{opts}, _dataManager(_ctx), _scenarioSpec(scenarioSpec), _compute(_ctx) {
@@ -367,6 +375,8 @@ void Scenario::setupCommands(int iteration) {
     }
     // Setup commands
     mlsdk::logging::info("Setup commands");
+    uint64_t numBoundaries = _scenarioSpec.commandCount(CommandType::MarkBoundary);
+    uint64_t skippedBoundary = 0;
     uint32_t nQueries = 0;
     for (auto &command : _scenarioSpec.commands) {
         switch (command->commandType) {
@@ -423,6 +433,14 @@ void Scenario::setupCommands(int iteration) {
         case (CommandType::MarkBoundary): {
             MarkBoundaryDesc &markBoundary = reinterpret_cast<MarkBoundaryDesc &>(*command);
             if (_ctx._optionals.mark_boundary == true) {
+                if (iteration > 0) {
+                    // If the last command in the previous iteration was a boundary, a subsequent boundary is skipped
+                    if (_scenarioSpec.isLastCommand(CommandType::MarkBoundary) && _compute.getCommands().empty()) {
+                        skippedBoundary = 1;
+                        continue;
+                    }
+                }
+                markBoundary.frameId += uint64_t(iteration) * (numBoundaries - skippedBoundary);
                 _compute.registerMarkBoundary(markBoundary, &_dataManager);
             } else {
                 mlsdk::logging::warning("Frame boundary extension not present");

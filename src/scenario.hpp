@@ -44,6 +44,10 @@ struct ScenarioSpec {
 
     void addCommand(std::unique_ptr<CommandDesc> command);
 
+    bool isLastCommand(CommandType type) const;
+
+    uint64_t commandCount(CommandType type) const;
+
     std::vector<std::unique_ptr<ResourceDesc>> resources{};
     std::vector<std::unique_ptr<CommandDesc>> commands{};
     std::unordered_map<Guid, uint32_t> resourceRefs{};
