@@ -115,6 +115,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         hasExtension(extensions, VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.mark_boundary =
         hasExtension(extensions, VK_EXT_FRAME_BOUNDARY_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+    _optionals.neural_accelerator_statistics = hasExtension(
+        extensions, VK_ARM_DATA_GRAPH_NEURAL_ACCELERATOR_STATISTICS_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.maintenance4 =
         hasExtension(extensions, VK_KHR_MAINTENANCE_4_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.maintenance5 =
@@ -154,7 +156,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     const auto availableFeatures = _physicalDev.getFeatures2<
         vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features,
         vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR,
-        vk::PhysicalDeviceShaderFloat8FeaturesEXT, vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM>();
+        vk::PhysicalDeviceShaderFloat8FeaturesEXT, vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM,
+        vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM>();
 
     const auto &availableCoreFeatures = availableFeatures.template get<vk::PhysicalDeviceFeatures2>().features;
     const auto &[available11Features, available12Features, available13Features, availableBfloat16, availableFloat8] =
@@ -164,11 +167,25 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
 
     const auto &availableDataGraphOpticalFlow =
         availableFeatures.template get<vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM>();
+    const auto &availableDataGraphNeuralAcceleratorStatistics =
+        availableFeatures.template get<vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM>();
     if (_optionals.optical_flow && !availableDataGraphOpticalFlow.dataGraphOpticalFlow) {
         mlsdk::logging::warning("VK_ARM_data_graph_optical_flow extension is present, but "
                                 "dataGraphOpticalFlow feature is not supported. "
                                 "Disabling optical flow support.");
         _optionals.optical_flow = false;
+    }
+    if (_optionals.neural_accelerator_statistics &&
+        !availableDataGraphNeuralAcceleratorStatistics.dataGraphNeuralAcceleratorStatistics) {
+        mlsdk::logging::warning("VK_ARM_data_graph_neural_accelerator_statistics extension is present, but "
+                                "dataGraphNeuralAcceleratorStatistics feature is not supported. "
+                                "Disabling Neural Accelerator statistics support.");
+        _optionals.neural_accelerator_statistics = false;
+    }
+    if (!_optionals.neural_accelerator_statistics &&
+        (scenarioOptions.shouldDumpNeuralDebugDatabase() || scenarioOptions.shouldDumpNeuralStatistics())) {
+        throw std::runtime_error("Neural Accelerator dump requested, but "
+                                 "VK_ARM_data_graph_neural_accelerator_statistics is not supported or enabled");
     }
 
     const bool requiresDynamicRendering = familyQueue == FamilyQueue::Graphics;
@@ -221,6 +238,14 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         featureChain = &dataGraphOpticalFlowFeat;
     }
 
+    vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM dataGraphNeuralAcceleratorStatisticsFeat{};
+    if (_optionals.neural_accelerator_statistics) {
+        dataGraphNeuralAcceleratorStatisticsFeat.dataGraphNeuralAcceleratorStatistics =
+            availableDataGraphNeuralAcceleratorStatistics.dataGraphNeuralAcceleratorStatistics;
+        dataGraphNeuralAcceleratorStatisticsFeat.pNext = featureChain;
+        featureChain = &dataGraphNeuralAcceleratorStatisticsFeat;
+    }
+
     vk::PhysicalDeviceDataGraphFeaturesARM dataGraphFeat{};
     dataGraphFeat.dataGraph = true;
     dataGraphFeat.dataGraphShaderModule = true;
@@ -247,6 +272,9 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     }
     if (_optionals.mark_boundary) {
         vulkanDeviceExtensions.push_back(VK_EXT_FRAME_BOUNDARY_EXTENSION_NAME);
+    }
+    if (_optionals.neural_accelerator_statistics) {
+        vulkanDeviceExtensions.push_back(VK_ARM_DATA_GRAPH_NEURAL_ACCELERATOR_STATISTICS_EXTENSION_NAME);
     }
     if (_optionals.maintenance4) {
         vulkanDeviceExtensions.push_back(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);

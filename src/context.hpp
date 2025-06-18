@@ -15,6 +15,7 @@ struct ScenarioOptions;
 struct OptionalExtensions {
     bool custom_border_color = false;
     bool mark_boundary = false;
+    bool neural_accelerator_statistics = false;
     bool maintenance4 = false;
     bool maintenance5 = false;
     bool deferred_operation = false;

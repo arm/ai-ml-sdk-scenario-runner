@@ -78,7 +78,8 @@ class Compute {
     void createPipeline(const PipelineCreateArguments &args, const ShaderInfo &shaderInfo,
                         const uint32_t *spvCode = nullptr, size_t spvSize = 0);
     void createPipeline(const PipelineCreateArguments &args, uint32_t segmentIndex, const VgfView &vgfView,
-                        const DataManager &dataManager);
+                        const DataManager &dataManager, bool enableNeuralStatistics,
+                        vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
 
     /// \brief Create a graphics pipeline
     void createPipeline(const PipelineCreateArguments &args, const ShaderInfo &vertexShaderInfo,
@@ -86,7 +87,8 @@ class Compute {
 
     /// \brief Create a DataGraph pipeline through SPIR-V dispatch
     void createPipeline(const PipelineCreateArguments &args, const ShaderInfo &shaderInfo,
-                        const DataManager &dataManager, const std::vector<GraphConstantInfo> &constants);
+                        const DataManager &dataManager, const std::vector<GraphConstantInfo> &constants,
+                        bool enableNeuralStatistics, vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
 
     /// \brief Create an optical flow data graph pipeline.
     ///
@@ -154,6 +156,9 @@ class Compute {
     /// \brief Write profiling data to file
     void writeProfilingFile(const std::filesystem::path &profilingPath, int iteration, int repeatCount) const;
 
+    void dumpNeuralDebugDatabase(const std::filesystem::path &neuralDebugDatabaseDumpDir) const;
+    void dumpNeuralStatistics(const std::filesystem::path &neuralStatisticsDumpDir,
+                              vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) const;
     void sessionRAMsDump(const std::filesystem::path &sessionRAMsDumpDir) const;
 
   private:

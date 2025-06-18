@@ -321,7 +321,8 @@ Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, co
 
 // Create DataGraph pipeline directly from SPIR-V module + constants (no VGF)
 Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, const DataManager &dataManager,
-                   const std::vector<GraphConstantInfo> &constants)
+                   const std::vector<GraphConstantInfo> &constants, bool enableNeuralStatistics,
+                   vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode)
     : _type(PipelineType::GraphCompute), _debugName(args.debugName) {
 
     // Descriptor sets and pipeline layout
@@ -346,7 +347,8 @@ Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, co
                                                 nullptr, vk::TensorUsageFlagBitsARM::eDataGraph);
         constantInfos.emplace_back(constant.index, constant.data.data(), &constantTensorDescriptions.back());
     }
-    graphComputePipelineCommon(args.ctx, shaderInfo, resourceInfos, constantInfos, args.pipelineCache);
+    graphComputePipelineCommon(args.ctx, shaderInfo, resourceInfos, constantInfos, args.pipelineCache,
+                               enableNeuralStatistics, neuralStatisticsMode);
 }
 
 Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &vertexShaderInfo,
@@ -363,7 +365,8 @@ Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &vertexShaderIn
 }
 
 Pipeline::Pipeline(const CommonArguments &args, const uint32_t segmentIndex, const VgfView &vgfView,
-                   const DataManager &dataManager)
+                   const DataManager &dataManager, bool enableNeuralStatistics,
+                   vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode)
     : _type{PipelineType::GraphCompute}, _debugName(args.debugName) {
 
     createDescriptorSetLayouts(args.ctx, args.bindings);
@@ -375,7 +378,8 @@ Pipeline::Pipeline(const CommonArguments &args, const uint32_t segmentIndex, con
     std::vector<vk::DataGraphPipelineResourceInfoARM> resourceInfos;
     makeResourceInfos(args.bindings, dataManager, tensorDescriptions, resourceInfos, imageLayouts);
 
-    graphComputePipelineCommon(args.ctx, segmentIndex, vgfView, args.pipelineCache, resourceInfos);
+    graphComputePipelineCommon(args.ctx, segmentIndex, vgfView, args.pipelineCache, resourceInfos,
+                               enableNeuralStatistics, neuralStatisticsMode);
 }
 
 Pipeline::Pipeline(const CommonArguments &args, const DataManager &dataManager, const TypedBinding &inputSearch,
@@ -498,19 +502,24 @@ Pipeline::Pipeline(const CommonArguments &args, const DataManager &dataManager, 
 void Pipeline::graphComputePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
                                           const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
                                           const std::vector<vk::DataGraphPipelineConstantARM> &constantInfos,
-                                          const std::shared_ptr<PipelineCache> &pipelineCache) {
+                                          const std::shared_ptr<PipelineCache> &pipelineCache,
+                                          bool enableNeuralStatistics,
+                                          vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
     // Compile/load SPIR-V code
     const auto spv = readShaderCode(shaderInfo);
     _shader = createShaderModuleFromCode(ctx, spv.data(), spv.size());
     validateShaderModule(spv.data(), spv.size());
     trySetVkRaiiObjectDebugName(ctx, _shader, _debugName + " shader");
 
-    buildDataGraphPipeline(ctx, shaderInfo.entry, resourceInfos, constantInfos, pipelineCache);
+    buildDataGraphPipeline(ctx, shaderInfo.entry, resourceInfos, constantInfos, pipelineCache, enableNeuralStatistics,
+                           neuralStatisticsMode);
 }
 
 void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIndex, const VgfView &vgfView,
                                           const std::shared_ptr<PipelineCache> &pipelineCache,
-                                          const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos) {
+                                          const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
+                                          bool enableNeuralStatistics,
+                                          vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
     // Setup constant resource info
     auto constantIndexes = vgfView.getSegmentConstantIndexes(segmentIndex);
     std::vector<vk::TensorDescriptionARM> constantTensorDescriptions;
@@ -556,16 +565,23 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIn
 
     auto entryPoint = vgfView.getModuleEntryPoint(segmentIndex);
 
-    buildDataGraphPipeline(ctx, entryPoint, resourceInfos, constantInfos, pipelineCache);
+    buildDataGraphPipeline(ctx, entryPoint, resourceInfos, constantInfos, pipelineCache, enableNeuralStatistics,
+                           neuralStatisticsMode);
 }
 
-void Pipeline::initSession(const Context &ctx) {
+void Pipeline::initSession(const Context &ctx, bool enableNeuralStatistics,
+                           vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
     // Create session for the pipeline
     vk::DataGraphPipelineSessionCreateFlagsARM sessionFlags{};
     if (_opticalFlowSession) {
         sessionFlags |= vk::DataGraphPipelineSessionCreateFlagBitsARM::eOpticalFlowCache;
     }
     vk::DataGraphPipelineSessionCreateInfoARM sessionCreateInfo{sessionFlags, *_pipeline};
+
+    vk::DataGraphPipelineSessionNeuralStatisticsCreateInfoARM sessionNeuralStatsCreateInfo(neuralStatisticsMode);
+    if (enableNeuralStatistics) {
+        insertAfter(&sessionCreateInfo, &sessionNeuralStatsCreateInfo);
+    }
 
     _session = vk::raii::DataGraphPipelineSessionARM{ctx.device(), sessionCreateInfo};
 
@@ -590,9 +606,13 @@ void Pipeline::initSession(const Context &ctx) {
 
         //  Allocate memory for the session
         if (memoryReqs.memoryRequirements.size > 0) {
+            const bool isNeuralStatisticsBindPoint =
+                bindPointReq.bindPoint == vk::DataGraphPipelineSessionBindPointARM::eNeuralAcceleratorStatistics;
             vk::MemoryPropertyFlags memoryFlags;
             if (ctx.sessionMemoryDumpEnabled()) {
                 mlsdk::logging::warning("Enabling session memory dumping is known to cause issues on certain GPUs.");
+                memoryFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+            } else if (enableNeuralStatistics && isNeuralStatisticsBindPoint) {
                 memoryFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
             } else {
                 memoryFlags = vk::MemoryPropertyFlagBits::eDeviceLocal;
@@ -602,6 +622,14 @@ void Pipeline::initSession(const Context &ctx) {
             vk::MemoryAllocateInfo allocateInfo(memoryReqs.memoryRequirements.size, memoryTypeIdx);
             _sessionMemory.emplace_back(vk::raii::DeviceMemory(ctx.device(), allocateInfo));
             _sessionMemoryDataSizes.push_back(memoryReqs.memoryRequirements.size);
+
+            if (isNeuralStatisticsBindPoint) {
+                if (_neuralStatisticsMemoryInfo.has_value()) {
+                    throw std::runtime_error("More than one bind point for Neural Statistics");
+                }
+                _neuralStatisticsMemoryInfo = {static_cast<uint32_t>(_sessionMemory.size() - 1),
+                                               memoryReqs.memoryRequirements.size};
+            }
 
             // Bind memory to session
             uint32_t resourceIndex = 0;
@@ -617,9 +645,15 @@ void Pipeline::initSession(const Context &ctx) {
 void Pipeline::buildDataGraphPipeline(const Context &ctx, const std::string &entry,
                                       const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
                                       const std::vector<vk::DataGraphPipelineConstantARM> &constantInfos,
-                                      const std::shared_ptr<PipelineCache> &pipelineCache) {
+                                      const std::shared_ptr<PipelineCache> &pipelineCache, bool enableNeuralStatistics,
+                                      vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
     vk::DataGraphPipelineShaderModuleCreateInfoARM shaderModuleInfo(
         *_shader, entry.c_str(), nullptr, static_cast<uint32_t>(constantInfos.size()), constantInfos.data(), nullptr);
+
+    vk::DataGraphPipelineNeuralStatisticsCreateInfoARM neuralStatsCreateInfo(enableNeuralStatistics);
+    if (enableNeuralStatistics) {
+        insertAfter(&shaderModuleInfo, &neuralStatsCreateInfo);
+    }
 
     const vk::raii::DeferredOperationKHR deferredOperation(nullptr);
 
@@ -638,7 +672,7 @@ void Pipeline::buildDataGraphPipeline(const Context &ctx, const std::string &ent
     _pipeline = vk::raii::Pipeline(ctx.device(), deferredOperation, vkPipelineCache, pipelineCreateInfo);
     trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
 
-    initSession(ctx);
+    initSession(ctx, enableNeuralStatistics, neuralStatisticsMode);
 }
 
 const std::string &Pipeline::debugName() const { return _debugName; }
