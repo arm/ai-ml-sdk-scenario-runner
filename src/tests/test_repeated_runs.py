@@ -130,6 +130,10 @@ def test_conv2d_vgf_count(sdk_tools, resources_helper, numpy_helper):
     assert headerDecoder.IsValid()
     assert headerDecoder.CheckVersion()
 
+    assert vgf.VerifyModuleTable(
+        buffer[headerDecoder.GetModuleTableOffset() :],
+        headerDecoder.GetModuleTableSize(),
+    )
     moduleDecoder = vgf.CreateModuleTableDecoder(
         buffer[headerDecoder.GetModuleTableOffset() :]
     )
