@@ -1,9 +1,10 @@
 Usage
 =============
 
-.. include:: ../generated/BUILD.md
+.. include:: ../generated/README.md
     :parser: myst_parser.sphinx_
-    :start-after: ## Usage
+    :start-after: ### Usage
+    :end-before: ## License
 
 The following command is an example run command that reads a JSON file and executes it:
 

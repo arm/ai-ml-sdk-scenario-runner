@@ -1,6 +1,7 @@
 Building the ML SDK Scenario Runner
 ===================================
 
-.. include:: ../generated/BUILD.md
+.. include:: ../generated/README.md
     :parser: myst_parser.sphinx_
-    :end-before: ## Usage
+    :start-after: ## Building Scenario Runner from source
+    :end-before: ### Usage
