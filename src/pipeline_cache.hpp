@@ -21,6 +21,8 @@ class PipelineCache {
     bool failOnCacheMiss() const { return _failOnMiss && !_cacheData.empty(); }
 
   private:
+    bool isValidPipelineCache(const std::vector<unsigned char> &cacheData, uint32_t expectedVendorID,
+                              uint32_t expectedDeviceID);
     std::filesystem::path _pipelineCachePath{};
     std::vector<uint8_t> _cacheData{};
     vk::raii::PipelineCache _pipelineCache{nullptr};

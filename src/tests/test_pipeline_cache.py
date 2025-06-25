@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 #
-# SPDX-FileCopyrightText: Copyright 2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 """ Tests for pipeline caching. """
+import os
+
 import numpy as np
 import pytest
 
@@ -86,3 +88,52 @@ def test_enable_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd)
 
     cache_data_third = files[0].read_bytes()
     assert cache_data_third == cache_data_first
+
+
+def test_incorrect_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd):
+    input1 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferA.npy")
+    input2 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferB.npy")
+
+    sdk_tools.compile_shader("add_shader.comp", {"TestType": "float"})
+
+    cache_path = resources_helper.get_testenv_path("incorrect_cache")
+    cache_path.mkdir()
+
+    sdk_tools.run_scenario(
+        "test_pipeline_cache/enable_pipeline_cache.json",
+        options=[
+            "--pipeline-caching",
+            "--cache-path",
+            cache_path,
+        ],
+    )
+
+    captured = capfd.readouterr()
+
+    assert "[Scenario-Runner] INFO: Pipeline Cache cleared" not in captured.out
+    assert "[Scenario-Runner] INFO: Pipeline Cache loaded" not in captured.out
+
+    result_first = numpy_helper.load("outBufferAdd2.npy", np.float32)
+    assert np.array_equal(result_first, input1 + input2 + input2)
+
+    files = list(cache_path.iterdir())
+    assert len(files) == 1 and files[0].suffix == ".cache"
+    with open(files[0], "wb") as fout:
+        fout.write(os.urandom(1024))
+
+    # run the second time with junk cache
+    sdk_tools.run_scenario(
+        "test_pipeline_cache/enable_pipeline_cache.json",
+        options=[
+            "--pipeline-caching",
+            "--cache-path",
+            cache_path,
+        ],
+    )
+
+    captured = capfd.readouterr()
+    assert (
+        "WARNING: Pipeline validation: Incorrect pipeline cache header size"
+        in captured.out
+    )
+    assert "WARNING: Pipeline Cache skipped: failed to validate" in captured.out
