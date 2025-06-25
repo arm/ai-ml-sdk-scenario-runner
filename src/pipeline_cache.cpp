@@ -11,6 +11,34 @@
 
 namespace mlsdk::scenariorunner {
 
+bool PipelineCache::isValidPipelineCache(const std::vector<unsigned char> &cacheData, uint32_t expectedVendorID,
+                                         uint32_t expectedDeviceID) {
+    if (cacheData.size() < sizeof(VkPipelineCacheHeaderVersionOne)) {
+        return false;
+    }
+    VkPipelineCacheHeaderVersionOne header{};
+    std::memcpy(&header, cacheData.data(), sizeof(header));
+    if (header.headerSize != sizeof(VkPipelineCacheHeaderVersionOne)) {
+        mlsdk::logging::warning("Pipeline validation: Incorrect pipeline cache header size");
+        return false;
+    }
+    if (header.headerVersion != VK_PIPELINE_CACHE_HEADER_VERSION_ONE) {
+        std::ostringstream oss;
+        oss << "Pipeline validation: Incorrect pipeline header version (" << header.headerVersion << "). Expected ("
+            << VK_PIPELINE_CACHE_HEADER_VERSION_ONE << ")";
+        mlsdk::logging::warning(oss.str());
+        return false;
+    }
+    if (header.vendorID != expectedVendorID || header.deviceID != expectedDeviceID) {
+        std::ostringstream oss;
+        oss << "Pipeline validation: Incorrect device used with cache. (VendorID, DeviceID) = (" << header.vendorID
+            << ", " << header.deviceID << "). Expected (" << expectedVendorID << ", " << expectedDeviceID << ")";
+        mlsdk::logging::warning(oss.str());
+        return false;
+    }
+    return true;
+}
+
 PipelineCache::PipelineCache(Context &ctx, const std::filesystem::path &pipelineCachePath, bool clearCache,
                              bool failOnMiss)
     : _pipelineCachePath(pipelineCachePath), _failOnMiss(failOnMiss) {
@@ -32,16 +60,27 @@ PipelineCache::PipelineCache(Context &ctx, const std::filesystem::path &pipeline
         const auto dataPos = cacheFile.tellg();
         cacheFile.seekg(0, std::ios::end);
         const auto size = cacheFile.tellg() - dataPos;
-        _cacheData.resize(size_t(size));
-        cacheFile.seekg(dataPos);
-        cacheFile.read(reinterpret_cast<char *>(_cacheData.data()), size);
-        cacheFile.close();
+        if (size <= 0) {
+            mlsdk::logging::warning("Pipeline Cache skipped: size invalid");
+        } else {
+            _cacheData.resize(size_t(size));
+            cacheFile.seekg(dataPos);
+            if (!cacheFile.read(reinterpret_cast<char *>(_cacheData.data()), size)) {
+                throw std::runtime_error("Failed to read pipeline cache data.");
+            }
+            cacheFile.close();
 
-        cacheCreateInfo.initialDataSize = _cacheData.size();
-        cacheCreateInfo.pInitialData = _cacheData.data();
-        mlsdk::logging::info("Pipeline Cache loaded");
+            auto props = ctx.physicalDevice().getProperties();
+            if (!isValidPipelineCache(_cacheData, props.vendorID, props.deviceID)) {
+                mlsdk::logging::warning("Pipeline Cache skipped: failed to validate.");
+                _cacheData.clear(); // Fallback to empty
+            } else {
+                cacheCreateInfo.initialDataSize = _cacheData.size();
+                cacheCreateInfo.pInitialData = _cacheData.data();
+                mlsdk::logging::info("Pipeline Cache loaded and validated.");
+            }
+        }
     }
-
     _pipelineCache = vk::raii::PipelineCache(ctx.device(), cacheCreateInfo);
 
     _feedback = vk::PipelineCreationFeedback(vk::PipelineCreationFeedbackFlagBits::eValid, 0);
