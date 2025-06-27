@@ -28,6 +28,7 @@ option(SCENARIO_RUNNER_ENABLE_CCACHE "Enable CCACHE support" OFF)
 option(SCENARIO_RUNNER_ENABLE_LINT "Enable linting using cppcheck" OFF)
 option(SCENARIO_RUNNER_GCC_SANITIZERS "Sanitizers" OFF)
 option(SCENARIO_RUNNER_ENABLE_RDOC "Build Scenario Runner w/ RDoc support enabled" OFF)
+option(SCENARIO_RUNNER_BUILD_DOCS "Build project documentation" OFF)
 
 # Handle build type, set default as Release
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")
@@ -156,9 +157,10 @@ add_executable(${SCENARIO_RUNNER_NAMESPACE}::scenario-runner ALIAS scenario-runn
 
 install(TARGETS scenario-runner EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
 
-if(ML_SDK_BUILD_DOCS)
+if(ML_SDK_BUILD_DOCS OR SCENARIO_RUNNER_BUILD_DOCS)
     include(docs/docs.cmake)
 endif()
+unset(SCENARIO_RUNNER_BUILD_DOCS CACHE)
 
 if(SCENARIO_RUNNER_ENABLE_RDOC)
     add_custom_command(TARGET scenario-runner
@@ -170,6 +172,7 @@ if(SCENARIO_RUNNER_ENABLE_RDOC)
             COMMENT "Copying RenderDoc libraries to scenario-runner output directory"
     )
 endif()
+unset(SCENARIO_RUNNER_ENABLE_RDOC CACHE)
 
 ###############################################################################
 # Packaging

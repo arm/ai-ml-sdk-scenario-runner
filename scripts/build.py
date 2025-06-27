@@ -158,7 +158,7 @@ class Builder:
             cmake_setup_cmd.append(f"-DPYBIND11_PATH={self.pybind11_path}")
 
         if self.doc:
-            cmake_setup_cmd.append("-DML_SDK_BUILD_DOCS=ON")
+            cmake_setup_cmd.append("-DSCENARIO_RUNNER_BUILD_DOCS=ON")
 
         if self.run_linting:
             cmake_setup_cmd.append("-DSCENARIO_RUNNER_ENABLE_LINT=ON")
