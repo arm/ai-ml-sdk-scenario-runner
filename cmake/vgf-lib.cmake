@@ -5,7 +5,7 @@
 
 include(version)
 
-set(ML_SDK_VGF_LIB_PATH "ML_SDK_VGF_LIB-NOTFOUND" CACHE PATH "Path to VGF lib")
+set(ML_SDK_VGF_LIB_PATH "ML_SDK_VGF_LIB-NOTFOUND" CACHE PATH "Path to VGF Library")
 set(VGF_VERSION "unknown")
 
 if(EXISTS ${ML_SDK_VGF_LIB_PATH}/CMakeLists.txt)

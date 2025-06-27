@@ -489,7 +489,7 @@ Shader resource example:
       //...
   }
 
-You can load complete graphs via the VGF Lib Decoder. The complete graphs are specified as
+You can load complete graphs via the VGF Library Decoder. The complete graphs are specified as
 VGF files. For some use cases, you should substitute placeholder shader
 nodes in the graph for specific shaders.
 

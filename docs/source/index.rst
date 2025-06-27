@@ -4,7 +4,7 @@ ML SDK Scenario Runner
 .. include:: ../generated/README.md
     :parser: myst_parser.sphinx_
     :start-after: # ML SDK Scenario Runner
-    :end-before: ## How to build
+    :end-before: ### Building Scenario Runner from source
 
 .. toctree::
    :maxdepth: 1
