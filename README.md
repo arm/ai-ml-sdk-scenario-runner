@@ -8,7 +8,7 @@ in a declarative way via a JSON description. The Scenario Runner can parse the
 JSON, load the input stimulus that is described in the JSON, execute the
 scenario and produce output artefacts.
 
-## Building Scenario Runner from source
+### Building Scenario Runner from source
 
 The build system must have:
 
