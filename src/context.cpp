@@ -151,6 +151,7 @@ Context::Context(const ScenarioOptions &scenarioOptions)
 
     vk::PhysicalDeviceTensorFeaturesARM tensorFeat;
     tensorFeat.shaderTensorAccess = true;
+    tensorFeat.tensors = true;
     tensorFeat.pNext = &physicalDev3Feat;
 
     vk::PhysicalDeviceDataGraphFeaturesARM dataGraphFeat;
