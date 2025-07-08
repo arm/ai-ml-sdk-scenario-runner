@@ -1,12 +1,12 @@
 # ML SDK Scenario Runner
 
 The Scenario Runner is an application that executes shader and neural network
-graph workloads through the Vulkan® or Arm® Vulkan® ML extensions. The
-Scenario Runner acts as a validation and performance exploration vehicle. The
-Scenario Runner also acts as a mechanism to define test-cases called scenarios
-in a declarative way via a JSON description. The Scenario Runner can parse the
-JSON, load the input stimulus that is described in the JSON, execute the
-scenario and produce output artefacts.
+graph workloads through Vulkan® or the ML extensions for Vulkan®. The Scenario
+Runner acts as a validation and performance exploration vehicle. The Scenario
+Runner also acts as a mechanism to define test-cases called scenarios in a
+declarative way via a JSON description. The Scenario Runner can parse the JSON,
+load the input stimulus that is described in the JSON, execute the scenario and
+produce output artefacts.
 
 ### Building Scenario Runner from source
 

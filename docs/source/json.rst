@@ -380,7 +380,7 @@ dispatch_graph
 """"""""""""""
 
 The ``dispatch_graph`` command dispatches a compiled graph using the proposed
-Arm® Vulkan® ML extensions.
+ML extensions for Vulkan®.
 
 .. code-block::
 
