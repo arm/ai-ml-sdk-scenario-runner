@@ -23,6 +23,10 @@ else()
     set(CPACK_PACKAGE_NAME "ml-sdk-scenario-runner")
 endif()
 
+if(DEFINED ANDROID_PLATFORM)
+    message(WARNING "Cross-compiling for Android is currently an experimental feature.")
+endif()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 #############################################################################
@@ -189,3 +193,4 @@ if(NOT ML_SDK_GENERATE_CPACK)
         NAMESPACE ${SCENARIO_RUNNER_NAMESPACE}
         LICENSES "${CMAKE_CURRENT_LIST_DIR}/LICENSES/Apache-2.0.txt")
 endif()
+unset(ANDROID_PLATFORM CACHE)
