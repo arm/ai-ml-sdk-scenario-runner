@@ -16,7 +16,12 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(SCENARIO_RUNNER_PACKAGE_NAME ${PROJECT_NAME})
 set(SCENARIO_RUNNER_NAMESPACE ${PROJECT_NAME})
-set(CPACK_PACKAGE_NAME "ml-sdk-scenario-runner")
+if(ML_SDK_GENERATE_CPACK)
+    set(SCENARIO_RUNNER_PACKAGE_NAME "ml-sdk")
+    set(SCENARIO_RUNNER_NAMESPACE "ml-sdk")
+else()
+    set(CPACK_PACKAGE_NAME "ml-sdk-scenario-runner")
+endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
@@ -179,6 +184,8 @@ unset(SCENARIO_RUNNER_ENABLE_RDOC CACHE)
 ###############################################################################
 include(package)
 
-mlsdk_package(PACKAGE_NAME ${SCENARIO_RUNNER_PACKAGE_NAME}
-    NAMESPACE ${SCENARIO_RUNNER_NAMESPACE}
-    LICENSES "${CMAKE_CURRENT_LIST_DIR}/LICENSES/Apache-2.0.txt")
+if(NOT ML_SDK_GENERATE_CPACK)
+    mlsdk_package(PACKAGE_NAME ${SCENARIO_RUNNER_PACKAGE_NAME}
+        NAMESPACE ${SCENARIO_RUNNER_NAMESPACE}
+        LICENSES "${CMAKE_CURRENT_LIST_DIR}/LICENSES/Apache-2.0.txt")
+endif()
