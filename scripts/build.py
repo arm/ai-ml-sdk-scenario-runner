@@ -103,9 +103,12 @@ class Builder:
             return True
 
         if self.target_platform == "android":
+            print(
+                "WARNING: Cross-compiling Scenario Runner for Android is currently an experimental feature."
+            )
             if not self.cmake_toolchain_for_android:
                 print(
-                    "No toolchain path specified for android cross-compilation",
+                    "No toolchain path specified for Android cross-compilation",
                     file=sys.stderr,
                 )
                 return False
