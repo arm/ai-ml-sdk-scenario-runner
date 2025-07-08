@@ -32,5 +32,10 @@ target_link_libraries(dds_utils
 )
 target_compile_options(dds_utils PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
 
-install(TARGETS glslc EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
-install(TARGETS dds_utils EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
+if(ML_SDK_GENERATE_CPACK)
+    install(TARGETS glslc EXPORT ml-sdkConfig)
+    install(TARGETS dds_utils EXPORT ml-sdkConfig)
+else()
+    install(TARGETS glslc EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
+    install(TARGETS dds_utils EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
+endif()
