@@ -1,0 +1,27 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "buffer": {
+                "shader_access": "readwrite",
+                "size": 256,
+                "src": "inBuffer.npy",
+                "uid": "inBuffer",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        },
+        {
+            "buffer": {
+                "shader_access": "readwrite",
+                "size": 256,
+                "dst": "outBuffer.npy",
+                "uid": "outBuffer",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        }
+    ]
+}

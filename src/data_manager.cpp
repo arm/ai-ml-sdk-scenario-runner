@@ -21,39 +21,24 @@ namespace mlsdk::scenariorunner {
 
 DataManager::DataManager(Context &ctx) : _ctx(ctx) {}
 
-void DataManager::createBuffer(Guid guid, const BufferInfo &info, const std::vector<char> &values) {
-    _buffers.insert({guid, Buffer(_ctx, info.debugName, info.size)});
-    auto &buffer = _buffers[guid];
+void DataManager::createBuffer(Guid guid, const BufferInfo &info) {
+    _buffers.insert({guid, Buffer(_ctx, info.debugName, info.size, getOrCreateMemoryManager(guid))});
+}
+
+void DataManager::createBuffer(Guid guid, const BufferInfo &info, std::vector<char> &values) {
+    _buffers.insert({guid, Buffer(_ctx, info.debugName, info.size, getOrCreateMemoryManager(guid))});
+    auto &buffer = getBufferMut(guid);
+    buffer.allocateMemory(_ctx);
     buffer.fill(values.data(), values.size());
 }
 
-void DataManager::createBuffer(Guid guid, const BufferInfo &info, const mlsdk::numpy::data_ptr &dataPtr) {
-    _buffers.insert({guid, Buffer(_ctx, info.debugName, info.size)});
-    auto &buffer = _buffers[guid];
-    buffer.fill(dataPtr.ptr, dataPtr.size());
-}
-
-void DataManager::createZeroedBuffer(Guid guid, const BufferInfo &info) {
-    _buffers.insert({guid, Buffer(_ctx, info.debugName, info.size)});
-    auto &buffer = _buffers[guid];
-    buffer.fillZero();
-}
-
-void DataManager::createTensor(Guid guid, const TensorInfo &info, std::optional<Guid> aliasTarget) {
-    if (aliasTarget.has_value()) {
-        _tensors.insert(
-            {guid, Tensor(_ctx, info.debugName, info.format, info.shape, info.isAliased,
-                          Tensor::convertTiling(info.tiling), getMemoryManager(aliasTarget.value()), false)});
-    } else {
-        createMemoryManager(guid);
-        _tensors.insert({guid, Tensor(_ctx, info.debugName, info.format, info.shape, info.isAliased,
-                                      Tensor::convertTiling(info.tiling), getMemoryManager(guid), false)});
-    }
+void DataManager::createTensor(Guid guid, const TensorInfo &info) {
+    _tensors.insert({guid, Tensor(_ctx, info.debugName, info.format, info.shape, info.isAliasedWithImage,
+                                  Tensor::convertTiling(info.tiling), getOrCreateMemoryManager(guid), false)});
 }
 
 void DataManager::createImage(Guid guid, const ImageInfo &info) {
-    createMemoryManager(guid);
-    _images.insert({guid, Image(_ctx, info, getMemoryManager(guid))});
+    _images.insert({guid, Image(_ctx, info, getOrCreateMemoryManager(guid))});
 }
 
 void DataManager::createVgfView(Guid guid, const DataGraphDesc &desc) {
@@ -264,16 +249,43 @@ vk::DescriptorType DataManager::getResourceDescriptorType(const Guid &guid) cons
     }
 }
 
-void DataManager::createMemoryManager(Guid guid) {
-    _memoryManagers.insert({guid, std::make_shared<ResourceMemoryManager>()});
+std::shared_ptr<ResourceMemoryManager> DataManager::getOrCreateMemoryManager(const Guid &resourceGuid) {
+    Guid groupGuid{};
+    for (const auto &groupToResource : _groupToResources) {
+        if (groupToResource.second.count(resourceGuid)) {
+            groupGuid = groupToResource.first;
+            break;
+        }
+    }
+    auto memMan = getMemoryManager(groupGuid);
+    if (memMan == nullptr) {
+        _groupMemoryManagers.insert({groupGuid, std::make_shared<ResourceMemoryManager>()});
+        return getMemoryManager(groupGuid);
+    }
+    return memMan;
 }
 
-std::shared_ptr<ResourceMemoryManager> DataManager::getMemoryManager(const Guid &guid) const {
-    auto it = _memoryManagers.find(guid);
-    if (it != _memoryManagers.end()) {
+std::shared_ptr<ResourceMemoryManager> DataManager::getMemoryManager(const Guid &groupGuid) const {
+    auto it = _groupMemoryManagers.find(groupGuid);
+    if (it != _groupMemoryManagers.end()) {
         return it->second;
     }
     return nullptr;
+}
+
+void DataManager::addResourceToGroup(const Guid &group, const Guid &resource) {
+    _groupToResources[group].insert(resource);
+}
+
+std::unordered_map<Guid, std::set<Guid>> DataManager::getResourceMemoryGroups() const { return _groupToResources; }
+
+bool DataManager::isSingleMemoryGroup(const Guid &resource) const {
+    for (const auto &groupToResource : _groupToResources) {
+        if (groupToResource.second.count(resource) && groupToResource.second.size() == 1) {
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace mlsdk::scenariorunner

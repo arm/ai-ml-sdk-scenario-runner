@@ -1,0 +1,16 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "buffer":{
+                "uid": "buffer0",
+                "size": 100,
+                "shader_access":"readwrite",
+                "memory_group" : {
+                    "offset": 0
+                }
+            }
+        }
+    ]
+}

@@ -19,6 +19,9 @@
         },
         "dst": {
             "type": "string"
+        },
+        "memory_group": {
+            "$ref" : "urn:scenario:common#/definitions/memory_group"
         }
     },
     "required": [

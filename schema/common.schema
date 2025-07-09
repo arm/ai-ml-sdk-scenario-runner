@@ -39,6 +39,19 @@
                 "general",
                 "tensor_aliasing"
             ]
+        },
+        "memory_group": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "offset": {
+                    "type": "integer"
+                }
+            },
+            "required": ["id"]
         }
     }
 }

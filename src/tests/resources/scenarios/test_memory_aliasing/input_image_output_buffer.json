@@ -1,0 +1,33 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "image": {
+                "dims": [
+                    1,
+                    64,
+                    64,
+                    1
+                ],
+                "shader_access": "image_read",
+                "format": "VK_FORMAT_R16G16_SFLOAT",
+                "uid": "inImage",
+                "src": "inImage.dds",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        },
+        {
+            "buffer": {
+                "shader_access": "readwrite",
+                "size": 16384,
+                "dst": "outBuffer.npy",
+                "uid": "outBuffer",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        }
+    ]
+}

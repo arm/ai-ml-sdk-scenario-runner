@@ -110,9 +110,6 @@ NLOHMANN_JSON_SERIALIZE_ENUM(ImageLayout, {{ImageLayout::Unknown, nullptr},
 // Function to de-serialize RawDataDesc from JSON
 void from_json(const json &j, RawDataDesc &raw_data);
 
-// Function to de-serialize AliasTarget from JSON
-void from_json(const json &j, AliasTarget &target);
-
 // Function to de-serialize TensorDesc from JSON
 void from_json(const json &j, TensorDesc &tensor);
 

@@ -330,6 +330,19 @@ void from_json(const json &j, PushConstantMap &pushConstantMap) {
     pushConstantMap.shaderTarget = j.at("shader_target").get<std::string>();
 }
 
+/**
+ * @brief De-serialize MemoryGroup from JSON.
+ *
+ * @param j
+ * @param group
+ */
+void from_json(const json &j, MemoryGroup &group) {
+    group.memoryUid = j.at("id");
+    if (j.count("offset") != 0) {
+        group.offset = j.at("offset").get<int>();
+    }
+}
+
 //====================
 // Resources
 //====================
@@ -386,6 +399,9 @@ void from_json(const json &j, BufferDesc &buffer) {
     }
     if (j.count("dst") != 0) {
         buffer.dst = j.at("dst").get<std::string>();
+    }
+    if (j.count("memory_group") != 0) {
+        buffer.memoryGroup = j.at("memory_group").get<MemoryGroup>();
     }
 }
 
@@ -517,29 +533,6 @@ void from_json(const json &j, RawDataDesc &raw_data) {
 }
 
 /**
- * @brief De-serialize AliasTarget from JSON.
- *
- * @param j
- * @param target
- */
-void from_json(const json &j, AliasTarget &target) {
-    if (j.count("resource") != 0) {
-        target.resourceRef = j.at("resource").get<std::string>();
-        mlsdk::logging::warning("\"alias_target\" resource in scenario uses \"resource\" which is deprecated. Use "
-                                "\"resource_ref\" instead.");
-
-    } else {
-        target.resourceRef = j.at("resource_ref").get<std::string>();
-    }
-    if (j.count("mip_level") != 0) {
-        target.mipLevel = j.at("mip_level").get<int>();
-    }
-    if (j.count("array_layer") != 0) {
-        target.arrayLayer = j.at("array_layer").get<int>();
-    }
-}
-
-/**
  * @brief De-serialize TensorDesc from JSON.
  *
  * @param j
@@ -565,7 +558,15 @@ void from_json(const json &j, TensorDesc &tensor) {
         tensor.dst = j.at("dst").get<std::string>();
     }
     if (j.count("alias_target") != 0) {
-        from_json(j.find("alias_target").value(), tensor.aliasTarget);
+        if (j.count("memory_group") != 0) {
+            throw std::runtime_error(
+                "Unable to use both alias_target and memory_group types of aliasing simultaneously");
+        }
+        mlsdk::logging::warning("Use of \"alias_target\" in the scenario is deprecated. Use \"memory_group\" instead.");
+        tensor.memoryGroup = MemoryGroup{Guid(j.at("alias_target").at("resource_ref").get<std::string>())};
+    }
+    if (j.count("memory_group") != 0) {
+        tensor.memoryGroup = j.at("memory_group").get<MemoryGroup>();
     }
     if (j.count("tiling") != 0) {
         tensor.tiling = j.at("tiling").get<scenariorunner::Tiling>();
@@ -653,6 +654,9 @@ void from_json(const json &j, ImageDesc &image) {
         if (image.tiling == Tiling::Unknown) {
             throw std::runtime_error("Unknown tiling value");
         }
+    }
+    if (j.count("memory_group") != 0) {
+        image.memoryGroup = j.at("memory_group").get<MemoryGroup>();
     }
 }
 

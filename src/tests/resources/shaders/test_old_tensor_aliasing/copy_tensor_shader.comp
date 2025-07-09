@@ -1,0 +1,19 @@
+/*
+* SPDX-FileCopyrightText: Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+* SPDX-License-Identifier: Apache-2.0
+*/
+#version 450
+#extension GL_ARM_tensors : require
+#extension GL_EXT_shader_explicit_arithmetic_types : require
+
+layout(set=0, binding=0) uniform tensorARM<uint16_t, 4> _InputTensor;
+layout(set=0, binding=1) uniform tensorARM<uint16_t, 4> _OutputTensor;
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+void main()
+{
+    uint coords[4] = uint[](0, gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, gl_GlobalInvocationID.z);
+    uint16_t val[4];
+    tensorReadARM(_InputTensor, coords, val);
+    tensorWriteARM(_OutputTensor, coords, val);
+}

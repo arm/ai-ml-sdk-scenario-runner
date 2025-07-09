@@ -53,15 +53,14 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
 
     auto featProps = ctx.physicalDevice().getFormatProperties(_dataType);
 
-    vk::ImageTiling tiling;
     if (imageInfo.tiling.has_value()) {
         // Set tiling based on JSON file if set and then validate
-        tiling = convertTiling(imageInfo.tiling.value());
-        if (tiling == vk::ImageTiling::eLinear &&
+        _tiling = convertTiling(imageInfo.tiling.value());
+        if (_tiling == vk::ImageTiling::eLinear &&
             ((featProps.linearTilingFeatures & requiredFormatFlags) != requiredFormatFlags)) {
             throw std::runtime_error("Tiling type: LINEAR is not supported for this format type");
         }
-        if (tiling == vk::ImageTiling::eOptimal) {
+        if (_tiling == vk::ImageTiling::eOptimal) {
             if ((featProps.optimalTilingFeatures & requiredFormatFlags) != requiredFormatFlags) {
                 throw std::runtime_error("Tiling type: OPTIMAL is not supported for this formatType");
             } else if (imageInfo.isAliased) {
@@ -70,14 +69,14 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
         }
     } else if ((featProps.linearTilingFeatures & requiredFormatFlags) == requiredFormatFlags &&
                _mips <= getFormatMaxMipLevels(ctx, vk::ImageTiling::eLinear, usageFlags)) {
-        tiling = vk::ImageTiling::eLinear;
+        _tiling = vk::ImageTiling::eLinear;
     } else if ((featProps.optimalTilingFeatures & requiredFormatFlags) == requiredFormatFlags) {
-        tiling = vk::ImageTiling::eOptimal;
+        _tiling = vk::ImageTiling::eOptimal;
     } else {
         throw std::runtime_error("No supported tiling for this data type");
     }
 
-    if (_mips > getFormatMaxMipLevels(ctx, tiling, usageFlags)) {
+    if (_mips > getFormatMaxMipLevels(ctx, _tiling, usageFlags)) {
         throw std::runtime_error("The mip level provided is not supported for " + _imageInfo.debugName);
     }
     if (_mips <= 1 || imageInfo.isInput) {
@@ -86,13 +85,13 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
         _initialLayout = vk::ImageLayout::eUndefined;
     }
 
-    if (imageInfo.isAliased && tiling != vk::ImageTiling::eLinear) {
+    if (imageInfo.isAliased && _tiling != vk::ImageTiling::eLinear) {
         usageFlags |= vk::ImageUsageFlagBits::eTensorAliasingARM;
     }
 
     const vk::ImageCreateInfo imageCreateInfo(vk::ImageCreateFlags(), vk::ImageType::e2D, _dataType, extent,
                                               /*mipLevels=*/_mips,
-                                              /*arrayLayers=*/1, vk::SampleCountFlagBits::e1, tiling, usageFlags,
+                                              /*arrayLayers=*/1, vk::SampleCountFlagBits::e1, _tiling, usageFlags,
                                               vk::SharingMode::eExclusive, /*queueFamilyIndices=*/{}, _initialLayout);
     _image = vk::raii::Image(ctx.device(), imageCreateInfo);
 
@@ -134,7 +133,7 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
     _memoryManager->updateMemType(memoryRequirements.memoryTypeBits);
 
     vk::ImageSubresource targetSubresource(getImageAspectMaskForVkFormat(_dataType));
-    if (_mips == 1 && tiling == vk::ImageTiling::eLinear) {
+    if (_mips == 1 && _tiling == vk::ImageTiling::eLinear) {
         vk::SubresourceLayout targetSubresourceLayout = _image.getSubresourceLayout(targetSubresource);
 
         _memoryManager->updateSubResourceOffset(targetSubresourceLayout.offset);
@@ -145,6 +144,26 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
 
     _memoryManager->updateFormat(_dataType);
     _memoryManager->updateImageType(vk::ImageType::e2D);
+
+    // Create the staging buffer
+    vk::BufferCreateInfo bufferCreateInfo{vk::BufferCreateFlags(),
+                                          dataSize(),
+                                          vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst,
+                                          vk::SharingMode::eExclusive,
+                                          ctx.familyQueueIdx(),
+                                          nullptr};
+
+    _stagingBuffer = vk::raii::Buffer(ctx.device(), bufferCreateInfo);
+    const vk::MemoryRequirements memReqs = _stagingBuffer.getMemoryRequirements();
+    const auto flags = vk::MemoryPropertyFlagBits::eHostVisible;
+    const uint32_t memTypeIndex = findMemoryIdx(ctx, memReqs.memoryTypeBits, flags);
+    if (memTypeIndex == std::numeric_limits<uint32_t>::max()) {
+        throw std::runtime_error("Cannot find a memory type with the required properties");
+    }
+
+    const vk::MemoryAllocateInfo memAllocInfo(memReqs.size, memTypeIndex);
+    _stagingBufferDeviceMemory = vk::raii::DeviceMemory(ctx.device(), memAllocInfo);
+    _stagingBuffer.bindMemory(*_stagingBufferDeviceMemory, 0);
 }
 
 uint32_t Image::getFormatMaxMipLevels(const Context &ctx, vk::ImageTiling tiling, vk::ImageUsageFlags usageFlags) {
@@ -181,6 +200,8 @@ uint64_t Image::dataSize() const {
 vk::Format Image::dataType() const { return _dataType; }
 
 const std::vector<int64_t> &Image::shape() const { return _imageInfo.shape; }
+
+vk::ImageTiling Image::tiling() const { return _tiling; }
 
 void Image::transitionLayout(vk::raii::CommandBuffer &cmdBuf, vk::ImageLayout expectedLayout) {
     if (_targetLayout == expectedLayout)
@@ -331,26 +352,6 @@ void Image::fillFromDescription(Context &ctx, const ImageDesc &desc) {
     imageBarrier.subresourceRange.baseArrayLayer = 0;
     imageBarrier.subresourceRange.layerCount = 1;
 
-    // Create the staging buffer
-    vk::BufferCreateInfo BufferCreateInfo{vk::BufferCreateFlags(),
-                                          dataSize(),
-                                          vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst,
-                                          vk::SharingMode::eExclusive,
-                                          ctx.familyQueueIdx(),
-                                          nullptr};
-
-    _stagingBuffer = vk::raii::Buffer(ctx.device(), BufferCreateInfo);
-    const vk::MemoryRequirements memReqs = _stagingBuffer.getMemoryRequirements();
-    const auto flags = vk::MemoryPropertyFlagBits::eHostVisible;
-    const uint32_t memTypeIndex = findMemoryIdx(ctx, memReqs.memoryTypeBits, flags);
-    if (memTypeIndex == std::numeric_limits<uint32_t>::max()) {
-        throw std::runtime_error("Cannot find a memory type with the required properties");
-    }
-
-    const vk::MemoryAllocateInfo memAllocInfo(memReqs.size, memTypeIndex);
-    _stagingBufferDeviceMemory = vk::raii::DeviceMemory(ctx.device(), memAllocInfo);
-
-    _stagingBuffer.bindMemory(*_stagingBufferDeviceMemory, 0);
     void *pBufferDeviceMemory = _stagingBufferDeviceMemory.mapMemory(0, data.size());
     std::memcpy(pBufferDeviceMemory, data.data(), data.size());
     _stagingBufferDeviceMemory.unmapMemory();
@@ -472,6 +473,7 @@ std::vector<char> Image::getImageData(Context &ctx) {
     region.imageOffset = offset;
     region.imageExtent = extent;
 
+    transitionLayout(cmdBuffer, vk::ImageLayout::eGeneral);
     cmdBuffer.copyImageToBuffer(_image, vk::ImageLayout::eGeneral, _stagingBuffer, {region});
     cmdBuffer.end();
 

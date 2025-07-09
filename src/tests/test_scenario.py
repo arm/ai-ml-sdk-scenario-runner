@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# SPDX-FileCopyrightText: Copyright 2023-2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 """ Validate the scenario against the json schema """
@@ -81,6 +81,7 @@ graph_path = resources_path / "graph"
 buffer_path = resources_path / "buffer"
 tensor_path = resources_path / "tensor"
 image_path = resources_path / "image"
+memory_group_path = resources_path / "memory_group"
 raw_data_path = resources_path / "raw_data"
 buffer_barrier_path = resources_path / "buffer_barrier"
 image_barrier_path = resources_path / "image_barrier"
@@ -204,6 +205,9 @@ memory_barrier_path = resources_path / "memory_barrier"
         (InvalidEnum(), image_path/"invalid_border_address_mode.json"),
         (InvalidEnum(), image_path/"invalid_border_color.json"),
         (TooLong(), image_path/"invalid_custom_border_color_length.json"),
+        # memory group
+        (Ok(), memory_group_path/"minimal.json"),
+        (RequiredProperty("id"), memory_group_path/"no_id.json"),
         # memory barrier
         (Ok(), memory_barrier_path/"reference.json"),
         (InvalidEnum(), memory_barrier_path/"invalid_dst_access.json"),

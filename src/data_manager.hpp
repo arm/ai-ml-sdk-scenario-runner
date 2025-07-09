@@ -14,6 +14,7 @@
 #include "tensor.hpp"
 #include "vgf_view.hpp"
 
+#include <set>
 #include <unordered_map>
 
 namespace mlsdk::scenariorunner {
@@ -22,10 +23,9 @@ class DataManager {
   public:
     explicit DataManager(Context &ctx);
 
-    void createBuffer(Guid guid, const BufferInfo &info, const std::vector<char> &values);
-    void createBuffer(Guid guid, const BufferInfo &info, const mlsdk::numpy::data_ptr &dataPtr);
-    void createZeroedBuffer(Guid guid, const BufferInfo &info);
-    void createTensor(Guid guid, const TensorInfo &info, std::optional<Guid> aliasTarget = std::nullopt);
+    void createBuffer(Guid guid, const BufferInfo &info);
+    void createBuffer(Guid guid, const BufferInfo &info, std::vector<char> &values);
+    void createTensor(Guid guid, const TensorInfo &info);
     void createImage(Guid guid, const ImageInfo &info);
     void createRawData(Guid guid, const std::string &debugName, const std::string &src);
     void createVgfView(Guid guid, const DataGraphDesc &desc);
@@ -66,10 +66,15 @@ class DataManager {
 
     vk::DescriptorType getResourceDescriptorType(const Guid &guid) const;
 
-    void createMemoryManager(Guid guid);
-    std::shared_ptr<ResourceMemoryManager> getMemoryManager(const Guid &guid) const;
+    std::shared_ptr<ResourceMemoryManager> getOrCreateMemoryManager(const Guid &guid);
+
+    void addResourceToGroup(const Guid &group, const Guid &resource);
+    std::unordered_map<Guid, std::set<Guid>> getResourceMemoryGroups() const;
+    bool isSingleMemoryGroup(const Guid &resource) const;
 
   private:
+    std::shared_ptr<ResourceMemoryManager> getMemoryManager(const Guid &guid) const;
+
     Context &_ctx;
 
     std::unordered_map<Guid, Buffer> _buffers{};
@@ -82,6 +87,7 @@ class DataManager {
     std::unordered_map<Guid, VulkanBufferBarrier> _bufferBarriers{};
     std::unordered_map<Guid, VulkanTensorBarrier> _tensorBarriers{};
 
-    std::unordered_map<Guid, std::shared_ptr<ResourceMemoryManager>> _memoryManagers{};
+    std::unordered_map<Guid, std::shared_ptr<ResourceMemoryManager>> _groupMemoryManagers{};
+    std::unordered_map<Guid, std::set<Guid>> _groupToResources{};
 };
 } // namespace mlsdk::scenariorunner

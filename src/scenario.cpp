@@ -136,9 +136,71 @@ void Scenario::run(int repeatCount, bool dryRun, bool captureFrame) {
 }
 
 void Scenario::setupResources() {
+    mlsdk::logging::info("Setup resources");
+    for (const auto &resource : _scenarioSpec.resources) {
+        switch (resource->resourceType) {
+        case (ResourceType::Buffer): {
+            const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
+            if (buffer->memoryGroup) {
+                _dataManager.addResourceToGroup(buffer->memoryGroup->memoryUid, buffer->guid);
+            } else {
+                _dataManager.addResourceToGroup(buffer->guid, buffer->guid);
+            }
+        } break;
+        case (ResourceType::Image): {
+            const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
+            if (image->memoryGroup) {
+                _dataManager.addResourceToGroup(image->memoryGroup->memoryUid, image->guid);
+            } else {
+                // Check not old aliasing here
+                bool aliasTarget = false;
+                for (const auto &resource2 : _scenarioSpec.resources) {
+                    if (resource2->resourceType == ResourceType::Tensor) {
+                        const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource2);
+                        if (tensor->memoryGroup->memoryUid == image->guid) {
+                            aliasTarget = true;
+                            break;
+                        }
+                    }
+                }
+                if (!aliasTarget) {
+                    _dataManager.addResourceToGroup(image->guid, image->guid);
+                }
+            }
+        } break;
+        case (ResourceType::Tensor): {
+            const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
+            if (tensor->memoryGroup) {
+                _dataManager.addResourceToGroup(tensor->memoryGroup->memoryUid, tensor->guid);
+            } else {
+                _dataManager.addResourceToGroup(tensor->guid, tensor->guid);
+            }
+        } break;
+        default:
+            // Skip the other types of resources
+            continue;
+        }
+    }
+
+    // Needed for old-style memory aliasing
+    for (const auto &resource : _scenarioSpec.resources) {
+        switch (resource->resourceType) {
+        case (ResourceType::Tensor): {
+            const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
+            for (auto &image : _scenarioSpec.resources) {
+                if (image->resourceType == ResourceType::Image && image->guid == tensor->memoryGroup->memoryUid) {
+                    _dataManager.addResourceToGroup(tensor->memoryGroup->memoryUid, image->guid);
+                }
+            }
+        } break;
+        default:
+            // Skip the other types of resources
+            continue;
+        }
+    }
+
     // Setup resource info
     // (Memory for Tensors and Images is allocated in next pass)
-    mlsdk::logging::info("Setup resources");
     for (auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
         case (ResourceType::Buffer): {
@@ -146,14 +208,7 @@ void Scenario::setupResources() {
             BufferInfo info;
             info.debugName = buffer->guidStr;
             info.size = buffer->size;
-            if (buffer->src) {
-                MemoryMap mapped(buffer->src.value());
-                mlsdk::numpy::data_ptr dataPtr;
-                mlsdk::numpy::parse(mapped, dataPtr);
-                _dataManager.createBuffer(resource->guid, info, dataPtr);
-            } else {
-                _dataManager.createZeroedBuffer(resource->guid, info);
-            }
+            _dataManager.createBuffer(resource->guid, info);
         } break;
         case (ResourceType::RawData): {
             auto &raw_data = reinterpret_cast<std::unique_ptr<RawDataDesc> &>(resource);
@@ -227,21 +282,10 @@ void Scenario::setupResources() {
                 info.format = info.targetFormat;
             }
 
-            for (auto &resource_aliased : _scenarioSpec.resources) {
-                switch (resource_aliased->resourceType) {
-                case (ResourceType::Tensor): {
-                    auto &tensor = reinterpret_cast<std::unique_ptr<TensorDesc> &>(resource_aliased);
-                    if (tensor->aliasTarget.resourceRef == resource->guid) {
-                        info.isAliased = true;
-                        break;
-                    } else {
-                        continue;
-                    }
+            for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+                if (resources.find(resource->guid) != resources.end() && resources.size() != 1) {
+                    info.isAliased = true;
                 }
-                default:
-                    continue;
-                }
-                break;
             }
 
             _dataManager.createImage(image->guid, info);
@@ -315,7 +359,15 @@ void Scenario::setupResources() {
 
             TensorInfo info;
             info.debugName = tensor->guidStr;
-            info.isAliased = tensor->aliasTarget.resourceRef.isValid();
+            for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+                if (resources.find(tensor->guid) != resources.end() && resources.size() != 1) {
+                    for (const auto &maybeImage : resources) {
+                        if (_dataManager.hasImage(maybeImage)) {
+                            info.isAliasedWithImage = true;
+                        }
+                    }
+                }
+            }
             info.format = getVkFormatFromString(tensor->format);
             info.shape.resize(tensor->dims.size());
             std::copy(tensor->dims.begin(), tensor->dims.end(), info.shape.begin());
@@ -323,14 +375,7 @@ void Scenario::setupResources() {
                 info.tiling = tensor->tiling.value();
             }
 
-            if (_dataManager.getMemoryManager(tensor->aliasTarget.resourceRef) == nullptr) {
-                _dataManager.createTensor(resource->guid, info);
-                continue;
-            }
-            if (tensor->src) {
-                throw std::runtime_error("Tensor cannot have src file and alias other resource");
-            }
-            _dataManager.createTensor(resource->guid, info, tensor->aliasTarget.resourceRef);
+            _dataManager.createTensor(resource->guid, info);
         } break;
         default:
             // Skip the other types of resources
@@ -343,21 +388,38 @@ void Scenario::setupResources() {
     for (auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
         case (ResourceType::Tensor): {
-            auto &tensorDesc = reinterpret_cast<std::unique_ptr<TensorDesc> &>(resource);
-            auto &tensor = _dataManager.getTensorMut(tensorDesc->guid);
-            tensor.allocateMemory(_ctx);
-            if (!tensorDesc->aliasTarget.resourceRef.isValid()) {
-                _perfCounters.emplace_back("Load Tensor: " + tensorDesc->guidStr, "Scenario Setup").start();
-                tensor.fillFromDescription(*tensorDesc);
-                _perfCounters.back().stop();
+            auto &tensor = reinterpret_cast<std::unique_ptr<TensorDesc> &>(resource);
+            auto &tensorRec = _dataManager.getTensorMut(tensor->guid);
+            tensorRec.allocateMemory(_ctx);
+            _perfCounters.emplace_back("Load Tensor: " + tensor->guidStr, "Scenario Setup").start();
+            if (tensor->src || _dataManager.isSingleMemoryGroup(tensor->guid)) {
+                tensorRec.fillFromDescription(*tensor);
             }
+            _perfCounters.back().stop();
         } break;
         case (ResourceType::Image): {
             auto &image = reinterpret_cast<std::unique_ptr<ImageDesc> &>(resource);
             auto &imageRec = _dataManager.getImageMut(image->guid);
             imageRec.allocateMemory(_ctx);
             _perfCounters.emplace_back("Load Image: " + image->guidStr, "Scenario Setup").start();
-            imageRec.fillFromDescription(_ctx, *image);
+            if (image->src || _dataManager.isSingleMemoryGroup(image->guid)) {
+                imageRec.fillFromDescription(_ctx, *image);
+            }
+            _perfCounters.back().stop();
+        } break;
+        case (ResourceType::Buffer): {
+            auto &buffer = reinterpret_cast<std::unique_ptr<BufferDesc> &>(resource);
+            auto &bufferRec = _dataManager.getBufferMut(buffer->guid);
+            bufferRec.allocateMemory(_ctx);
+            _perfCounters.emplace_back("Load Buffer: " + buffer->guidStr, "Scenario Setup").start();
+            if (buffer->src) {
+                MemoryMap mapped(buffer->src.value());
+                mlsdk::numpy::data_ptr dataPtr;
+                mlsdk::numpy::parse(mapped, dataPtr);
+                bufferRec.fill(dataPtr.ptr, dataPtr.size());
+            } else if (_dataManager.isSingleMemoryGroup(buffer->guid)) {
+                bufferRec.fillZero();
+            }
             _perfCounters.back().stop();
         } break;
         default:
@@ -464,40 +526,45 @@ void Scenario::setupCommands(int iteration) {
 }
 
 bool Scenario::hasAliasedOptimalTensors() const {
-    for (const auto &res : _scenarioSpec.resources) {
-        if (res->resourceType == ResourceType::Tensor) {
-            const auto &tensorDesc = static_cast<const TensorDesc &>(*res);
-            if (tensorDesc.aliasTarget.resourceRef.isValid() && tensorDesc.tiling.has_value() &&
-                tensorDesc.tiling.value() == Tiling::Optimal)
-                return {true};
+    // If any tensors in any memgroup have optimal tiling
+    for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+        if (resources.size() <= 1)
+            continue;
+        for (auto resource : resources) {
+            if (_dataManager.hasTensor(resource) &&
+                _dataManager.getTensor(resource).tiling() == vk::TensorTilingARM::eOptimal) {
+                return true;
+            }
         }
     }
     return false;
 }
 
 void Scenario::handleAliasedLayoutTransitions() {
-    auto &cmdBuf = _compute.getCommandBuffer();
 
-    // Validation pass: ensure all aliased tensor-image pairs have same tiling
-    for (const auto &resource : _scenarioSpec.resources) {
-        if (resource->resourceType != ResourceType::Tensor)
-            continue;
-
-        const auto &tensorDesc = static_cast<const TensorDesc &>(*resource);
-        if (!tensorDesc.aliasTarget.resourceRef.isValid() || !tensorDesc.tiling.has_value())
-            continue;
-
-        for (const auto &imageResource : _scenarioSpec.resources) {
-            if (imageResource->resourceType != ResourceType::Image)
-                continue;
-            const auto &imageDesc = static_cast<const ImageDesc &>(*imageResource);
-
-            if (imageDesc.guid != tensorDesc.aliasTarget.resourceRef || !imageDesc.tiling.has_value())
-                continue;
-
-            if (tensorDesc.tiling.value() != imageDesc.tiling.value()) {
-                throw std::runtime_error("Aliased resources must have identical tiling.");
+    // Validation pass: ensure all resources in a group have the same tiling type
+    for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+        bool allLinear = true;
+        bool allOptimal = true;
+        for (auto resource : resources) {
+            if (_dataManager.hasTensor(resource)) {
+                if (_dataManager.getTensor(resource).tiling() == vk::TensorTilingARM::eLinear) {
+                    allOptimal = false;
+                } else {
+                    allLinear = false;
+                }
+            } else if (_dataManager.hasImage(resource)) {
+                if (_dataManager.getImage(resource).tiling() == vk::ImageTiling::eLinear) {
+                    allOptimal = false;
+                } else {
+                    allLinear = false;
+                }
             }
+        }
+
+        assert(!(allLinear && allOptimal));
+        if (!allLinear && !allOptimal) {
+            throw std::runtime_error("Aliased resources must have identical tiling.");
         }
     }
 
@@ -525,7 +592,15 @@ void Scenario::handleAliasedLayoutTransitions() {
         //  Tensor → requires image to be in eTensorAliasingARM
         if (resource->resourceType == ResourceType::Tensor) {
             const auto &tensorDesc = static_cast<const TensorDesc &>(*resource);
-            if (!tensorDesc.aliasTarget.resourceRef.isValid() || !tensorDesc.tiling.has_value())
+            auto aliasing = false;
+            for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+                if (resources.find(tensorDesc.guid) != resources.end() && resources.size() == 2) {
+                    aliasing = true;
+                }
+            }
+            if (!aliasing)
+                continue;
+            if (!tensorDesc.tiling.has_value())
                 continue;
             if (tensorDesc.tiling.value() != Tiling::Optimal)
                 continue;
@@ -535,12 +610,20 @@ void Scenario::handleAliasedLayoutTransitions() {
                     continue;
                 const auto &imageDesc = static_cast<const ImageDesc &>(*imageResource);
 
-                if (imageDesc.guid != tensorDesc.aliasTarget.resourceRef || !imageDesc.tiling.has_value())
+                auto aliasing1 = false;
+                for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+                    if (resources.find(imageDesc.guid) != resources.end() && resources.size() == 2) {
+                        aliasing1 = true;
+                    }
+                }
+                if (!aliasing1)
+                    continue;
+                if (!imageDesc.tiling.has_value())
                     continue;
 
                 auto &image = _dataManager.getImageMut(imageDesc.guid);
                 if (image.getImageLayout() != vk::ImageLayout::eTensorAliasingARM) {
-                    image.transitionLayout(cmdBuf, vk::ImageLayout::eTensorAliasingARM);
+                    image.transitionLayout(_compute.getCommandBuffer(), vk::ImageLayout::eTensorAliasingARM);
                 }
             }
 
@@ -555,7 +638,15 @@ void Scenario::handleAliasedLayoutTransitions() {
                     continue;
                 const auto &tensorDesc = static_cast<const TensorDesc &>(*tensorResource);
 
-                if (tensorDesc.aliasTarget.resourceRef != imageDesc.guid || !tensorDesc.tiling.has_value())
+                auto aliasing = false;
+                for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+                    if (resources.find(tensorDesc.guid) != resources.end() && resources.size() == 2) {
+                        aliasing = true;
+                    }
+                }
+                if (!aliasing)
+                    continue;
+                if (!tensorDesc.tiling.has_value())
                     continue;
                 if (!usedResources.count(imageDesc.guid))
                     continue;
@@ -567,7 +658,7 @@ void Scenario::handleAliasedLayoutTransitions() {
                 }
 
                 if (image.getImageLayout() != targetLayout) {
-                    image.transitionLayout(cmdBuf, targetLayout);
+                    image.transitionLayout(_compute.getCommandBuffer(), targetLayout);
                 }
             }
         }
@@ -654,7 +745,7 @@ void Scenario::saveResults(bool dryRun) {
 
     // Performance counters should be stored also for dry runs
     ScopeExit<void()> onExit([&]() {
-        // Save performance conunters
+        // Save performance counters
         if (!_opts.perfCountersPath.empty()) {
             writePerfCounters(_perfCounters, _opts.perfCountersPath);
             mlsdk::logging::info("Performance stats stored");
