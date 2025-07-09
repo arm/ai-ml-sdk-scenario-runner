@@ -67,20 +67,28 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
 
     BufferInfo info;
     std::vector<char> data;
+    auto guidA = Guid("inBufferA");
+    auto guidB = Guid("inBufferB");
+    auto guidOut = Guid("outBufferAdd");
+
+    dataManager.addResourceToGroup(guidA, guidA);
+    dataManager.addResourceToGroup(guidB, guidB);
+    dataManager.addResourceToGroup(guidOut, guidOut);
+
     info.size = numElements * sizeof(float);
     data.resize(info.size);
     std::memcpy(data.data(), inDataA.data(), info.size);
-    dataManager.createBuffer(Guid("inBufferA"), info, data);
+    dataManager.createBuffer(guidA, info, data);
 
     std::memcpy(data.data(), inDataB.data(), info.size);
-    dataManager.createBuffer(Guid("inBufferB"), info, data);
+    dataManager.createBuffer(guidB, info, data);
     std::memset(data.data(), 0, info.size);
-    dataManager.createBuffer(Guid("outBufferAdd"), info, data);
+    dataManager.createBuffer(guidOut, info, data);
 
     std::vector<BindingDesc> bindingDescs;
-    bindingDescs.push_back(BindingDesc(0, 0, Guid("inBufferA")));
-    bindingDescs.push_back(BindingDesc(0, 1, Guid("inBufferB")));
-    bindingDescs.push_back(BindingDesc(0, 2, Guid("outBufferAdd")));
+    bindingDescs.push_back(BindingDesc(0, 0, guidA));
+    bindingDescs.push_back(BindingDesc(0, 1, guidB));
+    bindingDescs.push_back(BindingDesc(0, 2, guidOut));
 
     // Create compute pipeline
     ShaderDesc shaderDesc(Guid("add_shader"), "add_shader", addShaderSPIRV, "main", ShaderType::SPIR_V);
@@ -97,7 +105,7 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
     compute.submitAndWaitOnFence(perfCounters);
 
     // Retrieve results
-    auto &outputBuf = dataManager.getBufferMut(Guid("outBufferAdd"));
+    auto &outputBuf = dataManager.getBufferMut(guidOut);
     float *outputPtr = static_cast<float *>(outputBuf.map());
 
     const std::vector<float> output(outputPtr, outputPtr + numElements);

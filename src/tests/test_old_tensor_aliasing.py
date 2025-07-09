@@ -80,7 +80,7 @@ def test_image_to_tensor_aliasing_no_compute(
         "temp.dds",
     )
 
-    sdk_tools.run_scenario(f"test_tensor_aliasing/{scenario}")
+    sdk_tools.run_scenario(f"test_old_tensor_aliasing/{scenario}")
 
     sdk_tools.convert_dds_to_npy(dds_file, "temp.dds.npy", 2)
     dds_data = numpy_helper.load("temp.dds.npy", np.uint16)
@@ -101,9 +101,9 @@ def test_image_to_tensor_aliasing_tensor_plus_ten_shader(sdk_tools, numpy_helper
         "temp.dds",
     )
 
-    sdk_tools.compile_shader("test_tensor_aliasing/plus_ten_tensor.comp")
+    sdk_tools.compile_shader("test_old_tensor_aliasing/plus_ten_tensor.comp")
     sdk_tools.run_scenario(
-        "test_tensor_aliasing/image_to_tensor_aliasing_aliased_tensor_plus_ten_shader.json"
+        "test_old_tensor_aliasing/image_to_tensor_aliasing_aliased_tensor_plus_ten_shader.json"
     )
 
     sdk_tools.convert_dds_to_npy(dds_file, "temp.dds.npy", 2)
@@ -130,11 +130,11 @@ def test_image_to_tensor_aliasing_copy_image_shader_copy_tensor_shader(
         "input_image.dds",
     )
 
-    sdk_tools.compile_shader("test_tensor_aliasing/copy_img_shader.comp")
-    sdk_tools.compile_shader("test_tensor_aliasing/copy_tensor_shader.comp")
+    sdk_tools.compile_shader("test_old_tensor_aliasing/copy_img_shader.comp")
+    sdk_tools.compile_shader("test_old_tensor_aliasing/copy_tensor_shader.comp")
 
     sdk_tools.run_scenario(
-        "test_tensor_aliasing/image_to_tensor_aliasing_copy_image_shader_copy_tensor_shader.json"
+        "test_old_tensor_aliasing/image_to_tensor_aliasing_copy_image_shader_copy_tensor_shader.json"
     )
 
     dds_file_npy_path = sdk_tools.convert_dds_to_npy(dds_file, "input_image.dds.npy", 1)
@@ -172,11 +172,11 @@ def test_image_to_tensor_aliasing_copy_tensor_shader_copy_image_shader(
     dds_file_npy = numpy_helper.load(dds_file_npy_path, np.uint16)
     numpy_helper.save(dds_file_npy, "input_tensor.npy")
 
-    sdk_tools.compile_shader("test_tensor_aliasing/copy_tensor_shader.comp")
-    sdk_tools.compile_shader("test_tensor_aliasing/copy_img_shader.comp")
+    sdk_tools.compile_shader("test_old_tensor_aliasing/copy_tensor_shader.comp")
+    sdk_tools.compile_shader("test_old_tensor_aliasing/copy_img_shader.comp")
 
     sdk_tools.run_scenario(
-        "test_tensor_aliasing/image_to_tensor_aliasing_copy_tensor_shader_copy_image_shader.json"
+        "test_old_tensor_aliasing/image_to_tensor_aliasing_copy_tensor_shader_copy_image_shader.json"
     )
 
     output_npy = numpy_helper.load("output_tensor.npy")

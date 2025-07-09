@@ -1,0 +1,39 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "tensor": {
+                "shader_access": "readwrite",
+                "dims": [
+                    1,
+                    64,
+                    64,
+                    2
+                ],
+                "format": "VK_FORMAT_R16_SINT",
+                "uid": "inTensor",
+                "src": "inTensor.npy",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        },
+        {
+            "image": {
+                "shader_access": "readwrite",
+                "dims": [
+                    1,
+                    64,
+                    64,
+                    1
+                ],
+                "format": "VK_FORMAT_R16G16_SFLOAT",
+                "dst": "outImage.dds",
+                "uid": "outImage",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,50 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "tensor": {
+                "shader_access": "readwrite",
+                "dims": [
+                    1,
+                    64,
+                    64,
+                    2
+                ],
+                "format": "VK_FORMAT_R16_SINT",
+                "uid": "inTensor",
+                "src": "inTensor.npy",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        },
+        {
+            "buffer": {
+                "shader_access": "readwrite",
+                "size": 16384,
+                "dst": "outBuffer0.npy",
+                "uid": "outBuffer0",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        },
+        {
+            "image": {
+                "shader_access": "readwrite",
+                "dims": [
+                    1,
+                    64,
+                    64,
+                    1
+                ],
+                "format": "VK_FORMAT_R16G16_SFLOAT",
+                "dst": "outImage1.dds",
+                "uid": "outImage1",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        }
+    ]
+}

@@ -18,6 +18,9 @@ class ResourceMemoryManager {
     bool isInitalized() const { return _initalized; }
 
     void allocateDeviceMemory(const Context &ctx, vk::MemoryPropertyFlags flags) {
+        if (_memSize == 0) {
+            throw std::runtime_error("Allocated memory size must be non-zero");
+        }
         const vk::MemoryAllocateInfo memoryAllocateInfo(_memSize, findMemoryIdx(ctx, _memType, flags));
         _deviceMemory = vk::raii::DeviceMemory(ctx.device(), memoryAllocateInfo);
         _initalized = true;

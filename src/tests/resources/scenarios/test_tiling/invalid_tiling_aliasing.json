@@ -12,8 +12,8 @@
                 "format": "VK_FORMAT_R32_UINT",
                 "shader_access": "readwrite",
                 "tiling": "OPTIMAL",
-                "alias_target": {
-                    "resource_ref": "imageX"
+                "memory_group": {
+                    "id": "group0"
                 }
             }
         },
@@ -28,7 +28,10 @@
                 ],
                 "format": "VK_FORMAT_R32_UINT",
                 "shader_access": "readonly",
-                "tiling": "LINEAR"
+                "tiling": "LINEAR",
+                "memory_group": {
+                    "id": "group0"
+                }
             }
         }
     ],

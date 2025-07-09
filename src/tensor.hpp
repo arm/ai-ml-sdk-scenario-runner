@@ -17,16 +17,16 @@ class Tensor : public Resource {
   public:
     /// \brief Constructor
     ///
-    /// \param ctx           Contextual information about the Vulkan instance
-    /// \param debugName     Debug name
-    /// \param dataType      Tensor data type
-    /// \param shape         Tensor shape
-    /// \param isAliased     True if tensor is aliasing with another resource
-    /// \param tiling        Tensor tiling type default to Linear
-    /// \param memoryManager Memory manager for this resource
-    /// \param isConstant    True if tensor is constant
+    /// \param ctx                    Contextual information about the Vulkan instance
+    /// \param debugName              Debug name
+    /// \param dataType               Tensor data type
+    /// \param shape                  Tensor shape
+    /// \param isAliasedWithImage     True if tensor is aliasing with an image
+    /// \param tiling                 Tensor tiling type default to Linear
+    /// \param memoryManager          Memory manager for this resource
+    /// \param isConstant             True if tensor is constant
     Tensor(Context &ctx, const std::string &debugName, vk::Format dataType, const std::vector<int64_t> &shape,
-           bool isAliased, vk::TensorTilingARM tiling, std::shared_ptr<ResourceMemoryManager> memoryManager,
+           bool isAliasedWithImage, vk::TensorTilingARM tiling, std::shared_ptr<ResourceMemoryManager> memoryManager,
            bool isConstant = false);
     Tensor() = default;
 

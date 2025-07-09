@@ -11,8 +11,8 @@
 namespace mlsdk::scenariorunner {
 
 Tensor::Tensor(Context &ctx, const std::string &debugName, vk::Format dataType, const std::vector<int64_t> &shape,
-               bool isAliased, vk::TensorTilingARM tiling, std::shared_ptr<ResourceMemoryManager> memoryManager,
-               bool isConstant)
+               bool isAliasedWithImage, vk::TensorTilingARM tiling,
+               std::shared_ptr<ResourceMemoryManager> memoryManager, bool isConstant)
     : _debugName(debugName), _shape(shape), _dataType(dataType), _memoryManager(memoryManager), _tiling(tiling),
       _isConstant(isConstant) {
 
@@ -29,8 +29,7 @@ Tensor::Tensor(Context &ctx, const std::string &debugName, vk::Format dataType, 
 
     uint32_t rank = static_cast<uint32_t>(_shape.size());
 
-    if (isAliased && _tiling != vk::TensorTilingARM::eOptimal) {
-
+    if (isAliasedWithImage && _tiling != vk::TensorTilingARM::eOptimal) {
         /*
           The extension to the spec does not support rank 4 tensors aliasing 2D images. Rank 4 tensor is associated with
           a 3D image. The image type check was added to avoid faults for 2D images due to this spec requirement:
@@ -140,11 +139,6 @@ void Tensor::allocateMemory(const Context &ctx) {
 std::shared_ptr<ResourceMemoryManager> Tensor::getMemoryManager() { return _memoryManager; }
 
 void Tensor::fillFromDescription(const TensorDesc &desc) {
-    if (desc.aliasTarget.resourceRef.isValid()) {
-        // Tensors dont overwrite shared memory
-        throw std::runtime_error("Cannot fill aliased tensor with data");
-    }
-
     if (desc.src) {
         MemoryMap mapped(desc.src.value());
         mlsdk::numpy::data_ptr dataPtr;

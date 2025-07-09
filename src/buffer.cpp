@@ -9,9 +9,10 @@
 
 namespace mlsdk::scenariorunner {
 
-Buffer::Buffer(const Context &ctx, const std::string &debugName, uint32_t size)
-    : _buffer(nullptr), _deviceMemory(nullptr), _size(size), _debugName(debugName) {
-    const vk::BufferCreateInfo bufferCreateInfo{
+Buffer::Buffer(const Context &ctx, const std::string &debugName, uint32_t size,
+               std::shared_ptr<ResourceMemoryManager> memoryManager)
+    : _buffer(nullptr), _size(size), _debugName(debugName), _memoryManager(std::move(memoryManager)) {
+    vk::BufferCreateInfo bufferCreateInfo{
         vk::BufferCreateFlags(), size,   vk::BufferUsageFlagBits::eStorageBuffer, vk::SharingMode::eExclusive,
         ctx.familyQueueIdx(),    nullptr};
 
@@ -20,16 +21,16 @@ Buffer::Buffer(const Context &ctx, const std::string &debugName, uint32_t size)
     trySetVkRaiiObjectDebugName(ctx, _buffer, debugName);
 
     const vk::MemoryRequirements memReqs = _buffer.getMemoryRequirements();
-    const auto flags = vk::MemoryPropertyFlagBits::eHostVisible;
-    const uint32_t memTypeIndex = findMemoryIdx(ctx, memReqs.memoryTypeBits, flags);
-    if (memTypeIndex == std::numeric_limits<uint32_t>::max()) {
-        throw std::runtime_error("Cannot find a memory type with the required properties");
+    _memoryManager->updateMemSize(memReqs.size);
+    _memoryManager->updateMemType(memReqs.memoryTypeBits);
+}
+
+void Buffer::allocateMemory(const Context &ctx) {
+    if (!_memoryManager->isInitalized()) {
+        _memoryManager->allocateDeviceMemory(ctx, vk::MemoryPropertyFlagBits::eHostVisible);
     }
 
-    const vk::MemoryAllocateInfo memAllocInfo(memReqs.size, memTypeIndex);
-    _deviceMemory = vk::raii::DeviceMemory(ctx.device(), memAllocInfo);
-
-    _buffer.bindMemory(*_deviceMemory, 0);
+    _buffer.bindMemory(*_memoryManager->getDeviceMemory(), 0);
 }
 
 const vk::Buffer &Buffer::buffer() const { return *_buffer; }
@@ -38,9 +39,19 @@ uint32_t Buffer::size() const { return _size; }
 
 const std::string &Buffer::debugName() const { return _debugName; }
 
-void *Buffer::map() { return _deviceMemory.mapMemory(0, this->size()); }
+void *Buffer::map() {
+    if (!_memoryManager->isInitalized()) {
+        throw std::runtime_error("Uninitialized MemoryManager for Buffer");
+    }
+    return _memoryManager->getDeviceMemory().mapMemory(0, _memoryManager->getMemSize());
+}
 
-void Buffer::unmap() { _deviceMemory.unmapMemory(); }
+void Buffer::unmap() {
+    if (!_memoryManager->isInitalized()) {
+        throw std::runtime_error("Uninitialized MemoryManager for Buffer");
+    }
+    _memoryManager->getDeviceMemory().unmapMemory();
+}
 
 void Buffer::fill(const void *ptr, size_t size) {
     if (size != this->size()) {

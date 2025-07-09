@@ -76,6 +76,9 @@
         "tiling" : {
             "type": "string",
             "enum" : ["OPTIMAL","LINEAR"]
+        },
+        "memory_group": {
+            "$ref" : "urn:scenario:common#/definitions/memory_group"
         }
     },
     "required": [

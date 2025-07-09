@@ -214,7 +214,9 @@ void VgfView::createIntermediateResources(Context &ctx, DataManager &dataManager
 
                 // Create Scenario Runner buffer resource
                 BufferInfo info{guidStr, bufferSize};
-                dataManager.createZeroedBuffer(guidStr, info);
+                dataManager.createBuffer(guidStr, info);
+                auto &buffer = dataManager.getBufferMut(guidStr);
+                buffer.allocateMemory(ctx);
             } break;
             case (DESCRIPTOR_TYPE_TENSOR_ARM): {
                 auto shape = resourceTableDecoder->getTensorShape(resourceIndex);

@@ -8,6 +8,7 @@
 #include "context.hpp"
 #include "resource.hpp"
 #include "types.hpp"
+#include "vulkan_memory_manager.hpp"
 
 namespace mlsdk::scenariorunner {
 
@@ -18,7 +19,9 @@ class Buffer : public Resource {
     /// \param ctx  Contextual information about the Vulkan instance
     /// \param debugName Debug name
     /// \param size Total size of buffer in bytes
-    Buffer(const Context &ctx, const std::string &debugName, uint32_t size);
+    /// \param memoryManager Information about (possibly shared) underlying memory
+    Buffer(const Context &ctx, const std::string &debugName, uint32_t size,
+           std::shared_ptr<ResourceMemoryManager> memoryManager);
     Buffer() = default;
 
     /// \brief Buffer accessor
@@ -28,6 +31,8 @@ class Buffer : public Resource {
     /// \brief Get buffer size in bytes
     /// \return Size of buffer in bytes
     uint32_t size() const;
+
+    void allocateMemory(const Context &ctx);
 
     /// \brief Get buffer debug name
     /// \return Debug name associated with the buffer
@@ -53,9 +58,9 @@ class Buffer : public Resource {
 
   private:
     vk::raii::Buffer _buffer{nullptr};
-    vk::raii::DeviceMemory _deviceMemory{nullptr};
     uint32_t _size{0};
     std::string _debugName{};
+    std::shared_ptr<ResourceMemoryManager> _memoryManager;
 };
 
 } // namespace mlsdk::scenariorunner

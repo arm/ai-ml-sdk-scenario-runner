@@ -78,6 +78,8 @@ class Image : public Resource {
 
     vk::ImageLayout getImageLayout() const;
 
+    vk::ImageTiling tiling() const;
+
     const std::string &debugName() const;
     const ImageInfo &getInfo() const { return _imageInfo; }
 
@@ -97,6 +99,7 @@ class Image : public Resource {
     std::vector<vk::raii::ImageView> _imageViewMips{};
     vk::ImageLayout _initialLayout{};
     vk::ImageLayout _targetLayout{};
+    vk::ImageTiling _tiling{};
 };
 
 } // namespace mlsdk::scenariorunner

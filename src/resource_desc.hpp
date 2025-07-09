@@ -28,6 +28,11 @@ enum class ResourceType {
     BufferBarrier
 };
 
+struct MemoryGroup {
+    Guid memoryUid;
+    int offset{};
+};
+
 /**
  * @brief ResourceDesc describes a Resource.
  *
@@ -58,6 +63,7 @@ struct BufferDesc : ResourceDesc {
 
     uint32_t size{};
     ShaderAccessType shaderAccess{ShaderAccessType::Unknown};
+    std::optional<MemoryGroup> memoryGroup;
 };
 
 /**
@@ -127,12 +133,6 @@ struct RawDataDesc : ResourceDesc {
     std::string src;
 };
 
-struct AliasTarget {
-    Guid resourceRef;
-    int mipLevel{};
-    int arrayLayer{};
-};
-
 /**
  * @brief TensorDesc describes a Tensor.
  *
@@ -144,8 +144,8 @@ struct TensorDesc : ResourceDesc {
     std::vector<int64_t> dims;
     ShaderAccessType shaderAccess{ShaderAccessType::Unknown};
     std::string format;
-    AliasTarget aliasTarget{};
     std::optional<Tiling> tiling;
+    std::optional<MemoryGroup> memoryGroup;
 };
 
 /**
@@ -169,6 +169,7 @@ struct ImageDesc : ResourceDesc {
     std::optional<BorderColor> borderColor;
     std::optional<CustomColorValue> customBorderColor;
     std::optional<Tiling> tiling;
+    std::optional<MemoryGroup> memoryGroup;
 };
 
 /**

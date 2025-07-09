@@ -1,0 +1,43 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "image": {
+                "shader_access": "readonly",
+                "dims": [
+                    1,
+                    64,
+                    10,
+                    1
+                ],
+                "format": "VK_FORMAT_R16G16_SFLOAT",
+                "min_filter": "LINEAR",
+                "mag_filter": "LINEAR",
+                "mip_filter": "NEAREST",
+                "src": "temp.dds",
+                "uid": "_testImage",
+                "dst": "outputImage.dds",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "readonly",
+                "dims": [
+                    1,
+                    10,
+                    64,
+                    2
+                ],
+                "format": "VK_FORMAT_R16_UINT",
+                "uid": "_testTensor",
+                "dst": "output.npy",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        }
+    ]
+}

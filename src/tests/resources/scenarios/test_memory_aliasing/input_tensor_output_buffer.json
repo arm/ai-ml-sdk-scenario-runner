@@ -1,0 +1,33 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "tensor": {
+                "shader_access": "readwrite",
+                "dims": [
+                    1,
+                    8,
+                    8,
+                    2
+                ],
+                "format": "VK_FORMAT_R16_SINT",
+                "uid": "inTensor",
+                "src": "inTensor.npy",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        },
+        {
+            "buffer": {
+                "shader_access": "readwrite",
+                "size": 256,
+                "dst": "outBuffer.npy",
+                "uid": "outBuffer",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        }
+    ]
+}
