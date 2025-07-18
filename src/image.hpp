@@ -83,6 +83,7 @@ class Image : public Resource {
 
   private:
     std::vector<char> getImageData(Context &ctx);
+    uint32_t getFormatMaxMipLevels(const Context &ctx, vk::ImageTiling tiling, vk::ImageUsageFlags usageFlags);
 
     vk::raii::Image _image{nullptr};
     vk::raii::Buffer _stagingBuffer{nullptr};
