@@ -301,3 +301,18 @@ def test_tensor_image_tiling_mismatch_should_fail(sdk_tools, capfd):
 
         print("Captured combined output:\n", combined)
         assert "Aliased resources must have identical tiling" in combined
+
+
+def test_image_format_and_mipmap_tiling_support(sdk_tools, capfd):
+    scenario_file = "test_tiling/invalid_optimal_tiling_mip_level.json"
+
+    try:
+        sdk_tools.run_scenario(scenario_file)
+        assert False, "Expected CalledProcessError due to high mip level"
+    except subprocess.CalledProcessError:
+        # Capture both stdout and stderr that pytest sees
+        out, err = capfd.readouterr()
+        combined = out + err
+
+        print("Captured combined output:\n", combined)
+        assert "mip level provided is not supported" in combined

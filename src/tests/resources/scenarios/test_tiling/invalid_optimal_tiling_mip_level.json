@@ -1,0 +1,20 @@
+{
+    "resources": [
+        {
+            "image": {
+                "uid": "imageX",
+                "dims": [
+                    1,
+                    10000000,
+                    10000000,
+                    1
+                ],
+                "format": "VK_FORMAT_R32_UINT",
+                "shader_access": "readonly",
+                "tiling": "OPTIMAL",
+                "mips" : 20
+            }
+        }
+    ],
+    "commands": []
+}

@@ -44,6 +44,9 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
         usageFlags |= vk::ImageUsageFlagBits::eStorage;
         requiredFormatFlags |= vk::FormatFeatureFlagBits::eStorageImage | vk::FormatFeatureFlagBits::eTransferSrc;
     }
+    if (_mips > 1) {
+        requiredFormatFlags |= vk::FormatFeatureFlagBits::eBlitSrc | vk::FormatFeatureFlagBits::eBlitDst;
+    }
 
     // Force D32S8 to D32 so that image can have linear tiling (see Image::fillFromDescription() later)
     _dataType = (_imageInfo.format == vk::Format::eD32SfloatS8Uint) ? vk::Format::eD32Sfloat : _imageInfo.format;
@@ -65,7 +68,8 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
                 mlsdk::logging::info("Allowing OPTIMAL tiling with aliasing for image");
             }
         }
-    } else if ((featProps.linearTilingFeatures & requiredFormatFlags) == requiredFormatFlags) {
+    } else if ((featProps.linearTilingFeatures & requiredFormatFlags) == requiredFormatFlags &&
+               _mips <= getFormatMaxMipLevels(ctx, vk::ImageTiling::eLinear, usageFlags)) {
         tiling = vk::ImageTiling::eLinear;
     } else if ((featProps.optimalTilingFeatures & requiredFormatFlags) == requiredFormatFlags) {
         tiling = vk::ImageTiling::eOptimal;
@@ -73,6 +77,9 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
         throw std::runtime_error("No supported tiling for this data type");
     }
 
+    if (_mips > getFormatMaxMipLevels(ctx, tiling, usageFlags)) {
+        throw std::runtime_error("The mip level provided is not supported for " + _imageInfo.debugName);
+    }
     if (_mips <= 1 || imageInfo.isInput) {
         _initialLayout = vk::ImageLayout::ePreinitialized;
     } else {
@@ -138,6 +145,13 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
 
     _memoryManager->updateFormat(_dataType);
     _memoryManager->updateImageType(vk::ImageType::e2D);
+}
+
+uint32_t Image::getFormatMaxMipLevels(const Context &ctx, vk::ImageTiling tiling, vk::ImageUsageFlags usageFlags) {
+    vk::ImageFormatProperties formatProps;
+    formatProps = ctx.physicalDevice().getImageFormatProperties(_dataType, vk::ImageType::e2D, tiling, usageFlags, {});
+
+    return formatProps.maxMipLevels;
 }
 
 vk::Image Image::image() const { return *_image; }
