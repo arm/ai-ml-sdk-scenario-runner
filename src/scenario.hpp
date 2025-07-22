@@ -43,6 +43,7 @@ struct ScenarioSpec {
     void addResource(std::unique_ptr<ResourceDesc> resource);
 
     void addCommand(std::unique_ptr<CommandDesc> command);
+    void addCommand(std::unique_ptr<DispatchComputeDesc> command);
 
     bool isLastCommand(CommandType type) const;
 
@@ -53,6 +54,8 @@ struct ScenarioSpec {
     std::unordered_map<Guid, uint32_t> resourceRefs{};
     std::filesystem::path workDir{};
     std::filesystem::path outputDir{};
+    // Mark scenario to have compute commands, default is dataGraph
+    bool useComputeFamilyQueue{};
 };
 
 class Scenario {

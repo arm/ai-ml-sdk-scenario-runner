@@ -15,10 +15,12 @@
 
 namespace mlsdk::scenariorunner {
 namespace {
-uint32_t findQueue(const std::vector<vk::QueueFamilyProperties> &queueProps) {
+uint32_t findQueue(const std::vector<vk::QueueFamilyProperties> &queueProps, FamilyQueue familyQueue) {
+    const auto flag =
+        familyQueue == FamilyQueue::Compute ? vk::QueueFlagBits::eCompute : vk::QueueFlagBits::eDataGraphARM;
     for (uint32_t i = 0; i < queueProps.size(); ++i) {
         const vk::QueueFamilyProperties &prop = queueProps[i];
-        if (prop.queueFlags & vk::QueueFlagBits::eCompute) {
+        if (prop.queueFlags & flag) {
             return i;
         }
     }
@@ -36,7 +38,7 @@ bool hasExtension(const std::vector<vk::ExtensionProperties> &extensions, const 
 }
 } // namespace
 
-Context::Context(const ScenarioOptions &scenarioOptions)
+Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue)
     : _gpuDebugMarkersEnabled(scenarioOptions.enableGPUDebugMarkers),
       _sessionMemoryDumpEnabled(!scenarioOptions.sessionRAMsDumpDir.empty()) {
     // Create instance
@@ -81,8 +83,8 @@ Context::Context(const ScenarioOptions &scenarioOptions)
     mlsdk::logging::info("Device: " + deviceName + ", Type: " + deviceType + ", Vendor: 0x" + vendorID.str());
 
     const std::vector<vk::QueueFamilyProperties> queueProps = _physicalDev.getQueueFamilyProperties();
-    _computeQueueIdx = findQueue(queueProps);
-    if (_computeQueueIdx == std::numeric_limits<uint32_t>::max()) {
+    _familyQueueIdx = findQueue(queueProps, familyQueue);
+    if (_familyQueueIdx == std::numeric_limits<uint32_t>::max()) {
         throw std::runtime_error("Cannot find queue index");
     }
 
@@ -102,7 +104,7 @@ Context::Context(const ScenarioOptions &scenarioOptions)
 
     // Create device
     const float queuePriority = 1.0f;
-    const vk::DeviceQueueCreateInfo deviceQueueCreateInfo(vk::DeviceQueueCreateFlags(), _computeQueueIdx, 1,
+    const vk::DeviceQueueCreateInfo deviceQueueCreateInfo(vk::DeviceQueueCreateFlags(), _familyQueueIdx, 1,
                                                           &queuePriority);
 
     void *prevPNext = nullptr;
@@ -202,5 +204,5 @@ const vk::raii::Device &Context::device() const { return _dev; }
 
 const vk::raii::PhysicalDevice &Context::physicalDevice() const { return _physicalDev; }
 
-uint32_t Context::computeFamilyQueueIdx() const { return _computeQueueIdx; }
+uint32_t Context::familyQueueIdx() const { return _familyQueueIdx; }
 } // namespace mlsdk::scenariorunner

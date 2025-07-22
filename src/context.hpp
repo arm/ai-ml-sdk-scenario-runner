@@ -20,6 +20,12 @@ struct OptionalExtensions {
     bool replicated_composites = false;
 };
 
+/// \brief Type of family queue to use
+enum class FamilyQueue {
+    Compute,
+    DataGraph,
+};
+
 /// \brief Context that contains device related information
 ///
 /// Acts as a mechanism to keep commonly used objects in a single place.
@@ -27,7 +33,9 @@ struct OptionalExtensions {
 class Context {
   public:
     /// \brief Constructor
-    explicit Context(const ScenarioOptions &scenarioOptions);
+    /// \param scenarioOptions configuration options
+    /// \param familyQueue family queue to use
+    explicit Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue = FamilyQueue::Compute);
 
     /// \brief Logical device accessor
     /// \return Reference to the Vulkan logical device
@@ -40,9 +48,9 @@ class Context {
     /// \brief struct of optional extensions
     OptionalExtensions _optionals;
 
-    /// \brief Index to a compute family queue accessor
-    /// \return Index to a compute family queue
-    uint32_t computeFamilyQueueIdx() const;
+    /// \brief Index to a family queue accessor
+    /// \return Index to a family queue; type as requested to constructor
+    uint32_t familyQueueIdx() const;
 
     /// \brief Are GPU debug markers enabled?
     /// \return Whether GPU debug markers are enabled or not
@@ -59,7 +67,7 @@ class Context {
     vk::raii::Instance _instance{nullptr};
     vk::raii::PhysicalDevice _physicalDev{nullptr};
     vk::raii::Device _dev{nullptr};
-    uint32_t _computeQueueIdx{0};
+    uint32_t _familyQueueIdx{0};
 };
 
 } // namespace mlsdk::scenariorunner

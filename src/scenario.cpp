@@ -68,6 +68,11 @@ void ScenarioSpec::addResource(std::unique_ptr<ResourceDesc> resource) {
 
 void ScenarioSpec::addCommand(std::unique_ptr<CommandDesc> command) { commands.emplace_back(std::move(command)); }
 
+void ScenarioSpec::addCommand(std::unique_ptr<DispatchComputeDesc> command) {
+    commands.emplace_back(std::move(command));
+    useComputeFamilyQueue = true;
+}
+
 bool ScenarioSpec::isLastCommand(CommandType type) const { return commands.back()->commandType == type; }
 
 uint64_t ScenarioSpec::commandCount(CommandType type) const {
@@ -77,7 +82,8 @@ uint64_t ScenarioSpec::commandCount(CommandType type) const {
 }
 
 Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
-    : _opts{opts}, _ctx{opts}, _dataManager(_ctx), _scenarioSpec(scenarioSpec), _compute(_ctx) {
+    : _opts{opts}, _ctx{opts, scenarioSpec.useComputeFamilyQueue ? FamilyQueue::Compute : FamilyQueue::DataGraph},
+      _dataManager(_ctx), _scenarioSpec(scenarioSpec), _compute(_ctx) {
     setupResources();
 }
 
