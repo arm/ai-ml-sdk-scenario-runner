@@ -10,13 +10,13 @@ For a minimal build and to initialize only the |SR_project| and its dependencies
 
 .. code-block:: bash
 
-    repo init -u  <server>/ml-sdk-for-vulkan-manifest -g scenario-runner
+    repo init -u https://github.com/arm/ai-ml-sdk-manifest -g scenario-runner
 
 Alternatively, to initialise the repo structure for the entire ML SDK for Vulkan®, including the Scenario Runner, run:
 
 .. code-block:: bash
 
-    repo init -u  <server>/ml-sdk-for-vulkan-manifest -g all
+    repo init -u https://github.com/arm/ai-ml-sdk-manifest -g all
 
 Once the repo is initialized, you can fetch the contents:
 
