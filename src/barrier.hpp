@@ -67,11 +67,6 @@ class VulkanMemoryBarrier {
     /// \return Debug name associated with the MemoryBarrier
     const std::string &debugName() const;
 
-    /// \brief Convert to Vulkan® image layout type from enum
-    /// \param layout  image layout in enum form
-    /// \return Vulkan® layout type
-    static vk::ImageLayout convertImageLayout(ImageLayout layout);
-
   private:
     vk::MemoryBarrier2 _memoryBarrier;
     std::string _debugName{};

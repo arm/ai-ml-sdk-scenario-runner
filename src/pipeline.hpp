@@ -87,12 +87,10 @@ class Pipeline {
     std::vector<vk::DeviceSize> _sessionMemoryDataSizes;
     vk::raii::ShaderModule _shader{nullptr};
     std::string _debugName{};
-    std::optional<PipelineCache> _pipelineCache{};
     std::optional<std::pair<unsigned, vk::DeviceSize>> _neStatsInfo{};
 
-    void computePipelineCommon(Context &ctx, const std::string &debugName, const std::vector<BindingDesc> &bindings,
-                               const ShaderDesc &shaderDesc, DataManager *dataManager,
-                               std::optional<PipelineCache> &pipelineCache);
+    void computePipelineCommon(Context &ctx, const std::vector<BindingDesc> &bindings, const ShaderDesc &shaderDesc,
+                               DataManager *dataManager, std::optional<PipelineCache> &pipelineCache);
 };
 
 template <typename T>

@@ -9,7 +9,7 @@
 namespace mlsdk::scenariorunner {
 
 namespace {
-static vk::AccessFlags2 convertAccessFlags(MemoryAccess access) {
+vk::AccessFlags2 convertAccessFlags(MemoryAccess access) {
     switch (access) {
     case (MemoryAccess::MemoryWrite):
         return vk::AccessFlagBits2::eMemoryWrite;
@@ -29,7 +29,7 @@ static vk::AccessFlags2 convertAccessFlags(MemoryAccess access) {
     }
 }
 
-static vk::PipelineStageFlagBits2 convertStageFlag(PipelineStage stage) {
+vk::PipelineStageFlagBits2 convertStageFlag(PipelineStage stage) {
     switch (stage) {
     case (PipelineStage::Graph):
         return vk::PipelineStageFlagBits2::eDataGraphARM;
@@ -43,7 +43,7 @@ static vk::PipelineStageFlagBits2 convertStageFlag(PipelineStage stage) {
     }
 }
 
-static vk::Flags<vk::PipelineStageFlagBits2> convertStageFlags(std::vector<PipelineStage> stages) {
+vk::Flags<vk::PipelineStageFlagBits2> convertStageFlags(const std::vector<PipelineStage> &stages) {
     vk::Flags<vk::PipelineStageFlagBits2> result = vk::PipelineStageFlagBits2::eNone;
     for (auto stage : stages) {
         result = result | convertStageFlag(stage);
@@ -51,7 +51,7 @@ static vk::Flags<vk::PipelineStageFlagBits2> convertStageFlags(std::vector<Pipel
     return result;
 }
 
-static vk::ImageLayout convertImageLayout(ImageLayout layout) {
+vk::ImageLayout convertImageLayout(ImageLayout layout) {
     switch (layout) {
     case (ImageLayout::TensorAliasing):
         return vk::ImageLayout::eTensorAliasingARM;

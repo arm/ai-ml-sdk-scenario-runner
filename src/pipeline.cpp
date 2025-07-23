@@ -95,10 +95,9 @@ std::vector<std::vector<BindingDesc>> SplitOutSets(const std::vector<BindingDesc
 
 } // namespace
 
-void Pipeline::computePipelineCommon(Context &ctx, const std::string &debugName,
-                                     const std::vector<BindingDesc> &bindings, const ShaderDesc &shaderDesc,
-                                     DataManager *dataManager, std::optional<PipelineCache> &pipelineCache) {
-    _debugName = debugName;
+void Pipeline::computePipelineCommon(Context &ctx, const std::vector<BindingDesc> &bindings,
+                                     const ShaderDesc &shaderDesc, DataManager *dataManager,
+                                     std::optional<PipelineCache> &pipelineCache) {
     _type = PipelineType::Compute;
     _shaderDesc = shaderDesc;
 
@@ -151,7 +150,7 @@ Pipeline::Pipeline(Context &ctx, const std::string &debugName, const uint32_t *s
     _shader = createShaderModuleFromCode(ctx, spvCode, spvSize);
     trySetVkRaiiObjectDebugName(ctx, _shader, _debugName + " shader");
 
-    computePipelineCommon(ctx, debugName, sequenceBindings, shaderDesc, dataManager, pipelineCache);
+    computePipelineCommon(ctx, sequenceBindings, shaderDesc, dataManager, pipelineCache);
 }
 
 Pipeline::Pipeline(Context &ctx, const std::string &debugName, const std::vector<BindingDesc> &bindings,
@@ -160,7 +159,7 @@ Pipeline::Pipeline(Context &ctx, const std::string &debugName, const std::vector
 
     trySetVkRaiiObjectDebugName(ctx, _shader, shaderDesc.guidStr);
 
-    computePipelineCommon(ctx, debugName, bindings, shaderDesc, dataManager, pipelineCache);
+    computePipelineCommon(ctx, bindings, shaderDesc, dataManager, pipelineCache);
 }
 
 Pipeline::Pipeline(Context &ctx, const std::string &debugName, const uint32_t segmentIndex,

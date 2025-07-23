@@ -81,9 +81,10 @@ uint64_t ScenarioSpec::commandCount(CommandType type) const {
                       [type](const std::unique_ptr<CommandDesc> &cmd) { return cmd->commandType == type; }));
 }
 
-Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
-    : _opts{opts}, _ctx{opts, scenarioSpec.useComputeFamilyQueue ? FamilyQueue::Compute : FamilyQueue::DataGraph},
-      _dataManager(_ctx), _scenarioSpec(scenarioSpec), _compute(_ctx) {
+Scenario::Scenario(ScenarioOptions opts, ScenarioSpec scenarioSpec)
+    : _opts{std::move(opts)}, _ctx{_opts,
+                                   scenarioSpec.useComputeFamilyQueue ? FamilyQueue::Compute : FamilyQueue::DataGraph},
+      _dataManager(_ctx), _scenarioSpec(std::move(scenarioSpec)), _compute(_ctx) {
     setupResources();
 }
 
