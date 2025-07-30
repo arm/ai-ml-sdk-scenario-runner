@@ -54,7 +54,7 @@ class Image : public Resource {
     /// \return Vector containing the shape of image
     const std::vector<int64_t> &shape() const;
     void transitionLayout(vk::raii::CommandBuffer &cmdBuf, vk::ImageLayout expectedLayout);
-    void allocateMemory(Context &ctx);
+    void allocateMemory(const Context &ctx);
     void resetLayout();
 
     std::shared_ptr<ResourceMemoryManager> getMemoryManager();
