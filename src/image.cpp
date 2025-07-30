@@ -49,7 +49,7 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
         requiredFormatFlags |= vk::FormatFeatureFlagBits::eBlitSrc | vk::FormatFeatureFlagBits::eBlitDst;
     }
 
-    // Force D32S8 to D32 so that image can have linear tiling (see Image::fillFromDescription() later)
+    // Force D32S8 to D32 because of limited tiling support for stencil formats.
     _dataType = (_imageInfo.format == vk::Format::eD32SfloatS8Uint) ? vk::Format::eD32Sfloat : _imageInfo.format;
 
     auto featProps = ctx.physicalDevice().getFormatProperties(_dataType);
@@ -168,10 +168,16 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
 }
 
 uint32_t Image::getFormatMaxMipLevels(const Context &ctx, vk::ImageTiling tiling, vk::ImageUsageFlags usageFlags) {
-    vk::ImageFormatProperties formatProps;
-    formatProps = ctx.physicalDevice().getImageFormatProperties(_dataType, vk::ImageType::e2D, tiling, usageFlags, {});
+    try {
+        vk::ImageFormatProperties formatProps;
+        formatProps =
+            ctx.physicalDevice().getImageFormatProperties(_dataType, vk::ImageType::e2D, tiling, usageFlags, {});
 
-    return formatProps.maxMipLevels;
+        return formatProps.maxMipLevels;
+    } catch (const vk::FormatNotSupportedError &) {
+        // Format is not supported, return 0 to disallow image creation
+        return 0;
+    }
 }
 
 vk::Image Image::image() const { return *_image; }
@@ -238,16 +244,14 @@ void Image::transitionLayout(vk::raii::CommandBuffer &cmdBuf, vk::ImageLayout ex
     _targetLayout = expectedLayout;
 }
 
-void Image::allocateMemory(Context &ctx) {
+void Image::allocateMemory(const Context &ctx) {
     // Allocate memory
     if (!_memoryManager->isInitalized()) {
         vk::MemoryPropertyFlags memoryFlags;
-        if (_mips > 1) {
-            memoryFlags = static_cast<vk::MemoryPropertyFlags>(0);
-        } else if (!_imageInfo.isAliased && _imageInfo.tiling && _imageInfo.tiling.value() == Tiling::Optimal) {
-            memoryFlags = vk::MemoryPropertyFlagBits::eDeviceLocal;
-        } else {
+        if (_imageInfo.isAliased) {
             memoryFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+        } else {
+            memoryFlags = vk::MemoryPropertyFlagBits::eDeviceLocal;
         }
         _memoryManager->allocateDeviceMemory(ctx, memoryFlags);
     }
