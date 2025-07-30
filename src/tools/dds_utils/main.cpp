@@ -36,6 +36,10 @@ std::vector<uint16_t> createRandomFloat16Data(uint32_t size) {
 }
 
 DxgiFormat getDxgiFormat(const std::string &format) {
+    if (format == "DXGI_FORMAT_R16_FLOAT") {
+        return DXGI_FORMAT_R16_FLOAT;
+    }
+
     if (format == "DXGI_FORMAT_R16G16_FLOAT") {
         return DXGI_FORMAT_R16G16_FLOAT;
     }

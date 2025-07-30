@@ -88,6 +88,8 @@ vk::Format ddsFormatToVkFormat(const DDSHeaderInfo &header) {
         return vk::Format::eR8Snorm;
     case DXGI_FORMAT_R32_FLOAT:
         return vk::Format::eR32Sfloat;
+    case DXGI_FORMAT_R16_FLOAT:
+        return vk::Format::eR16Sfloat;
     case DXGI_FORMAT_R8_UNORM:
         return vk::Format::eR8Unorm;
     default:
@@ -125,6 +127,8 @@ DxgiFormat vkFormatToDDSFormat(vk::Format vkFormat) {
         return DXGI_FORMAT_R8_SNORM;
     case vk::Format::eR32Sfloat:
         return DXGI_FORMAT_R32_FLOAT;
+    case vk::Format::eR16Sfloat:
+        return DXGI_FORMAT_R16_FLOAT;
     case vk::Format::eR8Unorm:
         return DXGI_FORMAT_R8_UNORM;
     default:
