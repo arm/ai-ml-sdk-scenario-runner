@@ -25,6 +25,7 @@ typedef enum {
     DXGI_FORMAT_R32_FLOAT = 41,
     DXGI_FORMAT_R8G8_UNORM = 49,
     DXGI_FORMAT_R8G8_SINT = 50,
+    DXGI_FORMAT_R16_FLOAT = 54,
     DXGI_FORMAT_R8_UNORM = 61,
     DXGI_FORMAT_R8_SNORM = 63,
     // These constants are not present in the DXGI standard.
