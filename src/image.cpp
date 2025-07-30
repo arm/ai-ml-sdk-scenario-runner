@@ -322,7 +322,7 @@ void Image::fillFromDescription(Context &ctx, const ImageDesc &desc) {
                                           dataSize(),
                                           vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst,
                                           vk::SharingMode::eExclusive,
-                                          ctx.computeFamilyQueueIdx(),
+                                          ctx.familyQueueIdx(),
                                           nullptr};
 
     _stagingBuffer = vk::raii::Buffer(ctx.device(), BufferCreateInfo);
@@ -343,7 +343,7 @@ void Image::fillFromDescription(Context &ctx, const ImageDesc &desc) {
 
     // Setup of casting operation
     const vk::CommandPoolCreateInfo cmdPoolCreateInfo({vk::CommandPoolCreateFlagBits::eResetCommandBuffer},
-                                                      ctx.computeFamilyQueueIdx());
+                                                      ctx.familyQueueIdx());
     auto cmdPool = ctx.device().createCommandPool(cmdPoolCreateInfo);
     const vk::CommandBufferAllocateInfo cmdBufferAllocInfo(*cmdPool, vk::CommandBufferLevel::ePrimary, 1);
     vk::raii::CommandBuffer cmdBuffer = std::move(ctx.device().allocateCommandBuffers(cmdBufferAllocInfo).front());
@@ -425,7 +425,7 @@ void Image::fillFromDescription(Context &ctx, const ImageDesc &desc) {
 
     cmdBuffer.end();
     vk::SubmitInfo submitInfo({}, {}, *cmdBuffer);
-    auto queue = ctx.device().getQueue(ctx.computeFamilyQueueIdx(), 0);
+    auto queue = ctx.device().getQueue(ctx.familyQueueIdx(), 0);
     auto fence = ctx.device().createFence({});
     queue.submit(submitInfo, *fence);
     const uint64_t timeout = static_cast<uint64_t>(-1);
@@ -438,7 +438,7 @@ void Image::fillFromDescription(Context &ctx, const ImageDesc &desc) {
 std::vector<char> Image::getImageData(Context &ctx) {
     // Use staging buffer to get image data
     const vk::CommandPoolCreateInfo cmdPoolCreateInfo({vk::CommandPoolCreateFlagBits::eResetCommandBuffer},
-                                                      ctx.computeFamilyQueueIdx());
+                                                      ctx.familyQueueIdx());
     auto cmdPool = ctx.device().createCommandPool(cmdPoolCreateInfo);
     const vk::CommandBufferAllocateInfo cmdBufferAllocInfo(*cmdPool, vk::CommandBufferLevel::ePrimary, 1);
     vk::raii::CommandBuffer cmdBuffer = std::move(ctx.device().allocateCommandBuffers(cmdBufferAllocInfo).front());
@@ -462,7 +462,7 @@ std::vector<char> Image::getImageData(Context &ctx) {
     cmdBuffer.end();
 
     vk::SubmitInfo submitInfo({}, {}, *cmdBuffer);
-    auto queue = ctx.device().getQueue(ctx.computeFamilyQueueIdx(), 0);
+    auto queue = ctx.device().getQueue(ctx.familyQueueIdx(), 0);
     auto fence = ctx.device().createFence({});
     queue.submit(submitInfo, *fence);
     const uint64_t timeout = static_cast<uint64_t>(-1);

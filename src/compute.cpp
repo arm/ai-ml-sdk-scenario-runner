@@ -34,13 +34,13 @@ struct PipelineBarrierDebugNameBuilder {
 
 Compute::Compute(Context &ctx) : _ctx(ctx) {
     const vk::CommandPoolCreateInfo cmdPoolCreateInfo({vk::CommandPoolCreateFlagBits::eResetCommandBuffer},
-                                                      _ctx.computeFamilyQueueIdx());
+                                                      _ctx.familyQueueIdx());
     _cmdPool = _ctx.device().createCommandPool(cmdPoolCreateInfo);
     setup();
 }
 
 void Compute::setup() {
-    _queue = _ctx.device().getQueue(_ctx.computeFamilyQueueIdx(), 0);
+    _queue = _ctx.device().getQueue(_ctx.familyQueueIdx(), 0);
     _fence = _ctx.device().createFence({});
 }
 

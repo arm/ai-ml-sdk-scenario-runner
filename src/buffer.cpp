@@ -11,11 +11,11 @@ namespace mlsdk::scenariorunner {
 
 Buffer::Buffer(const Context &ctx, const std::string &debugName, uint32_t size)
     : _buffer(nullptr), _deviceMemory(nullptr), _size(size), _debugName(debugName) {
-    vk::BufferCreateInfo BufferCreateInfo{
-        vk::BufferCreateFlags(),     size,   vk::BufferUsageFlagBits::eStorageBuffer, vk::SharingMode::eExclusive,
-        ctx.computeFamilyQueueIdx(), nullptr};
+    const vk::BufferCreateInfo bufferCreateInfo{
+        vk::BufferCreateFlags(), size,   vk::BufferUsageFlagBits::eStorageBuffer, vk::SharingMode::eExclusive,
+        ctx.familyQueueIdx(),    nullptr};
 
-    _buffer = vk::raii::Buffer(ctx.device(), BufferCreateInfo);
+    _buffer = vk::raii::Buffer(ctx.device(), bufferCreateInfo);
 
     trySetVkRaiiObjectDebugName(ctx, _buffer, debugName);
 
