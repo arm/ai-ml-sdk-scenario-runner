@@ -61,7 +61,7 @@ struct ScenarioSpec {
 class Scenario {
   public:
     /// \brief Constructor
-    Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec);
+    Scenario(ScenarioOptions opts, ScenarioSpec scenarioSpec);
 
     /// \brief Executes the test case
     void run(int count = 1, bool dryRun = false, bool captureFrame = false);
@@ -86,7 +86,7 @@ class Scenario {
     ScenarioOptions _opts;
     Context _ctx;
     DataManager _dataManager;
-    ScenarioSpec &_scenarioSpec;
+    ScenarioSpec _scenarioSpec;
     std::list<Pipeline> _pipelines{};
     std::optional<PipelineCache> _pipelineCache{};
     Compute _compute;

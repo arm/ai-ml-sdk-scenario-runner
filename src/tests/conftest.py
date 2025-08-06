@@ -317,9 +317,6 @@ class SDKTools:
             scenario_template, replacements
         )
         logger.debug("Scenario to run:\n%s", scenario.read_text())
-        import sys
-
-        print("Scenario to run:\n%s", scenario.read_text(), file=sys.stderr)
 
         self.scenario_runner.run("--scenario", scenario, *(options or []))
 

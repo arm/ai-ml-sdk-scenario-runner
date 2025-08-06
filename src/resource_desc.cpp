@@ -60,8 +60,7 @@ SpecializationConstantMap::SpecializationConstantMap(std::vector<SpecializationC
  * @param guidStr
  * @param src
  */
-DataGraphDesc::DataGraphDesc(Guid guid, const std::string &guidStr, const std::string &src)
-
+DataGraphDesc::DataGraphDesc(Guid guid, const std::string &guidStr, std::string src)
     : ResourceDesc(ResourceType::DataGraph, guid, guidStr), src(std::move(src)) {}
 
 DataGraphDesc::DataGraphDesc() : ResourceDesc(ResourceType::DataGraph, Guid(), "<unnamed_data_graph>") {}
@@ -75,8 +74,7 @@ DataGraphDesc::DataGraphDesc() : ResourceDesc(ResourceType::DataGraph, Guid(), "
  * @param entry
  * @param type
  */
-ShaderDesc::ShaderDesc(Guid guid, const std::string &guidStr, const std::string &src, const std::string &entry,
-                       ShaderType type)
+ShaderDesc::ShaderDesc(Guid guid, const std::string &guidStr, std::string src, std::string entry, ShaderType type)
     : ResourceDesc(ResourceType::Shader, guid, guidStr), src(std::move(src)), entry(std::move(entry)),
       shaderType(type) {}
 
@@ -89,7 +87,7 @@ ShaderDesc::ShaderDesc() : ResourceDesc(ResourceType::Shader, Guid(), "<unnamed_
  * @param guidStr
  * @param src
  */
-RawDataDesc::RawDataDesc(Guid guid, const std::string &guidStr, const std::string &src)
+RawDataDesc::RawDataDesc(Guid guid, const std::string &guidStr, std::string src)
     : ResourceDesc(ResourceType::RawData, guid, guidStr), src(std::move(src)) {}
 
 RawDataDesc::RawDataDesc() : ResourceDesc(ResourceType::RawData, Guid(), "<unnamed_raw_data>") {}
@@ -102,8 +100,7 @@ RawDataDesc::RawDataDesc() : ResourceDesc(ResourceType::RawData, Guid(), "<unnam
  * @param dims
  * @param shaderAccess
  */
-TensorDesc::TensorDesc(Guid guid, const std::string &guidStr, const std::vector<int64_t> &dims,
-                       ShaderAccessType shaderAccess)
+TensorDesc::TensorDesc(Guid guid, const std::string &guidStr, std::vector<int64_t> dims, ShaderAccessType shaderAccess)
     : ResourceDesc(ResourceType::Tensor, guid, guidStr), dims(std::move(dims)), shaderAccess(shaderAccess) {}
 
 TensorDesc::TensorDesc() : ResourceDesc(ResourceType::Tensor, Guid(), "<unnamed_tensor>") {}
@@ -117,7 +114,7 @@ TensorDesc::TensorDesc() : ResourceDesc(ResourceType::Tensor, Guid(), "<unnamed_
  * @param mips
  * @param shaderAccess
  */
-ImageDesc::ImageDesc(Guid guid, const std::string &guidStr, const std::vector<uint32_t> &dims, uint32_t mips,
+ImageDesc::ImageDesc(Guid guid, const std::string &guidStr, std::vector<uint32_t> dims, uint32_t mips,
                      ShaderAccessType shaderAccess)
     : ResourceDesc(ResourceType::Image, guid, guidStr), dims(std::move(dims)), mips(mips), shaderAccess(shaderAccess) {}
 
@@ -134,7 +131,7 @@ ImageDesc::ImageDesc() : ResourceDesc(ResourceType::Image, Guid(), "<unnamed_ima
  * @param size
  */
 BufferBarrierDesc::BufferBarrierDesc(const std::string &guidStr, MemoryAccess srcAccess, MemoryAccess dstAccess,
-                                     const std::string &resource, uint64_t offset, uint64_t size)
+                                     std::string resource, uint64_t offset, uint64_t size)
     : ResourceDesc(ResourceType::BufferBarrier, guidStr, guidStr), srcAccess(srcAccess), dstAccess(dstAccess),
       bufferResource(std::move(resource)), offset(offset), size(size) {}
 
@@ -166,7 +163,7 @@ MemoryBarrierDesc::MemoryBarrierDesc()
  * @param imageRange
  */
 ImageBarrierDesc::ImageBarrierDesc(const std::string &guidStr, MemoryAccess srcAccess, MemoryAccess dstAccess,
-                                   ImageLayout oldLayout, ImageLayout newLayout, const std::string &imageResource,
+                                   ImageLayout oldLayout, ImageLayout newLayout, std::string imageResource,
                                    SubresourceRange imageRange)
     : ResourceDesc(ResourceType::ImageBarrier, guidStr, guidStr), srcAccess(srcAccess), dstAccess(dstAccess),
       oldLayout(oldLayout), newLayout(newLayout), imageResource(std::move(imageResource)), imageRange(imageRange) {}

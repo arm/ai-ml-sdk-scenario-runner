@@ -35,8 +35,8 @@ enum class ResourceType {
 struct ResourceDesc {
     ResourceDesc() = default;
     ResourceDesc(ResourceType resourceType, Guid guid, const std::string &guidStr);
-    virtual const std::optional<std::string> &getSource() const { return src; };
-    virtual const std::optional<std::string> &getDestination() const { return dst; };
+    const std::optional<std::string> &getSource() const { return src; };
+    const std::optional<std::string> &getDestination() const { return dst; };
     virtual ~ResourceDesc() = default;
 
     ResourceType resourceType{ResourceType::Unknown};
@@ -56,11 +56,6 @@ struct BufferDesc : ResourceDesc {
     BufferDesc();
     BufferDesc(Guid guid, const std::string &guidStr, uint32_t size, ShaderAccessType shaderAccess);
 
-    const std::optional<std::string> &getSource() const override { return src; };
-    const std::optional<std::string> &getDestination() const override { return dst; };
-
-    std::optional<std::string> src;
-    std::optional<std::string> dst;
     uint32_t size{};
     ShaderAccessType shaderAccess{ShaderAccessType::Unknown};
 };
@@ -94,7 +89,7 @@ struct SpecializationConstantMap {
  */
 struct DataGraphDesc : ResourceDesc {
     DataGraphDesc();
-    DataGraphDesc(Guid guid, const std::string &guidStr, const std::string &src);
+    DataGraphDesc(Guid guid, const std::string &guidStr, std::string src);
 
     std::string src;
     std::vector<ShaderSubstitutionDesc> shaderSubstitutions;
@@ -110,8 +105,7 @@ enum class ShaderType { Unknown, SPIR_V, GLSL };
  */
 struct ShaderDesc : ResourceDesc {
     ShaderDesc();
-    ShaderDesc(Guid guid, const std::string &guidStr, const std::string &src, const std::string &entry,
-               ShaderType type);
+    ShaderDesc(Guid guid, const std::string &guidStr, std::string src, std::string entry, ShaderType type);
 
     std::string src;
     std::string entry;
@@ -128,9 +122,9 @@ struct ShaderDesc : ResourceDesc {
  */
 struct RawDataDesc : ResourceDesc {
     RawDataDesc();
-    RawDataDesc(Guid guid, const std::string &guidStr, const std::string &src);
+    RawDataDesc(Guid guid, const std::string &guidStr, std::string src);
 
-    std::string src{""};
+    std::string src;
 };
 
 struct AliasTarget {
@@ -145,15 +139,10 @@ struct AliasTarget {
  */
 struct TensorDesc : ResourceDesc {
     TensorDesc();
-    TensorDesc(Guid guid, const std::string &guidStr, const std::vector<int64_t> &dims, ShaderAccessType shaderAccess);
-
-    const std::optional<std::string> &getSource() const override { return src; };
-    const std::optional<std::string> &getDestination() const override { return dst; };
+    TensorDesc(Guid guid, const std::string &guidStr, std::vector<int64_t> dims, ShaderAccessType shaderAccess);
 
     std::vector<int64_t> dims;
     ShaderAccessType shaderAccess{ShaderAccessType::Unknown};
-    std::optional<std::string> src;
-    std::optional<std::string> dst;
     std::string format;
     AliasTarget aliasTarget{};
     std::optional<Tiling> tiling;
@@ -165,18 +154,13 @@ struct TensorDesc : ResourceDesc {
  */
 struct ImageDesc : ResourceDesc {
     ImageDesc();
-    ImageDesc(Guid guid, const std::string &guidStr, const std::vector<uint32_t> &dims, uint32_t mips,
+    ImageDesc(Guid guid, const std::string &guidStr, std::vector<uint32_t> dims, uint32_t mips,
               ShaderAccessType shaderAccess);
-
-    const std::optional<std::string> &getSource() const override { return src; };
-    const std::optional<std::string> &getDestination() const override { return dst; };
 
     std::vector<uint32_t> dims;
     uint32_t mips{1};
     std::string format;
     ShaderAccessType shaderAccess = ShaderAccessType::Unknown;
-    std::optional<std::string> src;
-    std::optional<std::string> dst;
 
     std::optional<FilterMode> minFilter;
     std::optional<FilterMode> magFilter;
@@ -194,7 +178,7 @@ struct ImageDesc : ResourceDesc {
 struct ImageBarrierDesc : ResourceDesc {
     ImageBarrierDesc();
     ImageBarrierDesc(const std::string &guidStr, MemoryAccess srcAccess, MemoryAccess dstAccess, ImageLayout oldLayout,
-                     ImageLayout newLayout, const std::string &imageResource, SubresourceRange imageRange);
+                     ImageLayout newLayout, std::string imageResource, SubresourceRange imageRange);
 
     MemoryAccess srcAccess{MemoryAccess::Unknown};
     MemoryAccess dstAccess{MemoryAccess::Unknown};
@@ -242,7 +226,7 @@ struct TensorBarrierDesc : ResourceDesc {
 struct BufferBarrierDesc : ResourceDesc {
     BufferBarrierDesc();
     BufferBarrierDesc(const std::string &guidStr, MemoryAccess srcAccess, MemoryAccess dstAccess,
-                      const std::string &bufferResource, uint64_t offset, uint64_t size);
+                      std::string bufferResource, uint64_t offset, uint64_t size);
 
     MemoryAccess srcAccess{MemoryAccess::Unknown};
     MemoryAccess dstAccess{MemoryAccess::Unknown};
