@@ -233,7 +233,7 @@ int main(int argc, const char **argv) {
 
         ScenarioSpec scenarioSpec(&fstream, workDir, outputDir);
         mlsdk::logging::info("Scenario file parsed");
-        Scenario scenario(std::move(scenarioOptions), std::move(scenarioSpec));
+        Scenario scenario(scenarioOptions, scenarioSpec);
         if (parser.get<bool>("--wait-for-key-stroke-before-run")) {
             mlsdk::logging::error("Press enter to continue...");
             std::ignore = getchar();
