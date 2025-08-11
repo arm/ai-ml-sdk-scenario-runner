@@ -10,11 +10,10 @@
 
 namespace mlsdk::scenariorunner {
 
-Tensor::Tensor(Context &ctx, const std::string &debugName, vk::Format dataType, const std::vector<int64_t> &shape,
-               bool isAliasedWithImage, vk::TensorTilingARM tiling,
-               std::shared_ptr<ResourceMemoryManager> memoryManager, bool isConstant)
-    : _debugName(debugName), _shape(shape), _dataType(dataType), _memoryManager(memoryManager), _tiling(tiling),
-      _isConstant(isConstant) {
+Tensor::Tensor(Context &ctx, const TensorInfo &tensorInfo, std::shared_ptr<ResourceMemoryManager> memoryManager)
+    : _debugName(tensorInfo.debugName), _shape(tensorInfo.shape), _dataType(tensorInfo.format),
+      _memoryManager(std::move(memoryManager)), _tiling(convertTiling(tensorInfo.tiling)),
+      _memoryOffset(tensorInfo.memoryOffset) {
 
     // implicitly convert rank=[] to rank=[1]
     if (_shape.empty()) {
@@ -29,7 +28,7 @@ Tensor::Tensor(Context &ctx, const std::string &debugName, vk::Format dataType, 
 
     uint32_t rank = static_cast<uint32_t>(_shape.size());
 
-    if (isAliasedWithImage && _tiling != vk::TensorTilingARM::eOptimal) {
+    if (tensorInfo.isAliasedWithImage && _tiling != vk::TensorTilingARM::eOptimal) {
         /*
           The extension to the spec does not support rank 4 tensors aliasing 2D images. Rank 4 tensor is associated with
           a 3D image. The image type check was added to avoid faults for 2D images due to this spec requirement:
@@ -47,24 +46,24 @@ Tensor::Tensor(Context &ctx, const std::string &debugName, vk::Format dataType, 
         };
 
         // setting pStrides[dimensionCount-4]
-        if (rank > 3 && memoryManager->getImageType() == vk::ImageType::e3D) {
-            pushStride(memoryManager->getSubResourceDepthPitch());
-        } else if (rank > 3 && memoryManager->getImageType() == vk::ImageType::e2D) {
+        if (rank > 3 && _memoryManager->getImageType() == vk::ImageType::e3D) {
+            pushStride(_memoryManager->getSubResourceDepthPitch());
+        } else if (rank > 3 && _memoryManager->getImageType() == vk::ImageType::e2D) {
             pushStride(_memoryManager->getMemSize());
         }
         // setting pStrides[dimensionCount-3]
         if (rank > 2) {
-            pushStride(memoryManager->getSubResourceRowPitch());
+            pushStride(_memoryManager->getSubResourceRowPitch());
         }
         // setting pStrides[dimensionCount-2] and pStrides[dimensionCount-1]
         if (rank > 1) {
-            if (numComponentsFromVkFormat(memoryManager->getFormat()) != _shape.back()) {
+            if (numComponentsFromVkFormat(_memoryManager->getFormat()) != _shape.back()) {
                 throw std::runtime_error("Aliased tensor innermost dimension: " + std::to_string(_shape.back()) +
                                          ", must match number of components of image: " +
-                                         std::to_string(numComponentsFromVkFormat(memoryManager->getFormat())));
+                                         std::to_string(numComponentsFromVkFormat(_memoryManager->getFormat())));
             }
 
-            pushStride(elementSizeFromVkFormat(_dataType) * numComponentsFromVkFormat(memoryManager->getFormat()));
+            pushStride(elementSizeFromVkFormat(_dataType) * numComponentsFromVkFormat(_memoryManager->getFormat()));
             pushStride(elementSizeFromVkFormat(_dataType));
         }
     }
@@ -79,12 +78,13 @@ Tensor::Tensor(Context &ctx, const std::string &debugName, vk::Format dataType, 
     vk::TensorCreateInfoARM createInfo(vk::TensorCreateFlagsARM(), &description, vk::SharingMode::eExclusive);
     _tensor = vk::raii::TensorARM(ctx.device(), createInfo);
 
-    trySetVkRaiiObjectDebugName(ctx, _tensor, debugName);
+    trySetVkRaiiObjectDebugName(ctx, _tensor, _debugName);
 
     vk::TensorMemoryRequirementsInfoARM memInfo(*_tensor);
     vk::MemoryRequirements2 memreqs = ctx.device().getTensorMemoryRequirementsARM(memInfo);
 
-    _memoryManager->updateMemSize(memreqs.memoryRequirements.size + memoryManager->getSubresourceOffset());
+    _memoryManager->updateMemSize(memreqs.memoryRequirements.size + _memoryManager->getSubresourceOffset() +
+                                  _memoryOffset);
     _memoryManager->updateMemType(memreqs.memoryRequirements.memoryTypeBits);
 }
 
@@ -108,7 +108,7 @@ void *Tensor::map() {
     if (!_memoryManager->isInitalized()) {
         throw std::runtime_error("Uninitialized MemoryManager for Tensor");
     }
-    return _memoryManager->getDeviceMemory().mapMemory(0, memSize());
+    return _memoryManager->getDeviceMemory().mapMemory(_memoryOffset, memSize());
 }
 
 void Tensor::unmap() {
@@ -127,7 +127,7 @@ void Tensor::allocateMemory(const Context &ctx) {
 
     // Bind tensor to memory
     const vk::BindTensorMemoryInfoARM bindInfo(*_tensor, *_memoryManager->getDeviceMemory(),
-                                               _memoryManager->getSubresourceOffset());
+                                               _memoryManager->getSubresourceOffset() + _memoryOffset);
     ctx.device().bindTensorMemoryARM(vk::ArrayProxy<vk::BindTensorMemoryInfoARM>(bindInfo));
 
     // Create tensor view

@@ -9,19 +9,19 @@
 
 namespace mlsdk::scenariorunner {
 
-Buffer::Buffer(const Context &ctx, const std::string &debugName, uint32_t size,
-               std::shared_ptr<ResourceMemoryManager> memoryManager)
-    : _buffer(nullptr), _size(size), _debugName(debugName), _memoryManager(std::move(memoryManager)) {
+Buffer::Buffer(const Context &ctx, const BufferInfo &bufferInfo, std::shared_ptr<ResourceMemoryManager> memoryManager)
+    : _buffer(nullptr), _size(bufferInfo.size), _debugName(bufferInfo.debugName),
+      _memoryManager(std::move(memoryManager)), _memoryOffset(bufferInfo.memoryOffset) {
     vk::BufferCreateInfo bufferCreateInfo{
-        vk::BufferCreateFlags(), size,   vk::BufferUsageFlagBits::eStorageBuffer, vk::SharingMode::eExclusive,
+        vk::BufferCreateFlags(), _size,  vk::BufferUsageFlagBits::eStorageBuffer, vk::SharingMode::eExclusive,
         ctx.familyQueueIdx(),    nullptr};
 
     _buffer = vk::raii::Buffer(ctx.device(), bufferCreateInfo);
 
-    trySetVkRaiiObjectDebugName(ctx, _buffer, debugName);
+    trySetVkRaiiObjectDebugName(ctx, _buffer, _debugName);
 
     const vk::MemoryRequirements memReqs = _buffer.getMemoryRequirements();
-    _memoryManager->updateMemSize(memReqs.size);
+    _memoryManager->updateMemSize(memReqs.size + _memoryOffset);
     _memoryManager->updateMemType(memReqs.memoryTypeBits);
 }
 
@@ -30,7 +30,7 @@ void Buffer::allocateMemory(const Context &ctx) {
         _memoryManager->allocateDeviceMemory(ctx, vk::MemoryPropertyFlagBits::eHostVisible);
     }
 
-    _buffer.bindMemory(*_memoryManager->getDeviceMemory(), 0);
+    _buffer.bindMemory(*_memoryManager->getDeviceMemory(), _memoryOffset);
 }
 
 const vk::Buffer &Buffer::buffer() const { return *_buffer; }
@@ -43,7 +43,7 @@ void *Buffer::map() {
     if (!_memoryManager->isInitalized()) {
         throw std::runtime_error("Uninitialized MemoryManager for Buffer");
     }
-    return _memoryManager->getDeviceMemory().mapMemory(0, _memoryManager->getMemSize());
+    return _memoryManager->getDeviceMemory().mapMemory(_memoryOffset, _memoryManager->getMemSize());
 }
 
 void Buffer::unmap() {

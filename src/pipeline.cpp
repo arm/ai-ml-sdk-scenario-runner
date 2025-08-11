@@ -186,9 +186,6 @@ Pipeline::Pipeline(Context &ctx, const std::string &debugName, const uint32_t se
         }
 
         const Tensor &tensor = dataManager->getTensor(resourceRef);
-        if (tensor.isConstant()) {
-            throw std::runtime_error("Cannot bind a constant Tensor");
-        }
 
         const int64_t *strides_ptr = tensor.dimStrides().data();
         if (tensor.dimStrides().empty()) {

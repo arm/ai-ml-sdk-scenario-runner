@@ -108,6 +108,7 @@ struct DDSHeaderInfo {
 struct BufferInfo {
     std::string debugName;
     uint32_t size;
+    uint64_t memoryOffset{};
 };
 
 /// \brief Structure that describes N-dimensional data
@@ -122,6 +123,7 @@ struct TensorInfo {
     int64_t sparsityDimension{-1};
     bool isAliasedWithImage{false};
     Tiling tiling{Tiling::Linear};
+    uint64_t memoryOffset{};
 };
 
 /// @brief Structure that describes the sampler of an image
@@ -151,6 +153,7 @@ struct ImageInfo {
     bool isSampled{false};
     bool isStorage{false};
     std::optional<Tiling> tiling;
+    uint64_t memoryOffset{};
 };
 
 /// @brief Structure that describes the image barrier

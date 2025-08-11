@@ -18,16 +18,9 @@ class Tensor : public Resource {
     /// \brief Constructor
     ///
     /// \param ctx                    Contextual information about the Vulkan instance
-    /// \param debugName              Debug name
-    /// \param dataType               Tensor data type
-    /// \param shape                  Tensor shape
-    /// \param isAliasedWithImage     True if tensor is aliasing with an image
-    /// \param tiling                 Tensor tiling type default to Linear
+    /// \param tensorInfo             Tensor info
     /// \param memoryManager          Memory manager for this resource
-    /// \param isConstant             True if tensor is constant
-    Tensor(Context &ctx, const std::string &debugName, vk::Format dataType, const std::vector<int64_t> &shape,
-           bool isAliasedWithImage, vk::TensorTilingARM tiling, std::shared_ptr<ResourceMemoryManager> memoryManager,
-           bool isConstant = false);
+    Tensor(Context &ctx, const TensorInfo &tensorInfo, std::shared_ptr<ResourceMemoryManager> memoryManager);
     Tensor() = default;
 
     /// \brief Tensor accessor
@@ -38,8 +31,8 @@ class Tensor : public Resource {
     /// \return The underlying Vulkan tensor view
     const vk::TensorViewARM &tensorView() const;
 
-    /// \brief Get tensor memory size in bytes
-    /// \return Size of tensor memory in bytes
+    /// \brief Get total size of memory object associated with this tensor
+    /// \return Size of memory in bytes
     uint64_t memSize() const;
 
     /// \brief Get tensor packed data size in bytes
@@ -69,9 +62,6 @@ class Tensor : public Resource {
     /// \brief Un-maps a buffer from the host
     void unmap();
 
-    /// \brief checks if tensor is a constant tensor resource
-    bool isConstant() const { return _isConstant; };
-
     /// \brief checks if tensor's shape has been converted from dims=[] to dims=[1]
     bool isRankConverted() const { return _rankConverted; };
 
@@ -100,7 +90,7 @@ class Tensor : public Resource {
     std::vector<int64_t> _strides{};
     std::shared_ptr<ResourceMemoryManager> _memoryManager{nullptr};
     vk::TensorTilingARM _tiling = vk::TensorTilingARM::eLinear;
-    bool _isConstant{false};
+    uint64_t _memoryOffset{0};
     bool _rankConverted{false};
 };
 

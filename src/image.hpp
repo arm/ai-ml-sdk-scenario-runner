@@ -42,8 +42,8 @@ class Image : public Resource {
     /// \return Size of image packed data in bytes
     uint64_t dataSize() const;
 
-    /// \brief Get image allocated memory size in bytes
-    /// \return Size of image memory in bytes
+    /// \brief Get total size of memory object associated with this tensor
+    /// \return Size of memory in bytes
     uint64_t memSize() const;
 
     /// \brief Get image data type
@@ -100,6 +100,7 @@ class Image : public Resource {
     vk::ImageLayout _initialLayout{};
     vk::ImageLayout _targetLayout{};
     vk::ImageTiling _tiling{};
+    uint64_t _memoryOffset{0};
 };
 
 } // namespace mlsdk::scenariorunner
