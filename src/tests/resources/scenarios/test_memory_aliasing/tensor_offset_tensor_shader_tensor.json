@@ -1,0 +1,107 @@
+{
+    "commands": [
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "set": 0,
+                        "id": 0,
+                        "resource_ref": "_inputTensor0"
+                    },
+                    {
+                        "set": 0,
+                        "id": 1,
+                        "resource_ref": "_inputTensor1"
+                    },
+                    {
+                        "set": 0,
+                        "id": 2,
+                        "resource_ref": "_outputTensor"
+                    }
+                ],
+                "shader_ref": "shader",
+                "rangeND": [
+                    16,
+                    16,
+                    1
+                ]
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "uid": "shader",
+                "src": "add_tensor_shader_two_inputs.spv",
+                "entry": "main",
+                "type": "SPIR-V"
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "readwrite",
+                "dims": [
+                    2,
+                    16,
+                    16,
+                    1
+                ],
+                "format": "VK_FORMAT_R16_UINT",
+                "uid": "_inputTensorFile",
+                "src": "input.npy",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "readwrite",
+                "dims": [
+                    1,
+                    16,
+                    16,
+                    1
+                ],
+                "format": "VK_FORMAT_R16_UINT",
+                "uid": "_inputTensor0",
+                "dst": "input0.npy",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "readwrite",
+                "dims": [
+                    1,
+                    16,
+                    16,
+                    1
+                ],
+                "format": "VK_FORMAT_R16_UINT",
+                "uid": "_inputTensor1",
+                "dst": "input1.npy",
+                "memory_group": {
+                    "id": "memoryGroup0",
+                    "offset": 2048
+                }
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "readwrite",
+                "dims": [
+                    1,
+                    16,
+                    16,
+                    1
+                ],
+                "format": "VK_FORMAT_R16_UINT",
+                "uid": "_outputTensor",
+                "dst": "output.npy"
+            }
+        }
+    ]
+}

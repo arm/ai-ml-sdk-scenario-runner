@@ -208,6 +208,9 @@ void Scenario::setupResources() {
             BufferInfo info;
             info.debugName = buffer->guidStr;
             info.size = buffer->size;
+            if (buffer->memoryGroup.has_value()) {
+                info.memoryOffset = buffer->memoryGroup->offset;
+            }
             _dataManager.createBuffer(resource->guid, info);
         } break;
         case (ResourceType::RawData): {
@@ -280,6 +283,10 @@ void Scenario::setupResources() {
             if (info.targetFormat == vk::Format::eR32Sfloat && info.format == vk::Format::eD32SfloatS8Uint) {
                 // Convert depth type to single channel color type, dropping stencil component
                 info.format = info.targetFormat;
+            }
+
+            if (image->memoryGroup.has_value()) {
+                info.memoryOffset = image->memoryGroup->offset;
             }
 
             for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
@@ -359,6 +366,9 @@ void Scenario::setupResources() {
 
             TensorInfo info;
             info.debugName = tensor->guidStr;
+            if (tensor->memoryGroup.has_value()) {
+                info.memoryOffset = tensor->memoryGroup->offset;
+            }
             for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
                 if (resources.find(tensor->guid) != resources.end() && resources.size() != 1) {
                     for (const auto &maybeImage : resources) {

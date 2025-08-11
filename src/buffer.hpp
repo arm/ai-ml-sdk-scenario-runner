@@ -17,11 +17,9 @@ class Buffer : public Resource {
     /// \brief Constructor
     ///
     /// \param ctx  Contextual information about the Vulkan instance
-    /// \param debugName Debug name
-    /// \param size Total size of buffer in bytes
+    /// \param bufferInfo buffer Information
     /// \param memoryManager Information about (possibly shared) underlying memory
-    Buffer(const Context &ctx, const std::string &debugName, uint32_t size,
-           std::shared_ptr<ResourceMemoryManager> memoryManager);
+    Buffer(const Context &ctx, const BufferInfo &bufferInfo, std::shared_ptr<ResourceMemoryManager> memoryManager);
     Buffer() = default;
 
     /// \brief Buffer accessor
@@ -61,6 +59,7 @@ class Buffer : public Resource {
     uint32_t _size{0};
     std::string _debugName{};
     std::shared_ptr<ResourceMemoryManager> _memoryManager;
+    uint64_t _memoryOffset{0};
 };
 
 } // namespace mlsdk::scenariorunner

@@ -196,6 +196,104 @@ def test_generic_resources_no_compute(
         ),
     ],
 )
+def test_generic_resources_no_compute_two_outputs_offset(
+    sdk_tools,
+    numpy_helper,
+    input_type,
+    output0_type,
+    output1_type,
+    input_width,
+    input_height,
+    input_depth,
+    data_type,
+):
+    scenario_name = f"test_memory_aliasing/input_{input_type}_output_{output0_type}_{output1_type}_offset.json"
+
+    if input_type == "buffer":
+        data_size = (
+            input_width * input_height * input_depth * np.dtype(data_type).itemsize
+        )
+        input_npy = numpy_helper.generate(
+            [data_size], dtype=np.int8, filename="inBuffer.npy"
+        )
+    if input_type == "tensor":
+        input_npy = numpy_helper.generate(
+            [input_width, input_height, input_depth],
+            dtype=data_type,
+            filename="inTensor.npy",
+        )
+    if input_type == "image":
+        dds_file = sdk_tools.generate_dds_file(
+            input_height,
+            input_width,
+            "fp16",
+            4,
+            "DXGI_FORMAT_R16G16_FLOAT",
+            "inImage.dds",
+        )
+        sdk_tools.convert_dds_to_npy(dds_file, "temp.npy", 4)
+        input_npy = numpy_helper.load("temp.npy", np.uint16)
+
+    sdk_tools.run_scenario(scenario_name)
+
+    if output0_type == "buffer":
+        result0 = numpy_helper.load("outBuffer0.npy", np.int8)
+    if output0_type == "tensor":
+        result0 = numpy_helper.load("outTensor0.npy", data_type)
+    if output0_type == "image":
+        sdk_tools.convert_dds_to_npy(
+            sdk_tools.resources_helper.get_testenv_path("outImage0.dds"), "temp0.npy", 4
+        )
+        result0 = numpy_helper.load("temp0.npy", data_type)
+
+    if output1_type == "buffer":
+        result1 = numpy_helper.load("outBuffer1.npy", np.int8)
+    if output1_type == "tensor":
+        result1 = numpy_helper.load("outTensor1.npy", data_type)
+    if output1_type == "image":
+        sdk_tools.convert_dds_to_npy(
+            sdk_tools.resources_helper.get_testenv_path("outImage1.dds"), "temp1.npy", 4
+        )
+        result1 = numpy_helper.load("temp1.npy", data_type)
+
+    assert input_npy.nbytes == result0.nbytes + result1.nbytes
+    assert (
+        input_npy.tobytes() == np.append(result0.tobytes(), result1.tobytes()).tobytes()
+    )
+
+
+@pytest.mark.parametrize(
+    "input_type, output0_type, output1_type, input_width, input_height, input_depth, data_type",
+    [
+        (
+            "buffer",
+            "buffer",
+            "buffer",
+            256,
+            1,
+            1,
+            np.int8,
+        ),
+        (
+            "tensor",
+            "buffer",
+            "image",
+            64,
+            64,
+            2,
+            np.int16,
+        ),
+        (
+            "image",
+            "tensor",
+            "tensor",
+            64,
+            64,
+            2,
+            np.int16,
+        ),
+    ],
+)
 def test_generic_resources_no_compute_two_outputs(
     sdk_tools,
     numpy_helper,
@@ -344,6 +442,80 @@ def test_image_to_tensor_aliasing_tensor_plus_ten_shader(sdk_tools, numpy_helper
 
     result = numpy_helper.load("output.npy")
     assert np.array_equal(result, dds_data.reshape(result.shape) + 10)
+
+
+def test_image_to_tensor_aliasing_tensor_plus_ten_shader_offset_outputs(
+    sdk_tools, numpy_helper
+):
+    width, height, dsize = 64, 16, 4
+
+    dds_file = sdk_tools.generate_dds_file(
+        height,
+        width,
+        "fp16",
+        dsize,
+        "DXGI_FORMAT_R16G16_FLOAT",
+        "temp.dds",
+    )
+
+    sdk_tools.compile_shader("test_memory_aliasing/plus_ten_tensor.comp")
+    sdk_tools.run_scenario(
+        "test_memory_aliasing/image_to_tensor_aliasing_aliased_tensor_plus_ten_shader_offset_outputs.json"
+    )
+
+    sdk_tools.convert_dds_to_npy(dds_file, "temp.dds.npy", 2)
+    dds_data = numpy_helper.load("temp.dds.npy", np.uint16)
+
+    input_npy = numpy_helper.load("input.npy")
+    assert np.array_equal(input_npy, dds_data.reshape(input_npy.shape))
+
+    result0 = numpy_helper.load("output0.npy")
+    result1 = numpy_helper.load("output1.npy")
+    result_concat = np.append(result0.reshape(-1, 1), result1.reshape(-1, 1))
+
+    assert np.array_equal(result_concat, dds_data.reshape(result_concat.shape) + 10)
+
+
+def test_tensor_to_tensor_tensor_offset(sdk_tools, numpy_helper):
+    width, height, depth = 16, 16, 1
+
+    input_npy = numpy_helper.generate(
+        [1, width, height, depth],
+        dtype=np.uint16,
+        filename="input.npy",
+    )
+
+    sdk_tools.compile_shader("test_memory_aliasing/copy_tensor_shader_two_outputs.comp")
+    sdk_tools.run_scenario(
+        "test_memory_aliasing/tensor_shader_tensor_offset_tensor.json"
+    )
+
+    result0 = numpy_helper.load("output0.npy")
+    result1 = numpy_helper.load("output1.npy")
+
+    assert np.array_equal(input_npy, result0)
+    assert np.array_equal(result0, result1)
+
+
+def test_tensor_to_tensor_tensor_offset(sdk_tools, numpy_helper):
+    width, height, depth = 16, 16, 1
+
+    input_npy = numpy_helper.generate(
+        [2, width, height, depth],
+        dtype=np.uint16,
+        filename="input.npy",
+    )
+
+    sdk_tools.compile_shader("test_memory_aliasing/add_tensor_shader_two_inputs.comp")
+    sdk_tools.run_scenario(
+        "test_memory_aliasing/tensor_offset_tensor_shader_tensor.json"
+    )
+
+    result = numpy_helper.load("output.npy")
+    input0 = numpy_helper.load("input0.npy")
+    input1 = numpy_helper.load("input1.npy")
+
+    assert np.array_equal(result, input0 + input1)
 
 
 def test_image_to_tensor_aliasing_copy_image_shader_copy_tensor_shader(

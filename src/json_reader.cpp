@@ -339,7 +339,7 @@ void from_json(const json &j, PushConstantMap &pushConstantMap) {
 void from_json(const json &j, MemoryGroup &group) {
     group.memoryUid = j.at("id");
     if (j.count("offset") != 0) {
-        group.offset = j.at("offset").get<int>();
+        group.offset = j.at("offset").get<uint64_t>();
     }
 }
 

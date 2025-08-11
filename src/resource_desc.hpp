@@ -30,7 +30,7 @@ enum class ResourceType {
 
 struct MemoryGroup {
     Guid memoryUid;
-    int offset{};
+    uint64_t offset{};
 };
 
 /**

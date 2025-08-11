@@ -22,19 +22,18 @@ namespace mlsdk::scenariorunner {
 DataManager::DataManager(Context &ctx) : _ctx(ctx) {}
 
 void DataManager::createBuffer(Guid guid, const BufferInfo &info) {
-    _buffers.insert({guid, Buffer(_ctx, info.debugName, info.size, getOrCreateMemoryManager(guid))});
+    _buffers.insert({guid, Buffer(_ctx, info, getOrCreateMemoryManager(guid))});
 }
 
 void DataManager::createBuffer(Guid guid, const BufferInfo &info, std::vector<char> &values) {
-    _buffers.insert({guid, Buffer(_ctx, info.debugName, info.size, getOrCreateMemoryManager(guid))});
+    createBuffer(guid, info);
     auto &buffer = getBufferMut(guid);
     buffer.allocateMemory(_ctx);
     buffer.fill(values.data(), values.size());
 }
 
 void DataManager::createTensor(Guid guid, const TensorInfo &info) {
-    _tensors.insert({guid, Tensor(_ctx, info.debugName, info.format, info.shape, info.isAliasedWithImage,
-                                  Tensor::convertTiling(info.tiling), getOrCreateMemoryManager(guid), false)});
+    _tensors.insert({guid, Tensor(_ctx, info, getOrCreateMemoryManager(guid))});
 }
 
 void DataManager::createImage(Guid guid, const ImageInfo &info) {

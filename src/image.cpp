@@ -13,7 +13,8 @@
 namespace mlsdk::scenariorunner {
 
 Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceMemoryManager> memoryManager)
-    : _imageInfo(imageInfo), _memoryManager(std::move(memoryManager)), _mips(imageInfo.mips) {
+    : _imageInfo(imageInfo), _memoryManager(std::move(memoryManager)), _mips(imageInfo.mips),
+      _memoryOffset(imageInfo.memoryOffset) {
     // Create image
 
     if (_mips == 0) {
@@ -129,7 +130,7 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
     _sampler = vk::raii::Sampler(ctx.device(), samplerCreateInfo);
 
     vk::MemoryRequirements memoryRequirements = _image.getMemoryRequirements();
-    _memoryManager->updateMemSize(memoryRequirements.size);
+    _memoryManager->updateMemSize(memoryRequirements.size + _memoryOffset);
     _memoryManager->updateMemType(memoryRequirements.memoryTypeBits);
 
     vk::ImageSubresource targetSubresource(getImageAspectMaskForVkFormat(_dataType));
@@ -252,7 +253,7 @@ void Image::allocateMemory(Context &ctx) {
     }
 
     // Bind image to memory
-    const vk::BindImageMemoryInfo bindInfo(*_image, *_memoryManager->getDeviceMemory());
+    const vk::BindImageMemoryInfo bindInfo(*_image, *_memoryManager->getDeviceMemory(), _memoryOffset);
     ctx.device().bindImageMemory2(vk::ArrayProxy<vk::BindImageMemoryInfo>(bindInfo));
 
     const vk::ImageAspectFlags aspectMask = getImageAspectMaskForVkFormat(_dataType);

@@ -1,0 +1,57 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "image": {
+                "dims": [
+                    1,
+                    64,
+                    64,
+                    1
+                ],
+                "shader_access": "image_read",
+                "format": "VK_FORMAT_R16G16_SFLOAT",
+                "uid": "inImage",
+                "src": "inImage.dds",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "readwrite",
+                "dims": [
+                    1,
+                    32,
+                    64,
+                    2
+                ],
+                "format": "VK_FORMAT_R16_SINT",
+                "uid": "outTensor0",
+                "dst": "outTensor0.npy",
+                "memory_group": {
+                    "id": "memoryGroup0"
+                }
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "readwrite",
+                "dims": [
+                    1,
+                    32,
+                    64,
+                    2
+                ],
+                "format": "VK_FORMAT_R16_SINT",
+                "uid": "outTensor1",
+                "dst": "outTensor1.npy",
+                "memory_group": {
+                    "id": "memoryGroup0",
+                    "offset": 8192
+                }
+            }
+        }
+    ]
+}
