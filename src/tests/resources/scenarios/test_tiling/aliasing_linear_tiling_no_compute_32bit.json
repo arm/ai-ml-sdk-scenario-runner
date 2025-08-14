@@ -18,7 +18,10 @@
                 "src": "temp.dds",
                 "uid": "_testImage",
                 "dst": "outputImage.dds",
-                "tiling": "LINEAR"
+                "tiling": "LINEAR",
+                "memory_group": {
+                    "id": "group0"
+                }
             }
         },
         {
@@ -33,8 +36,8 @@
                 "format": "VK_FORMAT_R32_UINT",
                 "uid": "_testTensor",
                 "dst": "output.npy",
-                "alias_target": {
-                    "resource_ref": "_testImage"
+                "memory_group": {
+                    "id": "group0"
                 },
                 "tiling": "LINEAR"
             }

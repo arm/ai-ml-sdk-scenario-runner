@@ -237,7 +237,7 @@ def test_aliasing_linear_tiling_copy_image_shader(
     assert equal_cmp_as_fp16(dds_file_npy, output_npy)
 
 
-def test_aliasing_with_optimal_tiling_copy_tensor_shader(
+def test_aliasing_optimal_tiling_copy_tensor_shader(
     sdk_tools, numpy_helper, resources_helper
 ):
     """Test flow:
