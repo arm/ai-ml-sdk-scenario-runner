@@ -152,6 +152,7 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     physicalDev3Feat.pNext = &physicalDev2Feat;
 
     vk::PhysicalDeviceTensorFeaturesARM tensorFeat;
+    tensorFeat.tensorNonPacked = true;
     tensorFeat.shaderTensorAccess = true;
     tensorFeat.tensors = true;
     tensorFeat.pNext = &physicalDev3Feat;

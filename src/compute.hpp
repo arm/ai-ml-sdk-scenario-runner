@@ -57,6 +57,7 @@ struct PushConstants {
 
 struct WriteTimestamp {
     uint32_t query;
+    vk::PipelineStageFlagBits2 flag;
 };
 
 struct MarkBoundary {
@@ -117,7 +118,8 @@ class Compute {
 
     /// \brief Register a timestamp query
     /// \param query Index of the query
-    void registerWriteTimestamp(uint32_t query);
+    /// \param flag type of stage
+    void registerWriteTimestamp(uint32_t query, vk::PipelineStageFlagBits2 flag);
 
     /// \brief Register a pipeline barrier for execution
     /// \param dispatchBarrierDescs image barrier dispatch descriptor
