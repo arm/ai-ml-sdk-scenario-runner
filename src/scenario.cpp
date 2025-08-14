@@ -462,7 +462,7 @@ void Scenario::setupCommands(int iteration) {
             // Read shader file
             _pipelines.emplace_back(_ctx, dispatchCompute.debugName, dispatchCompute.bindings, *shaderDesc,
                                     &_dataManager, _pipelineCache);
-            _compute.registerWriteTimestamp(nQueries++);
+            _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
             if (dispatchCompute.pushDataRef) {
                 const RawData &pushConstantData = _dataManager.getRawData(dispatchCompute.pushDataRef.value());
                 _compute.registerPipelineFenced(_pipelines.back(), &_dataManager, dispatchCompute.bindings,
@@ -474,7 +474,7 @@ void Scenario::setupCommands(int iteration) {
                                                 dispatchCompute.implicitBarrier, dispatchCompute.rangeND[0],
                                                 dispatchCompute.rangeND[1], dispatchCompute.rangeND[2]);
             }
-            _compute.registerWriteTimestamp(nQueries++);
+            _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
             _perfCounters.back().stop();
             mlsdk::logging::debug("Shader Pipeline: " + shaderDesc->guidStr + " created");
         } break;
@@ -672,10 +672,10 @@ void Scenario::createPipeline(const uint32_t segmentIndex, std::vector<BindingDe
     case ModuleType::GRAPH: {
         _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, segmentIndex, sequenceBindings, vgfView,
                                 &_dataManager, pipelineCache);
-        _compute.registerWriteTimestamp(nQueries++);
+        _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
         _compute.registerPipelineFenced(_pipelines.back(), &_dataManager, sequenceBindings, nullptr, 0,
                                         dispatchDataGraph.implicitBarrier);
-        _compute.registerWriteTimestamp(nQueries++);
+        _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
         mlsdk::logging::debug("Graph Pipeline: " + vgfView.getSPVModuleName(segmentIndex) + " created");
     } break;
     case ModuleType::SHADER: {
@@ -705,11 +705,11 @@ void Scenario::createPipeline(const uint32_t segmentIndex, std::vector<BindingDe
         }
 
         auto dispatchShape = vgfView.getDispatchShape(segmentIndex);
-        _compute.registerWriteTimestamp(nQueries++);
+        _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
         _compute.registerPipelineFenced(_pipelines.back(), &_dataManager, sequenceBindings, nullptr, 0,
                                         dispatchDataGraph.implicitBarrier, dispatchShape[0], dispatchShape[1],
                                         dispatchShape[2]);
-        _compute.registerWriteTimestamp(nQueries++);
+        _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
         mlsdk::logging::debug("Shader Pipeline: " + vgfView.getSPVModuleName(segmentIndex) + " created");
     } break;
     default:

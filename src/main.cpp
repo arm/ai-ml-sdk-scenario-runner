@@ -142,7 +142,6 @@ int main(int argc, const char **argv) {
             .implicit_value(true);
 
         // Main Scenario-Runner CLI execution body
-        std::string scenarioFile;
         parser.parse_args(argc, argv);
 
         if (parser.is_used("--log-level")) {
@@ -150,7 +149,7 @@ int main(int argc, const char **argv) {
             setDefaultLogLevel(logLevel);
         }
 
-        scenarioFile = parser.get("--scenario");
+        auto scenarioFile = parser.get("--scenario");
         std::filesystem::path workDir = std::filesystem::path(scenarioFile).remove_filename();
         std::ifstream fstream(scenarioFile);
         if (!fstream) {
@@ -170,7 +169,7 @@ int main(int argc, const char **argv) {
         if (scenarioOptions.enablePipelineCaching) {
             scenarioOptions.clearPipelineCache = parser.get<bool>("--clear-pipeline-cache");
             scenarioOptions.failOnPipelineCacheMiss = parser.get<bool>("--fail-on-pipeline-cache-miss");
-            auto cacheDir = std::filesystem::path(parser.get<std::string>("--cache-path"));
+            auto cacheDir = std::filesystem::path(parser.get("--cache-path"));
             if (!std::filesystem::is_directory(cacheDir)) {
                 throw std::runtime_error("Invalid cache directory: " + cacheDir.string());
             }

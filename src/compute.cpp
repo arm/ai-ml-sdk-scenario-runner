@@ -196,7 +196,9 @@ void Compute::registerPipelineFenced(const Pipeline &pipeline, DataManager *data
     }
 }
 
-void Compute::registerWriteTimestamp(uint32_t query) { _commands.emplace_back(WriteTimestamp{query}); }
+void Compute::registerWriteTimestamp(uint32_t query, vk::PipelineStageFlagBits2 flag) {
+    _commands.emplace_back(WriteTimestamp{query, flag});
+}
 
 void Compute::registerPipelineBarrier(const DispatchBarrierDesc &dispatchBarrierDescs, DataManager *dataManager) {
     const uint32_t memoryBarrierIdx = static_cast<uint32_t>(_memoryBarriers.size());
@@ -371,9 +373,8 @@ void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters
                                                        vk::ArrayProxy(typedCmd.size, typedCmd.pushConstantData));
         } else if (std::holds_alternative<WriteTimestamp>(cmd)) {
             if (*_queryPool) {
-                auto &typedCmd = std::get<WriteTimestamp>(cmd);
-                auto flags = vk::PipelineStageFlagBits2::eComputeShader | vk::PipelineStageFlagBits2::eDataGraphARM;
-                _cmdBufferArray.back().writeTimestamp2(flags, *_queryPool, typedCmd.query);
+                const auto &typedCmd = std::get<WriteTimestamp>(cmd);
+                _cmdBufferArray.back().writeTimestamp2(typedCmd.flag, *_queryPool, typedCmd.query);
             }
         } else if (std::holds_alternative<MarkBoundary>(cmd)) {
             auto &typeCmd = std::get<MarkBoundary>(cmd);
