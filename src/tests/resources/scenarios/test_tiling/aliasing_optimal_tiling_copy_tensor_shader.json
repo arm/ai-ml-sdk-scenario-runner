@@ -45,7 +45,10 @@
                 "shader_access": "image_read",
                 "format": "VK_FORMAT_R16G16B16A16_SFLOAT",
                 "src": "input_image.dds",
-                "tiling": "LINEAR"
+                "tiling": "LINEAR",
+                "memory_group": {
+                    "id": "group0"
+                }
             }
         },
         {
@@ -59,8 +62,8 @@
                 ],
                 "format": "VK_FORMAT_R16_UINT",
                 "shader_access": "readwrite",
-                "alias_target": {
-                    "resource_ref": "input_image"
+                "memory_group": {
+                    "id": "group0"
                 },
                 "dst": "input_tensor.npy",
                 "tiling": "LINEAR"
@@ -78,7 +81,10 @@
                 "format": "VK_FORMAT_R16G16B16A16_SFLOAT",
                 "shader_access": "image_read",
                 "dst": "output_image.dds",
-                "tiling": "OPTIMAL"
+                "tiling": "OPTIMAL",
+                "memory_group": {
+                    "id": "group1"
+                }
             }
         },
         {
@@ -92,8 +98,8 @@
                 ],
                 "format": "VK_FORMAT_R16_UINT",
                 "shader_access": "readwrite",
-                "alias_target": {
-                    "resource_ref": "output_image"
+                "memory_group": {
+                    "id": "group1"
                 },
                 "dst": "output_tensor.npy",
                 "tiling": "OPTIMAL"

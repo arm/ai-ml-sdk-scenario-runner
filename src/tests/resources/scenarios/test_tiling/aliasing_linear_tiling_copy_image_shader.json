@@ -60,7 +60,10 @@
                 "format": "VK_FORMAT_R16G16_SFLOAT",
                 "shader_access": "writeonly",
                 "dst": "output_image.dds",
-                "tiling": "LINEAR"
+                "tiling": "LINEAR",
+                "memory_group": {
+                    "id": "group0"
+                }
             }
         },
         {
@@ -74,8 +77,8 @@
                 ],
                 "format": "VK_FORMAT_R16_UINT",
                 "shader_access": "readwrite",
-                "alias_target": {
-                    "resource_ref": "output_image"
+                "memory_group": {
+                    "id": "group0"
                 },
                 "dst": "output_tensor.npy",
                 "tiling": "LINEAR"

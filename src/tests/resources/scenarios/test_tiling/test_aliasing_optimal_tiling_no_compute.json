@@ -14,7 +14,10 @@
                 "shader_access": "readonly",
                 "tiling": "OPTIMAL",
                 "src": "temp.dds",
-                "dst": "alias_image.dds"
+                "dst": "alias_image.dds",
+                "memory_group": {
+                    "id": "group0"
+                }
             }
         },
         {
@@ -29,8 +32,8 @@
                 "format": "VK_FORMAT_R16_UINT",
                 "shader_access": "readonly",
                 "tiling": "OPTIMAL",
-                "alias_target": {
-                    "resource_ref": "aliasImage"
+                "memory_group": {
+                    "id": "group0"
                 },
                 "dst": "output.npy"
             }
