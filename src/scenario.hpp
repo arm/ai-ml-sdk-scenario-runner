@@ -67,9 +67,9 @@ class Scenario {
     void run(int count = 1, bool dryRun = false, bool captureFrame = false);
 
   private:
-    void createPipeline(const uint32_t segmentIndex, std::vector<BindingDesc> &sequenceBindings, const VgfView &vgfView,
-                        DispatchDataGraphDesc &dispatchDataGraph, std::optional<PipelineCache> &_pipelineCache,
-                        uint32_t &nQueries);
+    void createPipeline(const uint32_t segmentIndex, const std::vector<BindingDesc> &sequenceBindings,
+                        const VgfView &vgfView, const DispatchDataGraphDesc &dispatchDataGraph,
+                        std::optional<PipelineCache> &_pipelineCache, uint32_t &nQueries);
 
     /// \brief Sets up runtime options
     void setupResources();

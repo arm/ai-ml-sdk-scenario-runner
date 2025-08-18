@@ -4,6 +4,7 @@
  */
 
 #include "utils.hpp"
+#include "data_manager.hpp"
 #include "glsl_compiler.hpp"
 #include "logging.hpp"
 
@@ -64,6 +65,18 @@ std::vector<uint32_t> getMemoryTypeIndices(const Context &ctx, const vk::MemoryP
 
     return memoryTypeIndices;
 }
+
+vk::DescriptorType convertDescriptorType(const DescriptorType descriptorType) {
+    switch (descriptorType) {
+    case DescriptorType::StorageImage:
+        return vk::DescriptorType::eStorageImage;
+    case DescriptorType::Auto:
+        throw std::runtime_error("Cannot infer the descriptor type without context");
+    default:
+        throw std::runtime_error("Descriptor type is invalid");
+    }
+}
+
 } // namespace
 
 uint32_t elementSizeFromVkFormat(vk::Format format) {
@@ -300,4 +313,11 @@ void SPIRVMessageConsumer(spv_message_level_t level, const char *, const spv_pos
 
     mlsdk::logging::log("SPVTools", logLevel, "line:" + std::to_string(position.index) + ": " + message);
 }
+
+vk::DescriptorType getDescriptorType(const DataManager &dataManager, const BindingDesc &bindingDesc) {
+    return bindingDesc.descriptorType == DescriptorType::Auto
+               ? dataManager.getResourceDescriptorType(bindingDesc.resourceRef)
+               : convertDescriptorType(bindingDesc.descriptorType);
+}
+
 } // namespace mlsdk::scenariorunner

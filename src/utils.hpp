@@ -14,6 +14,9 @@
 #include "vulkan/vulkan_raii.hpp"
 
 namespace mlsdk::scenariorunner {
+class DataManager;
+
+struct BindingDesc;
 
 /** Data format components (channels) count.
  *
@@ -129,5 +132,10 @@ template <typename F> class ScopeExit {
   private:
     std::function<F> _f;
 };
+
+/** Get descriptor type from binding descriptor
+ *
+ */
+vk::DescriptorType getDescriptorType(const DataManager &dataManager, const BindingDesc &bindingDesc);
 
 } // namespace mlsdk::scenariorunner

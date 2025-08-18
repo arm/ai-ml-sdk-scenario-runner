@@ -6,7 +6,6 @@
 #pragma once
 
 #include "guid.hpp"
-#include "vulkan/vulkan_raii.hpp"
 
 #include <optional>
 #include <vector>
@@ -42,8 +41,6 @@ struct BindingDesc {
     Guid resourceRef;
     std::optional<uint32_t> lod;
     DescriptorType descriptorType = DescriptorType::Auto;
-
-    static vk::DescriptorType convertDescriptorType(const DescriptorType descriptorType);
 };
 
 /**

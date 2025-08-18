@@ -187,7 +187,7 @@ void Scenario::setupResources() {
         switch (resource->resourceType) {
         case (ResourceType::Tensor): {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
-            for (auto &image : _scenarioSpec.resources) {
+            for (const auto &image : _scenarioSpec.resources) {
                 if (image->resourceType == ResourceType::Image && image->guid == tensor->memoryGroup->memoryUid) {
                     _dataManager.addResourceToGroup(tensor->memoryGroup->memoryUid, image->guid);
                 }
@@ -204,7 +204,7 @@ void Scenario::setupResources() {
     for (auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
         case (ResourceType::Buffer): {
-            auto &buffer = reinterpret_cast<std::unique_ptr<BufferDesc> &>(resource);
+            const auto &buffer = reinterpret_cast<std::unique_ptr<BufferDesc> &>(resource);
             BufferInfo info;
             info.debugName = buffer->guidStr;
             info.size = buffer->size;
@@ -214,13 +214,13 @@ void Scenario::setupResources() {
             _dataManager.createBuffer(resource->guid, info);
         } break;
         case (ResourceType::RawData): {
-            auto &raw_data = reinterpret_cast<std::unique_ptr<RawDataDesc> &>(resource);
-            _dataManager.createRawData(resource->guid, raw_data->guidStr, raw_data->src);
+            const auto &rawData = reinterpret_cast<std::unique_ptr<RawDataDesc> &>(resource);
+            _dataManager.createRawData(resource->guid, rawData->guidStr, rawData->src);
         } break;
         case (ResourceType::Image): {
-            ImageInfo info;
-            auto &image = reinterpret_cast<std::unique_ptr<ImageDesc> &>(resource);
+            const auto &image = reinterpret_cast<std::unique_ptr<ImageDesc> &>(resource);
 
+            ImageInfo info;
             info.debugName = image->guidStr;
             info.targetFormat = getVkFormatFromString(image->format);
             info.shape.resize(image->dims.size());
@@ -298,13 +298,13 @@ void Scenario::setupResources() {
             _dataManager.createImage(image->guid, info);
         } break;
         case (ResourceType::DataGraph): {
-            auto &vgf = reinterpret_cast<std::unique_ptr<DataGraphDesc> &>(resource);
-            _perfCounters.emplace_back("Parse VGF: " + vgf->guidStr, "Scenario Setup", true).start();
-            _dataManager.createVgfView(resource->guid, *vgf.get());
+            const auto &dataGraph = reinterpret_cast<std::unique_ptr<DataGraphDesc> &>(resource);
+            _perfCounters.emplace_back("Parse VGF: " + dataGraph->guidStr, "Scenario Setup", true).start();
+            _dataManager.createVgfView(resource->guid, *dataGraph.get());
             _perfCounters.back().stop();
         } break;
         case (ResourceType::ImageBarrier): {
-            auto &imageBarrier = reinterpret_cast<std::unique_ptr<ImageBarrierDesc> &>(resource);
+            const auto &imageBarrier = reinterpret_cast<std::unique_ptr<ImageBarrierDesc> &>(resource);
 
             // check the image affected by this barrier exists
             if (!_dataManager.hasImage(imageBarrier->imageResource)) {
@@ -324,7 +324,7 @@ void Scenario::setupResources() {
             _dataManager.createImageBarrier(resource->guid, data);
         } break;
         case (ResourceType::MemoryBarrier): {
-            auto &memoryBarrier = reinterpret_cast<std::unique_ptr<MemoryBarrierDesc> &>(resource);
+            const auto &memoryBarrier = reinterpret_cast<std::unique_ptr<MemoryBarrierDesc> &>(resource);
 
             MemoryBarrierData data;
             data.debugName = memoryBarrier->guidStr;
@@ -335,7 +335,7 @@ void Scenario::setupResources() {
             _dataManager.createMemoryBarrier(resource->guid, data);
         } break;
         case (ResourceType::TensorBarrier): {
-            auto &tensorBarrier = reinterpret_cast<std::unique_ptr<TensorBarrierDesc> &>(resource);
+            const auto &tensorBarrier = reinterpret_cast<std::unique_ptr<TensorBarrierDesc> &>(resource);
 
             TensorBarrierData data;
             data.debugName = tensorBarrier->guidStr;
@@ -348,7 +348,7 @@ void Scenario::setupResources() {
             _dataManager.createTensorBarrier(resource->guid, data);
         } break;
         case (ResourceType::BufferBarrier): {
-            auto &bufferBarrier = reinterpret_cast<std::unique_ptr<BufferBarrierDesc> &>(resource);
+            const auto &bufferBarrier = reinterpret_cast<std::unique_ptr<BufferBarrierDesc> &>(resource);
 
             BufferBarrierData data;
             data.debugName = bufferBarrier->guidStr;
@@ -362,7 +362,7 @@ void Scenario::setupResources() {
             _dataManager.createBufferBarrier(resource->guid, data);
         } break;
         case (ResourceType::Tensor): {
-            auto &tensor = reinterpret_cast<std::unique_ptr<TensorDesc> &>(resource);
+            const auto &tensor = reinterpret_cast<std::unique_ptr<TensorDesc> &>(resource);
 
             TensorInfo info;
             info.debugName = tensor->guidStr;
@@ -398,7 +398,7 @@ void Scenario::setupResources() {
     for (auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
         case (ResourceType::Tensor): {
-            auto &tensor = reinterpret_cast<std::unique_ptr<TensorDesc> &>(resource);
+            const auto &tensor = reinterpret_cast<std::unique_ptr<TensorDesc> &>(resource);
             auto &tensorRec = _dataManager.getTensorMut(tensor->guid);
             tensorRec.allocateMemory(_ctx);
             _perfCounters.emplace_back("Load Tensor: " + tensor->guidStr, "Scenario Setup").start();
@@ -408,7 +408,7 @@ void Scenario::setupResources() {
             _perfCounters.back().stop();
         } break;
         case (ResourceType::Image): {
-            auto &image = reinterpret_cast<std::unique_ptr<ImageDesc> &>(resource);
+            const auto &image = reinterpret_cast<std::unique_ptr<ImageDesc> &>(resource);
             auto &imageRec = _dataManager.getImageMut(image->guid);
             imageRec.allocateMemory(_ctx);
             _perfCounters.emplace_back("Load Image: " + image->guidStr, "Scenario Setup").start();
@@ -418,7 +418,7 @@ void Scenario::setupResources() {
             _perfCounters.back().stop();
         } break;
         case (ResourceType::Buffer): {
-            auto &buffer = reinterpret_cast<std::unique_ptr<BufferDesc> &>(resource);
+            const auto &buffer = reinterpret_cast<std::unique_ptr<BufferDesc> &>(resource);
             auto &bufferRec = _dataManager.getBufferMut(buffer->guid);
             bufferRec.allocateMemory(_ctx);
             _perfCounters.emplace_back("Load Buffer: " + buffer->guidStr, "Scenario Setup").start();
@@ -459,7 +459,7 @@ void Scenario::setupCommands(int iteration) {
     for (auto &command : _scenarioSpec.commands) {
         switch (command->commandType) {
         case (CommandType::DispatchCompute): {
-            auto &dispatchCompute = reinterpret_cast<DispatchComputeDesc &>(*command);
+            const auto &dispatchCompute = reinterpret_cast<DispatchComputeDesc &>(*command);
 
             // Create Compute shader pipeline
             uint32_t shaderIndex = _scenarioSpec.resourceRefs[dispatchCompute.shaderRef];
@@ -471,16 +471,16 @@ void Scenario::setupCommands(int iteration) {
                 .start();
             // Read shader file
             _pipelines.emplace_back(_ctx, dispatchCompute.debugName, dispatchCompute.bindings, *shaderDesc,
-                                    &_dataManager, _pipelineCache);
+                                    _dataManager, _pipelineCache);
             _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
             if (dispatchCompute.pushDataRef) {
                 const RawData &pushConstantData = _dataManager.getRawData(dispatchCompute.pushDataRef.value());
-                _compute.registerPipelineFenced(_pipelines.back(), &_dataManager, dispatchCompute.bindings,
+                _compute.registerPipelineFenced(_pipelines.back(), _dataManager, dispatchCompute.bindings,
                                                 pushConstantData.data(), pushConstantData.size(),
                                                 dispatchCompute.implicitBarrier, dispatchCompute.rangeND[0],
                                                 dispatchCompute.rangeND[1], dispatchCompute.rangeND[2]);
             } else {
-                _compute.registerPipelineFenced(_pipelines.back(), &_dataManager, dispatchCompute.bindings, nullptr, 0,
+                _compute.registerPipelineFenced(_pipelines.back(), _dataManager, dispatchCompute.bindings, nullptr, 0,
                                                 dispatchCompute.implicitBarrier, dispatchCompute.rangeND[0],
                                                 dispatchCompute.rangeND[1], dispatchCompute.rangeND[2]);
             }
@@ -489,11 +489,11 @@ void Scenario::setupCommands(int iteration) {
             mlsdk::logging::debug("Shader Pipeline: " + shaderDesc->guidStr + " created");
         } break;
         case (CommandType::DispatchBarrier): {
-            auto &dispatchBarrier = reinterpret_cast<DispatchBarrierDesc &>(*command);
-            _compute.registerPipelineBarrier(dispatchBarrier, &_dataManager);
+            const auto &dispatchBarrier = reinterpret_cast<DispatchBarrierDesc &>(*command);
+            _compute.registerPipelineBarrier(dispatchBarrier, _dataManager);
         } break;
         case (CommandType::DispatchDataGraph): {
-            DispatchDataGraphDesc &dispatchDataGraph = reinterpret_cast<DispatchDataGraphDesc &>(*command);
+            const auto &dispatchDataGraph = reinterpret_cast<DispatchDataGraphDesc &>(*command);
             const VgfView &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraphRef);
             vgfView.createIntermediateResources(_ctx, _dataManager);
             for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
@@ -509,7 +509,7 @@ void Scenario::setupCommands(int iteration) {
             }
         } break;
         case (CommandType::MarkBoundary): {
-            MarkBoundaryDesc &markBoundary = reinterpret_cast<MarkBoundaryDesc &>(*command);
+            auto &markBoundary = reinterpret_cast<MarkBoundaryDesc &>(*command);
             if (_ctx._optionals.mark_boundary == true) {
                 if (iteration > 0) {
                     // If the last command in the previous iteration was a boundary, a subsequent boundary is skipped
@@ -519,7 +519,7 @@ void Scenario::setupCommands(int iteration) {
                     }
                 }
                 markBoundary.frameId += uint64_t(iteration) * (numBoundaries - skippedBoundary);
-                _compute.registerMarkBoundary(markBoundary, &_dataManager);
+                _compute.registerMarkBoundary(markBoundary, _dataManager);
             } else {
                 mlsdk::logging::warning("Frame boundary extension not present");
             }
@@ -675,15 +675,15 @@ void Scenario::handleAliasedLayoutTransitions() {
     }
 }
 
-void Scenario::createPipeline(const uint32_t segmentIndex, std::vector<BindingDesc> &sequenceBindings,
-                              const VgfView &vgfView, DispatchDataGraphDesc &dispatchDataGraph,
+void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<BindingDesc> &sequenceBindings,
+                              const VgfView &vgfView, const DispatchDataGraphDesc &dispatchDataGraph,
                               std::optional<PipelineCache> &pipelineCache, uint32_t &nQueries) {
     switch (vgfView.getSegmentType(segmentIndex)) {
     case ModuleType::GRAPH: {
         _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, segmentIndex, sequenceBindings, vgfView,
-                                &_dataManager, pipelineCache);
+                                _dataManager, pipelineCache);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
-        _compute.registerPipelineFenced(_pipelines.back(), &_dataManager, sequenceBindings, nullptr, 0,
+        _compute.registerPipelineFenced(_pipelines.back(), _dataManager, sequenceBindings, nullptr, 0,
                                         dispatchDataGraph.implicitBarrier);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
         mlsdk::logging::debug("Graph Pipeline: " + vgfView.getSPVModuleName(segmentIndex) + " created");
@@ -696,7 +696,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, std::vector<BindingDe
                 shaderSubstitution(dispatchDataGraph.shaderSubstitutions, moduleName, _scenarioSpec.resourceRefs);
             auto &shaderDesc =
                 reinterpret_cast<std::unique_ptr<ShaderDesc> &>(_scenarioSpec.resources[substitutedShaderIdx]);
-            _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, sequenceBindings, *shaderDesc, &_dataManager,
+            _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, sequenceBindings, *shaderDesc, _dataManager,
                                     pipelineCache);
             if (hasSPVModule) {
                 mlsdk::logging::warning("Performing shader substitution despite shader module containing code");
@@ -711,12 +711,12 @@ void Scenario::createPipeline(const uint32_t segmentIndex, std::vector<BindingDe
             auto spv = vgfView.getSPVModule(segmentIndex);
             auto shaderDesc = ShaderDesc(Guid(moduleName), moduleName, {}, std::move(entryPoint), ShaderType::SPIR_V);
             _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, spv.begin(), spv.size(), sequenceBindings,
-                                    shaderDesc, &_dataManager, pipelineCache);
+                                    shaderDesc, _dataManager, pipelineCache);
         }
 
         auto dispatchShape = vgfView.getDispatchShape(segmentIndex);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
-        _compute.registerPipelineFenced(_pipelines.back(), &_dataManager, sequenceBindings, nullptr, 0,
+        _compute.registerPipelineFenced(_pipelines.back(), _dataManager, sequenceBindings, nullptr, 0,
                                         dispatchDataGraph.implicitBarrier, dispatchShape[0], dispatchShape[1],
                                         dispatchShape[2]);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);

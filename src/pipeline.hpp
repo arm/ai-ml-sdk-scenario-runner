@@ -28,15 +28,15 @@ class Pipeline {
     /// \param shaderDesc Shader related meta-data
     /// \param dataManager Data manager object
     /// \param pipelineCache optional pipeline cache object
-    Pipeline(Context &ctx, const std::string &debugName, const std::vector<BindingDesc> &bindings,
-             const ShaderDesc &shaderDesc, DataManager *dataManager, std::optional<PipelineCache> &pipelineCache);
+    Pipeline(const Context &ctx, const std::string &debugName, const std::vector<BindingDesc> &bindings,
+             const ShaderDesc &shaderDesc, const DataManager &dataManager, std::optional<PipelineCache> &pipelineCache);
 
-    Pipeline(Context &ctx, const std::string &debugName, const uint32_t *spvCode, const size_t spvSize,
-             const std::vector<BindingDesc> &sequenceBindings, const ShaderDesc &shaderDesc, DataManager *dataManager,
-             std::optional<PipelineCache> &pipelineCache);
+    Pipeline(const Context &ctx, const std::string &debugName, const uint32_t *spvCode, const size_t spvSize,
+             const std::vector<BindingDesc> &sequenceBindings, const ShaderDesc &shaderDesc,
+             const DataManager &dataManager, std::optional<PipelineCache> &pipelineCache);
 
-    Pipeline(Context &ctx, const std::string &debugName, const uint32_t segmentIndex,
-             const std::vector<BindingDesc> &sequenceBindings, const VgfView &vgfView, DataManager *dataManager,
+    Pipeline(const Context &ctx, const std::string &debugName, const uint32_t segmentIndex,
+             const std::vector<BindingDesc> &sequenceBindings, const VgfView &vgfView, const DataManager &dataManager,
              std::optional<PipelineCache> &pipelineCache);
 
     /// \brief Vulkan® pipeline accessor
@@ -89,8 +89,9 @@ class Pipeline {
     std::string _debugName{};
     std::optional<std::pair<unsigned, vk::DeviceSize>> _neStatsInfo{};
 
-    void computePipelineCommon(Context &ctx, const std::vector<BindingDesc> &bindings, const ShaderDesc &shaderDesc,
-                               DataManager *dataManager, std::optional<PipelineCache> &pipelineCache);
+    void computePipelineCommon(const Context &ctx, const std::vector<BindingDesc> &bindings,
+                               const ShaderDesc &shaderDesc, const DataManager &dataManager,
+                               std::optional<PipelineCache> &pipelineCache);
 };
 
 template <typename T>
