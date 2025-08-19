@@ -34,7 +34,11 @@ extensions = [
 ]
 
 # Disable superfluous warnings
-suppress_warnings = ["sphinx.ext.autosectionlabel.*"]
+suppress_warnings = [
+    "sphinx.ext.autosectionlabel.*",
+    "myst.xref_missing",
+    "myst.header",
+]
 
 # Breathe Configuration
 breathe_projects = {"ScenarioRunner": "../generated/xml"}
