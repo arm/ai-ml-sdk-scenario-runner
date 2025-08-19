@@ -50,17 +50,6 @@ MarkBoundaryDesc::MarkBoundaryDesc() : CommandDesc(CommandType::MarkBoundary) {}
  */
 BindingDesc::BindingDesc(uint32_t set, uint32_t id, Guid resourceRef) : set(set), id(id), resourceRef(resourceRef) {}
 
-vk::DescriptorType BindingDesc::convertDescriptorType(const DescriptorType descriptorType) {
-    switch (descriptorType) {
-    case DescriptorType::StorageImage:
-        return vk::DescriptorType::eStorageImage;
-    case DescriptorType::Auto:
-        throw std::runtime_error("Cannot infer the descriptor type without context");
-    default:
-        throw std::runtime_error("Descriptor type is invalid");
-    }
-}
-
 /**
  * @brief Construct a new PushConstantMap object
  *

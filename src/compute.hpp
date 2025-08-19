@@ -111,7 +111,7 @@ class Compute {
     /// graph pipeline
     /// \param wgcz (Optional) Workgroup count across dimension Z. Defaults to: 1. Not applicable for
     /// compute graph pipeline
-    void registerPipelineFenced(const Pipeline &pipeline, DataManager *dataManager,
+    void registerPipelineFenced(const Pipeline &pipeline, const DataManager &dataManager,
                                 const std::vector<BindingDesc> &bindingDescs, const char *pushConstantData,
                                 size_t pushConstantSize, bool implicitBarriers, uint32_t wgcx = 1, uint32_t wgcy = 1,
                                 uint32_t wgcz = 1);
@@ -124,7 +124,7 @@ class Compute {
     /// \brief Register a pipeline barrier for execution
     /// \param dispatchBarrierDescs image barrier dispatch descriptor
     /// \param dataManager Data manager object to retrieve resource
-    void registerPipelineBarrier(const DispatchBarrierDesc &dispatchBarrierDescs, DataManager *dataManager);
+    void registerPipelineBarrier(const DispatchBarrierDesc &dispatchBarrierDescs, const DataManager &dataManager);
 
     /// \brief Submit the command buffer for execution and wait for completion
     void submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters, int iteration = 0);
@@ -136,7 +136,7 @@ class Compute {
     /// \brief Create the VkFrameBoundaryEXT struct with the correct resource
     /// \param markBoundaryDesc MarkBoundary object
     /// \param dataManager Data manager object to retrieve resource
-    void registerMarkBoundary(const MarkBoundaryDesc &markBoundaryDesc, DataManager *dataManager);
+    void registerMarkBoundary(const MarkBoundaryDesc &markBoundaryDesc, const DataManager &dataManager);
 
     /// \brief Fetch the QueryPoolResults, which contain runtime cycle-timestamps used for profiling
     std::vector<uint64_t> queryTimestamps();
@@ -155,10 +155,6 @@ class Compute {
         Compute *_compute;
     };
 
-    void _setup();
-
-    static std::vector<vk::DescriptorPoolSize> getPoolSizes(const DataManager *dataManager,
-                                                            const std::vector<BindingDesc> &bindingDescs);
     void _setNextCommandBuffer();
     void _waitForFence();
 
