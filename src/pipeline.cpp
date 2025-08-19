@@ -13,10 +13,6 @@ namespace mlsdk::scenariorunner {
 
 namespace {
 
-template <typename T, typename U> inline T roundUp(const T data, const U multiple) {
-    return ((data + multiple - 1) / multiple) * multiple;
-}
-
 template <typename T, typename U> inline void insertAfter(T *current, U *next) {
     next->pNext = current->pNext;
     current->pNext = next;

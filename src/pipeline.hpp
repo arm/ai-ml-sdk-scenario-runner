@@ -51,11 +51,7 @@ class Pipeline {
 
     const std::vector<vk::raii::DeviceMemory> &sessionMemory() const { return _sessionMemory; }
 
-    const std::optional<std::pair<unsigned, vk::DeviceSize>> &neStatsInfo() const { return _neStatsInfo; }
-
     const std::vector<vk::DeviceSize> &sessionMemoryDataSizes() const { return _sessionMemoryDataSizes; }
-
-    void initSession(const Context &ctx);
 
     bool isDataGraphPipeline() const { return _type == PipelineType::GraphCompute; };
 
@@ -66,28 +62,18 @@ class Pipeline {
     const std::string &debugName() const;
 
   private:
-    struct ConstantTensor {
-        uint32_t constantId;
-        vk::DeviceSize offset;
-    };
-
-    struct ConstantMemoryResource {
-        vk::raii::DeviceMemory memory;
-        std::vector<ConstantTensor> constants;
-    };
-
     PipelineType _type{PipelineType::Unknown};
     ShaderDesc _shaderDesc{};
     std::vector<vk::raii::DescriptorSetLayout> _descriptorSetLayouts;
     vk::raii::PipelineLayout _pipelineLayout{nullptr};
     vk::raii::Pipeline _pipeline{nullptr};
-    std::vector<ConstantMemoryResource> _constantMemoryResources;
     vk::raii::DataGraphPipelineSessionARM _session{nullptr};
     std::vector<vk::raii::DeviceMemory> _sessionMemory;
     std::vector<vk::DeviceSize> _sessionMemoryDataSizes;
     vk::raii::ShaderModule _shader{nullptr};
     std::string _debugName{};
-    std::optional<std::pair<unsigned, vk::DeviceSize>> _neStatsInfo{};
+
+    void initSession(const Context &ctx);
 
     void computePipelineCommon(const Context &ctx, const std::vector<BindingDesc> &bindings,
                                const ShaderDesc &shaderDesc, const DataManager &dataManager,

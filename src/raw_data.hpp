@@ -25,7 +25,7 @@ class RawData {
 
   private:
     const std::string _debugName{};
-    std::unique_ptr<MemoryMap> m_mapped{};
-    mlsdk::numpy::data_ptr m_dataptr{};
+    std::unique_ptr<MemoryMap> _mapped{};
+    mlsdk::numpy::data_ptr _dataptr{};
 };
 } // namespace mlsdk::scenariorunner

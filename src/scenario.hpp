@@ -68,8 +68,7 @@ class Scenario {
 
   private:
     void createPipeline(const uint32_t segmentIndex, const std::vector<BindingDesc> &sequenceBindings,
-                        const VgfView &vgfView, const DispatchDataGraphDesc &dispatchDataGraph,
-                        std::optional<PipelineCache> &_pipelineCache, uint32_t &nQueries);
+                        const VgfView &vgfView, const DispatchDataGraphDesc &dispatchDataGraph, uint32_t &nQueries);
 
     /// \brief Sets up runtime options
     void setupResources();

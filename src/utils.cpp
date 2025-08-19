@@ -214,12 +214,11 @@ const mlsdk::numpy::dtype getDTypeFromVkFormat(vk::Format format) {
     char const *numeric = componentNumericFormat(format, 0);
     char encoding = numpyTypeEncoding(numeric);
     uint32_t size = elementSizeFromVkFormat(format);
-    char endian_char = mlsdk::numpy::get_endian_char(size);
 
     if (encoding == '?') {
         throw std::runtime_error("Unsupported VkFormat: " + vgflib::FormatTypeToName(vgflib::ToFormatType(format)));
     }
-    return mlsdk::numpy::dtype(encoding, size, endian_char);
+    return mlsdk::numpy::dtype(encoding, size);
 }
 
 uint64_t totalElementsFromShape(const std::vector<int64_t> &shape) {

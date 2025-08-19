@@ -29,14 +29,14 @@ TEST(NumPy, Roundtrip) {
     mlsdk::numpy::data_ptr read_ptr;
     mlsdk::numpy::parse(map, read_ptr);
 
-    ASSERT_TRUE(read_ptr.shape.size() == shape.size());
+    ASSERT_TRUE(read_ptr._shape.size() == shape.size());
     for (unsigned i = 0; i < shape.size(); i++) {
-        ASSERT_TRUE(read_ptr.shape[i] == shape[i]);
+        ASSERT_TRUE(read_ptr._shape[i] == shape[i]);
     }
-    ASSERT_TRUE(read_ptr.dtype.byteorder == type.byteorder);
-    ASSERT_TRUE(read_ptr.dtype.kind == type.kind);
-    ASSERT_TRUE(read_ptr.dtype.itemsize == type.itemsize);
-    const int32_t *test = reinterpret_cast<const int32_t *>(read_ptr.ptr);
+    ASSERT_TRUE(read_ptr._dtype._byteorder == type._byteorder);
+    ASSERT_TRUE(read_ptr._dtype._kind == type._kind);
+    ASSERT_TRUE(read_ptr._dtype._itemsize == type._itemsize);
+    const int32_t *test = reinterpret_cast<const int32_t *>(read_ptr._ptr);
     for (unsigned i = 0; i < data.size(); i++) {
         ASSERT_TRUE(test[i] == data[i]);
     }
@@ -64,14 +64,14 @@ TEST(NumPy, RoundtripCallbackWrite) {
     mlsdk::numpy::data_ptr read_ptr;
     mlsdk::numpy::parse(map, read_ptr);
 
-    ASSERT_TRUE(read_ptr.shape.size() == shape.size());
+    ASSERT_TRUE(read_ptr._shape.size() == shape.size());
     for (unsigned i = 0; i < shape.size(); i++) {
-        ASSERT_TRUE(read_ptr.shape[i] == shape[i]);
+        ASSERT_TRUE(read_ptr._shape[i] == shape[i]);
     }
-    ASSERT_TRUE(read_ptr.dtype.byteorder == type.byteorder);
-    ASSERT_TRUE(read_ptr.dtype.kind == type.kind);
-    ASSERT_TRUE(read_ptr.dtype.itemsize == type.itemsize);
-    const int32_t *test = reinterpret_cast<const int32_t *>(read_ptr.ptr);
+    ASSERT_TRUE(read_ptr._dtype._byteorder == type._byteorder);
+    ASSERT_TRUE(read_ptr._dtype._kind == type._kind);
+    ASSERT_TRUE(read_ptr._dtype._itemsize == type._itemsize);
+    const int32_t *test = reinterpret_cast<const int32_t *>(read_ptr._ptr);
     for (unsigned i = 0; i < data.size(); i++) {
         ASSERT_TRUE(test[i] == data[i]);
     }

@@ -149,7 +149,7 @@ void Tensor::fillFromDescription(const TensorDesc &desc) {
         if (expectedSize != dataPtr.size()) {
             throw std::runtime_error("Tensor and data have different size mismatch");
         }
-        fill(dataPtr.ptr, dataPtr.size());
+        fill(dataPtr._ptr, dataPtr.size());
     } else {
         fillZero();
     }
