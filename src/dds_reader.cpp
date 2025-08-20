@@ -21,8 +21,6 @@ constexpr uint32_t REQUIRED_FLAGS =
 constexpr uint32_t REQUIRED_CAPS = 0x1000;         // Required by DDS spec
 constexpr uint32_t DX10_2D_IMAGE_RESOURCE_DIM = 3; // Represents a 2d image
 constexpr uint32_t DX10_CUBE_MAP_FLAG = 0x4;
-constexpr uint32_t BASE_HEADER_SIZE = 128; // Total header size, includes magic word at start of file
-constexpr uint32_t DX10_HEADER_SIZE = 148; // Total header size, includes magic word at start of file
 
 void validateDDSHeader(const DDSHeaderInfo &header) {
     if (header.magicWord != MAGIC_WORD) {
@@ -228,7 +226,7 @@ DDSHeaderInfo generateDefaultDDSHeader(uint32_t height, uint32_t width, uint32_t
                       /* .pitchOrLinearSize = */ calculatePitch(width, elementSize),
                       /* .depth = */ 1,
                       /* .mipMapCount = */ 1,
-                      /* reserved */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                      /* reserved */ {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
                       /* .pixelFormat = */
                       DDSPixelFormat{/* .size = */ 32,
                                      /* .flags = */ 0x4,

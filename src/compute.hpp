@@ -180,6 +180,8 @@ class Compute {
     std::vector<Command> _commands{};
     std::vector<vk::raii::CommandBuffer> _cmdBufferArray{};
     std::vector<std::string> _debugMarkerNames{};
+#ifdef ML_SDK_ENABLE_RDOC
     bool _isRecording{false};
+#endif
 };
 } // namespace mlsdk::scenariorunner

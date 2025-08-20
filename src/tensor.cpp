@@ -177,30 +177,30 @@ void Tensor::fillZero() {
 
 void Tensor::store(Context &, const std::string &filename) {
     ScopeExit<void()> on_scope_exit_run([&] { unmap(); });
-
     const char *mapped = reinterpret_cast<const char *>(map());
 
     if (memSize() != dataSize() && _shape.size() == _strides.size() && _shape.size() == 4) {
-        mlsdk::numpy::write(filename, {_shape.begin(), _shape.end()}, getDTypeFromVkFormat(dataType()),
-                            [&](std::ostream &out) {
-                                int64_t writtenBytes{0};
-                                int64_t elementSize{elementSizeFromVkFormat(dataType())};
-                                for (int64_t a = 0; a < _shape[0]; ++a) {
-                                    for (int64_t b = 0; b < _shape[1]; ++b) {
-                                        for (int64_t c = 0; c < _shape[2]; ++c) {
-                                            for (int64_t d = 0; d < _shape[3]; ++d) {
-                                                for (int64_t e = 0; e < elementSize; ++e) {
-                                                    int64_t dataIdx = a * _strides[0] + b * _strides[1] +
-                                                                      c * _strides[2] + d * _strides[3] + e;
-                                                    out.put(mapped[dataIdx]);
-                                                    writtenBytes++;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                return writtenBytes;
-                            });
+
+        std::vector<uint64_t> shape_u64{_shape.begin(), _shape.end()};
+        mlsdk::numpy::write(filename, shape_u64, getDTypeFromVkFormat(dataType()), [&](std::ostream &out) {
+            int64_t writtenBytes{0};
+            int64_t elementSize{elementSizeFromVkFormat(dataType())};
+            for (int64_t a = 0; a < _shape[0]; ++a) {
+                for (int64_t b = 0; b < _shape[1]; ++b) {
+                    for (int64_t c = 0; c < _shape[2]; ++c) {
+                        for (int64_t d = 0; d < _shape[3]; ++d) {
+                            for (int64_t e = 0; e < elementSize; ++e) {
+                                int64_t dataIdx =
+                                    a * _strides[0] + b * _strides[1] + c * _strides[2] + d * _strides[3] + e;
+                                out.put(mapped[dataIdx]);
+                                writtenBytes++;
+                            }
+                        }
+                    }
+                }
+            }
+            return writtenBytes;
+        });
 
         return;
     }

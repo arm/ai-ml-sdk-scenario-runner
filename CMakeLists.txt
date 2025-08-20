@@ -38,6 +38,7 @@ option(SCENARIO_RUNNER_ENABLE_LINT "Enable linting using cppcheck" OFF)
 option(SCENARIO_RUNNER_GCC_SANITIZERS "Sanitizers" OFF)
 option(SCENARIO_RUNNER_ENABLE_RDOC "Build Scenario Runner w/ RDoc support enabled" OFF)
 option(SCENARIO_RUNNER_BUILD_DOCS "Build project documentation" OFF)
+option(MOLTEN_VK_SUPPORT "Darwin requires MoltenVK" OFF)
 
 # Handle build type, set default as Release
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")

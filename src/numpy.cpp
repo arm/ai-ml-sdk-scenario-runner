@@ -94,7 +94,7 @@ bool check_fortran_order(const std::string &dict) {
     return true;
 }
 
-void write_header(std::ostream &out, const std::vector<size_t> &shape, const std::string &dtype) {
+void write_header(std::ostream &out, const std::vector<uint64_t> &shape, const std::string &dtype) {
     std::stringstream header_dict;
     header_dict << "{";
     header_dict << "'descr': '" << dtype << "',";
@@ -223,7 +223,7 @@ void write(const std::string &filename, const data_ptr &data_ptr) {
 }
 
 void write(const std::string &filename, const std::vector<uint64_t> &shape, const dtype &dtype,
-           std::function<size_t(std::ostream &)> &&callback) {
+           std::function<uint64_t(std::ostream &)> &&callback) {
     std::ofstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error("ml-sdk-numpy: cannot open " + filename);
