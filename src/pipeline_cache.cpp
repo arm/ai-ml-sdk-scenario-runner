@@ -16,8 +16,7 @@ bool PipelineCache::isValidPipelineCache(const std::vector<unsigned char> &cache
     if (cacheData.size() < sizeof(VkPipelineCacheHeaderVersionOne)) {
         return false;
     }
-    VkPipelineCacheHeaderVersionOne header{};
-    std::memcpy(&header, cacheData.data(), sizeof(header));
+    const auto &header = *reinterpret_cast<const VkPipelineCacheHeaderVersionOne *>(cacheData.data());
     if (header.headerSize != sizeof(VkPipelineCacheHeaderVersionOne)) {
         mlsdk::logging::warning("Pipeline validation: Incorrect pipeline cache header size");
         return false;
