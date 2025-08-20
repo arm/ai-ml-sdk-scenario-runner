@@ -51,17 +51,26 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
 
+#ifdef MOLTEN_VK_SUPPORT
+    enabledExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+    vk::InstanceCreateFlags flags = vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
+    const vk::InstanceCreateInfo instanceInfo(flags, &appInfo, static_cast<uint32_t>(enabledLayers.size()),
+                                              enabledLayers.data(), static_cast<uint32_t>(enabledExtensions.size()),
+                                              enabledExtensions.data());
+#else
     const vk::InstanceCreateInfo instanceInfo(
         vk::InstanceCreateFlags(), &appInfo, static_cast<uint32_t>(enabledLayers.size()), enabledLayers.data(),
         static_cast<uint32_t>(enabledExtensions.size()), enabledExtensions.data());
+#endif
+
     _instance = vk::raii::Instance(_ctx, instanceInfo);
 
     // Create physical device
     auto _physicalDevices = vk::raii::PhysicalDevices(_instance);
 
     // Sort physical devices prioritizing discrete GPUs
-    _physicalDev = *std::max_element(
-        _physicalDevices.begin(), _physicalDevices.end(), [this](const auto &left, const auto &right) {
+    _physicalDev =
+        *std::max_element(_physicalDevices.begin(), _physicalDevices.end(), [](const auto &left, const auto &right) {
             // Select discrete GPU
             std::map<vk::PhysicalDeviceType, int> priorityOrder = {
                 {vk::PhysicalDeviceType::eDiscreteGpu, 5},   //
@@ -188,6 +197,9 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     if (_optionals.replicated_composites) {
         vulkanDeviceExtensions.push_back(VK_EXT_SHADER_REPLICATED_COMPOSITES_EXTENSION_NAME);
     }
+#ifdef MOLTEN_VK_SUPPORT
+    vulkanDeviceExtensions.push_back("VK_KHR_portability_subset");
+#endif
 
     const vk::DeviceCreateInfo deviceCreateInfo = {
         vk::DeviceCreateFlags(),

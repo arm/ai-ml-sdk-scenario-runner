@@ -11,9 +11,10 @@ class FrameCapturer {
     FrameCapturer();
     void begin();
     void end();
-
+#ifdef ML_SDK_ENABLE_RDOC
   private:
     void *_captureApiData{nullptr};
+#endif
 };
 
 } // namespace mlsdk::scenariorunner
