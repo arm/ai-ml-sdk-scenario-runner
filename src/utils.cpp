@@ -260,7 +260,7 @@ vk::raii::DeviceMemory allocateDeviceMemory(const Context &ctx, const vk::Device
 std::vector<uint32_t> readShaderCode(const ShaderDesc &shaderDesc) {
     switch (shaderDesc.shaderType) {
     case ShaderType::SPIR_V: {
-        std::ifstream shaderFile{shaderDesc.src, std::ios::binary | std::ios::ate};
+        std::ifstream shaderFile{shaderDesc.src.value(), std::ios::binary | std::ios::ate};
         if (!shaderFile.is_open()) {
             throw std::runtime_error("Cannot open SPIR-V shader file.");
         }
@@ -276,7 +276,7 @@ std::vector<uint32_t> readShaderCode(const ShaderDesc &shaderDesc) {
         return code;
     }
     case ShaderType::GLSL: {
-        std::ifstream shaderFile{shaderDesc.src};
+        std::ifstream shaderFile{shaderDesc.src.value()};
         if (!shaderFile.is_open()) {
             throw std::runtime_error("Cannot open GLSL shader file.");
         }

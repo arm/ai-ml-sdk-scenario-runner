@@ -57,11 +57,20 @@ uint32_t shaderSubstitution(const std::vector<ShaderSubstitutionDesc> &shaderSub
 
 ScenarioSpec::ScenarioSpec(std::istream *is, const std::filesystem::path &workDir,
                            const std::filesystem::path &outputDir)
-    : workDir(workDir), outputDir(outputDir) {
+    : _workDir(workDir), _outputDir(outputDir) {
     readJson(*this, is);
 }
 
 void ScenarioSpec::addResource(std::unique_ptr<ResourceDesc> resource) {
+    if (resource->src.has_value()) {
+        auto resolvedPath = _workDir / std::filesystem::path(resource->src.value());
+        resource->src = resolvedPath.string();
+    }
+    if (resource->dst.has_value()) {
+        auto resolvedPath = _outputDir / std::filesystem::path(resource->dst.value());
+        resource->dst = resolvedPath.string();
+    }
+
     resourceRefs[resource->guid] = static_cast<uint32_t>(resources.size());
     resources.emplace_back(std::move(resource));
 }
@@ -215,7 +224,7 @@ void Scenario::setupResources() {
         } break;
         case (ResourceType::RawData): {
             const auto &rawData = reinterpret_cast<std::unique_ptr<RawDataDesc> &>(resource);
-            _dataManager.createRawData(resource->guid, rawData->guidStr, rawData->src);
+            _dataManager.createRawData(resource->guid, rawData->guidStr, rawData->src.value());
         } break;
         case (ResourceType::Image): {
             const auto &image = reinterpret_cast<std::unique_ptr<ImageDesc> &>(resource);
