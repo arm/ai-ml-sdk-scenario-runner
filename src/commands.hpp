@@ -7,6 +7,7 @@
 
 #include "guid.hpp"
 
+#include <cstdint>
 #include <optional>
 #include <vector>
 
