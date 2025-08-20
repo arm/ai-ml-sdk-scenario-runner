@@ -4,14 +4,11 @@
  */
 
 #include "numpy.hpp"
-#include "memory_map.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstring>
-#include <fstream>
 #include <numeric>
-#include <sstream>
-#include <string>
 
 namespace mlsdk::numpy {
 
@@ -56,7 +53,7 @@ std::vector<uint64_t> str_to_shape(const std::string &shape_str) {
     return shape;
 }
 
-struct dtype get_dtype(const std::string &dict) {
+dtype get_dtype(const std::string &dict) {
 
     size_t descr_start = dict.find("'descr':");
     if (descr_start == std::string::npos)
@@ -135,7 +132,24 @@ void write_header(std::ostream &out, const std::vector<size_t> &shape, const std
     out.write(header_str.c_str(), std::streamsize(header_str.size()));
 }
 
+bool is_little_endian() {
+    uint16_t num = 1;
+    return reinterpret_cast<uint8_t *>(&num)[1] == 0;
+}
+
+char get_endian_char(uint64_t size) { return size < 2 ? '|' : is_little_endian() ? '<' : '>'; }
+
+uint64_t size_of(const std::vector<uint64_t> &shape, const dtype &dtype) {
+    return std::accumulate(shape.begin(), shape.end(), dtype._itemsize, std::multiplies<uint64_t>());
+}
+
 } // namespace
+
+dtype::dtype(char kind, uint64_t itemsize, char byteorder) : _byteorder(byteorder), _kind(kind), _itemsize(itemsize) {}
+
+dtype::dtype(char kind, uint64_t itemsize) : _byteorder(get_endian_char(itemsize)), _kind(kind), _itemsize(itemsize) {}
+
+uint64_t data_ptr::size() const { return size_of(_shape, _dtype); }
 
 void parse(const MemoryMap &mapped, data_ptr &dataPtr) {
     uint8_t major_version;
@@ -168,10 +182,10 @@ void parse(const MemoryMap &mapped, data_ptr &dataPtr) {
     std::string dict(reinterpret_cast<const char *>(mapped.ptr(header_offset)), header_len);
 
     // get dtype
-    dataPtr.dtype = get_dtype(dict);
+    dataPtr._dtype = get_dtype(dict);
 
     // check byte order
-    char byteorder = dataPtr.dtype.byteorder;
+    char byteorder = dataPtr._dtype._byteorder;
     if ((is_little_endian() && byteorder == '>') || (!is_little_endian() && byteorder == '<'))
         throw std::runtime_error("ml-sdk-numpy: mismatch in byte order");
 
@@ -183,11 +197,11 @@ void parse(const MemoryMap &mapped, data_ptr &dataPtr) {
     size_t shape_start = dict.find('(');
     size_t shape_end = dict.find(')', shape_start);
     std::string shape_str = dict.substr(shape_start + 1, shape_end - shape_start - 1);
-    dataPtr.shape = str_to_shape(shape_str);
+    dataPtr._shape = str_to_shape(shape_str);
 
     // set data_ptr to start of numpy data
     header_offset += header_len;
-    dataPtr.ptr = reinterpret_cast<const char *>(mapped.ptr(header_offset));
+    dataPtr._ptr = reinterpret_cast<const char *>(mapped.ptr(header_offset));
 
     // consistency check: verify that all data is mapped
     if (header_offset + dataPtr.size() > mapped.size())
@@ -201,14 +215,14 @@ void write(const std::string &filename, const data_ptr &data_ptr) {
     }
 
     // write npy header to file
-    write_header(file, data_ptr.shape, data_ptr.dtype.str());
+    write_header(file, data_ptr._shape, data_ptr._dtype.str());
 
     // write data to file
-    file.write(reinterpret_cast<const char *>(data_ptr.ptr), std::streamsize(data_ptr.size()));
+    file.write(reinterpret_cast<const char *>(data_ptr._ptr), std::streamsize(data_ptr.size()));
     file.close();
 }
 
-void write(const std::string &filename, const std::vector<uint64_t> &shape, const struct dtype &dtype,
+void write(const std::string &filename, const std::vector<uint64_t> &shape, const dtype &dtype,
            std::function<size_t(std::ostream &)> &&callback) {
     std::ofstream file(filename, std::ios::binary);
     if (!file.is_open()) {

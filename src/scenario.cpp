@@ -16,7 +16,7 @@ namespace mlsdk::scenariorunner {
 
 namespace // unnamed namespace
 {
-std::string resourceType(std::unique_ptr<ResourceDesc> &resource) {
+std::string resourceType(const std::unique_ptr<ResourceDesc> &resource) {
     switch (resource->resourceType) {
     case (ResourceType::Unknown):
         return "Unknown";
@@ -289,7 +289,7 @@ void Scenario::setupResources() {
                 info.memoryOffset = image->memoryGroup->offset;
             }
 
-            for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+            for ([[maybe_unused]] const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
                 if (resources.find(resource->guid) != resources.end() && resources.size() != 1) {
                     info.isAliased = true;
                 }
@@ -369,7 +369,7 @@ void Scenario::setupResources() {
             if (tensor->memoryGroup.has_value()) {
                 info.memoryOffset = tensor->memoryGroup->offset;
             }
-            for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+            for ([[maybe_unused]] const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
                 if (resources.find(tensor->guid) != resources.end() && resources.size() != 1) {
                     for (const auto &maybeImage : resources) {
                         if (_dataManager.hasImage(maybeImage)) {
@@ -426,7 +426,7 @@ void Scenario::setupResources() {
                 MemoryMap mapped(buffer->src.value());
                 mlsdk::numpy::data_ptr dataPtr;
                 mlsdk::numpy::parse(mapped, dataPtr);
-                bufferRec.fill(dataPtr.ptr, dataPtr.size());
+                bufferRec.fill(dataPtr._ptr, dataPtr.size());
             } else if (_dataManager.isSingleMemoryGroup(buffer->guid)) {
                 bufferRec.fillZero();
             }
@@ -504,7 +504,7 @@ void Scenario::setupCommands(int iteration) {
                     .emplace_back("Create Pipeline: " + moduleName + ". Iteration: " + std::to_string(iteration + 1),
                                   "Pipeline Setup", true)
                     .start();
-                createPipeline(segmentIndex, sequenceBindings, vgfView, dispatchDataGraph, _pipelineCache, nQueries);
+                createPipeline(segmentIndex, sequenceBindings, vgfView, dispatchDataGraph, nQueries);
                 _perfCounters.back().stop();
             }
         } break;
@@ -537,7 +537,7 @@ void Scenario::setupCommands(int iteration) {
 
 bool Scenario::hasAliasedOptimalTensors() const {
     // If any tensors in any memgroup have optimal tiling
-    for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+    for ([[maybe_unused]] const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
         if (resources.size() <= 1)
             continue;
         for (auto resource : resources) {
@@ -603,7 +603,7 @@ void Scenario::handleAliasedLayoutTransitions() {
         if (resource->resourceType == ResourceType::Tensor) {
             const auto &tensorDesc = static_cast<const TensorDesc &>(*resource);
             auto aliasing = false;
-            for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+            for ([[maybe_unused]] const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
                 if (resources.find(tensorDesc.guid) != resources.end() && resources.size() == 2) {
                     aliasing = true;
                 }
@@ -621,7 +621,7 @@ void Scenario::handleAliasedLayoutTransitions() {
                 const auto &imageDesc = static_cast<const ImageDesc &>(*imageResource);
 
                 auto aliasing1 = false;
-                for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+                for ([[maybe_unused]] const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
                     if (resources.find(imageDesc.guid) != resources.end() && resources.size() == 2) {
                         aliasing1 = true;
                     }
@@ -649,7 +649,7 @@ void Scenario::handleAliasedLayoutTransitions() {
                 const auto &tensorDesc = static_cast<const TensorDesc &>(*tensorResource);
 
                 auto aliasing = false;
-                for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+                for ([[maybe_unused]] const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
                     if (resources.find(tensorDesc.guid) != resources.end() && resources.size() == 2) {
                         aliasing = true;
                     }
@@ -677,11 +677,11 @@ void Scenario::handleAliasedLayoutTransitions() {
 
 void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<BindingDesc> &sequenceBindings,
                               const VgfView &vgfView, const DispatchDataGraphDesc &dispatchDataGraph,
-                              std::optional<PipelineCache> &pipelineCache, uint32_t &nQueries) {
+                              uint32_t &nQueries) {
     switch (vgfView.getSegmentType(segmentIndex)) {
     case ModuleType::GRAPH: {
         _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, segmentIndex, sequenceBindings, vgfView,
-                                _dataManager, pipelineCache);
+                                _dataManager, _pipelineCache);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
         _compute.registerPipelineFenced(_pipelines.back(), _dataManager, sequenceBindings, nullptr, 0,
                                         dispatchDataGraph.implicitBarrier);
@@ -697,7 +697,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Bin
             auto &shaderDesc =
                 reinterpret_cast<std::unique_ptr<ShaderDesc> &>(_scenarioSpec.resources[substitutedShaderIdx]);
             _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, sequenceBindings, *shaderDesc, _dataManager,
-                                    pipelineCache);
+                                    _pipelineCache);
             if (hasSPVModule) {
                 mlsdk::logging::warning("Performing shader substitution despite shader module containing code");
             }
@@ -711,7 +711,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Bin
             auto spv = vgfView.getSPVModule(segmentIndex);
             auto shaderDesc = ShaderDesc(Guid(moduleName), moduleName, {}, std::move(entryPoint), ShaderType::SPIR_V);
             _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, spv.begin(), spv.size(), sequenceBindings,
-                                    shaderDesc, _dataManager, pipelineCache);
+                                    shaderDesc, _dataManager, _pipelineCache);
         }
 
         auto dispatchShape = vgfView.getDispatchShape(segmentIndex);

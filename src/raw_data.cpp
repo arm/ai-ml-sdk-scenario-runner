@@ -8,13 +8,13 @@
 namespace mlsdk::scenariorunner {
 
 RawData::RawData(const std::string &debugName, const std::string &src)
-    : _debugName(debugName), m_mapped{std::make_unique<MemoryMap>(src)} {
-    mlsdk::numpy::parse(*m_mapped, m_dataptr);
+    : _debugName(debugName), _mapped{std::make_unique<MemoryMap>(src)} {
+    mlsdk::numpy::parse(*_mapped, _dataptr);
 }
 
-const char *RawData::data() const { return m_dataptr.ptr; }
+const char *RawData::data() const { return _dataptr._ptr; }
 
-size_t RawData::size() const { return m_dataptr.size(); }
+size_t RawData::size() const { return _dataptr.size(); }
 
 const std::string &RawData::debugName() const { return _debugName; }
 } // namespace mlsdk::scenariorunner
