@@ -10,22 +10,11 @@
 
 #include <iostream>
 
-namespace {
-
-std::string resolvePath(const std::string &path, const std::filesystem::path &workDir) {
-    std::filesystem::path resolvedPath = std::filesystem::path(workDir) / std::filesystem::path(path);
-    return resolvedPath.string();
-}
-
-} // namespace
-
 namespace mlsdk::scenariorunner {
 
 void readJson(ScenarioSpec &scenarioSpec, std::istream *is) {
     json j;
     *is >> j;
-    const auto &workDir = scenarioSpec.workDir;
-    const auto &outputDir = scenarioSpec.outputDir;
 
     auto findResources = j.find("resources");
     if (findResources != j.end()) {
@@ -35,56 +24,26 @@ void readJson(ScenarioSpec &scenarioSpec, std::istream *is) {
             switch (resource.resourceType) {
             case (ResourceType::Shader): {
                 ShaderDesc shader = resourceJson.value().find("shader").value().get<ShaderDesc>();
-                shader.src = resolvePath(shader.src, workDir);
-                if (shader.dst.has_value()) {
-                    shader.dst = resolvePath(shader.dst.value(), outputDir);
-                }
                 scenarioSpec.addResource(std::make_unique<ShaderDesc>(shader));
             } break;
             case (ResourceType::Buffer): {
                 BufferDesc buffer = resourceJson.value().find("buffer").value().get<BufferDesc>();
-                if (buffer.src.has_value()) {
-                    buffer.src = resolvePath(buffer.src.value(), workDir);
-                }
-                if (buffer.dst.has_value()) {
-                    buffer.dst = resolvePath(buffer.dst.value(), outputDir);
-                }
                 scenarioSpec.addResource(std::make_unique<BufferDesc>(buffer));
             } break;
             case (ResourceType::RawData): {
                 RawDataDesc raw_data = resourceJson.value().find("raw_data").value().get<RawDataDesc>();
-                raw_data.src = resolvePath(raw_data.src, workDir);
-                if (raw_data.dst.has_value()) {
-                    raw_data.dst = resolvePath(raw_data.dst.value(), outputDir);
-                }
                 scenarioSpec.addResource(std::make_unique<RawDataDesc>(raw_data));
             } break;
             case (ResourceType::DataGraph): {
                 DataGraphDesc dataGraph = resourceJson.value().find("graph").value().get<DataGraphDesc>();
-                dataGraph.src = resolvePath(dataGraph.src, workDir);
-                if (dataGraph.dst.has_value()) {
-                    dataGraph.dst = resolvePath(dataGraph.dst.value(), outputDir);
-                }
                 scenarioSpec.addResource(std::make_unique<DataGraphDesc>(dataGraph));
             } break;
             case (ResourceType::Tensor): {
                 TensorDesc tensor = resourceJson.value().find("tensor").value().get<TensorDesc>();
-                if (tensor.src.has_value()) {
-                    tensor.src = resolvePath(tensor.src.value(), workDir);
-                }
-                if (tensor.dst.has_value()) {
-                    tensor.dst = resolvePath(tensor.dst.value(), outputDir);
-                }
                 scenarioSpec.addResource(std::make_unique<TensorDesc>(tensor));
             } break;
             case (ResourceType::Image): {
                 ImageDesc image = resourceJson.value().find("image").value().get<ImageDesc>();
-                if (image.src.has_value()) {
-                    image.src = resolvePath(image.src.value(), workDir);
-                }
-                if (image.dst.has_value()) {
-                    image.dst = resolvePath(image.dst.value(), outputDir);
-                }
                 scenarioSpec.addResource(std::make_unique<ImageDesc>(image));
             } break;
             case (ResourceType::ImageBarrier): {

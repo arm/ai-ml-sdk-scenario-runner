@@ -41,6 +41,7 @@ struct ResourceDesc {
     ResourceDesc() = default;
     ResourceDesc(ResourceType resourceType, Guid guid, const std::string &guidStr);
     const std::optional<std::string> &getSource() const { return src; };
+    void setSrc(std::string s) { src = std::move(s); }
     const std::optional<std::string> &getDestination() const { return dst; };
     virtual ~ResourceDesc() = default;
 
@@ -97,7 +98,6 @@ struct DataGraphDesc : ResourceDesc {
     DataGraphDesc();
     DataGraphDesc(Guid guid, const std::string &guidStr, std::string src);
 
-    std::string src;
     std::vector<ShaderSubstitutionDesc> shaderSubstitutions;
     std::vector<SpecializationConstantMap> specializationConstantMaps;
     uint32_t pushConstantsSize{};
@@ -113,7 +113,6 @@ struct ShaderDesc : ResourceDesc {
     ShaderDesc();
     ShaderDesc(Guid guid, const std::string &guidStr, std::string src, std::string entry, ShaderType type);
 
-    std::string src;
     std::string entry;
     ShaderType shaderType{ShaderType::Unknown};
     uint32_t pushConstantsSize{};
@@ -129,8 +128,6 @@ struct ShaderDesc : ResourceDesc {
 struct RawDataDesc : ResourceDesc {
     RawDataDesc();
     RawDataDesc(Guid guid, const std::string &guidStr, std::string src);
-
-    std::string src;
 };
 
 /**

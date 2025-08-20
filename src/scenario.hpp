@@ -40,6 +40,7 @@ struct ScenarioOptions {
 struct ScenarioSpec {
     ScenarioSpec(std::istream *is, const std::filesystem::path &workDir, const std::filesystem::path &outputDir = {});
 
+    /// @brief \brief Add resource and resolve paths
     void addResource(std::unique_ptr<ResourceDesc> resource);
 
     void addCommand(std::unique_ptr<CommandDesc> command);
@@ -52,10 +53,12 @@ struct ScenarioSpec {
     std::vector<std::unique_ptr<ResourceDesc>> resources{};
     std::vector<std::unique_ptr<CommandDesc>> commands{};
     std::unordered_map<Guid, uint32_t> resourceRefs{};
-    std::filesystem::path workDir{};
-    std::filesystem::path outputDir{};
     // Mark scenario to have compute commands, default is dataGraph
     bool useComputeFamilyQueue{};
+
+  private:
+    std::filesystem::path _workDir{};
+    std::filesystem::path _outputDir{};
 };
 
 class Scenario {

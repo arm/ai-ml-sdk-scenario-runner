@@ -41,7 +41,7 @@ void DataManager::createImage(Guid guid, const ImageInfo &info) {
 }
 
 void DataManager::createVgfView(Guid guid, const DataGraphDesc &desc) {
-    std::unique_ptr<MemoryMap> mapped = std::make_unique<MemoryMap>(desc.src);
+    auto mapped = std::make_unique<MemoryMap>(desc.src.value());
 
     std::unique_ptr<vgflib::HeaderDecoder> headerDecoder = vgflib::CreateHeaderDecoder(mapped->ptr());
     if (!headerDecoder->IsValid()) {

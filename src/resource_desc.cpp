@@ -61,7 +61,9 @@ SpecializationConstantMap::SpecializationConstantMap(std::vector<SpecializationC
  * @param src
  */
 DataGraphDesc::DataGraphDesc(Guid guid, const std::string &guidStr, std::string src)
-    : ResourceDesc(ResourceType::DataGraph, guid, guidStr), src(std::move(src)) {}
+    : ResourceDesc(ResourceType::DataGraph, guid, guidStr) {
+    setSrc(std::move(src));
+}
 
 DataGraphDesc::DataGraphDesc() : ResourceDesc(ResourceType::DataGraph, Guid(), "<unnamed_data_graph>") {}
 
@@ -75,8 +77,9 @@ DataGraphDesc::DataGraphDesc() : ResourceDesc(ResourceType::DataGraph, Guid(), "
  * @param type
  */
 ShaderDesc::ShaderDesc(Guid guid, const std::string &guidStr, std::string src, std::string entry, ShaderType type)
-    : ResourceDesc(ResourceType::Shader, guid, guidStr), src(std::move(src)), entry(std::move(entry)),
-      shaderType(type) {}
+    : ResourceDesc(ResourceType::Shader, guid, guidStr), entry(std::move(entry)), shaderType(type) {
+    setSrc(std::move(src));
+}
 
 ShaderDesc::ShaderDesc() : ResourceDesc(ResourceType::Shader, Guid(), "<unnamed_shader>") {}
 
@@ -88,7 +91,9 @@ ShaderDesc::ShaderDesc() : ResourceDesc(ResourceType::Shader, Guid(), "<unnamed_
  * @param src
  */
 RawDataDesc::RawDataDesc(Guid guid, const std::string &guidStr, std::string src)
-    : ResourceDesc(ResourceType::RawData, guid, guidStr), src(std::move(src)) {}
+    : ResourceDesc(ResourceType::RawData, guid, guidStr) {
+    setSrc(std::move(src));
+}
 
 RawDataDesc::RawDataDesc() : ResourceDesc(ResourceType::RawData, Guid(), "<unnamed_raw_data>") {}
 
