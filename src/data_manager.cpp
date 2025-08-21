@@ -5,7 +5,6 @@
 
 #include "data_manager.hpp"
 #include "barrier.hpp"
-#include "memory_map.hpp"
 #include "numpy.hpp"
 #include "utils.hpp"
 

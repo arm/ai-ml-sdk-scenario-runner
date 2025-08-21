@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include "memory_map.hpp"
 #include "numpy.hpp"
 
 #include <memory>
