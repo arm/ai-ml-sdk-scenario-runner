@@ -11,6 +11,93 @@
 #include <iostream>
 
 namespace mlsdk::scenariorunner {
+//==============
+// Command details
+// Function to de-serialize CommandDesc from JSON
+void from_json(const json &j, CommandDesc &command);
+
+// Function to de-serialize a PushConstantMap from JSON
+void from_json(const json &j, PushConstantMap &pushConstantMap);
+
+//==============
+// Resource details
+// Function to de-serialize a ResourceDesc from JSON
+void from_json(const json &j, ResourceDesc &resource);
+
+// Function to de-serialize a SpecializationConstant from JSON
+void from_json(const json &j, SpecializationConstant &specializationConstant);
+
+// Function to de-serialize a SpecializationConstantMap from JSON
+void from_json(const json &j, SpecializationConstantMap &pushConstantMap);
+
+// Function to de-serialize a ShaderSubstitutionDesc from JSON
+void from_json(const json &j, ShaderSubstitutionDesc &shaderSubstitution);
+
+// Function to de-serialize SubresourceRange from JSON
+void from_json(const json &j, SubresourceRange &subresourceRange);
+
+//==============
+// Enums
+// Map ShaderType values to JSON as strings
+NLOHMANN_JSON_SERIALIZE_ENUM(ShaderType, {{ShaderType::Unknown, nullptr},
+                                          {ShaderType::SPIR_V, "SPIR-V"},
+                                          {ShaderType::GLSL, "GLSL"}})
+
+// Map ShaderAccessType values to JSON as strings
+NLOHMANN_JSON_SERIALIZE_ENUM(ShaderAccessType, {
+                                                   {ShaderAccessType::Unknown, nullptr},
+                                                   {ShaderAccessType::ReadOnly, "readonly"},
+                                                   {ShaderAccessType::WriteOnly, "writeonly"},
+                                                   {ShaderAccessType::ReadWrite, "readwrite"},
+                                                   {ShaderAccessType::ImageRead, "image_read"},
+                                               })
+// Map MemoryAccess values to JSON as strings
+NLOHMANN_JSON_SERIALIZE_ENUM(MemoryAccess, {{MemoryAccess::Unknown, nullptr},
+                                            {MemoryAccess::MemoryWrite, "memory_write"},
+                                            {MemoryAccess::MemoryRead, "memory_read"},
+                                            {MemoryAccess::GraphWrite, "graph_write"},
+                                            {MemoryAccess::GraphRead, "graph_read"},
+                                            {MemoryAccess::ComputeShaderWrite, "compute_shader_write"},
+                                            {MemoryAccess::ComputeShaderRead, "compute_shader_read"}})
+
+NLOHMANN_JSON_SERIALIZE_ENUM(PipelineStage, {{PipelineStage::Unknown, nullptr},
+                                             {PipelineStage::Graph, "graph"},
+                                             {PipelineStage::Compute, "compute"},
+                                             {PipelineStage::All, "all"}})
+
+// Map ImageLayout values to JSON as strings
+NLOHMANN_JSON_SERIALIZE_ENUM(ImageLayout, {{ImageLayout::Unknown, nullptr},
+                                           {ImageLayout::TensorAliasing, "tensor_aliasing"},
+                                           {ImageLayout::General, "general"},
+                                           {ImageLayout::Undefined, "undefined"}})
+
+// Map values of sampler settings to JSON as strings
+NLOHMANN_JSON_SERIALIZE_ENUM(FilterMode, {{FilterMode::Unknown, nullptr},
+                                          {FilterMode::Nearest, "NEAREST"},
+                                          {FilterMode::Linear, "LINEAR"}})
+
+NLOHMANN_JSON_SERIALIZE_ENUM(AddressMode, {{AddressMode::Unknown, nullptr},
+                                           {AddressMode::ClampBorder, "CLAMP_BORDER"},
+                                           {AddressMode::ClampEdge, "CLAMP_EDGE"},
+                                           {AddressMode::Repeat, "REPEAT"},
+                                           {AddressMode::MirroredRepeat, "MIRRORED_REPEAT"}})
+
+NLOHMANN_JSON_SERIALIZE_ENUM(BorderColor, {{BorderColor::Unknown, nullptr},
+                                           {BorderColor::FloatTransparentBlack, "FLOAT_TRANSPARENT_BLACK"},
+                                           {BorderColor::FloatOpaqueBlack, "FLOAT_OPAQUE_BLACK"},
+                                           {BorderColor::FloatOpaqueWhite, "FLOAT_OPAQUE_WHITE"},
+                                           {BorderColor::IntTransparentBlack, "INT_TRANSPARENT_BLACK"},
+                                           {BorderColor::IntOpaqueBlack, "INT_OPAQUE_BLACK"},
+                                           {BorderColor::IntOpaqueWhite, "INT_OPAQUE_WHITE"},
+                                           {BorderColor::FloatCustomEXT, "FLOAT_CUSTOM_EXT"},
+                                           {BorderColor::IntCustomEXT, "INT_CUSTOM_EXT"}})
+
+NLOHMANN_JSON_SERIALIZE_ENUM(DescriptorType, {{DescriptorType::Unknown, nullptr},
+                                              {DescriptorType::Auto, "VK_DESCRIPTOR_TYPE_AUTO"},
+                                              {DescriptorType::StorageImage, "VK_DESCRIPTOR_TYPE_STORAGE_IMAGE"}})
+
+NLOHMANN_JSON_SERIALIZE_ENUM(Tiling,
+                             {{Tiling::Unknown, nullptr}, {Tiling::Optimal, "OPTIMAL"}, {Tiling::Linear, "LINEAR"}})
 
 void readJson(ScenarioSpec &scenarioSpec, std::istream *is) {
     json j;
@@ -18,8 +105,8 @@ void readJson(ScenarioSpec &scenarioSpec, std::istream *is) {
 
     auto findResources = j.find("resources");
     if (findResources != j.end()) {
-        json resourcesJson = findResources.value();
-        for (json::iterator resourceJson = resourcesJson.begin(); resourceJson != resourcesJson.end(); ++resourceJson) {
+        const json &resourcesJson = findResources.value();
+        for (auto resourceJson = resourcesJson.begin(); resourceJson != resourcesJson.end(); ++resourceJson) {
             ResourceDesc resource = resourceJson.value().get<ResourceDesc>();
             switch (resource.resourceType) {
             case (ResourceType::Shader): {
@@ -74,8 +161,8 @@ void readJson(ScenarioSpec &scenarioSpec, std::istream *is) {
 
     auto findCommands = j.find("commands");
     if (findCommands != j.end()) {
-        json commandsJson = findCommands.value();
-        for (json::iterator commandJson = commandsJson.begin(); commandJson != commandsJson.end(); ++commandJson) {
+        const json &commandsJson = findCommands.value();
+        for (auto commandJson = commandsJson.begin(); commandJson != commandsJson.end(); ++commandJson) {
             CommandDesc command = commandJson.value().get<CommandDesc>();
             switch (command.commandType) {
             case (CommandType::DispatchCompute): {
@@ -133,15 +220,15 @@ void from_json(const json &j, CommandDesc &command) {
  * @param dispatchCompute
  */
 void from_json(const json &j, DispatchComputeDesc &dispatchCompute) {
-    json bindingsJson = j.find("bindings").value();
-    for (json::iterator binding = bindingsJson.begin(); binding != bindingsJson.end(); ++binding) {
-        json newBinding = binding.value();
+    const json &bindingsJson = j.find("bindings").value();
+    for (auto binding = bindingsJson.begin(); binding != bindingsJson.end(); ++binding) {
+        const json &newBinding = binding.value();
         dispatchCompute.bindings.push_back(newBinding.get<BindingDesc>());
     }
-    json rangeNDJson = j.find("rangeND").value();
+    const json &rangeNDJson = j.find("rangeND").value();
     uint32_t i = 0;
-    for (json::iterator dimension = rangeNDJson.begin(); dimension != rangeNDJson.end(); ++dimension) {
-        json newDimension = dimension.value();
+    for (auto dimension = rangeNDJson.begin(); dimension != rangeNDJson.end(); ++dimension) {
+        const json &newDimension = dimension.value();
         dispatchCompute.rangeND.push_back(newDimension.get<uint32_t>());
         ++i;
     }
@@ -169,23 +256,22 @@ void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph) {
     auto graphRef = j.at("graph_ref").get<std::string>();
     dispatchDataGraph.dataGraphRef = graphRef;
     dispatchDataGraph.debugName = graphRef;
-    json bindingsJson = j.find("bindings").value();
-    for (json::iterator binding = bindingsJson.begin(); binding != bindingsJson.end(); ++binding) {
-        json newBinding = binding.value();
+    const json &bindingsJson = j.find("bindings").value();
+    for (auto binding = bindingsJson.begin(); binding != bindingsJson.end(); ++binding) {
+        const json &newBinding = binding.value();
         dispatchDataGraph.bindings.push_back(newBinding.get<BindingDesc>());
     }
     if (j.count("push_constants") != 0) {
-        json pushConstantsJson = j.find("push_constants").value();
-        for (json::iterator pushConstant = pushConstantsJson.begin(); pushConstant != pushConstantsJson.end();
-             ++pushConstant) {
-            json newPushConstant = pushConstant.value();
+        const json &pushConstantsJson = j.find("push_constants").value();
+        for (auto pushConstant = pushConstantsJson.begin(); pushConstant != pushConstantsJson.end(); ++pushConstant) {
+            const json &newPushConstant = pushConstant.value();
             dispatchDataGraph.pushConstants.push_back(newPushConstant.get<PushConstantMap>());
         }
     }
     if (j.count("shader_substitutions") != 0) {
-        json shaderSubJson = j.find("shader_substitutions").value();
-        for (json::iterator shaderSub = shaderSubJson.begin(); shaderSub != shaderSubJson.end(); ++shaderSub) {
-            json newShaderSub = shaderSub.value();
+        const json &shaderSubJson = j.find("shader_substitutions").value();
+        for (auto shaderSub = shaderSubJson.begin(); shaderSub != shaderSubJson.end(); ++shaderSub) {
+            const json &newShaderSub = shaderSub.value();
             dispatchDataGraph.shaderSubstitutions.push_back(newShaderSub.get<ShaderSubstitutionDesc>());
         }
     }
@@ -198,33 +284,30 @@ void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph) {
  * @param dispatchBarrier
  */
 void from_json(const json &j, DispatchBarrierDesc &dispatchBarrier) {
-    json imageBarriersJson = j.find("image_barrier_refs").value();
-    for (json::iterator imageBarrier = imageBarriersJson.begin(); imageBarrier != imageBarriersJson.end();
-         ++imageBarrier) {
-        json newImageBarrier = imageBarrier.value();
+    const json &imageBarriersJson = j.find("image_barrier_refs").value();
+    for (auto imageBarrier = imageBarriersJson.begin(); imageBarrier != imageBarriersJson.end(); ++imageBarrier) {
+        const json &newImageBarrier = imageBarrier.value();
         dispatchBarrier.imageBarriersRef.push_back(newImageBarrier.get<std::string>());
     }
 
     auto tensorBarriersIter = j.find("tensor_barrier_refs");
     if (tensorBarriersIter != j.end()) {
-        auto tensorBarriersJson = tensorBarriersIter.value();
-        for (json::iterator tensorBarrier = tensorBarriersJson.begin(); tensorBarrier != tensorBarriersJson.end();
+        const json &tensorBarriersJson = tensorBarriersIter.value();
+        for (auto tensorBarrier = tensorBarriersJson.begin(); tensorBarrier != tensorBarriersJson.end();
              ++tensorBarrier) {
-            json newTensorBarrier = tensorBarrier.value();
+            const json &newTensorBarrier = tensorBarrier.value();
             dispatchBarrier.tensorBarriersRef.push_back(newTensorBarrier.get<std::string>());
         }
     }
 
-    json memoryBarriersJson = j.find("memory_barrier_refs").value();
-    for (json::iterator memoryBarrier = memoryBarriersJson.begin(); memoryBarrier != memoryBarriersJson.end();
-         ++memoryBarrier) {
-        json newMemoryBarrier = memoryBarrier.value();
+    const json &memoryBarriersJson = j.find("memory_barrier_refs").value();
+    for (auto memoryBarrier = memoryBarriersJson.begin(); memoryBarrier != memoryBarriersJson.end(); ++memoryBarrier) {
+        const json &newMemoryBarrier = memoryBarrier.value();
         dispatchBarrier.memoryBarriersRef.push_back(newMemoryBarrier.get<std::string>());
     }
-    json bufferBarriersJson = j.find("buffer_barrier_refs").value();
-    for (json::iterator bufferBarrier = bufferBarriersJson.begin(); bufferBarrier != bufferBarriersJson.end();
-         ++bufferBarrier) {
-        json newBufferBarrier = bufferBarrier.value();
+    const json &bufferBarriersJson = j.find("buffer_barrier_refs").value();
+    for (auto bufferBarrier = bufferBarriersJson.begin(); bufferBarrier != bufferBarriersJson.end(); ++bufferBarrier) {
+        const json &newBufferBarrier = bufferBarrier.value();
         dispatchBarrier.bufferBarriersRef.push_back(newBufferBarrier.get<std::string>());
     }
 }
@@ -250,9 +333,9 @@ void from_json(const json &j, MarkBoundaryDesc &markBoundaryDesc) {
         }
     }
 
-    json resourcesJson = j.find("resources").value();
-    for (json::iterator resource = resourcesJson.begin(); resource != resourcesJson.end(); ++resource) {
-        json newResource = resource.value();
+    const json &resourcesJson = j.find("resources").value();
+    for (auto resource = resourcesJson.begin(); resource != resourcesJson.end(); ++resource) {
+        const json &newResource = resource.value();
         markBoundaryDesc.resources.push_back(newResource.get<std::string>());
     }
 }
@@ -394,9 +477,9 @@ void from_json(const json &j, SpecializationConstant &specializationConstant) {
  */
 void from_json(const json &j, SpecializationConstantMap &specializationConstantMap) {
     specializationConstantMap.shaderTarget = j.at("shader_target").get<std::string>();
-    json constantsJson = j.find("specialization_constants").value();
-    for (json::iterator constant = constantsJson.begin(); constant != constantsJson.end(); ++constant) {
-        json newConstant = constant.value();
+    const json &constantsJson = j.find("specialization_constants").value();
+    for (auto constant = constantsJson.begin(); constant != constantsJson.end(); ++constant) {
+        const json &newConstant = constant.value();
         specializationConstantMap.specializationConstants.push_back(newConstant.get<SpecializationConstant>());
     }
 }
@@ -424,16 +507,16 @@ void from_json(const json &j, DataGraphDesc &dataGraph) {
     dataGraph.src = j.at("src").get<std::string>();
 
     if (j.count("shader_substitutions") != 0) {
-        json shaderSubJson = j.find("shader_substitutions").value();
-        for (json::iterator shaderSub = shaderSubJson.begin(); shaderSub != shaderSubJson.end(); ++shaderSub) {
-            json newShaderSub = shaderSub.value();
+        const json &shaderSubJson = j.find("shader_substitutions").value();
+        for (auto shaderSub = shaderSubJson.begin(); shaderSub != shaderSubJson.end(); ++shaderSub) {
+            const json &newShaderSub = shaderSub.value();
             dataGraph.shaderSubstitutions.push_back(newShaderSub.get<ShaderSubstitutionDesc>());
         }
     }
     if (j.count("specialization_constants") != 0) {
-        json conMapsJson = j.find("specialization_constants").value();
-        for (json::iterator conMap = conMapsJson.begin(); conMap != conMapsJson.end(); ++conMap) {
-            json newConMap = conMap.value();
+        const json &conMapsJson = j.find("specialization_constants").value();
+        for (auto conMap = conMapsJson.begin(); conMap != conMapsJson.end(); ++conMap) {
+            const json &newConMap = conMap.value();
             dataGraph.specializationConstantMaps.push_back(newConMap.get<SpecializationConstantMap>());
         }
     }
@@ -461,9 +544,9 @@ void from_json(const json &j, ShaderDesc &shader) {
         shader.pushConstantsSize = j.at("push_constants_size").get<uint32_t>();
     }
     if (j.count("specialization_constants") != 0) {
-        json specsJson = j.find("specialization_constants").value();
-        for (json::iterator spec = specsJson.begin(); spec != specsJson.end(); ++spec) {
-            json newSpec = spec.value();
+        const json &specsJson = j.find("specialization_constants").value();
+        for (auto spec = specsJson.begin(); spec != specsJson.end(); ++spec) {
+            const json &newSpec = spec.value();
             shader.specializationConstants.push_back(newSpec.get<SpecializationConstant>());
         }
     }
@@ -471,9 +554,9 @@ void from_json(const json &j, ShaderDesc &shader) {
         shader.buildOpts = j.at("build_options").get<std::string>();
     }
     if (j.count("include_dirs") != 0) {
-        json includesJson = j.find("include_dirs").value();
-        for (json::iterator include = includesJson.begin(); include != includesJson.end(); ++include) {
-            json newInclude = include.value();
+        const json &includesJson = j.find("include_dirs").value();
+        for (auto include = includesJson.begin(); include != includesJson.end(); ++include) {
+            const json &newInclude = include.value();
             shader.includeDirs.push_back(newInclude.get<std::string>());
         }
     }
@@ -500,9 +583,9 @@ void from_json(const json &j, RawDataDesc &raw_data) {
 void from_json(const json &j, TensorDesc &tensor) {
     tensor.guidStr = j.at("uid").get<std::string>();
     tensor.guid = tensor.guidStr;
-    json dimsJson = j.find("dims").value();
-    for (json::iterator dim = dimsJson.begin(); dim != dimsJson.end(); ++dim) {
-        json newDim = dim.value();
+    const json &dimsJson = j.find("dims").value();
+    for (auto dim = dimsJson.begin(); dim != dimsJson.end(); ++dim) {
+        const json &newDim = dim.value();
         tensor.dims.push_back(newDim.get<int64_t>());
     }
     tensor.format = j.at("format").get<std::string>();
@@ -544,9 +627,9 @@ void from_json(const json &j, TensorDesc &tensor) {
 void from_json(const json &j, ImageDesc &image) {
     image.guidStr = j.at("uid").get<std::string>();
     image.guid = image.guidStr;
-    json dimsJson = j.find("dims").value();
-    for (json::iterator dim = dimsJson.begin(); dim != dimsJson.end(); ++dim) {
-        json newDim = dim.value();
+    const json &dimsJson = j.find("dims").value();
+    for (auto dim = dimsJson.begin(); dim != dimsJson.end(); ++dim) {
+        const json &newDim = dim.value();
         image.dims.push_back(newDim.get<uint32_t>());
     }
     // for compatibility with the old json configs that had this field set as "false"
@@ -601,7 +684,7 @@ void from_json(const json &j, ImageDesc &image) {
         }
     }
     if (j.count("custom_border_color") != 0) {
-        json customColorJson = j.find("custom_border_color").value();
+        const json &customColorJson = j.find("custom_border_color").value();
         if (image.borderColor.value() == BorderColor::FloatCustomEXT) {
             image.customBorderColor = customColorJson.get<std::array<float, 4>>();
         } else {
@@ -639,7 +722,7 @@ void from_json(const json &j, MemoryBarrierDesc &memoryBarrier) {
 
     auto srcStagesIter = j.find("src_stage");
     if (srcStagesIter != j.end()) {
-        auto srcStagesJson = srcStagesIter.value();
+        const json &srcStagesJson = srcStagesIter.value();
         memoryBarrier.srcStages = srcStagesJson.get<std::vector<PipelineStage>>();
         for (PipelineStage it : memoryBarrier.srcStages) {
             if (it == PipelineStage::Unknown) {
@@ -650,7 +733,7 @@ void from_json(const json &j, MemoryBarrierDesc &memoryBarrier) {
 
     auto dstStagesIter = j.find("dst_stage");
     if (dstStagesIter != j.end()) {
-        auto dstStagesJson = dstStagesIter.value();
+        const json &dstStagesJson = dstStagesIter.value();
         memoryBarrier.dstStages = dstStagesJson.get<std::vector<PipelineStage>>();
         for (PipelineStage it : memoryBarrier.dstStages) {
             if (it == PipelineStage::Unknown) {
@@ -680,7 +763,7 @@ void from_json(const json &j, TensorBarrierDesc &tensorBarrier) {
 
     auto srcStagesIter = j.find("src_stage");
     if (srcStagesIter != j.end()) {
-        auto srcStagesJson = srcStagesIter.value();
+        const json &srcStagesJson = srcStagesIter.value();
         tensorBarrier.srcStages = srcStagesJson.get<std::vector<PipelineStage>>();
         for (PipelineStage it : tensorBarrier.srcStages) {
             if (it == PipelineStage::Unknown) {
@@ -691,7 +774,7 @@ void from_json(const json &j, TensorBarrierDesc &tensorBarrier) {
 
     auto dstStagesIter = j.find("dst_stage");
     if (dstStagesIter != j.end()) {
-        auto dstStagesJson = dstStagesIter.value();
+        const json &dstStagesJson = dstStagesIter.value();
         tensorBarrier.dstStages = dstStagesJson.get<std::vector<PipelineStage>>();
         for (PipelineStage it : tensorBarrier.dstStages) {
             if (it == PipelineStage::Unknown) {
@@ -735,7 +818,7 @@ void from_json(const json &j, ImageBarrierDesc &imageBarrier) {
 
     auto srcStagesIter = j.find("src_stage");
     if (srcStagesIter != j.end()) {
-        auto srcStagesJson = srcStagesIter.value();
+        const json &srcStagesJson = srcStagesIter.value();
         imageBarrier.srcStages = srcStagesJson.get<std::vector<PipelineStage>>();
         for (PipelineStage it : imageBarrier.srcStages) {
             if (it == PipelineStage::Unknown) {
@@ -746,7 +829,7 @@ void from_json(const json &j, ImageBarrierDesc &imageBarrier) {
 
     auto dstStagesIter = j.find("dst_stage");
     if (dstStagesIter != j.end()) {
-        auto dstStagesJson = dstStagesIter.value();
+        const json &dstStagesJson = dstStagesIter.value();
         imageBarrier.dstStages = dstStagesJson.get<std::vector<PipelineStage>>();
         for (PipelineStage it : imageBarrier.dstStages) {
             if (it == PipelineStage::Unknown) {
@@ -778,7 +861,7 @@ void from_json(const json &j, BufferBarrierDesc &bufferBarrier) {
 
     auto srcStagesIter = j.find("src_stage");
     if (srcStagesIter != j.end()) {
-        auto srcStagesJson = srcStagesIter.value();
+        const json &srcStagesJson = srcStagesIter.value();
         bufferBarrier.srcStages = srcStagesJson.get<std::vector<PipelineStage>>();
         for (PipelineStage it : bufferBarrier.srcStages) {
             if (it == PipelineStage::Unknown) {
@@ -789,7 +872,7 @@ void from_json(const json &j, BufferBarrierDesc &bufferBarrier) {
 
     auto dstStagesIter = j.find("dst_stage");
     if (dstStagesIter != j.end()) {
-        auto dstStagesJson = dstStagesIter.value();
+        const json &dstStagesJson = dstStagesIter.value();
         bufferBarrier.dstStages = dstStagesJson.get<std::vector<PipelineStage>>();
         for (PipelineStage it : bufferBarrier.dstStages) {
             if (it == PipelineStage::Unknown) {

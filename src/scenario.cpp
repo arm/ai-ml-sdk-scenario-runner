@@ -45,10 +45,10 @@ std::string resourceType(const std::unique_ptr<ResourceDesc> &resource) {
 }
 
 uint32_t shaderSubstitution(const std::vector<ShaderSubstitutionDesc> &shaderSubs, const std::string &moduleName,
-                            std::unordered_map<Guid, uint32_t> &_resourceRefs) {
+                            const std::unordered_map<Guid, uint32_t> &_resourceRefs) {
     for (const auto &shaderSub : shaderSubs) {
         if (shaderSub.target == moduleName) {
-            return _resourceRefs[shaderSub.shaderRef];
+            return _resourceRefs.at(shaderSub.shaderRef);
         }
     }
     throw std::runtime_error("Could not perform shader substitution");
