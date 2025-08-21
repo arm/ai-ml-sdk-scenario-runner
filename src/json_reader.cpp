@@ -6,7 +6,7 @@
 #include "json_reader.hpp"
 
 #include "logging.hpp"
-#include "scenario.hpp"
+#include "scenario_desc.hpp"
 
 #include <iostream>
 

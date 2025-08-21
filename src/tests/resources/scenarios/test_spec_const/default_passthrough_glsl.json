@@ -8,7 +8,7 @@
       },
       {
         "dispatch_compute": {
-          "shader_ref": "shader",
+          "shader_ref": "uint_shader",
           "rangeND": [
             1,
             1,

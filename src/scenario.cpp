@@ -6,7 +6,7 @@
 #include "dds_reader.hpp"
 #include "frame_capturer.hpp"
 #include "guid.hpp"
-#include "json_reader.hpp"
+#include "json_writer.hpp"
 #include "logging.hpp"
 #include "numpy.hpp"
 #include <unordered_set>
@@ -43,51 +43,7 @@ std::string resourceType(const std::unique_ptr<ResourceDesc> &resource) {
     throw std::runtime_error("Unknown resource type in ScenarioSpec");
 }
 
-uint32_t shaderSubstitution(const std::vector<ShaderSubstitutionDesc> &shaderSubs, const std::string &moduleName,
-                            const std::unordered_map<Guid, uint32_t> &_resourceRefs) {
-    for (const auto &shaderSub : shaderSubs) {
-        if (shaderSub.target == moduleName) {
-            return _resourceRefs.at(shaderSub.shaderRef);
-        }
-    }
-    throw std::runtime_error("Could not perform shader substitution");
-}
 } // namespace
-
-ScenarioSpec::ScenarioSpec(std::istream *is, const std::filesystem::path &workDir,
-                           const std::filesystem::path &outputDir)
-    : _workDir(workDir), _outputDir(outputDir) {
-    readJson(*this, is);
-}
-
-void ScenarioSpec::addResource(std::unique_ptr<ResourceDesc> resource) {
-    if (resource->src.has_value()) {
-        auto resolvedPath = _workDir / std::filesystem::path(resource->src.value());
-        resource->src = resolvedPath.string();
-    }
-    if (resource->dst.has_value()) {
-        auto resolvedPath = _outputDir / std::filesystem::path(resource->dst.value());
-        resource->dst = resolvedPath.string();
-    }
-
-    resourceRefs[resource->guid] = static_cast<uint32_t>(resources.size());
-    resources.emplace_back(std::move(resource));
-}
-
-void ScenarioSpec::addCommand(std::unique_ptr<CommandDesc> command) { commands.emplace_back(std::move(command)); }
-
-void ScenarioSpec::addCommand(std::unique_ptr<DispatchComputeDesc> command) {
-    commands.emplace_back(std::move(command));
-    useComputeFamilyQueue = true;
-}
-
-bool ScenarioSpec::isLastCommand(CommandType type) const { return commands.back()->commandType == type; }
-
-uint64_t ScenarioSpec::commandCount(CommandType type) const {
-    return static_cast<uint64_t>(
-        std::count_if(commands.begin(), commands.end(),
-                      [type](const std::unique_ptr<CommandDesc> &cmd) { return cmd->commandType == type; }));
-}
 
 Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
     : _opts{opts}, _ctx{opts, scenarioSpec.useComputeFamilyQueue ? FamilyQueue::Compute : FamilyQueue::DataGraph},
@@ -470,16 +426,15 @@ void Scenario::setupCommands(int iteration) {
             const auto &dispatchCompute = reinterpret_cast<DispatchComputeDesc &>(*command);
 
             // Create Compute shader pipeline
-            uint32_t shaderIndex = _scenarioSpec.resourceRefs[dispatchCompute.shaderRef];
-            auto &shaderDesc = reinterpret_cast<std::unique_ptr<ShaderDesc> &>(_scenarioSpec.resources[shaderIndex]);
+            const auto &shaderDesc = _scenarioSpec.getShaderResource(dispatchCompute.shaderRef);
             _perfCounters
-                .emplace_back("Create Pipeline: " + shaderDesc->guidStr +
+                .emplace_back("Create Pipeline: " + shaderDesc.guidStr +
                                   ". Iteration: " + std::to_string(iteration + 1),
                               "Pipeline Setup", true)
                 .start();
             // Read shader file
-            _pipelines.emplace_back(_ctx, dispatchCompute.debugName, dispatchCompute.bindings, *shaderDesc,
-                                    _dataManager, _pipelineCache);
+            _pipelines.emplace_back(_ctx, dispatchCompute.debugName, dispatchCompute.bindings, shaderDesc, _dataManager,
+                                    _pipelineCache);
             _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
             if (dispatchCompute.pushDataRef) {
                 const RawData &pushConstantData = _dataManager.getRawData(dispatchCompute.pushDataRef.value());
@@ -494,7 +449,7 @@ void Scenario::setupCommands(int iteration) {
             }
             _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
             _perfCounters.back().stop();
-            mlsdk::logging::debug("Shader Pipeline: " + shaderDesc->guidStr + " created");
+            mlsdk::logging::debug("Shader Pipeline: " + shaderDesc.guidStr + " created");
         } break;
         case (CommandType::DispatchBarrier): {
             const auto &dispatchBarrier = reinterpret_cast<DispatchBarrierDesc &>(*command);
@@ -700,11 +655,9 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Bin
         bool hasSPVModule = vgfView.hasSPVModule(segmentIndex);
         if (!dispatchDataGraph.shaderSubstitutions.empty()) {
             auto moduleName = vgfView.getSPVModuleName(segmentIndex);
-            uint32_t substitutedShaderIdx =
-                shaderSubstitution(dispatchDataGraph.shaderSubstitutions, moduleName, _scenarioSpec.resourceRefs);
-            auto &shaderDesc =
-                reinterpret_cast<std::unique_ptr<ShaderDesc> &>(_scenarioSpec.resources[substitutedShaderIdx]);
-            _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, sequenceBindings, *shaderDesc, _dataManager,
+            const auto &shaderDesc =
+                _scenarioSpec.getSubstitionShader(dispatchDataGraph.shaderSubstitutions, moduleName);
+            _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, sequenceBindings, shaderDesc, _dataManager,
                                     _pipelineCache);
             if (hasSPVModule) {
                 mlsdk::logging::warning("Performing shader substitution despite shader module containing code");
