@@ -4,8 +4,6 @@
  */
 
 #include "numpy.hpp"
-
-#include "memory_map.hpp"
 #include "temp_folder.hpp"
 
 #include <gtest/gtest.h>

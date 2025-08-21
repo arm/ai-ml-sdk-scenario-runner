@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "memory_map.hpp"
+#include "vgf-utils/memory_map.hpp"
 
 #include <cstdint>
 #include <fstream>

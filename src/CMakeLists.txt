@@ -20,7 +20,6 @@ add_library(ScenarioRunnerLib
     json_reader.cpp
     json_writer.cpp
     logging.cpp
-    memory_map.cpp
     numpy.cpp
     pipeline_cache.cpp
     pipeline.cpp
@@ -39,6 +38,7 @@ target_link_libraries(ScenarioRunnerLib PUBLIC
     nlohmann_json::nlohmann_json
     SPIRV-Tools-static
     VGF::vgf
+    VGF::vgf-utils
     Vulkan::Headers
 )
 
