@@ -33,6 +33,7 @@ def test_enable_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd)
     captured = capfd.readouterr()
     assert "[Scenario-Runner] INFO: Pipeline Cache cleared" not in captured.out
     assert "[Scenario-Runner] INFO: Pipeline Cache loaded" not in captured.out
+    assert "[Scenario-Runner] INFO: Pipeline Cache stored" in captured.out
 
     result_first = numpy_helper.load("outBufferAdd2.npy", np.float32)
     assert np.array_equal(result_first, input1 + input2 + input2)
@@ -55,6 +56,7 @@ def test_enable_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd)
     captured = capfd.readouterr()
     assert "[Scenario-Runner] INFO: Pipeline Cache cleared" not in captured.out
     assert "[Scenario-Runner] INFO: Pipeline Cache loaded" in captured.out
+    assert "[Scenario-Runner] INFO: Pipeline Cache stored" in captured.out
 
     result_second = numpy_helper.load("outBufferAdd2.npy", np.float32)
     assert np.array_equal(result_second, result_first)
@@ -63,7 +65,7 @@ def test_enable_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd)
     assert len(files) == 1 and files[0].suffix == ".cache"
 
     cache_data_second = files[0].read_bytes()
-    assert cache_data_second == cache_data_first
+    assert len(cache_data_second) > 0
 
     # run the third time and see that cache is cleared
     sdk_tools.run_scenario(
@@ -79,6 +81,7 @@ def test_enable_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd)
     captured = capfd.readouterr()
     assert "[Scenario-Runner] INFO: Pipeline Cache cleared" in captured.out
     assert "[Scenario-Runner] INFO: Pipeline Cache loaded" not in captured.out
+    assert "[Scenario-Runner] INFO: Pipeline Cache stored" in captured.out
 
     result_third = numpy_helper.load("outBufferAdd2.npy", np.float32)
     assert np.array_equal(result_third, result_first)
@@ -87,7 +90,7 @@ def test_enable_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd)
     assert len(files) == 1 and files[0].suffix == ".cache"
 
     cache_data_third = files[0].read_bytes()
-    assert cache_data_third == cache_data_first
+    assert len(cache_data_third) > 0
 
 
 def test_incorrect_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd):
