@@ -5,19 +5,27 @@
 
 #include "json_writer.hpp"
 
+#include <fstream>
+
+#include "nlohmann/json.hpp"
+
 namespace mlsdk::scenariorunner {
+using json = nlohmann::json;
 
 namespace {
 json _profilingDataJsonOutput;
-}
 
-void to_json(json &j, const PerformanceCounter &perfCounter) {
-    j = json{{"name", perfCounter.getName()}, {"value", perfCounter.getElapsedTime()}, {"unit", "microseconds"}};
-}
+struct CommandTimestamps {
+    CommandTimestamps() = default;
+    CommandTimestamps(const std::string &commandType, const std::vector<uint64_t> &commandTimestamps,
+                      const float timestampPeriod, const int iteration = 1)
+        : type(commandType), timestamps(commandTimestamps), period(timestampPeriod), iteration(iteration) {}
 
-void to_json(json &j, const AggregateStat &stat) {
-    j = json{{"total time", stat.aggregateTime}, {"unit", "microseconds"}, {"counters", stat.counters}};
-}
+    std::string type = {};
+    std::vector<uint64_t> timestamps = {};
+    float period = {};
+    int iteration;
+};
 
 void to_json(json &j, const CommandTimestamps &commandTimestamps) {
     j = json{{"Command type", commandTimestamps.type},
@@ -28,6 +36,16 @@ void to_json(json &j, const CommandTimestamps &commandTimestamps) {
              {"Time for command [ms]", float(commandTimestamps.timestamps[1] - commandTimestamps.timestamps[0]) *
                                            commandTimestamps.period / 1000000.0f},
              {"Iteration", commandTimestamps.iteration + 1}};
+}
+
+} // namespace
+
+void to_json(json &j, const PerformanceCounter &perfCounter) {
+    j = json{{"name", perfCounter.getName()}, {"value", perfCounter.getElapsedTime()}, {"unit", "microseconds"}};
+}
+
+void to_json(json &j, const AggregateStat &stat) {
+    j = json{{"total time", stat.aggregateTime}, {"unit", "microseconds"}, {"counters", stat.counters}};
 }
 
 void writePerfCounters(std::vector<PerformanceCounter> &perfCounters, std::filesystem::path &path) {

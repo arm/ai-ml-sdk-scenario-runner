@@ -26,6 +26,7 @@ add_library(ScenarioRunnerLib
     raw_data.cpp
     resource_desc.cpp
     scenario.cpp
+    scenario_desc.cpp
     tensor.cpp
     utils.cpp
     vgf_view.cpp

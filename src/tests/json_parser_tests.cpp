@@ -7,11 +7,11 @@
 
 #include "guid.hpp"
 #include "json_reader.hpp"
-#include "scenario.hpp"
+#include "resource_desc.hpp"
+#include "scenario_desc.hpp"
 
 #include <fstream>
 #include <regex>
-#include <resource_desc.hpp>
 #include <sstream>
 
 /**

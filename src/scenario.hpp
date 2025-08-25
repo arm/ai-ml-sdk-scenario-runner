@@ -5,18 +5,15 @@
 
 #pragma once
 
-#include "commands.hpp"
 #include "compute.hpp"
 #include "context.hpp"
 #include "data_manager.hpp"
 #include "guid.hpp"
-#include "json_writer.hpp"
 #include "pipeline.hpp"
-#include "resource_desc.hpp"
+#include "scenario_desc.hpp"
 #include "types.hpp"
 #include "utils.hpp"
 
-#include <fstream>
 #include <list>
 #include <optional>
 #include <string>
@@ -35,30 +32,6 @@ struct ScenarioOptions {
     std::filesystem::path perfCountersPath{};
     std::filesystem::path profilingPath{};
     std::vector<std::string> disabledExtensions{};
-};
-
-struct ScenarioSpec {
-    ScenarioSpec(std::istream *is, const std::filesystem::path &workDir, const std::filesystem::path &outputDir = {});
-
-    /// @brief \brief Add resource and resolve paths
-    void addResource(std::unique_ptr<ResourceDesc> resource);
-
-    void addCommand(std::unique_ptr<CommandDesc> command);
-    void addCommand(std::unique_ptr<DispatchComputeDesc> command);
-
-    bool isLastCommand(CommandType type) const;
-
-    uint64_t commandCount(CommandType type) const;
-
-    std::vector<std::unique_ptr<ResourceDesc>> resources{};
-    std::vector<std::unique_ptr<CommandDesc>> commands{};
-    std::unordered_map<Guid, uint32_t> resourceRefs{};
-    // Mark scenario to have compute commands, default is dataGraph
-    bool useComputeFamilyQueue{};
-
-  private:
-    std::filesystem::path _workDir{};
-    std::filesystem::path _outputDir{};
 };
 
 class Scenario {
