@@ -95,6 +95,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         hasExtension(extensions, VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.mark_boundary =
         hasExtension(extensions, VK_EXT_FRAME_BOUNDARY_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+    _optionals.maintenance4 =
+        hasExtension(extensions, VK_KHR_MAINTENANCE_4_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.maintenance5 =
         hasExtension(extensions, VK_KHR_MAINTENANCE_5_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.deferred_operation =
@@ -165,17 +167,17 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     deviceFeat.shaderInt16 = true;
     deviceFeat.shaderInt64 = true;
 
-    std::vector<const char *> vulkanDeviceExtensions = {
-        VK_ARM_DATA_GRAPH_EXTENSION_NAME,
-        VK_ARM_TENSORS_EXTENSION_NAME,
-        VK_KHR_MAINTENANCE_4_EXTENSION_NAME,
-    };
+    std::vector<const char *> vulkanDeviceExtensions = {VK_ARM_DATA_GRAPH_EXTENSION_NAME,
+                                                        VK_ARM_TENSORS_EXTENSION_NAME};
 
     if (_optionals.custom_border_color) {
         vulkanDeviceExtensions.push_back(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME);
     }
     if (_optionals.mark_boundary) {
         vulkanDeviceExtensions.push_back(VK_EXT_FRAME_BOUNDARY_EXTENSION_NAME);
+    }
+    if (_optionals.maintenance4) {
+        vulkanDeviceExtensions.push_back(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
     }
     if (_optionals.maintenance5) {
         vulkanDeviceExtensions.push_back(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
