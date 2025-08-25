@@ -439,7 +439,7 @@ void Scenario::setupCommands(int iteration) {
             if (_ctx._optionals.mark_boundary == true) {
                 if (iteration > 0) {
                     // If the last command in the previous iteration was a boundary, a subsequent boundary is skipped
-                    if (_scenarioSpec.isLastCommand(CommandType::MarkBoundary) && _compute.getCommands().empty()) {
+                    if (_scenarioSpec.isLastCommand(CommandType::MarkBoundary) && _compute.commandsEmpty()) {
                         skippedBoundary = 1;
                         continue;
                     }
@@ -696,18 +696,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Bin
 void Scenario::saveProfilingData(int iteration, int repeatCount) {
     // Save profiling data
     if (!_opts.profilingPath.empty()) {
-        std::vector<uint64_t> timestamps = _compute.queryTimestamps();
-        std::vector<std::string> profiledCommands;
-        VkPhysicalDeviceLimits physicalDeviceLimits = _ctx.physicalDevice().getProperties().limits;
-        float timestampPeriod = physicalDeviceLimits.timestampPeriod;
-        for (const auto &command : _compute.getCommands()) {
-            if (std::holds_alternative<ComputeDispatch>(command)) {
-                profiledCommands.push_back("ComputeDispatch");
-            } else if (std::holds_alternative<DataGraphDispatch>(command)) {
-                profiledCommands.push_back("DataGraphDispatch");
-            }
-        }
-        writeProfilingData(timestamps, timestampPeriod, profiledCommands, _opts.profilingPath, iteration, repeatCount);
+        _compute.writeProfilingFile(_opts.profilingPath, iteration, repeatCount);
         mlsdk::logging::info("Profiling data stored");
     }
 }

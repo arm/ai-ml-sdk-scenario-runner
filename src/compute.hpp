@@ -10,68 +10,11 @@
 #include "perf_counter.hpp"
 #include "pipeline.hpp"
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
 namespace mlsdk::scenariorunner {
-
-enum class BindPoint {
-    BindPointCompute,
-    BindPointDataGraph,
-};
-
-struct BindDescriptorSet {
-    vk::PipelineLayout pipelineLayout{nullptr};
-    uint32_t descriptorSetIdxGlobal;
-    uint32_t descriptorSetId;
-    BindPoint bindPoint;
-};
-
-struct BindPipeline {
-    vk::Pipeline pipeline{nullptr};
-    BindPoint bindPoint;
-};
-
-struct ComputeDispatch {
-    uint32_t gwcx;
-    uint32_t gwcy;
-    uint32_t gwcz;
-};
-
-struct DataGraphDispatch {
-    vk::DataGraphPipelineSessionARM session{nullptr};
-};
-
-struct MemoryBarrier {
-    size_t memoryBarrierIdx;
-    size_t imageBarrierIdx;
-    size_t tensorBarrierIdx;
-    size_t bufferBarrierIdx;
-};
-
-struct PushConstants {
-    vk::PipelineLayout pipelineLayout{nullptr};
-    const char *pushConstantData;
-    uint32_t size;
-};
-
-struct WriteTimestamp {
-    uint32_t query;
-    vk::PipelineStageFlagBits2 flag;
-};
-
-struct MarkBoundary {
-    vk::FrameBoundaryEXT markBoundary;
-};
-
-struct PushDebugMarker {
-    size_t nameIdx;
-};
-
-struct PopDebugMarker {};
-
-using Command = std::variant<BindDescriptorSet, BindPipeline, ComputeDispatch, DataGraphDispatch, MemoryBarrier,
-                             PushConstants, WriteTimestamp, MarkBoundary, PushDebugMarker, PopDebugMarker>;
 
 /// @brief Compute command orchestrator
 ///
@@ -138,29 +81,83 @@ class Compute {
     /// \param dataManager Data manager object to retrieve resource
     void registerMarkBoundary(const MarkBoundaryDesc &markBoundaryDesc, const DataManager &dataManager);
 
-    /// \brief Fetch the QueryPoolResults, which contain runtime cycle-timestamps used for profiling
-    std::vector<uint64_t> queryTimestamps();
-
-    /// \brief Get the commands vector
-    const std::vector<Command> &getCommands() const { return _commands; }
+    /// \brief Any registered commands?
+    bool commandsEmpty() const { return _commands.empty(); }
     vk::raii::CommandBuffer &getCommandBuffer();
     void prepareCommandBuffer();
 
-  private:
-    struct DebugMarker {
-        DebugMarker(Compute *compute, const std::string &name);
-        ~DebugMarker();
+    /// \brief Write profiling data to file
+    void writeProfilingFile(const std::filesystem::path &profilingPath, int iteration, int repeatCount) const;
 
-      private:
-        Compute *_compute;
+  private:
+    enum class BindPoint {
+        Compute,
+        DataGraph,
     };
+
+    struct BindDescriptorSet {
+        vk::PipelineLayout pipelineLayout{nullptr};
+        uint32_t descriptorSetIdxGlobal;
+        uint32_t descriptorSetId;
+        BindPoint bindPoint;
+    };
+
+    struct BindPipeline {
+        vk::Pipeline pipeline{nullptr};
+        BindPoint bindPoint;
+    };
+
+    struct ComputeDispatch {
+        uint32_t gwcx;
+        uint32_t gwcy;
+        uint32_t gwcz;
+    };
+
+    struct DataGraphDispatch {
+        vk::DataGraphPipelineSessionARM session{nullptr};
+    };
+
+    struct MemoryBarrier {
+        size_t memoryBarrierIdx;
+        size_t imageBarrierIdx;
+        size_t tensorBarrierIdx;
+        size_t bufferBarrierIdx;
+    };
+
+    struct PushConstants {
+        vk::PipelineLayout pipelineLayout{nullptr};
+        const char *pushConstantData;
+        uint32_t size;
+    };
+
+    struct WriteTimestamp {
+        uint32_t query;
+        vk::PipelineStageFlagBits2 flag;
+    };
+
+    struct MarkBoundary {
+        vk::FrameBoundaryEXT markBoundary;
+    };
+
+    struct PushDebugMarker {
+        size_t nameIdx;
+    };
+
+    struct PopDebugMarker {};
+
+    using Command = std::variant<BindDescriptorSet, BindPipeline, ComputeDispatch, DataGraphDispatch, MemoryBarrier,
+                                 PushConstants, WriteTimestamp, MarkBoundary, PushDebugMarker, PopDebugMarker>;
+
+    struct DebugMarker;
 
     void _setNextCommandBuffer();
     void _waitForFence();
 
+    /// \brief Fetch the QueryPoolResults, which contain runtime cycle-timestamps used for profiling
+    std::vector<uint64_t> _queryTimestamps() const;
+
     friend struct DebugMarker;
 
-  private:
     Context &_ctx;
     vk::raii::CommandPool _cmdPool{nullptr};
     std::vector<vk::raii::DescriptorPool> _descriptorPools{};
