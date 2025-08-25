@@ -33,11 +33,8 @@ class Compute {
     /// \param ctx Device related context
     explicit Compute(Context &ctx);
 
-    /// \brief Reset commands
+    /// \brief Reset and setup resources
     void reset();
-
-    /// \brief Setup
-    void setup();
 
     /// \brief Register a pipeline for execution with a fence synchronization
     /// in the end
@@ -137,7 +134,12 @@ class Compute {
 
     struct DebugMarker;
 
+    /// \brief Setup
+    void _setup();
+
     void _setNextCommandBuffer();
+    void _beginCommandBuffer();
+
     void _waitForFence();
 
     /// \brief Fetch the QueryPoolResults, which contain runtime cycle-timestamps used for profiling
@@ -147,16 +149,15 @@ class Compute {
 
     Context &_ctx;
     vk::raii::CommandPool _cmdPool{nullptr};
+    vk::raii::Queue _queue{nullptr};
+    vk::raii::Fence _fence{nullptr};
+
     std::vector<vk::raii::DescriptorPool> _descriptorPools{};
     std::vector<vk::raii::DescriptorSet> _descriptorSets{};
     std::vector<std::vector<vk::MemoryBarrier2>> _memoryBarriers{};
     std::vector<std::vector<vk::TensorMemoryBarrierARM>> _tensorBarriers{};
     std::vector<std::vector<vk::ImageMemoryBarrier2>> _imageBarriers{};
     std::vector<std::vector<vk::BufferMemoryBarrier2>> _bufferBarriers{};
-    vk::raii::Queue _queue{nullptr};
-    vk::raii::Fence _fence{nullptr};
-    vk::raii::QueryPool _queryPool{nullptr};
-    uint32_t _nQueries{0};
     std::vector<std::vector<vk::Image>> _imageArray{};
     std::vector<std::vector<vk::Buffer>> _bufferArray{};
     std::vector<std::vector<vk::TensorARM>> _tensorArray{};
@@ -164,6 +165,9 @@ class Compute {
     std::vector<Command> _commands{};
     std::vector<vk::raii::CommandBuffer> _cmdBufferArray{};
     std::vector<std::string> _debugMarkerNames{};
+
+    vk::raii::QueryPool _queryPool{nullptr};
+    uint32_t _nQueries{0};
 #ifdef ML_SDK_ENABLE_RDOC
     bool _isRecording{false};
 #endif

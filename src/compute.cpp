@@ -88,29 +88,47 @@ Compute::Compute(Context &ctx) : _ctx(ctx) {
     const vk::CommandPoolCreateInfo cmdPoolCreateInfo({vk::CommandPoolCreateFlagBits::eResetCommandBuffer},
                                                       _ctx.familyQueueIdx());
     _cmdPool = _ctx.device().createCommandPool(cmdPoolCreateInfo);
-    setup();
+    _queue = _ctx.device().getQueue(_ctx.familyQueueIdx(), 0);
+    _setup();
 }
 
-void Compute::setup() {
-    _queue = _ctx.device().getQueue(_ctx.familyQueueIdx(), 0);
-    _fence = _ctx.device().createFence({});
-}
+void Compute::_setup() { _fence = _ctx.device().createFence({}); }
 
 void Compute::reset() {
+    _debugMarkerNames.clear();
     _cmdBufferArray.clear();
     _commands.clear();
+    _markBoundaryTensorArray.clear();
+    _tensorArray.clear();
+    _bufferArray.clear();
+    _imageArray.clear();
+    _bufferBarriers.clear();
+    _imageBarriers.clear();
+    _tensorBarriers.clear();
+    _memoryBarriers.clear();
+    _descriptorSets.clear();
+    _descriptorPools.clear();
+
+    _setup();
 }
 
 void Compute::_setNextCommandBuffer() {
     const vk::CommandBufferAllocateInfo cmdBufferAllocInfo(*_cmdPool, vk::CommandBufferLevel::ePrimary, 1);
     _cmdBufferArray.emplace_back(std::move(_ctx.device().allocateCommandBuffers(cmdBufferAllocInfo).front()));
 }
+
+void Compute::_beginCommandBuffer() {
+    const vk::CommandBufferBeginInfo commandBufferBeginInfo{
+        vk::CommandBufferUsageFlagBits::eOneTimeSubmit, // flags
+    };
+    _cmdBufferArray.back().begin(commandBufferBeginInfo);
+}
+
 void Compute::prepareCommandBuffer() {
     if (_cmdBufferArray.empty()) {
         _setNextCommandBuffer();
     }
-    vk::CommandBufferBeginInfo beginInfo{};
-    _cmdBufferArray.back().begin(beginInfo);
+    _beginCommandBuffer();
 }
 
 vk::raii::CommandBuffer &Compute::getCommandBuffer() {
@@ -356,9 +374,8 @@ void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters
     // Create command buffer vector
     perfCounters.emplace_back("Creating Command Buffer. Iteration: " + std::to_string(iteration + 1), "Run Scenario")
         .start();
-    const vk::CommandBufferBeginInfo CmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
     _setNextCommandBuffer();
-    _cmdBufferArray.back().begin(CmdBufferBeginInfo);
+    _beginCommandBuffer();
     for (auto &cmd : _commands) {
         if (std::holds_alternative<BindDescriptorSet>(cmd)) {
             auto &typedCmd = std::get<BindDescriptorSet>(cmd);
@@ -418,9 +435,9 @@ void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters
             vk::SubmitInfo submitInfo({}, {}, *_cmdBufferArray.back(), {}, &typeCmd.markBoundary);
             _queue.submit(submitInfo, *_fence);
             _waitForFence();
+            _setup();
             _setNextCommandBuffer();
-            _fence = _ctx.device().createFence({});
-            _cmdBufferArray.back().begin(CmdBufferBeginInfo);
+            _beginCommandBuffer();
         } else if (std::holds_alternative<PushDebugMarker>(cmd)) {
             _cmdBufferArray.back().beginDebugUtilsLabelEXT(
                 vk::DebugUtilsLabelEXT{_debugMarkerNames[std::get<PushDebugMarker>(cmd).nameIdx].c_str()});

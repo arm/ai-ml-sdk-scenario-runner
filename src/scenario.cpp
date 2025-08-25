@@ -358,12 +358,25 @@ void Scenario::run(int repeatCount, bool dryRun, bool captureFrame) {
 
     for (int i = 0; i < repeatCount; ++i) {
         mlsdk::logging::debug("Iteration: " + std::to_string(i));
-        setupCommands(i);
 
-        if (captureFrame) {
+        // Clear and reset all data before execution
+        _pipelines.clear();
+        _compute.reset();
+        for (const auto &resource : _scenarioSpec.resources) {
+            if (resource->resourceType == ResourceType::Image) {
+                const auto &imageDesc = static_cast<const ImageDesc &>(*resource);
+                if (imageDesc.tiling.has_value() && imageDesc.tiling.value() == Tiling::Optimal) {
+                    auto &image = _dataManager.getImageMut(imageDesc.guid);
+                    image.resetLayout();
+                }
+            }
+        }
+
+        if (frameCapturer) {
             frameCapturer->begin();
         }
 
+        setupCommands(i);
         if (!dryRun) {
             if (hasAliasedOptimalTensors()) {
                 _compute.prepareCommandBuffer();
@@ -373,24 +386,7 @@ void Scenario::run(int repeatCount, bool dryRun, bool captureFrame) {
             saveProfilingData(i, repeatCount);
         }
 
-        // Skip reset after final run
-        if (i + 1 < repeatCount) {
-            _pipelines.clear();
-            _compute.reset();
-            _compute.setup();
-
-            for (const auto &resource : _scenarioSpec.resources) {
-                if (resource->resourceType == ResourceType::Image) {
-                    const auto &imageDesc = static_cast<const ImageDesc &>(*resource);
-                    if (imageDesc.tiling.has_value() && imageDesc.tiling.value() == Tiling::Optimal) {
-                        auto &image = _dataManager.getImageMut(imageDesc.guid);
-                        image.resetLayout();
-                    }
-                }
-            }
-        }
-
-        if (captureFrame) {
+        if (frameCapturer) {
             frameCapturer->end();
         }
     }
