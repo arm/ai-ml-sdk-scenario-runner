@@ -264,7 +264,7 @@ void Scenario::setupResources() {
         case (ResourceType::DataGraph): {
             const auto &dataGraph = reinterpret_cast<std::unique_ptr<DataGraphDesc> &>(resource);
             _perfCounters.emplace_back("Parse VGF: " + dataGraph->guidStr, "Scenario Setup", true).start();
-            _dataManager.createVgfView(resource->guid, *dataGraph.get());
+            _dataManager.createVgfView(resource->guid, *dataGraph);
             _perfCounters.back().stop();
         } break;
         case (ResourceType::ImageBarrier): {
@@ -424,32 +424,7 @@ void Scenario::setupCommands(int iteration) {
         switch (command->commandType) {
         case (CommandType::DispatchCompute): {
             const auto &dispatchCompute = reinterpret_cast<DispatchComputeDesc &>(*command);
-
-            // Create Compute shader pipeline
-            const auto &shaderDesc = _scenarioSpec.getShaderResource(dispatchCompute.shaderRef);
-            _perfCounters
-                .emplace_back("Create Pipeline: " + shaderDesc.guidStr +
-                                  ". Iteration: " + std::to_string(iteration + 1),
-                              "Pipeline Setup", true)
-                .start();
-            // Read shader file
-            _pipelines.emplace_back(_ctx, dispatchCompute.debugName, dispatchCompute.bindings, shaderDesc, _dataManager,
-                                    _pipelineCache);
-            _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
-            if (dispatchCompute.pushDataRef) {
-                const RawData &pushConstantData = _dataManager.getRawData(dispatchCompute.pushDataRef.value());
-                _compute.registerPipelineFenced(_pipelines.back(), _dataManager, dispatchCompute.bindings,
-                                                pushConstantData.data(), pushConstantData.size(),
-                                                dispatchCompute.implicitBarrier, dispatchCompute.rangeND[0],
-                                                dispatchCompute.rangeND[1], dispatchCompute.rangeND[2]);
-            } else {
-                _compute.registerPipelineFenced(_pipelines.back(), _dataManager, dispatchCompute.bindings, nullptr, 0,
-                                                dispatchCompute.implicitBarrier, dispatchCompute.rangeND[0],
-                                                dispatchCompute.rangeND[1], dispatchCompute.rangeND[2]);
-            }
-            _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
-            _perfCounters.back().stop();
-            mlsdk::logging::debug("Shader Pipeline: " + shaderDesc.guidStr + " created");
+            createComputePipeline(dispatchCompute, iteration, nQueries);
         } break;
         case (CommandType::DispatchBarrier): {
             const auto &dispatchBarrier = reinterpret_cast<DispatchBarrierDesc &>(*command);
@@ -457,19 +432,7 @@ void Scenario::setupCommands(int iteration) {
         } break;
         case (CommandType::DispatchDataGraph): {
             const auto &dispatchDataGraph = reinterpret_cast<DispatchDataGraphDesc &>(*command);
-            const VgfView &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraphRef);
-            vgfView.createIntermediateResources(_ctx, _dataManager);
-            for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
-                std::vector<BindingDesc> sequenceBindings =
-                    vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings);
-                auto moduleName = vgfView.getSPVModuleName(segmentIndex);
-                _perfCounters
-                    .emplace_back("Create Pipeline: " + moduleName + ". Iteration: " + std::to_string(iteration + 1),
-                                  "Pipeline Setup", true)
-                    .start();
-                createPipeline(segmentIndex, sequenceBindings, vgfView, dispatchDataGraph, nQueries);
-                _perfCounters.back().stop();
-            }
+            createDataGraphPipeline(dispatchDataGraph, iteration, nQueries);
         } break;
         case (CommandType::MarkBoundary): {
             auto &markBoundary = reinterpret_cast<MarkBoundaryDesc &>(*command);
@@ -635,6 +598,48 @@ void Scenario::handleAliasedLayoutTransitions() {
                 }
             }
         }
+    }
+}
+
+void Scenario::createComputePipeline(const DispatchComputeDesc &dispatchCompute, int iteration, uint32_t &nQueries) {
+    // Create Compute shader pipeline
+    const auto &shaderDesc = _scenarioSpec.getShaderResource(dispatchCompute.shaderRef);
+    _perfCounters
+        .emplace_back("Create Pipeline: " + shaderDesc.guidStr + ". Iteration: " + std::to_string(iteration + 1),
+                      "Pipeline Setup", true)
+        .start();
+    _pipelines.emplace_back(_ctx, dispatchCompute.debugName, dispatchCompute.bindings, shaderDesc, _dataManager,
+                            _pipelineCache);
+    _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
+    const char *pushConstantData = nullptr;
+    size_t pushConstantSize = 0;
+    if (dispatchCompute.pushDataRef) {
+        const auto &rawData = _dataManager.getRawData(dispatchCompute.pushDataRef.value());
+        pushConstantData = rawData.data();
+        pushConstantSize = rawData.size();
+    }
+    _compute.registerPipelineFenced(_pipelines.back(), _dataManager, dispatchCompute.bindings, pushConstantData,
+                                    pushConstantSize, dispatchCompute.implicitBarrier, dispatchCompute.rangeND[0],
+                                    dispatchCompute.rangeND[1], dispatchCompute.rangeND[2]);
+    _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
+    _perfCounters.back().stop();
+    mlsdk::logging::debug("Shader Pipeline: " + shaderDesc.guidStr + " created");
+}
+
+void Scenario::createDataGraphPipeline(const DispatchDataGraphDesc &dispatchDataGraph, int iteration,
+                                       uint32_t &nQueries) {
+    const VgfView &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraphRef);
+    vgfView.createIntermediateResources(_ctx, _dataManager);
+    for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
+        std::vector<BindingDesc> sequenceBindings =
+            vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings);
+        auto moduleName = vgfView.getSPVModuleName(segmentIndex);
+        _perfCounters
+            .emplace_back("Create Pipeline: " + moduleName + ". Iteration: " + std::to_string(iteration + 1),
+                          "Pipeline Setup", true)
+            .start();
+        createPipeline(segmentIndex, sequenceBindings, vgfView, dispatchDataGraph, nQueries);
+        _perfCounters.back().stop();
     }
 }
 
