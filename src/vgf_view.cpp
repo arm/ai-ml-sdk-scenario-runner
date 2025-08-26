@@ -7,6 +7,9 @@
 #include "context.hpp"
 #include "data_manager.hpp"
 
+#include <map>
+#include <numeric>
+
 namespace mlsdk::scenariorunner {
 namespace {
 std::string categoryToSuffix(vgflib::ResourceCategory category) {

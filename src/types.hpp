@@ -4,14 +4,13 @@
  */
 #pragma once
 
-#include "commands.hpp"
-#include "nlohmann/json.hpp"
-
 #include "vulkan/vulkan_raii.hpp"
 
+#include <array>
+#include <optional>
+#include <string>
 #include <variant>
-
-using json = nlohmann::json;
+#include <vector>
 
 namespace mlsdk::scenariorunner {
 

@@ -149,8 +149,6 @@ void Tensor::allocateMemory(const Context &ctx) {
     trySetVkRaiiObjectDebugName(ctx, _tensorView, _debugName + " view (default)");
 }
 
-std::shared_ptr<ResourceMemoryManager> Tensor::getMemoryManager() { return _memoryManager; }
-
 void Tensor::fillFromDescription(const TensorDesc &desc) {
     if (desc.src) {
         MemoryMap mapped(desc.src.value());

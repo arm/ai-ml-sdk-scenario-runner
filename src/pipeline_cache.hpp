@@ -8,6 +8,8 @@
 
 #include "vulkan/vulkan_raii.hpp"
 
+#include <filesystem>
+
 namespace mlsdk::scenariorunner {
 
 class PipelineCache {

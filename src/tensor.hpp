@@ -67,8 +67,6 @@ class Tensor : public Resource {
 
     void allocateMemory(const Context &ctx);
 
-    std::shared_ptr<ResourceMemoryManager> getMemoryManager();
-
     void fillFromDescription(const TensorDesc &desc);
 
     void store(Context &ctx, const std::string &filename) override;

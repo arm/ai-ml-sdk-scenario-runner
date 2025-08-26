@@ -10,6 +10,8 @@
 #include "vulkan_debug_utils.hpp"
 #include "vulkan_memory_manager.hpp"
 
+#include <cmath>
+
 namespace mlsdk::scenariorunner {
 namespace {
 constexpr vk::Filter convertFilter(const FilterMode filter) {
@@ -365,9 +367,7 @@ void Image::allocateMemory(const Context &ctx) {
 
 void Image::resetLayout() { _targetLayout = vk::ImageLayout::eUndefined; }
 
-std::shared_ptr<ResourceMemoryManager> Image::getMemoryManager() { return _memoryManager; }
-
-void Image::fillFromDescription(Context &ctx, const ImageDesc &desc) {
+void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     std::vector<uint8_t> data;
     vk::Format fileFormat = vk::Format::eUndefined;
     const vk::ImageAspectFlags aspectMask = getImageAspectMaskForVkFormat(_dataType);
