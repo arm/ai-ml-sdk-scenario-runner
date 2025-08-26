@@ -6,7 +6,7 @@
 #include <argparse/argparse.hpp>
 
 #include "dds_reader.hpp"
-#include "numpy.hpp"
+#include "vgf-utils/numpy.hpp"
 
 #include <cstdint>
 #include <cstdlib>
@@ -126,10 +126,10 @@ void convertDDSToNpy(const std::string &input, const std::string &output, uint32
         throw std::runtime_error("The image cannot be coverted to a NumPy file with bigger element size");
     }
 
-    mlsdk::numpy::data_ptr data(reinterpret_cast<char *>(ddsData.data()),
-                                {1, info.header.height, info.header.width, imageElementSize / elementSize},
-                                mlsdk::numpy::dtype('i', elementSize));
-    mlsdk::numpy::write(output, data);
+    mlsdk::vgfutils::numpy::DataPtr data(reinterpret_cast<char *>(ddsData.data()),
+                                         {1, info.header.height, info.header.width, imageElementSize / elementSize},
+                                         mlsdk::vgfutils::numpy::DType('i', elementSize));
+    mlsdk::vgfutils::numpy::write(output, data);
 }
 
 bool compareDDSHeader(const DDSHeaderInfo &input, const DDSHeaderInfo &output) {

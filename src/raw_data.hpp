@@ -5,7 +5,8 @@
 
 #pragma once
 
-#include "numpy.hpp"
+#include "vgf-utils/memory_map.hpp"
+#include "vgf-utils/numpy.hpp"
 
 #include <memory>
 #include <string>
@@ -25,6 +26,6 @@ class RawData {
   private:
     const std::string _debugName{};
     std::unique_ptr<MemoryMap> _mapped{};
-    mlsdk::numpy::data_ptr _dataptr{};
+    vgfutils::numpy::DataPtr _dataptr{};
 };
 } // namespace mlsdk::scenariorunner

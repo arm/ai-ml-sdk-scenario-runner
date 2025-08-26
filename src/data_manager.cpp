@@ -5,7 +5,6 @@
 
 #include "data_manager.hpp"
 #include "barrier.hpp"
-#include "numpy.hpp"
 #include "utils.hpp"
 
 #include "vgf/decoder.h"

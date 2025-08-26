@@ -6,7 +6,6 @@ if(NOT ANDROID)
   include(CTest)
 
   add_executable(ScenarioRunnerTests
-    numpy_test.cpp
     guid_tests.cpp
     json_parser_tests.cpp
     vulkan_startup_tests.cpp

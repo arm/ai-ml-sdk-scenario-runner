@@ -20,7 +20,6 @@ add_library(ScenarioRunnerLib
     json_reader.cpp
     json_writer.cpp
     logging.cpp
-    numpy.cpp
     pipeline_cache.cpp
     pipeline.cpp
     raw_data.cpp
