@@ -96,6 +96,7 @@ Tensor::Tensor(Context &ctx, const TensorInfo &tensorInfo, std::shared_ptr<Resou
     vk::TensorMemoryRequirementsInfoARM memInfo(*_tensor);
     vk::MemoryRequirements2 memreqs = ctx.device().getTensorMemoryRequirementsARM(memInfo);
 
+    _size = memreqs.memoryRequirements.size;
     _memoryManager->updateMemSize(memreqs.memoryRequirements.size + _memoryManager->getSubresourceOffset() +
                                   _memoryOffset);
     _memoryManager->updateMemType(memreqs.memoryRequirements.memoryTypeBits);
@@ -121,7 +122,7 @@ void *Tensor::map() {
     if (!_memoryManager->isInitalized()) {
         throw std::runtime_error("Uninitialized MemoryManager for Tensor");
     }
-    return _memoryManager->getDeviceMemory().mapMemory(_memoryOffset, memSize());
+    return _memoryManager->getDeviceMemory().mapMemory(_memoryOffset, _size);
 }
 
 void Tensor::unmap() {
