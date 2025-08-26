@@ -43,7 +43,7 @@ void *Buffer::map() {
     if (!_memoryManager->isInitalized()) {
         throw std::runtime_error("Uninitialized MemoryManager for Buffer");
     }
-    return _memoryManager->getDeviceMemory().mapMemory(_memoryOffset, _memoryManager->getMemSize());
+    return _memoryManager->getDeviceMemory().mapMemory(_memoryOffset, _size);
 }
 
 void Buffer::unmap() {

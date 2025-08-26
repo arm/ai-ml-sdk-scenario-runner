@@ -87,6 +87,7 @@ class Tensor : public Resource {
     std::vector<int64_t> _strides{};
     std::shared_ptr<ResourceMemoryManager> _memoryManager{nullptr};
     vk::TensorTilingARM _tiling = vk::TensorTilingARM::eLinear;
+    vk::DeviceSize _size{0};
     uint64_t _memoryOffset{0};
     bool _rankConverted{false};
 };
