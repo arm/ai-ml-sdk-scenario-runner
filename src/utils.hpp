@@ -6,8 +6,8 @@
 #pragma once
 
 #include "context.hpp"
-#include "numpy.hpp"
 #include "resource_desc.hpp"
+#include "vgf-utils/numpy.hpp"
 
 #include "spirv-tools/libspirv.hpp"
 #include "vgf/decoder.h"
@@ -67,7 +67,7 @@ vk::Format getVkFormatFromParser(const mlsdk_vk_format &format);
  *  @return NumPy dtype
  *
  */
-const mlsdk::numpy::dtype getDTypeFromVkFormat(vk::Format format);
+const vgfutils::numpy::DType getDTypeFromVkFormat(vk::Format format);
 
 /** Calculates the total number of elements of a vector that represents a shape.
  *

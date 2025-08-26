@@ -8,7 +8,7 @@
 #include "guid.hpp"
 #include "json_writer.hpp"
 #include "logging.hpp"
-#include "numpy.hpp"
+#include "vgf-utils/numpy.hpp"
 #include <unordered_set>
 
 namespace mlsdk::scenariorunner {
@@ -393,9 +393,8 @@ void Scenario::setupResources() {
             _perfCounters.emplace_back("Load Buffer: " + buffer->guidStr, "Scenario Setup").start();
             if (buffer->src) {
                 MemoryMap mapped(buffer->src.value());
-                mlsdk::numpy::data_ptr dataPtr;
-                mlsdk::numpy::parse(mapped, dataPtr);
-                bufferRec.fill(dataPtr._ptr, dataPtr.size());
+                auto dataPtr = vgfutils::numpy::parse(mapped);
+                bufferRec.fill(dataPtr.ptr, dataPtr.size());
             } else if (_dataManager.isSingleMemoryGroup(buffer->guid)) {
                 bufferRec.fillZero();
             }

@@ -3,9 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "utils.hpp"
+#include <fstream>
+
 #include "glsl_compiler.hpp"
 #include "logging.hpp"
+#include "utils.hpp"
 
 #include "vgf/vulkan_helpers.generated.hpp"
 
@@ -160,53 +162,20 @@ vk::Format getVkFormatFromParser(const mlsdk_vk_format &format) {
     return vgflib::ToRaiiFormat(format);
 }
 
-namespace {
-bool anyMatch(const char *) { return false; }
-
-template <class... Candidates> bool anyMatch(const char *base, const char *candidate, Candidates... candidates) {
-    if (strcmp(base, candidate) == 0) {
-        return true;
-    }
-
-    return anyMatch(base, candidates...);
-}
-
-char numpyTypeEncoding(const char *numeric) {
-    if (anyMatch(numeric, "BOOL")) {
-        return 'b';
-    }
-
-    if (anyMatch(numeric, "SINT", "SNORM")) {
-        return 'i';
-    }
-
-    if (anyMatch(numeric, "UINT", "UNORM")) {
-        return 'u';
-    }
-
-    if (anyMatch(numeric, "SFLOAT", "UFLOAT")) {
-        return 'f';
-    }
-
-    throw std::runtime_error("Unable to classify NumPy encoding");
-}
-
-} // namespace
-
-const mlsdk::numpy::dtype getDTypeFromVkFormat(vk::Format format) {
+const vgfutils::numpy::DType getDTypeFromVkFormat(vk::Format format) {
     if (numComponentsFromVkFormat(format) != 1) {
         throw std::runtime_error("More than 1 components from VkFormat: " +
                                  vgflib::FormatTypeToName(vgflib::ToFormatType(format)));
     }
 
     char const *numeric = componentNumericFormat(format, 0);
-    char encoding = numpyTypeEncoding(numeric);
+    char encoding = vgfutils::numpy::numpyTypeEncoding(numeric);
     uint32_t size = elementSizeFromVkFormat(format);
 
     if (encoding == '?') {
         throw std::runtime_error("Unsupported VkFormat: " + vgflib::FormatTypeToName(vgflib::ToFormatType(format)));
     }
-    return mlsdk::numpy::dtype(encoding, size);
+    return vgfutils::numpy::DType(encoding, size);
 }
 
 uint64_t totalElementsFromShape(const std::vector<int64_t> &shape) {

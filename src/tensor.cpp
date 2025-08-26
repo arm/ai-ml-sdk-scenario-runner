@@ -154,15 +154,13 @@ std::shared_ptr<ResourceMemoryManager> Tensor::getMemoryManager() { return _memo
 void Tensor::fillFromDescription(const TensorDesc &desc) {
     if (desc.src) {
         MemoryMap mapped(desc.src.value());
-        mlsdk::numpy::data_ptr dataPtr;
-        mlsdk::numpy::parse(mapped, dataPtr);
-
+        auto dataPtr = vgfutils::numpy::parse(mapped);
         uint64_t elementSizeFromDesc = elementSizeFromVkFormat(getVkFormatFromString(desc.format));
         uint64_t expectedSize = elementSizeFromDesc * totalElementsFromShape(desc.dims);
         if (expectedSize != dataPtr.size()) {
             throw std::runtime_error("Tensor and data have different size mismatch");
         }
-        fill(dataPtr._ptr, dataPtr.size());
+        fill(dataPtr.ptr, dataPtr.size());
     } else {
         fillZero();
     }
@@ -193,9 +191,7 @@ void Tensor::store(Context &, const std::string &filename) {
     const char *mapped = reinterpret_cast<const char *>(map());
 
     if (memSize() != dataSize() && _shape.size() == _strides.size() && _shape.size() == 4) {
-
-        std::vector<uint64_t> shape_u64{_shape.begin(), _shape.end()};
-        mlsdk::numpy::write(filename, shape_u64, getDTypeFromVkFormat(dataType()), [&](std::ostream &out) {
+        vgfutils::numpy::write(filename, _shape, getDTypeFromVkFormat(dataType()), [&](std::ostream &out) {
             int64_t writtenBytes{0};
             int64_t elementSize{elementSizeFromVkFormat(dataType())};
             for (int64_t a = 0; a < _shape[0]; ++a) {
@@ -223,11 +219,9 @@ void Tensor::store(Context &, const std::string &filename) {
                                 " is different from allocated memory size " + std::to_string(memSize()));
     }
 
-    mlsdk::numpy::data_ptr data(reinterpret_cast<const char *>(mapped),
-                                _rankConverted ? std::vector<uint64_t>(0)
-                                               : std::vector<uint64_t>{_shape.begin(), _shape.end()},
-                                getDTypeFromVkFormat(dataType()));
-    mlsdk::numpy::write(filename, data);
+    vgfutils::numpy::DataPtr data(reinterpret_cast<const char *>(mapped),
+                                  _rankConverted ? std::vector<int64_t>(0) : _shape, getDTypeFromVkFormat(dataType()));
+    vgfutils::numpy::write(filename, data);
 }
 
 const std::string &Tensor::debugName() const { return _debugName; }

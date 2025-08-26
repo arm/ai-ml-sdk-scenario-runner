@@ -8,7 +8,6 @@
 #include "buffer.hpp"
 #include "context.hpp"
 #include "image.hpp"
-#include "numpy.hpp"
 #include "raw_data.hpp"
 #include "resource_desc.hpp"
 #include "tensor.hpp"

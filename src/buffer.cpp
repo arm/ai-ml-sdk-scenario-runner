@@ -70,8 +70,8 @@ void Buffer::fillZero() {
 
 void Buffer::store(Context &, const std::string &filename) {
     ScopeExit<void()> on_scope_exit_run([&] { unmap(); });
-    mlsdk::numpy::data_ptr data(reinterpret_cast<const char *>(map()), {size()}, mlsdk::numpy::dtype('i', 1));
-    mlsdk::numpy::write(filename, data);
+    vgfutils::numpy::DataPtr data(reinterpret_cast<const char *>(map()), {size()}, vgfutils::numpy::DType('i', 1));
+    vgfutils::numpy::write(filename, data);
 }
 
 } // namespace mlsdk::scenariorunner
