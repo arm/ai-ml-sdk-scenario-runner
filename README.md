@@ -192,13 +192,20 @@ python3 $SDK_PATH/sw/scenario-runner/scripts/build.py --help
 To run a scenario file, use the following command:
 
 ```bash
-./build/scenario-runner --scenario ${SCENARIO_JSON_FILE}
+./scenario-runner --scenario ${SCENARIO_JSON_FILE}
 ```
+
+Where:
+
+- `--scenario`: File to load the scenario from. The file must be in JSON format.
+  If the resources in the SCENARIO_JSON_FILE are not specified with absolute
+  paths, their relative paths will be resolved against the parent directory of
+  the SCENARIO_JSON_FILE.
 
 For more details, see the help output:
 
 ```bash
-./build/scenario-runner --help
+./scenario-runner --help
 ```
 
 ## Known Limitations

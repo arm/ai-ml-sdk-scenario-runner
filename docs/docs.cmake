@@ -11,7 +11,18 @@ endif()
 
 file(MAKE_DIRECTORY ${SPHINX_GEN_DIR})
 
-set(DOC_SRC_FILES_FULL_PATHS "")
+# Generate a text file with the Scenario Runner tool help text
+set(SCENARIO_RUNNER_ARG_HELP_TXT ${SPHINX_GEN_DIR}/scenario_runner_help.txt)
+add_custom_command(
+    OUTPUT ${SCENARIO_RUNNER_ARG_HELP_TXT}
+    DEPENDS scenario-runner
+    COMMAND ./scenario-runner --help > ${SCENARIO_RUNNER_ARG_HELP_TXT}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Generating scenario runner ARGPARSE help documentation"
+    VERBATIM
+)
+
+set(DOC_SRC_FILES_FULL_PATHS ${SCENARIO_RUNNER_ARG_HELP_TXT})
 # Copy MD files for inclusion into the published docs
 set(MD_FILES CONTRIBUTING.md README.md SECURITY.md)
 foreach(MD_FILE IN LISTS MD_FILES)
