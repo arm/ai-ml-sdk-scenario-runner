@@ -105,7 +105,7 @@ void Scenario::setupResources() {
         switch (resource->resourceType) {
         case (ResourceType::Buffer): {
             const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
-            if (buffer->memoryGroup) {
+            if (buffer->memoryGroup.has_value()) {
                 _dataManager.addResourceToGroup(buffer->memoryGroup->memoryUid, buffer->guid);
             } else {
                 _dataManager.addResourceToGroup(buffer->guid, buffer->guid);
@@ -113,7 +113,7 @@ void Scenario::setupResources() {
         } break;
         case (ResourceType::Image): {
             const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
-            if (image->memoryGroup) {
+            if (image->memoryGroup.has_value()) {
                 _dataManager.addResourceToGroup(image->memoryGroup->memoryUid, image->guid);
             } else {
                 // Check not old aliasing here
@@ -121,9 +121,11 @@ void Scenario::setupResources() {
                 for (const auto &resource2 : _scenarioSpec.resources) {
                     if (resource2->resourceType == ResourceType::Tensor) {
                         const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource2);
-                        if (tensor->memoryGroup->memoryUid == image->guid) {
-                            aliasTarget = true;
-                            break;
+                        if (tensor->memoryGroup.has_value()) {
+                            if (tensor->memoryGroup->memoryUid == image->guid) {
+                                aliasTarget = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -134,7 +136,7 @@ void Scenario::setupResources() {
         } break;
         case (ResourceType::Tensor): {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
-            if (tensor->memoryGroup) {
+            if (tensor->memoryGroup.has_value()) {
                 _dataManager.addResourceToGroup(tensor->memoryGroup->memoryUid, tensor->guid);
             } else {
                 _dataManager.addResourceToGroup(tensor->guid, tensor->guid);
@@ -151,9 +153,11 @@ void Scenario::setupResources() {
         switch (resource->resourceType) {
         case (ResourceType::Tensor): {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
-            for (const auto &image : _scenarioSpec.resources) {
-                if (image->resourceType == ResourceType::Image && image->guid == tensor->memoryGroup->memoryUid) {
-                    _dataManager.addResourceToGroup(tensor->memoryGroup->memoryUid, image->guid);
+            if (tensor->memoryGroup.has_value()) {
+                for (const auto &image : _scenarioSpec.resources) {
+                    if (image->resourceType == ResourceType::Image && image->guid == tensor->memoryGroup->memoryUid) {
+                        _dataManager.addResourceToGroup(tensor->memoryGroup->memoryUid, image->guid);
+                    }
                 }
             }
         } break;
