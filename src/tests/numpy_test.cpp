@@ -11,7 +11,7 @@
 #include <vector>
 
 TEST(NumPy, Roundtrip) {
-    mlsdk::testing::TempFolder tempFolder("scenario_runner_numpy_test");
+    TempFolder tempFolder("scenario_runner_numpy_test");
 
     std::vector<int32_t> data = {42, 65, 76, 98, 106};
     std::vector<uint64_t> shape = {data.size()};
@@ -41,7 +41,7 @@ TEST(NumPy, Roundtrip) {
 }
 
 TEST(NumPy, RoundtripCallbackWrite) {
-    mlsdk::testing::TempFolder tempFolder("scenario_runner_numpy_callback_test");
+    TempFolder tempFolder("scenario_runner_numpy_callback_test");
 
     std::vector<int32_t> data = {42, 65, 76, 98, 106};
     std::vector<uint64_t> shape = {data.size()};
