@@ -27,6 +27,12 @@ std::string categoryToSuffix(vgflib::ResourceCategory category) {
 std::string createResourceGuidStr(uint32_t index, vgflib::ResourceCategory category) {
     return "Resource_" + std::to_string(index) + categoryToSuffix(category);
 }
+
+uint32_t bufferSize(const vgflib::DataView<int64_t> &shape) {
+    return static_cast<uint32_t>(
+        std::abs(std::accumulate(shape.begin(), shape.end(), int64_t(1), std::multiplies<int64_t>())));
+}
+
 } // namespace
 
 size_t VgfView::getNumSegments() const { return sequenceTableDecoder->modelSequenceTableSize(); }
@@ -154,9 +160,8 @@ void VgfView::validateResource(const DataManager &dataManager, uint32_t vgfMrtIn
         const Buffer &buffer = dataManager.getBuffer(externalResourceRef);
 
         // Check if buffer sizes match
-        auto dims = resourceTableDecoder->getTensorShape(vgfMrtIndex);
-        auto expectedBufferSize = static_cast<uint32_t>(
-            std::abs(std::accumulate(dims.begin(), dims.end(), int64_t(1), std::multiplies<int64_t>())));
+        auto shape = resourceTableDecoder->getTensorShape(vgfMrtIndex);
+        auto expectedBufferSize = bufferSize(shape);
         if (buffer.size() != expectedBufferSize) {
             throw std::runtime_error("Mismatch of buffer size declarations between JSON and VGF file");
         }
@@ -194,7 +199,7 @@ void VgfView::validateResource(const DataManager &dataManager, uint32_t vgfMrtIn
     }
 }
 
-void VgfView::createIntermediateResources(Context &ctx, DataManager &dataManager) const {
+void VgfView::createIntermediateResources(const Context &ctx, DataManager &dataManager) const {
     // Iterate over all VGF Resources, create intermediates
     constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_UNKNOWN = 0;
     constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT = 6;
@@ -209,11 +214,10 @@ void VgfView::createIntermediateResources(Context &ctx, DataManager &dataManager
             switch (type.value_or(DESCRIPTOR_TYPE_UNKNOWN)) {
             case (DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT): {
                 auto shape = resourceTableDecoder->getTensorShape(resourceIndex);
-                auto bufferSize = static_cast<uint32_t>(
-                    std::abs(std::accumulate(shape.begin(), shape.end(), int64_t(1), std::multiplies<int64_t>())));
+                auto expectedBufferSize = bufferSize(shape);
 
                 // Create Scenario Runner buffer resource
-                BufferInfo info{guidStr, bufferSize};
+                BufferInfo info{guidStr, expectedBufferSize};
                 dataManager.createBuffer(guidStr, info);
                 auto &buffer = dataManager.getBufferMut(guidStr);
                 buffer.allocateMemory(ctx);

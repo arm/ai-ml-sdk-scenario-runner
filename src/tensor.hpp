@@ -71,9 +71,6 @@ class Tensor : public Resource {
 
     void fillFromDescription(const TensorDesc &desc);
 
-    // Sampler settings helper function
-    static vk::TensorTilingARM convertTiling(const Tiling tiling);
-
     void store(Context &ctx, const std::string &filename) override;
 
     const std::string &debugName() const;

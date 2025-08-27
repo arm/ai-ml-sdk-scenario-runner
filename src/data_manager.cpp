@@ -275,7 +275,9 @@ void DataManager::addResourceToGroup(const Guid &group, const Guid &resource) {
     _groupToResources[group].insert(resource);
 }
 
-std::unordered_map<Guid, std::set<Guid>> DataManager::getResourceMemoryGroups() const { return _groupToResources; }
+const std::unordered_map<Guid, std::set<Guid>> &DataManager::getResourceMemoryGroups() const {
+    return _groupToResources;
+}
 
 bool DataManager::isSingleMemoryGroup(const Guid &resource) const {
     for (const auto &groupToResource : _groupToResources) {

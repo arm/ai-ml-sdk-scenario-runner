@@ -194,7 +194,7 @@ const std::string jsonData =
                 "mips": false,
                 "shader_access": "readonly",
                 "src": "./color.dds",
-                "uid": "InputColorBuffer0"
+                "uid": "InputColorBuffer1"
             }
         },
         {
@@ -219,7 +219,7 @@ const std::string jsonData =
                 "mips": false,
                 "shader_access": "readonly",
                 "src": "./color.dds",
-                "uid": "InputColorBuffer0"
+                "uid": "InputColorBuffer2"
             }
         }
     ]
