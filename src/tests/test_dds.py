@@ -4,6 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """ Tests DDS files processing.  """
+import subprocess
+
 import numpy as np
 import pytest
 
@@ -234,3 +236,8 @@ def test_border_access(
     output_dds_npy = numpy_helper.load(output_dds_npy_file)
 
     assert output_dds_npy.tobytes() == ref_output.tobytes()
+
+
+def test_invalid_duplicate_uid(sdk_tools):
+    with pytest.raises(subprocess.CalledProcessError):
+        sdk_tools.run_scenario(f"test_dds/invalid_duplicate_uid.json")
