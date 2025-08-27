@@ -69,7 +69,7 @@ class DataManager {
     std::shared_ptr<ResourceMemoryManager> getOrCreateMemoryManager(const Guid &guid);
 
     void addResourceToGroup(const Guid &group, const Guid &resource);
-    std::unordered_map<Guid, std::set<Guid>> getResourceMemoryGroups() const;
+    const std::unordered_map<Guid, std::set<Guid>> &getResourceMemoryGroups() const;
     bool isSingleMemoryGroup(const Guid &resource) const;
 
   private:

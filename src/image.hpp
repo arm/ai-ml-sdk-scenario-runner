@@ -61,17 +61,6 @@ class Image : public Resource {
 
     void fillFromDescription(Context &ctx, const ImageDesc &desc);
 
-    // Sampler settings helper functions
-    static vk::Filter convertFilter(const FilterMode filter);
-
-    static vk::SamplerMipmapMode convertSamplerMipmapMode(const FilterMode mode);
-
-    static vk::SamplerAddressMode convertSamplerAddressMode(const AddressMode mode);
-
-    static vk::BorderColor convertBorderColor(const BorderColor color);
-
-    static vk::ImageTiling convertTiling(const Tiling tiling);
-
     void store(Context &ctx, const std::string &filename) override;
 
     bool isSampled() const;

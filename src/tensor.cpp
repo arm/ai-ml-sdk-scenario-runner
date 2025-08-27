@@ -9,6 +9,19 @@
 #include "vulkan_debug_utils.hpp"
 
 namespace mlsdk::scenariorunner {
+namespace {
+constexpr vk::TensorTilingARM convertTiling(const Tiling tiling) {
+    switch (tiling) {
+    case Tiling::Linear:
+        return vk::TensorTilingARM::eLinear;
+    case Tiling::Optimal:
+        return vk::TensorTilingARM::eOptimal;
+    default:
+        throw std::runtime_error("Unknown tiling");
+    }
+}
+
+} // namespace
 
 Tensor::Tensor(Context &ctx, const TensorInfo &tensorInfo, std::shared_ptr<ResourceMemoryManager> memoryManager)
     : _debugName(tensorInfo.debugName), _shape(tensorInfo.shape), _dataType(tensorInfo.format),
@@ -215,17 +228,6 @@ void Tensor::store(Context &, const std::string &filename) {
                                                : std::vector<uint64_t>{_shape.begin(), _shape.end()},
                                 getDTypeFromVkFormat(dataType()));
     mlsdk::numpy::write(filename, data);
-}
-
-vk::TensorTilingARM Tensor::convertTiling(const Tiling tiling) {
-    switch (tiling) {
-    case Tiling::Linear:
-        return vk::TensorTilingARM::eLinear;
-    case Tiling::Optimal:
-        return vk::TensorTilingARM::eOptimal;
-    default:
-        throw std::runtime_error("Unknown tiling");
-    }
 }
 
 const std::string &Tensor::debugName() const { return _debugName; }

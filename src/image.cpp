@@ -11,6 +11,79 @@
 #include "vulkan_memory_manager.hpp"
 
 namespace mlsdk::scenariorunner {
+namespace {
+constexpr vk::Filter convertFilter(const FilterMode filter) {
+    switch (filter) {
+    case FilterMode::Linear:
+        return vk::Filter::eLinear;
+    case FilterMode::Nearest:
+        return vk::Filter::eNearest;
+    default:
+        throw std::runtime_error("Unknown filter mode");
+    }
+}
+
+constexpr vk::SamplerMipmapMode convertSamplerMipmapMode(const FilterMode mode) {
+    switch (mode) {
+    case FilterMode::Linear:
+        return vk::SamplerMipmapMode::eLinear;
+    case FilterMode::Nearest:
+        return vk::SamplerMipmapMode::eNearest;
+    default:
+        throw std::runtime_error("Unknown sampler mipmap mode");
+    }
+}
+
+constexpr vk::SamplerAddressMode convertSamplerAddressMode(const AddressMode mode) {
+    switch (mode) {
+    case AddressMode::ClampBorder:
+        return vk::SamplerAddressMode::eClampToBorder;
+    case AddressMode::ClampEdge:
+        return vk::SamplerAddressMode::eClampToEdge;
+    case AddressMode::Repeat:
+        return vk::SamplerAddressMode::eRepeat;
+    case AddressMode::MirroredRepeat:
+        return vk::SamplerAddressMode::eMirroredRepeat;
+    default:
+        throw std::runtime_error("Unknown sampler address mode");
+    }
+}
+
+constexpr vk::BorderColor convertBorderColor(const BorderColor color) {
+    switch (color) {
+    case BorderColor::FloatTransparentBlack:
+        return vk::BorderColor::eFloatTransparentBlack;
+    case BorderColor::FloatOpaqueBlack:
+        return vk::BorderColor::eFloatOpaqueBlack;
+    case BorderColor::FloatOpaqueWhite:
+        return vk::BorderColor::eFloatOpaqueWhite;
+    case BorderColor::IntTransparentBlack:
+        return vk::BorderColor::eIntTransparentBlack;
+    case BorderColor::IntOpaqueBlack:
+        return vk::BorderColor::eIntOpaqueBlack;
+    case BorderColor::IntOpaqueWhite:
+        return vk::BorderColor::eIntOpaqueWhite;
+    case BorderColor::FloatCustomEXT:
+        return vk::BorderColor::eFloatCustomEXT;
+    case BorderColor::IntCustomEXT:
+        return vk::BorderColor::eIntCustomEXT;
+    default:
+        throw std::runtime_error("Invalid border color");
+    }
+}
+
+constexpr vk::ImageTiling convertTiling(const Tiling tiling) {
+    switch (tiling) {
+    case Tiling::Linear:
+        return vk::ImageTiling::eLinear;
+    case Tiling::Optimal:
+        return vk::ImageTiling::eOptimal;
+    default:
+        throw std::runtime_error("Unknown tiling");
+    }
+}
+
+} // namespace
 
 Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceMemoryManager> memoryManager)
     : _imageInfo(imageInfo), _memoryManager(std::move(memoryManager)), _mips(imageInfo.mips),
@@ -505,78 +578,6 @@ void Image::store(Context &ctx, const std::string &filename) {
 }
 
 bool Image::isSampled() const { return _imageInfo.isSampled; }
-
-// Sampler settings helper functions
-vk::Filter Image::convertFilter(const FilterMode filter) {
-    switch (filter) {
-    case FilterMode::Linear:
-        return vk::Filter::eLinear;
-    case FilterMode::Nearest:
-        return vk::Filter::eNearest;
-    default:
-        throw std::runtime_error("Unknown filter mode");
-    }
-}
-
-vk::SamplerMipmapMode Image::convertSamplerMipmapMode(const FilterMode mode) {
-    switch (mode) {
-    case FilterMode::Linear:
-        return vk::SamplerMipmapMode::eLinear;
-    case FilterMode::Nearest:
-        return vk::SamplerMipmapMode::eNearest;
-    default:
-        throw std::runtime_error("Unknown sampler mipmap mode");
-    }
-}
-
-vk::SamplerAddressMode Image::convertSamplerAddressMode(const AddressMode mode) {
-    switch (mode) {
-    case AddressMode::ClampBorder:
-        return vk::SamplerAddressMode::eClampToBorder;
-    case AddressMode::ClampEdge:
-        return vk::SamplerAddressMode::eClampToEdge;
-    case AddressMode::Repeat:
-        return vk::SamplerAddressMode::eRepeat;
-    case AddressMode::MirroredRepeat:
-        return vk::SamplerAddressMode::eMirroredRepeat;
-    default:
-        throw std::runtime_error("Unknown sampler address mode");
-    }
-}
-
-vk::BorderColor Image::convertBorderColor(const BorderColor color) {
-    switch (color) {
-    case BorderColor::FloatTransparentBlack:
-        return vk::BorderColor::eFloatTransparentBlack;
-    case BorderColor::FloatOpaqueBlack:
-        return vk::BorderColor::eFloatOpaqueBlack;
-    case BorderColor::FloatOpaqueWhite:
-        return vk::BorderColor::eFloatOpaqueWhite;
-    case BorderColor::IntTransparentBlack:
-        return vk::BorderColor::eIntTransparentBlack;
-    case BorderColor::IntOpaqueBlack:
-        return vk::BorderColor::eIntOpaqueBlack;
-    case BorderColor::IntOpaqueWhite:
-        return vk::BorderColor::eIntOpaqueWhite;
-    case BorderColor::FloatCustomEXT:
-        return vk::BorderColor::eFloatCustomEXT;
-    case BorderColor::IntCustomEXT:
-        return vk::BorderColor::eIntCustomEXT;
-    default:
-        throw std::runtime_error("Invalid border color");
-    }
-}
-
-vk::ImageTiling Image::convertTiling(const Tiling tiling) {
-    switch (tiling) {
-    case Tiling::Linear:
-        return vk::ImageTiling::eLinear;
-    case Tiling::Optimal:
-        return vk::ImageTiling::eOptimal;
-    default:
-        throw std::runtime_error("Unknown tiling");
-    }
-}
 
 const std::string &Image::debugName() const { return _imageInfo.debugName; }
 
