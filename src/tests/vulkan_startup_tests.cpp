@@ -41,7 +41,7 @@ void main()
 //      3. Run the shader.
 //      4. Check that the output buffer matches the expected values.
 TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
-    mlsdk::testing::TempFolder tempFolder("scenario_runner_start_up_tests");
+    TempFolder tempFolder("scenario_runner_start_up_tests");
 
     constexpr uint32_t numElements = 10;
 
