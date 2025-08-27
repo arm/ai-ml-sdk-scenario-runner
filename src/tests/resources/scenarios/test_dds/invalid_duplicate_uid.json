@@ -1,0 +1,34 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "image": {
+                "shader_access": "readonly",
+                "dims": [
+                    1,
+                    64,
+                    4,
+                    1
+                ],
+                "format": "VK_FORMAT_R16G16B16A16_SFLOAT",
+                "src": "temp.dds",
+                "uid": "inDDS"
+            }
+        },
+        {
+            "image": {
+                "dst": "output.dds",
+                "shader_access": "writeonly",
+                "dims": [
+                    1,
+                    64,
+                    4,
+                    1
+                ],
+                "format": "VK_FORMAT_R16G16B16A16_SFLOAT",
+                "uid": "inDDS"
+            }
+        }
+    ]
+}

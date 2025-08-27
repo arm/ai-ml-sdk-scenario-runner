@@ -15,6 +15,9 @@ ScenarioSpec::ScenarioSpec(std::istream *is, const std::filesystem::path &workDi
 }
 
 void ScenarioSpec::addResource(std::unique_ptr<ResourceDesc> resource) {
+    if (_resourceRefs.find(resource->guid) != _resourceRefs.end()) {
+        throw std::runtime_error("Not unique uid: " + resource->guidStr);
+    }
     if (resource->src.has_value()) {
         auto resolvedPath = _workDir / std::filesystem::path(resource->src.value());
         resource->src = resolvedPath.string();
