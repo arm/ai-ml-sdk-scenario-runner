@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "compute.hpp"
+#include "json_writer.hpp"
 #include "logging.hpp"
 #include "utils.hpp"
 
@@ -76,6 +77,14 @@ std::vector<vk::DescriptorPoolSize> getPoolSizes(const DataManager &dataManager,
 }
 
 } // namespace
+
+struct Compute::DebugMarker {
+    DebugMarker(Compute *compute, const std::string &name);
+    ~DebugMarker();
+
+  private:
+    Compute *_compute;
+};
 
 Compute::Compute(Context &ctx) : _ctx(ctx) {
     const vk::CommandPoolCreateInfo cmdPoolCreateInfo({vk::CommandPoolCreateFlagBits::eResetCommandBuffer},
@@ -197,7 +206,7 @@ void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager
         }
     }
 
-    const auto bindPoint = pipeline.isDataGraphPipeline() ? BindPoint::BindPointDataGraph : BindPoint::BindPointCompute;
+    const auto bindPoint = pipeline.isDataGraphPipeline() ? BindPoint::DataGraph : BindPoint::Compute;
 
     _commands.emplace_back(BindPipeline{pipeline.pipeline(), bindPoint});
 
@@ -369,7 +378,7 @@ void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters
             auto &typedCmd = std::get<BindDescriptorSet>(cmd);
             const vk::DescriptorSet &descSet = *_descriptorSets[typedCmd.descriptorSetIdxGlobal];
 
-            vk::PipelineBindPoint bindPoint = (typedCmd.bindPoint == BindPoint::BindPointDataGraph)
+            vk::PipelineBindPoint bindPoint = (typedCmd.bindPoint == BindPoint::DataGraph)
                                                   ? vk::PipelineBindPoint::eDataGraphARM
                                                   : vk::PipelineBindPoint::eCompute;
 
@@ -379,7 +388,7 @@ void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters
         } else if (std::holds_alternative<BindPipeline>(cmd)) {
             auto &typedCmd = std::get<BindPipeline>(cmd);
 
-            vk::PipelineBindPoint bindPoint = (typedCmd.bindPoint == BindPoint::BindPointDataGraph)
+            vk::PipelineBindPoint bindPoint = (typedCmd.bindPoint == BindPoint::DataGraph)
                                                   ? vk::PipelineBindPoint::eDataGraphARM
                                                   : vk::PipelineBindPoint::eCompute;
 
@@ -456,7 +465,7 @@ void Compute::setupQueryPool(uint32_t nQueries) {
     _queryPool.reset(0, _nQueries);
 }
 
-std::vector<uint64_t> Compute::queryTimestamps() {
+std::vector<uint64_t> Compute::_queryTimestamps() const {
     if (*_queryPool) {
         auto [_, queryPair] = _queryPool.getResults<uint64_t>(0, _nQueries, _nQueries * sizeof(uint64_t),
                                                               static_cast<vk::DeviceSize>(sizeof(uint64_t)),
@@ -466,4 +475,20 @@ std::vector<uint64_t> Compute::queryTimestamps() {
         throw std::runtime_error("Failed to retrieve timestamps, since the query pool is empty");
     }
 }
+
+void Compute::writeProfilingFile(const std::filesystem::path &profilingPath, int iteration, int repeatCount) const {
+    std::vector<uint64_t> timestamps = _queryTimestamps();
+    VkPhysicalDeviceLimits physicalDeviceLimits = _ctx.physicalDevice().getProperties().limits;
+    float timestampPeriod = physicalDeviceLimits.timestampPeriod;
+    std::vector<std::string> profiledCommands;
+    for (const auto &command : _commands) {
+        if (std::holds_alternative<ComputeDispatch>(command)) {
+            profiledCommands.push_back("ComputeDispatch");
+        } else if (std::holds_alternative<DataGraphDispatch>(command)) {
+            profiledCommands.push_back("DataGraphDispatch");
+        }
+    }
+    writeProfilingData(timestamps, timestampPeriod, profiledCommands, profilingPath, iteration, repeatCount);
+}
+
 } // namespace mlsdk::scenariorunner
