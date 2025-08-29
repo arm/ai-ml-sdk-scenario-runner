@@ -6,23 +6,20 @@
 #include "data_manager.hpp"
 #include "utils.hpp"
 
-#include <filesystem>
-#include <map>
-#include <optional>
-#include <set>
-
 namespace mlsdk::scenariorunner {
 
-void DataManager::createBuffer(Guid guid, const BufferInfo &info) {
-    _buffers.insert({guid, Buffer(info, getOrCreateMemoryManager(guid))});
+void DataManager::createBuffer(Guid guid, const BufferInfo &info,
+                               std::shared_ptr<ResourceMemoryManager> memoryManager) {
+    _buffers.insert({guid, Buffer(info, std::move(memoryManager))});
 }
 
-void DataManager::createTensor(Guid guid, const TensorInfo &info) {
-    _tensors.insert({guid, Tensor(info, getOrCreateMemoryManager(guid))});
+void DataManager::createTensor(Guid guid, const TensorInfo &info,
+                               std::shared_ptr<ResourceMemoryManager> memoryManager) {
+    _tensors.insert({guid, Tensor(info, std::move(memoryManager))});
 }
 
-void DataManager::createImage(Guid guid, const ImageInfo &info) {
-    _images.insert({guid, Image(info, getOrCreateMemoryManager(guid))});
+void DataManager::createImage(Guid guid, const ImageInfo &info, std::shared_ptr<ResourceMemoryManager> memoryManager) {
+    _images.insert({guid, Image(info, std::move(memoryManager))});
 }
 
 void DataManager::createVgfView(Guid guid, const std::string &src) {
@@ -153,47 +150,6 @@ const VulkanBufferBarrier &DataManager::getBufferBarrier(const Guid &guid) const
         throw std::runtime_error("Buffer Barrier not found");
     }
     return _bufferBarriers.at(guid);
-}
-
-std::shared_ptr<ResourceMemoryManager> DataManager::getOrCreateMemoryManager(const Guid &resourceGuid) {
-    Guid groupGuid{};
-    for (const auto &groupToResource : _groupToResources) {
-        if (groupToResource.second.count(resourceGuid)) {
-            groupGuid = groupToResource.first;
-            break;
-        }
-    }
-    auto memMan = getMemoryManager(groupGuid);
-    if (memMan == nullptr) {
-        _groupMemoryManagers.insert({groupGuid, std::make_shared<ResourceMemoryManager>()});
-        return getMemoryManager(groupGuid);
-    }
-    return memMan;
-}
-
-std::shared_ptr<ResourceMemoryManager> DataManager::getMemoryManager(const Guid &groupGuid) const {
-    auto it = _groupMemoryManagers.find(groupGuid);
-    if (it != _groupMemoryManagers.end()) {
-        return it->second;
-    }
-    return nullptr;
-}
-
-void DataManager::addResourceToGroup(const Guid &group, const Guid &resource) {
-    _groupToResources[group].insert(resource);
-}
-
-const std::unordered_map<Guid, std::set<Guid>> &DataManager::getResourceMemoryGroups() const {
-    return _groupToResources;
-}
-
-bool DataManager::isSingleMemoryGroup(const Guid &resource) const {
-    for (const auto &groupToResource : _groupToResources) {
-        if (groupToResource.second.count(resource) && groupToResource.second.size() == 1) {
-            return true;
-        }
-    }
-    return false;
 }
 
 } // namespace mlsdk::scenariorunner
