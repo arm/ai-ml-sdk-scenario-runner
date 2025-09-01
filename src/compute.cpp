@@ -40,7 +40,7 @@ std::vector<vk::DescriptorPoolSize> getPoolSizes(const DataManager &dataManager,
     uint32_t numImages = 0;
 
     for (const auto &bindingDesc : bindingDescs) {
-        const auto descriptorType = getDescriptorType(dataManager, bindingDesc);
+        const auto descriptorType = dataManager.getDescriptorType(bindingDesc);
         switch (descriptorType) {
         case vk::DescriptorType::eStorageBuffer:
             numBuffers++;
@@ -199,7 +199,7 @@ void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager
                 imageView = image.imageView();
             }
             const vk::DescriptorImageInfo info(image.sampler(), imageView, image.getImageLayout());
-            const auto descriptorType = getDescriptorType(dataManager, bindingDesc);
+            const auto descriptorType = dataManager.getDescriptorType(bindingDesc);
             const vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(bindingDesc.id), 0, 1, descriptorType,
                                                 &info);
             _ctx.device().updateDescriptorSets(vk::ArrayProxy<vk::WriteDescriptorSet>(dwrite), {});

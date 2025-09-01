@@ -57,14 +57,13 @@ class DataManager {
     const VulkanBufferBarrier &getBufferBarrier(const Guid &guid) const;
     const VulkanTensorBarrier &getTensorBarrier(const Guid &guid) const;
 
-    Resource &getResourceMut(const ResourceDesc &resourceDesc);
-    void storeResource(const ResourceDesc &resourceDesc);
-
     uint32_t numBuffers() const;
     uint32_t numTensors() const;
     uint32_t numImages() const;
 
     vk::DescriptorType getResourceDescriptorType(const Guid &guid) const;
+    /// Get descriptor type from binding descriptor
+    vk::DescriptorType getDescriptorType(const BindingDesc &bindingDesc) const;
 
     std::shared_ptr<ResourceMemoryManager> getOrCreateMemoryManager(const Guid &guid);
 

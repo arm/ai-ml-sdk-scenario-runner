@@ -64,7 +64,7 @@ vk::raii::DescriptorSetLayout createDescriptorSetLayout(const Context &ctx, cons
                                                         const DataManager &dataManager) {
     std::vector<vk::DescriptorSetLayoutBinding> descBindings;
     for (const auto &bindingDesc : bindings) {
-        const auto descriptorType = getDescriptorType(dataManager, bindingDesc);
+        const auto descriptorType = dataManager.getDescriptorType(bindingDesc);
         const vk::DescriptorSetLayoutBinding descBinding(bindingDesc.id, descriptorType, 1,
                                                          vk::ShaderStageFlagBits::eAll);
         descBindings.emplace_back(descBinding);
