@@ -43,6 +43,55 @@ std::string resourceType(const std::unique_ptr<ResourceDesc> &resource) {
     throw std::runtime_error("Unknown resource type in ScenarioSpec");
 }
 
+void fill(const BaseBarrierDesc &barrier, BaseBarrierData &data) {
+    data.debugName = barrier.guidStr;
+    data.srcAccess = barrier.srcAccess;
+    data.dstAccess = barrier.dstAccess;
+    data.srcStages = barrier.srcStages;
+    data.dstStages = barrier.dstStages;
+}
+
+struct BarrierDataFactory {
+    const DataManager &_dataManager;
+
+    ImageBarrierData createInfo(const ImageBarrierDesc &imageBarrier) const {
+        // check the image affected by this barrier exists
+        if (!_dataManager.hasImage(imageBarrier.imageResource)) {
+            throw std::runtime_error("Unknown image ID for image barrier");
+        }
+
+        ImageBarrierData data{};
+        fill(imageBarrier, data);
+        data.oldLayout = imageBarrier.oldLayout;
+        data.newLayout = imageBarrier.newLayout;
+        data.image = _dataManager.getImage(imageBarrier.imageResource).image();
+        data.imageRange = imageBarrier.imageRange;
+        return data;
+    }
+
+    MemoryBarrierData createInfo(const MemoryBarrierDesc &memoryBarrier) const {
+        MemoryBarrierData data{};
+        fill(memoryBarrier, data);
+        return data;
+    }
+
+    TensorBarrierData createInfo(const TensorBarrierDesc &tensorBarrier) const {
+        TensorBarrierData data{};
+        fill(tensorBarrier, data);
+        data.tensor = _dataManager.getTensor(tensorBarrier.tensorResource).tensor();
+        return data;
+    }
+
+    BufferBarrierData createInfo(const BufferBarrierDesc &bufferBarrier) const {
+        BufferBarrierData data{};
+        fill(bufferBarrier, data);
+        data.offset = bufferBarrier.offset;
+        data.size = bufferBarrier.size;
+        data.buffer = _dataManager.getBuffer(bufferBarrier.bufferResource).buffer();
+        return data;
+    }
+};
+
 } // namespace
 
 Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
@@ -272,64 +321,6 @@ void Scenario::setupResources() {
             _dataManager.createVgfView(resource->guid, *dataGraph);
             _perfCounters.back().stop();
         } break;
-        case (ResourceType::ImageBarrier): {
-            const auto &imageBarrier = reinterpret_cast<std::unique_ptr<ImageBarrierDesc> &>(resource);
-
-            // check the image affected by this barrier exists
-            if (!_dataManager.hasImage(imageBarrier->imageResource)) {
-                throw std::runtime_error("Unknown image ID for image barrier");
-            }
-
-            ImageBarrierData data;
-            data.debugName = imageBarrier->guidStr;
-            data.srcAccess = imageBarrier->srcAccess;
-            data.dstAccess = imageBarrier->dstAccess;
-            data.srcStages = imageBarrier->srcStages;
-            data.dstStages = imageBarrier->dstStages;
-            data.oldLayout = imageBarrier->oldLayout;
-            data.newLayout = imageBarrier->newLayout;
-            data.image = _dataManager.getImage(imageBarrier->imageResource).image();
-            data.imageRange = imageBarrier->imageRange;
-            _dataManager.createImageBarrier(resource->guid, data);
-        } break;
-        case (ResourceType::MemoryBarrier): {
-            const auto &memoryBarrier = reinterpret_cast<std::unique_ptr<MemoryBarrierDesc> &>(resource);
-
-            MemoryBarrierData data;
-            data.debugName = memoryBarrier->guidStr;
-            data.srcAccess = memoryBarrier->srcAccess;
-            data.dstAccess = memoryBarrier->dstAccess;
-            data.srcStages = memoryBarrier->srcStages;
-            data.dstStages = memoryBarrier->dstStages;
-            _dataManager.createMemoryBarrier(resource->guid, data);
-        } break;
-        case (ResourceType::TensorBarrier): {
-            const auto &tensorBarrier = reinterpret_cast<std::unique_ptr<TensorBarrierDesc> &>(resource);
-
-            TensorBarrierData data;
-            data.debugName = tensorBarrier->guidStr;
-            data.srcAccess = tensorBarrier->srcAccess;
-            data.dstAccess = tensorBarrier->dstAccess;
-            data.srcStages = tensorBarrier->srcStages;
-            data.dstStages = tensorBarrier->dstStages;
-
-            data.tensor = _dataManager.getTensor(tensorBarrier->tensorResource).tensor();
-            _dataManager.createTensorBarrier(resource->guid, data);
-        } break;
-        case (ResourceType::BufferBarrier): {
-            const auto &bufferBarrier = reinterpret_cast<std::unique_ptr<BufferBarrierDesc> &>(resource);
-
-            BufferBarrierData data;
-            data.debugName = bufferBarrier->guidStr;
-            data.srcAccess = bufferBarrier->srcAccess;
-            data.dstAccess = bufferBarrier->dstAccess;
-            data.srcStages = bufferBarrier->srcStages;
-            data.dstStages = bufferBarrier->dstStages;
-            data.offset = bufferBarrier->offset;
-            data.size = bufferBarrier->size;
-            data.buffer = _dataManager.getBuffer(bufferBarrier->bufferResource).buffer();
-            _dataManager.createBufferBarrier(resource->guid, data);
-        } break;
         case (ResourceType::Tensor): {
             const auto &tensor = reinterpret_cast<std::unique_ptr<TensorDesc> &>(resource);
 
@@ -355,6 +346,37 @@ void Scenario::setupResources() {
             }
 
             _dataManager.createTensor(resource->guid, info);
+        } break;
+        default:
+            // Skip the other types of resources
+            continue;
+        }
+        mlsdk::logging::debug(resourceType(resource) + ": " + resource->guidStr + " loaded");
+    }
+
+    // Setup barrier resource info, these depend on other resources
+    BarrierDataFactory barrierDataFactory{_dataManager};
+    for (const auto &resource : _scenarioSpec.resources) {
+        switch (resource->resourceType) {
+        case (ResourceType::ImageBarrier): {
+            const auto &imageBarrier = reinterpret_cast<const std::unique_ptr<ImageBarrierDesc> &>(resource);
+            const auto data = barrierDataFactory.createInfo(*imageBarrier);
+            _dataManager.createImageBarrier(resource->guid, data);
+        } break;
+        case (ResourceType::MemoryBarrier): {
+            const auto &memoryBarrier = reinterpret_cast<const std::unique_ptr<MemoryBarrierDesc> &>(resource);
+            const auto data = barrierDataFactory.createInfo(*memoryBarrier);
+            _dataManager.createMemoryBarrier(resource->guid, data);
+        } break;
+        case (ResourceType::TensorBarrier): {
+            const auto &tensorBarrier = reinterpret_cast<const std::unique_ptr<TensorBarrierDesc> &>(resource);
+            const auto data = barrierDataFactory.createInfo(*tensorBarrier);
+            _dataManager.createTensorBarrier(resource->guid, data);
+        } break;
+        case (ResourceType::BufferBarrier): {
+            const auto &bufferBarrier = reinterpret_cast<const std::unique_ptr<BufferBarrierDesc> &>(resource);
+            const auto data = barrierDataFactory.createInfo(*bufferBarrier);
+            _dataManager.createBufferBarrier(resource->guid, data);
         } break;
         default:
             // Skip the other types of resources

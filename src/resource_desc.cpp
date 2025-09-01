@@ -122,6 +122,13 @@ ImageDesc::ImageDesc(Guid guid, const std::string &guidStr, std::vector<uint32_t
 ImageDesc::ImageDesc() : ResourceDesc(ResourceType::Image, Guid(), "<unnamed_image>") {}
 
 /**
+ * @brief Construct a new BaseBarrierDesc object
+ */
+BaseBarrierDesc::BaseBarrierDesc(ResourceType resourceType, const std::string &guidStr, MemoryAccess srcAccess,
+                                 MemoryAccess dstAccess)
+    : ResourceDesc(resourceType, guidStr, guidStr), srcAccess(srcAccess), dstAccess(dstAccess) {}
+
+/**
  * @brief Construct a new BufferBarrierDesc object
  *
  * @param guidStr
@@ -133,11 +140,11 @@ ImageDesc::ImageDesc() : ResourceDesc(ResourceType::Image, Guid(), "<unnamed_ima
  */
 BufferBarrierDesc::BufferBarrierDesc(const std::string &guidStr, MemoryAccess srcAccess, MemoryAccess dstAccess,
                                      std::string resource, uint64_t offset, uint64_t size)
-    : ResourceDesc(ResourceType::BufferBarrier, guidStr, guidStr), srcAccess(srcAccess), dstAccess(dstAccess),
-      bufferResource(std::move(resource)), offset(offset), size(size) {}
+    : BaseBarrierDesc(ResourceType::BufferBarrier, guidStr, srcAccess, dstAccess), bufferResource(std::move(resource)),
+      offset(offset), size(size) {}
 
 BufferBarrierDesc::BufferBarrierDesc()
-    : ResourceDesc(ResourceType::BufferBarrier, Guid(), "<unnamed_buffer_barrier>") {}
+    : BaseBarrierDesc(ResourceType::BufferBarrier, Guid(), "<unnamed_buffer_barrier>") {}
 
 /**
  * @brief Construct a new MemoryBarrierDesc object
@@ -147,10 +154,10 @@ BufferBarrierDesc::BufferBarrierDesc()
  * @param dstAccess
  */
 MemoryBarrierDesc::MemoryBarrierDesc(const std::string &guidStr, MemoryAccess srcAccess, MemoryAccess dstAccess)
-    : ResourceDesc(ResourceType::MemoryBarrier, guidStr, guidStr), srcAccess(srcAccess), dstAccess(dstAccess) {}
+    : BaseBarrierDesc(ResourceType::MemoryBarrier, guidStr, srcAccess, dstAccess) {}
 
 MemoryBarrierDesc::MemoryBarrierDesc()
-    : ResourceDesc(ResourceType::MemoryBarrier, Guid(), "<unnamed_memory_barrier>") {}
+    : BaseBarrierDesc(ResourceType::MemoryBarrier, Guid(), "<unnamed_memory_barrier>") {}
 
 /**
  * @brief Construct a new ImageBarrierDesc object
@@ -166,17 +173,17 @@ MemoryBarrierDesc::MemoryBarrierDesc()
 ImageBarrierDesc::ImageBarrierDesc(const std::string &guidStr, MemoryAccess srcAccess, MemoryAccess dstAccess,
                                    ImageLayout oldLayout, ImageLayout newLayout, std::string imageResource,
                                    SubresourceRange imageRange)
-    : ResourceDesc(ResourceType::ImageBarrier, guidStr, guidStr), srcAccess(srcAccess), dstAccess(dstAccess),
-      oldLayout(oldLayout), newLayout(newLayout), imageResource(std::move(imageResource)), imageRange(imageRange) {}
+    : BaseBarrierDesc(ResourceType::ImageBarrier, guidStr, srcAccess, dstAccess), oldLayout(oldLayout),
+      newLayout(newLayout), imageResource(std::move(imageResource)), imageRange(imageRange) {}
 
-ImageBarrierDesc::ImageBarrierDesc() : ResourceDesc(ResourceType::ImageBarrier, Guid(), "<unnamed_image_barrier>") {}
+ImageBarrierDesc::ImageBarrierDesc() : BaseBarrierDesc(ResourceType::ImageBarrier, Guid(), "<unnamed_image_barrier>") {}
 
 TensorBarrierDesc::TensorBarrierDesc(const std::string &guidStr, MemoryAccess srcAccess, MemoryAccess dstAccess,
                                      std::string tensorResource)
-    : ResourceDesc(ResourceType::TensorBarrier, guidStr, guidStr), srcAccess(srcAccess), dstAccess(dstAccess),
+    : BaseBarrierDesc(ResourceType::TensorBarrier, guidStr, srcAccess, dstAccess),
       tensorResource(std::move(tensorResource)) {}
 
 TensorBarrierDesc::TensorBarrierDesc()
-    : ResourceDesc(ResourceType::TensorBarrier, Guid(), "<unnamed_tensor_barrier>") {}
+    : BaseBarrierDesc(ResourceType::TensorBarrier, Guid(), "<unnamed_tensor_barrier>") {}
 
 } // namespace mlsdk::scenariorunner

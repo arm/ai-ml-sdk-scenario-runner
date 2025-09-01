@@ -168,18 +168,29 @@ struct ImageDesc : ResourceDesc {
 };
 
 /**
- * @brief ImageBarrierDesc describes a Barrier.
+ * @brief BaseBarrierDesc
  *
  */
-struct ImageBarrierDesc : ResourceDesc {
-    ImageBarrierDesc();
-    ImageBarrierDesc(const std::string &guidStr, MemoryAccess srcAccess, MemoryAccess dstAccess, ImageLayout oldLayout,
-                     ImageLayout newLayout, std::string imageResource, SubresourceRange imageRange);
+struct BaseBarrierDesc : ResourceDesc {
+    BaseBarrierDesc(ResourceType resourceType, const std::string &guidStr, MemoryAccess srcAccess,
+                    MemoryAccess dstAccess);
+    using ResourceDesc::ResourceDesc;
 
     MemoryAccess srcAccess{MemoryAccess::Unknown};
     MemoryAccess dstAccess{MemoryAccess::Unknown};
     std::vector<PipelineStage> srcStages = {PipelineStage::All};
     std::vector<PipelineStage> dstStages = {PipelineStage::All};
+};
+
+/**
+ * @brief ImageBarrierDesc describes a Barrier.
+ *
+ */
+struct ImageBarrierDesc : BaseBarrierDesc {
+    ImageBarrierDesc();
+    ImageBarrierDesc(const std::string &guidStr, MemoryAccess srcAccess, MemoryAccess dstAccess, ImageLayout oldLayout,
+                     ImageLayout newLayout, std::string imageResource, SubresourceRange imageRange);
+
     ImageLayout oldLayout{ImageLayout::Undefined};
     ImageLayout newLayout{ImageLayout::Undefined};
     std::string imageResource;
@@ -190,28 +201,19 @@ struct ImageBarrierDesc : ResourceDesc {
  * @brief MemoryBarrierDesc describes a memory barrier.
  *
  */
-struct MemoryBarrierDesc : ResourceDesc {
+struct MemoryBarrierDesc : BaseBarrierDesc {
     MemoryBarrierDesc();
-    MemoryBarrierDesc(const std::string &guidStr, const MemoryAccess srcAccess, MemoryAccess dstAccess);
-
-    MemoryAccess srcAccess{MemoryAccess::Unknown};
-    MemoryAccess dstAccess{MemoryAccess::Unknown};
-    std::vector<PipelineStage> srcStages = {PipelineStage::All};
-    std::vector<PipelineStage> dstStages = {PipelineStage::All};
+    MemoryBarrierDesc(const std::string &guidStr, MemoryAccess srcAccess, MemoryAccess dstAccess);
 };
 
 /**
  * @brief TensorBarrierDesc describes a Tensor memory barrier.
  *
  */
-struct TensorBarrierDesc : ResourceDesc {
+struct TensorBarrierDesc : BaseBarrierDesc {
     TensorBarrierDesc();
     TensorBarrierDesc(const std::string &guidStr, MemoryAccess srcAccess, MemoryAccess dstAccess, std::string resource);
 
-    MemoryAccess srcAccess{MemoryAccess::Unknown};
-    MemoryAccess dstAccess{MemoryAccess::Unknown};
-    std::vector<PipelineStage> srcStages = {PipelineStage::All};
-    std::vector<PipelineStage> dstStages = {PipelineStage::All};
     std::string tensorResource;
 };
 
@@ -219,15 +221,11 @@ struct TensorBarrierDesc : ResourceDesc {
  * @brief ImageBarrierDesc describes an Image memory barrier.
  *
  */
-struct BufferBarrierDesc : ResourceDesc {
+struct BufferBarrierDesc : BaseBarrierDesc {
     BufferBarrierDesc();
     BufferBarrierDesc(const std::string &guidStr, MemoryAccess srcAccess, MemoryAccess dstAccess,
                       std::string bufferResource, uint64_t offset, uint64_t size);
 
-    MemoryAccess srcAccess{MemoryAccess::Unknown};
-    MemoryAccess dstAccess{MemoryAccess::Unknown};
-    std::vector<PipelineStage> srcStages = {PipelineStage::All};
-    std::vector<PipelineStage> dstStages = {PipelineStage::All};
     std::string bufferResource;
     uint64_t offset{};
     uint64_t size{};

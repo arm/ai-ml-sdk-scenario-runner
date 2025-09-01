@@ -14,26 +14,22 @@ class Guid {
     using HashType = std::size_t;
     static constexpr HashType invalidValue() { return HashType(-1); }
 
-    HashType _hash;
+    HashType _hash{invalidValue()};
 
   public:
-    Guid() : _hash(invalidValue()) {}
+    Guid() = default;
 
     Guid(const std::string &s) : _hash(std::hash<std::string>{}(s)) {} // cppcheck-suppress noExplicitConstructor
 
     // Move/Copy constructor
-    Guid(Guid &&other) = delete;
-    Guid(const Guid &other) : _hash(other._hash) {}
+    Guid(Guid &&other) = default;
+    Guid(const Guid &other) = default;
 
     // Move/Copy Assignment operators
-    Guid &operator=(Guid &&other) = delete;
-    Guid &operator=(const Guid &other) {
-        _hash = other._hash;
-        return *this;
-    }
+    Guid &operator=(Guid &&other) = default;
+    Guid &operator=(const Guid &other) = default;
     Guid &operator=(const std::string &s) {
-        Guid tempGuid{s};
-        *this = tempGuid;
+        _hash = std::hash<std::string>{}(s);
         return *this;
     }
 
