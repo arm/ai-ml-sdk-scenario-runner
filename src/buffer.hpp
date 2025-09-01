@@ -15,11 +15,14 @@ class Buffer {
   public:
     /// \brief Constructor
     ///
-    /// \param ctx  Contextual information about the Vulkan instance
     /// \param bufferInfo buffer Information
     /// \param memoryManager Information about (possibly shared) underlying memory
-    Buffer(const Context &ctx, const BufferInfo &bufferInfo, std::shared_ptr<ResourceMemoryManager> memoryManager);
+    Buffer(const BufferInfo &bufferInfo, std::shared_ptr<ResourceMemoryManager> memoryManager);
     Buffer() = default;
+
+    /// \brief Setup instance, assumes all aliasing objects have been constructed
+    /// \param ctx                    Contextual information about the Vulkan instance
+    void setup(const Context &ctx);
 
     /// \brief Buffer accessor
     /// \return The underlying Vulkan buffer

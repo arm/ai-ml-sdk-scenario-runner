@@ -13,25 +13,16 @@
 
 namespace mlsdk::scenariorunner {
 
-DataManager::DataManager(Context &ctx) : _ctx(ctx) {}
-
 void DataManager::createBuffer(Guid guid, const BufferInfo &info) {
-    _buffers.insert({guid, Buffer(_ctx, info, getOrCreateMemoryManager(guid))});
-}
-
-void DataManager::createBuffer(Guid guid, const BufferInfo &info, std::vector<char> &values) {
-    createBuffer(guid, info);
-    auto &buffer = getBufferMut(guid);
-    buffer.allocateMemory(_ctx);
-    buffer.fill(values.data(), values.size());
+    _buffers.insert({guid, Buffer(info, getOrCreateMemoryManager(guid))});
 }
 
 void DataManager::createTensor(Guid guid, const TensorInfo &info) {
-    _tensors.insert({guid, Tensor(_ctx, info, getOrCreateMemoryManager(guid))});
+    _tensors.insert({guid, Tensor(info, getOrCreateMemoryManager(guid))});
 }
 
 void DataManager::createImage(Guid guid, const ImageInfo &info) {
-    _images.insert({guid, Image(_ctx, info, getOrCreateMemoryManager(guid))});
+    _images.insert({guid, Image(info, getOrCreateMemoryManager(guid))});
 }
 
 void DataManager::createVgfView(Guid guid, const std::string &src) {

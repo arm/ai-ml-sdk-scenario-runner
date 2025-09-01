@@ -252,7 +252,7 @@ std::vector<ResolvedBindingDesc> convertBindings(const DataManager &dataManager,
 
 Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
     : _opts{opts}, _ctx{opts, scenarioSpec.useComputeFamilyQueue ? FamilyQueue::Compute : FamilyQueue::DataGraph},
-      _dataManager(_ctx), _scenarioSpec(scenarioSpec), _compute(_ctx) {
+      _scenarioSpec(scenarioSpec), _compute(_ctx) {
     setupResources();
 }
 
@@ -403,6 +403,30 @@ void Scenario::setupResources() {
             continue;
         }
         mlsdk::logging::debug(resourceType(resource) + ": " + resource->guidStr + " loaded");
+    }
+
+    // Setup aliasing resources, foundation before accessing tensors
+    for (const auto &resource : _scenarioSpec.resources) {
+        switch (resource->resourceType) {
+        case (ResourceType::Buffer): {
+            auto &bufferRef = _dataManager.getBufferMut(resource->guid);
+            bufferRef.setup(_ctx);
+        } break;
+        case (ResourceType::Image): {
+            auto &imageRef = _dataManager.getImageMut(resource->guid);
+            imageRef.setup(_ctx);
+        } break;
+        default:
+            break; // No action
+        }
+    }
+
+    // Setup tensors, aliasing tensors are dependent on other resources having been constructed
+    for (const auto &resource : _scenarioSpec.resources) {
+        if (resource->resourceType == ResourceType::Tensor) {
+            auto &tensorRef = _dataManager.getTensorMut(resource->guid);
+            tensorRef.setup(_ctx);
+        }
     }
 
     // Setup barrier resource info, these depend on other resources

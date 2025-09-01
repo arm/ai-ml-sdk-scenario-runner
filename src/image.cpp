@@ -87,20 +87,22 @@ constexpr vk::ImageTiling convertTiling(const Tiling tiling) {
 
 } // namespace
 
-Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceMemoryManager> memoryManager)
-    : _imageInfo(imageInfo), _memoryManager(std::move(memoryManager)), _mips(imageInfo.mips),
-      _memoryOffset(imageInfo.memoryOffset) {
+Image::Image(const ImageInfo &imageInfo, std::shared_ptr<ResourceMemoryManager> memoryManager)
+    : _imageInfo(imageInfo), _memoryManager(std::move(memoryManager)) {}
+
+void Image::setup(const Context &ctx) {
     // Create image
 
-    if (_mips == 0) {
+    if (_imageInfo.mips == 0) {
         throw std::runtime_error("Number of mips cannot be 0");
     }
-    if (_mips > static_cast<uint32_t>(std::floor(std::log2(std::max(static_cast<uint32_t>(_imageInfo.shape[1]),
-                                                                    static_cast<uint32_t>(_imageInfo.shape[2]))))) +
-                    1) {
+    if (_imageInfo.mips >
+        static_cast<uint32_t>(std::floor(std::log2(
+            std::max(static_cast<uint32_t>(_imageInfo.shape[1]), static_cast<uint32_t>(_imageInfo.shape[2]))))) +
+            1) {
         throw std::runtime_error("Number of mips exceeds maximum number allowed for the image size");
     }
-    if (imageInfo.isAliased && _mips > 1) {
+    if (_imageInfo.isAliased && _imageInfo.mips > 1) {
         throw std::runtime_error("A mipped image cannot be aliased");
     }
 
@@ -109,18 +111,18 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
     vk::ImageUsageFlags usageFlags = vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst;
 
     vk::FormatFeatureFlags requiredFormatFlags;
-    if (imageInfo.isInput) {
+    if (_imageInfo.isInput) {
         requiredFormatFlags |= vk::FormatFeatureFlagBits::eTransferDst;
     }
-    if (imageInfo.isSampled) {
+    if (_imageInfo.isSampled) {
         usageFlags |= vk::ImageUsageFlagBits::eSampled;
         requiredFormatFlags |= vk::FormatFeatureFlagBits::eSampledImage;
     }
-    if (imageInfo.isStorage) {
+    if (_imageInfo.isStorage) {
         usageFlags |= vk::ImageUsageFlagBits::eStorage;
         requiredFormatFlags |= vk::FormatFeatureFlagBits::eStorageImage | vk::FormatFeatureFlagBits::eTransferSrc;
     }
-    if (_mips > 1) {
+    if (_imageInfo.mips > 1) {
         requiredFormatFlags |= vk::FormatFeatureFlagBits::eBlitSrc | vk::FormatFeatureFlagBits::eBlitDst;
     }
 
@@ -129,9 +131,9 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
 
     auto featProps = ctx.physicalDevice().getFormatProperties(_dataType);
 
-    if (imageInfo.tiling.has_value()) {
+    if (_imageInfo.tiling.has_value()) {
         // Set tiling based on JSON file if set and then validate
-        _tiling = convertTiling(imageInfo.tiling.value());
+        _tiling = convertTiling(_imageInfo.tiling.value());
         if (_tiling == vk::ImageTiling::eLinear &&
             ((featProps.linearTilingFeatures & requiredFormatFlags) != requiredFormatFlags)) {
             throw std::runtime_error("Tiling type: LINEAR is not supported for this format type");
@@ -139,12 +141,12 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
         if (_tiling == vk::ImageTiling::eOptimal) {
             if ((featProps.optimalTilingFeatures & requiredFormatFlags) != requiredFormatFlags) {
                 throw std::runtime_error("Tiling type: OPTIMAL is not supported for this formatType");
-            } else if (imageInfo.isAliased) {
+            } else if (_imageInfo.isAliased) {
                 mlsdk::logging::info("Allowing OPTIMAL tiling with aliasing for image");
             }
         }
     } else if ((featProps.linearTilingFeatures & requiredFormatFlags) == requiredFormatFlags &&
-               _mips <= getFormatMaxMipLevels(ctx, vk::ImageTiling::eLinear, usageFlags)) {
+               _imageInfo.mips <= getFormatMaxMipLevels(ctx, vk::ImageTiling::eLinear, usageFlags)) {
         _tiling = vk::ImageTiling::eLinear;
     } else if ((featProps.optimalTilingFeatures & requiredFormatFlags) == requiredFormatFlags) {
         _tiling = vk::ImageTiling::eOptimal;
@@ -152,35 +154,35 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
         throw std::runtime_error("No supported tiling for this data type");
     }
 
-    if (_mips > getFormatMaxMipLevels(ctx, _tiling, usageFlags)) {
+    if (_imageInfo.mips > getFormatMaxMipLevels(ctx, _tiling, usageFlags)) {
         throw std::runtime_error("The mip level provided is not supported for " + _imageInfo.debugName);
     }
 
     _initialLayout = vk::ImageLayout::eUndefined;
 
-    if (imageInfo.isAliased && _tiling != vk::ImageTiling::eLinear) {
+    if (_imageInfo.isAliased && _tiling != vk::ImageTiling::eLinear) {
         usageFlags |= vk::ImageUsageFlagBits::eTensorAliasingARM;
     }
 
     const vk::ImageCreateInfo imageCreateInfo(vk::ImageCreateFlags(), vk::ImageType::e2D, _dataType, extent,
-                                              /*mipLevels=*/_mips,
+                                              /*mipLevels=*/_imageInfo.mips,
                                               /*arrayLayers=*/1, vk::SampleCountFlagBits::e1, _tiling, usageFlags,
                                               vk::SharingMode::eExclusive, /*queueFamilyIndices=*/{}, _initialLayout);
     _image = vk::raii::Image(ctx.device(), imageCreateInfo);
 
-    trySetVkRaiiObjectDebugName(ctx, _image, imageInfo.debugName);
+    trySetVkRaiiObjectDebugName(ctx, _image, _imageInfo.debugName);
 
     // Create image sampler
-    const auto borderAddressMode = convertSamplerAddressMode(imageInfo.samplerSettings.borderAddressMode);
-    const auto mipFilter = convertFilter(imageInfo.samplerSettings.minFilter);
-    const auto magFilter = convertFilter(imageInfo.samplerSettings.magFilter);
-    const auto mipMapMode = convertSamplerMipmapMode(imageInfo.samplerSettings.mipFilter);
-    const auto borderColor = convertBorderColor(imageInfo.samplerSettings.borderColor);
+    const auto borderAddressMode = convertSamplerAddressMode(_imageInfo.samplerSettings.borderAddressMode);
+    const auto mipFilter = convertFilter(_imageInfo.samplerSettings.minFilter);
+    const auto magFilter = convertFilter(_imageInfo.samplerSettings.magFilter);
+    const auto mipMapMode = convertSamplerMipmapMode(_imageInfo.samplerSettings.mipFilter);
+    const auto borderColor = convertBorderColor(_imageInfo.samplerSettings.borderColor);
     vk::SamplerCreateInfo samplerCreateInfo(vk::SamplerCreateFlags(), mipFilter, magFilter, mipMapMode,
                                             borderAddressMode, borderAddressMode, borderAddressMode,
                                             /*mipLodBias=*/0.0f, /*anisotropyEnable=*/false, /*maxAnisotropy=*/1.0f,
                                             /*compareEnable=*/false, vk::CompareOp::eNever, /*minLod=*/0.0f,
-                                            /*maxLod=*/static_cast<float>(_mips - 1), borderColor);
+                                            /*maxLod=*/static_cast<float>(_imageInfo.mips - 1), borderColor);
 
     vk::SamplerCustomBorderColorCreateInfoEXT customBorderColorCreateInfo;
     if ((borderColor == vk::BorderColor::eFloatCustomEXT) || (borderColor == vk::BorderColor::eIntCustomEXT)) {
@@ -192,8 +194,8 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
 
         vk::ClearColorValue customClearColorValue =
             borderColor == vk::BorderColor::eFloatCustomEXT
-                ? vk::ClearColorValue(std::get<std::array<float, 4>>(imageInfo.samplerSettings.customBorderColor))
-                : vk::ClearColorValue(std::get<std::array<int, 4>>(imageInfo.samplerSettings.customBorderColor));
+                ? vk::ClearColorValue(std::get<std::array<float, 4>>(_imageInfo.samplerSettings.customBorderColor))
+                : vk::ClearColorValue(std::get<std::array<int, 4>>(_imageInfo.samplerSettings.customBorderColor));
 
         customBorderColorCreateInfo.setCustomBorderColor(customClearColorValue);
         customBorderColorCreateInfo.setFormat(_dataType);
@@ -202,11 +204,11 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
     _sampler = vk::raii::Sampler(ctx.device(), samplerCreateInfo);
 
     vk::MemoryRequirements memoryRequirements = _image.getMemoryRequirements();
-    _memoryManager->updateMemSize(memoryRequirements.size + _memoryOffset);
+    _memoryManager->updateMemSize(memoryRequirements.size + _imageInfo.memoryOffset);
     _memoryManager->updateMemType(memoryRequirements.memoryTypeBits);
 
     vk::ImageSubresource targetSubresource(getImageAspectMaskForVkFormat(_dataType));
-    if (_mips == 1 && _tiling == vk::ImageTiling::eLinear) {
+    if (_imageInfo.mips == 1 && _tiling == vk::ImageTiling::eLinear) {
         vk::SubresourceLayout targetSubresourceLayout = _image.getSubresourceLayout(targetSubresource);
 
         _memoryManager->updateSubResourceOffset(targetSubresourceLayout.offset);
@@ -257,10 +259,10 @@ vk::Image Image::image() const { return *_image; }
 vk::ImageView Image::imageView() const { return *_imageView; }
 
 vk::ImageView Image::imageView(uint32_t lod) const {
-    if (lod > _mips - 1) {
+    if (lod > _imageInfo.mips - 1) {
         std::stringstream errorMessage;
         errorMessage << "Requested level of details for the Image is greater than configured mipmaps. ";
-        errorMessage << "MipMaps configured: " << _mips << ", lod index requested: " << lod;
+        errorMessage << "MipMaps configured: " << _imageInfo.mips << ", lod index requested: " << lod;
         throw std::runtime_error(errorMessage.str());
     }
 
@@ -350,12 +352,13 @@ void Image::allocateMemory(const Context &ctx) {
     }
 
     // Bind image to memory
-    const vk::BindImageMemoryInfo bindInfo(*_image, *_memoryManager->getDeviceMemory(), _memoryOffset);
+    const vk::BindImageMemoryInfo bindInfo(*_image, *_memoryManager->getDeviceMemory(), _imageInfo.memoryOffset);
     ctx.device().bindImageMemory2(vk::ArrayProxy<vk::BindImageMemoryInfo>(bindInfo));
 
     const vk::ImageAspectFlags aspectMask = getImageAspectMaskForVkFormat(_dataType);
     const vk::ImageSubresourceRange subRange(aspectMask, /* baseMipLevel_ */ 0,
-                                             /* levelCount_ */ _mips, /* baseArrayLayer_ */ 0, /* layerCount_ */ 1);
+                                             /* levelCount_ */ _imageInfo.mips, /* baseArrayLayer_ */ 0,
+                                             /* layerCount_ */ 1);
     const vk::ImageViewCreateInfo imageViewCreateInfo(vk::ImageViewCreateFlags(), *_image, vk::ImageViewType::e2D,
                                                       _dataType, vk::ComponentMapping(), subRange);
 
@@ -364,8 +367,8 @@ void Image::allocateMemory(const Context &ctx) {
     trySetVkRaiiObjectDebugName(ctx, _imageView, _imageInfo.debugName + " view (default)");
 
     // Create image view for each lod
-    if (_mips > 1) {
-        for (uint32_t m = 0; m < _mips; m++) {
+    if (_imageInfo.mips > 1) {
+        for (uint32_t m = 0; m < _imageInfo.mips; m++) {
             const vk::ImageSubresourceRange mipMapSubRange(aspectMask,
                                                            /* baseMipLevel_ */ m,
                                                            /* levelCount_ */ 1, /* baseArrayLayer_ */ 0,
@@ -444,7 +447,7 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     imageBarrier.image = _image;
     imageBarrier.subresourceRange.aspectMask = aspectMask;
     imageBarrier.subresourceRange.baseMipLevel = 0;
-    imageBarrier.subresourceRange.levelCount = _mips;
+    imageBarrier.subresourceRange.levelCount = _imageInfo.mips;
     imageBarrier.subresourceRange.baseArrayLayer = 0;
     imageBarrier.subresourceRange.layerCount = 1;
 
@@ -489,7 +492,7 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
 
     int32_t mipWidth = static_cast<int32_t>(_imageInfo.shape[1]);
     int32_t mipHeight = static_cast<int32_t>(_imageInfo.shape[2]);
-    for (uint32_t i = 1; i < _mips; i++) {
+    for (uint32_t i = 1; i < _imageInfo.mips; i++) {
         // Create barrier before the first blit and between blits
         imageBarrier.subresourceRange.baseMipLevel = i - 1;
         imageBarrier.subresourceRange.levelCount = 1;
@@ -515,7 +518,7 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     }
 
     // Restore the last miplevel back to transfer source
-    imageBarrier.subresourceRange.baseMipLevel = _mips - 1;
+    imageBarrier.subresourceRange.baseMipLevel = _imageInfo.mips - 1;
     imageBarrier.subresourceRange.levelCount = 1;
     imageBarrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
     imageBarrier.newLayout = vk::ImageLayout::eTransferSrcOptimal;
@@ -526,7 +529,7 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
 
     // Transition into target image format
     imageBarrier.subresourceRange.baseMipLevel = 0;
-    imageBarrier.subresourceRange.levelCount = _mips;
+    imageBarrier.subresourceRange.levelCount = _imageInfo.mips;
     imageBarrier.oldLayout = vk::ImageLayout::eTransferSrcOptimal;
     imageBarrier.newLayout = _targetLayout;
     imageBarrier.srcStageMask = vk::PipelineStageFlagBits2::eAllTransfer;

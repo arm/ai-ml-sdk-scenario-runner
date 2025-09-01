@@ -9,9 +9,11 @@
 
 namespace mlsdk::scenariorunner {
 
-Buffer::Buffer(const Context &ctx, const BufferInfo &bufferInfo, std::shared_ptr<ResourceMemoryManager> memoryManager)
+Buffer::Buffer(const BufferInfo &bufferInfo, std::shared_ptr<ResourceMemoryManager> memoryManager)
     : _buffer(nullptr), _size(bufferInfo.size), _debugName(bufferInfo.debugName),
-      _memoryManager(std::move(memoryManager)), _memoryOffset(bufferInfo.memoryOffset) {
+      _memoryManager(std::move(memoryManager)), _memoryOffset(bufferInfo.memoryOffset) {}
+
+void Buffer::setup(const Context &ctx) {
     vk::BufferCreateInfo bufferCreateInfo{
         vk::BufferCreateFlags(), _size,  vk::BufferUsageFlagBits::eStorageBuffer, vk::SharingMode::eExclusive,
         ctx.familyQueueIdx(),    nullptr};

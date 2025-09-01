@@ -54,7 +54,7 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
 
     Context ctx{{}};
 
-    DataManager dataManager(ctx);
+    DataManager dataManager;
     std::vector<float> inDataA(numElements);
     std::vector<float> inDataB(numElements);
     std::vector<float> outDataAdd(numElements, 0.f);
@@ -75,15 +75,23 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
     dataManager.addResourceToGroup(guidB, guidB);
     dataManager.addResourceToGroup(guidOut, guidOut);
 
+    const auto prepareBuffer = [&ctx, &dataManager](Guid guid, const std::vector<char> &values) {
+        auto &buffer = dataManager.getBufferMut(guid);
+        buffer.setup(ctx);
+        buffer.allocateMemory(ctx);
+        buffer.fill(values.data(), values.size());
+    };
     info.size = numElements * sizeof(float);
     data.resize(info.size);
     std::memcpy(data.data(), inDataA.data(), info.size);
-    dataManager.createBuffer(guidA, info, data);
-
+    dataManager.createBuffer(guidA, info);
+    prepareBuffer(guidA, data);
     std::memcpy(data.data(), inDataB.data(), info.size);
-    dataManager.createBuffer(guidB, info, data);
+    dataManager.createBuffer(guidB, info);
+    prepareBuffer(guidB, data);
     std::memset(data.data(), 0, info.size);
-    dataManager.createBuffer(guidOut, info, data);
+    dataManager.createBuffer(guidOut, info);
+    prepareBuffer(guidOut, data);
 
     std::vector<ResolvedBindingDesc> bindingDescs;
     ResolvedBindingDesc binding;
