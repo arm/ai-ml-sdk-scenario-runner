@@ -27,7 +27,7 @@ class DataManager {
     void createTensor(Guid guid, const TensorInfo &info);
     void createImage(Guid guid, const ImageInfo &info);
     void createRawData(Guid guid, const std::string &debugName, const std::string &src);
-    void createVgfView(Guid guid, const DataGraphDesc &desc);
+    void createVgfView(Guid guid, const std::string &src);
     void createImageBarrier(Guid guid, const ImageBarrierData &data);
     void createTensorBarrier(Guid guid, const TensorBarrierData &data);
     void createMemoryBarrier(Guid guid, const MemoryBarrierData &data);

@@ -38,6 +38,56 @@ uint32_t bufferSize(const vgflib::DataView<int64_t> &shape) {
 
 } // namespace
 
+VgfView::VgfView(std::unique_ptr<MemoryMap> mapped, std::unique_ptr<vgflib::ModuleTableDecoder> moduleTableDecoder,
+                 std::unique_ptr<vgflib::ModelSequenceTableDecoder> sequenceTableDecoder,
+                 std::unique_ptr<vgflib::ModelResourceTableDecoder> resourceTableDecoder,
+                 std::unique_ptr<vgflib::ConstantDecoder> constantTableDecoder)
+    : mapped(std::move(mapped)), moduleTableDecoder(std::move(moduleTableDecoder)),
+      sequenceTableDecoder(std::move(sequenceTableDecoder)), resourceTableDecoder(std::move(resourceTableDecoder)),
+      constantTableDecoder(std::move(constantTableDecoder)) {}
+
+VgfView VgfView::createVgfView(const std::string &vgfFile) {
+    auto mapped = std::make_unique<MemoryMap>(vgfFile);
+
+    std::unique_ptr<vgflib::HeaderDecoder> headerDecoder = vgflib::CreateHeaderDecoder(mapped->ptr());
+    if (!headerDecoder->IsValid()) {
+        throw std::runtime_error("Invalid VGF header");
+    }
+    if (!headerDecoder->CheckVersion()) {
+        throw std::runtime_error("Incompatible VGF header");
+    }
+
+    uint64_t moduleTableOffset = headerDecoder->GetModuleTableOffset();
+    uint64_t sequenceTableOffset = headerDecoder->GetModelSequenceTableOffset();
+    uint64_t resourceTableOffset = headerDecoder->GetModelResourceTableOffset();
+    uint64_t constantsOffset = headerDecoder->GetConstantsOffset();
+
+    // Verify file content
+    if (!vgflib::VerifyModuleTable(mapped->ptr(moduleTableOffset), headerDecoder->GetModuleTableSize())) {
+        throw std::runtime_error("Invalid module table");
+    }
+    if (!vgflib::VerifyModelSequenceTable(mapped->ptr(sequenceTableOffset),
+                                          headerDecoder->GetModelSequenceTableSize())) {
+        throw std::runtime_error("Invalid model sequence table");
+    }
+    if (!vgflib::VerifyModelResourceTable(mapped->ptr(resourceTableOffset),
+                                          headerDecoder->GetModelResourceTableSize())) {
+        throw std::runtime_error("Invalid model resource table");
+    }
+    if (!vgflib::VerifyConstant(mapped->ptr(constantsOffset), headerDecoder->GetConstantsSize())) {
+        throw std::runtime_error("Invalid constant section");
+    }
+
+    auto moduleTableDecoder = vgflib::CreateModuleTableDecoder(mapped->ptr(moduleTableOffset));
+    auto sequenceTableDecoder = vgflib::CreateModelSequenceTableDecoder(mapped->ptr(sequenceTableOffset));
+    auto resourceTableDecoder = vgflib::CreateModelResourceTableDecoder(mapped->ptr(resourceTableOffset));
+    auto constantTableDecoder = vgflib::CreateConstantDecoder(mapped->ptr(constantsOffset));
+
+    VgfView vgfView(std::move(mapped), std::move(moduleTableDecoder), std::move(sequenceTableDecoder),
+                    std::move(resourceTableDecoder), std::move(constantTableDecoder));
+    return vgfView;
+}
+
 size_t VgfView::getNumSegments() const { return sequenceTableDecoder->modelSequenceTableSize(); }
 
 ModuleType VgfView::getSegmentType(uint32_t segmentIndex) const {
