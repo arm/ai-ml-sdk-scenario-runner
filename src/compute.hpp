@@ -12,6 +12,7 @@
 
 #include <filesystem>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace mlsdk::scenariorunner {

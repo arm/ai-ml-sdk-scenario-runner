@@ -7,11 +7,11 @@
 #include "logging.hpp"
 #include "scenario.hpp"
 
-#include <limits>
-#include <vector>
-
 #include <iomanip>
 #include <iostream>
+#include <limits>
+#include <map>
+#include <vector>
 
 namespace mlsdk::scenariorunner {
 namespace {

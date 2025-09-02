@@ -11,6 +11,9 @@
 
 #include "vulkan/vulkan_format_traits.hpp"
 
+#include <limits>
+#include <numeric>
+
 namespace mlsdk::scenariorunner {
 
 uint32_t numComponentsFromVkFormat(vk::Format format) { return vk::componentCount(format); }

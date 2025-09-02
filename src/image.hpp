@@ -57,9 +57,7 @@ class Image : public Resource {
     void allocateMemory(const Context &ctx);
     void resetLayout();
 
-    std::shared_ptr<ResourceMemoryManager> getMemoryManager();
-
-    void fillFromDescription(Context &ctx, const ImageDesc &desc);
+    void fillFromDescription(const Context &ctx, const ImageDesc &desc);
 
     void store(Context &ctx, const std::string &filename) override;
 
