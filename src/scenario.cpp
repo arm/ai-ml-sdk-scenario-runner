@@ -100,7 +100,8 @@ void Scenario::run(int repeatCount, bool dryRun, bool captureFrame) {
 }
 
 void Scenario::setupResources() {
-    mlsdk::logging::info("Setup resources");
+    mlsdk::logging::info("Setup resources, count: " + std::to_string(_scenarioSpec.resources.size()));
+    // Handle memory groups
     for (const auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
         case (ResourceType::Buffer): {
@@ -728,8 +729,22 @@ void Scenario::saveResults(bool dryRun) {
     // Save resources that have an output destination
     _perfCounters.emplace_back("Save Resources", "Save Results").start();
     for (auto &resourceDesc : _scenarioSpec.resources) {
-        if (resourceDesc->getDestination().has_value()) {
-            _dataManager.storeResource(*resourceDesc);
+        const auto &dst = resourceDesc->getDestination();
+        if (dst.has_value()) {
+            const auto &guid = resourceDesc->guid;
+            switch (resourceDesc->resourceType) {
+            case ResourceType::Buffer:
+                _dataManager.getBufferMut(guid).store(_ctx, dst.value());
+                break;
+            case ResourceType::Tensor:
+                _dataManager.getTensorMut(guid).store(_ctx, dst.value());
+                break;
+            case ResourceType::Image:
+                _dataManager.getImageMut(guid).store(_ctx, dst.value());
+                break;
+            default:
+                throw std::runtime_error("Resource not found");
+            }
             mlsdk::logging::debug(resourceType(resourceDesc) + " " + resourceDesc->guidStr + " output stored");
         }
     }

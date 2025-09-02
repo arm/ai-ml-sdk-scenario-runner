@@ -17,6 +17,19 @@
 #include <set>
 
 namespace mlsdk::scenariorunner {
+namespace {
+constexpr vk::DescriptorType convertDescriptorType(const DescriptorType descriptorType) {
+    switch (descriptorType) {
+    case DescriptorType::StorageImage:
+        return vk::DescriptorType::eStorageImage;
+    case DescriptorType::Auto:
+        throw std::runtime_error("Cannot infer the descriptor type without context");
+    default:
+        throw std::runtime_error("Descriptor type is invalid");
+    }
+}
+
+} // namespace
 
 DataManager::DataManager(Context &ctx) : _ctx(ctx) {}
 
@@ -208,29 +221,6 @@ const VulkanBufferBarrier &DataManager::getBufferBarrier(const Guid &guid) const
     return _bufferBarriers.at(guid);
 }
 
-void DataManager::storeResource(const ResourceDesc &resourceDesc) {
-    auto &dst = resourceDesc.getDestination();
-    if (!dst.has_value()) {
-        return;
-    }
-
-    getResourceMut(resourceDesc).store(_ctx, dst.value());
-}
-
-Resource &DataManager::getResourceMut(const ResourceDesc &resourceDesc) {
-    auto &guid = resourceDesc.guid;
-    switch (resourceDesc.resourceType) {
-    case ResourceType::Buffer:
-        return getBufferMut(guid);
-    case ResourceType::Tensor:
-        return getTensorMut(guid);
-    case ResourceType::Image:
-        return getImageMut(guid);
-    default:
-        throw std::runtime_error("Resource not found");
-    }
-}
-
 vk::DescriptorType DataManager::getResourceDescriptorType(const Guid &guid) const {
     if (hasBuffer(guid)) {
         return vk::DescriptorType::eStorageBuffer;
@@ -245,6 +235,10 @@ vk::DescriptorType DataManager::getResourceDescriptorType(const Guid &guid) cons
     } else {
         throw std::runtime_error("Invalid resource descriptor type");
     }
+}
+vk::DescriptorType DataManager::getDescriptorType(const BindingDesc &bindingDesc) const {
+    return bindingDesc.descriptorType == DescriptorType::Auto ? getResourceDescriptorType(bindingDesc.resourceRef)
+                                                              : convertDescriptorType(bindingDesc.descriptorType);
 }
 
 std::shared_ptr<ResourceMemoryManager> DataManager::getOrCreateMemoryManager(const Guid &resourceGuid) {
