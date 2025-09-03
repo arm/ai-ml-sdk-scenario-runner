@@ -220,12 +220,12 @@ void from_json(const json &j, CommandDesc &command) {
  * @param dispatchCompute
  */
 void from_json(const json &j, DispatchComputeDesc &dispatchCompute) {
-    const json &bindingsJson = j.find("bindings").value();
+    const json bindingsJson = j.find("bindings").value();
     for (auto binding = bindingsJson.begin(); binding != bindingsJson.end(); ++binding) {
         const json &newBinding = binding.value();
         dispatchCompute.bindings.push_back(newBinding.get<BindingDesc>());
     }
-    const json &rangeNDJson = j.find("rangeND").value();
+    const json rangeNDJson = j.find("rangeND").value();
     uint32_t i = 0;
     for (auto dimension = rangeNDJson.begin(); dimension != rangeNDJson.end(); ++dimension) {
         const json &newDimension = dimension.value();
@@ -256,20 +256,20 @@ void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph) {
     auto graphRef = j.at("graph_ref").get<std::string>();
     dispatchDataGraph.dataGraphRef = graphRef;
     dispatchDataGraph.debugName = graphRef;
-    const json &bindingsJson = j.find("bindings").value();
+    const json bindingsJson = j.find("bindings").value();
     for (auto binding = bindingsJson.begin(); binding != bindingsJson.end(); ++binding) {
         const json &newBinding = binding.value();
         dispatchDataGraph.bindings.push_back(newBinding.get<BindingDesc>());
     }
     if (j.count("push_constants") != 0) {
-        const json &pushConstantsJson = j.find("push_constants").value();
+        const json pushConstantsJson = j.find("push_constants").value();
         for (auto pushConstant = pushConstantsJson.begin(); pushConstant != pushConstantsJson.end(); ++pushConstant) {
             const json &newPushConstant = pushConstant.value();
             dispatchDataGraph.pushConstants.push_back(newPushConstant.get<PushConstantMap>());
         }
     }
     if (j.count("shader_substitutions") != 0) {
-        const json &shaderSubJson = j.find("shader_substitutions").value();
+        const json shaderSubJson = j.find("shader_substitutions").value();
         for (auto shaderSub = shaderSubJson.begin(); shaderSub != shaderSubJson.end(); ++shaderSub) {
             const json &newShaderSub = shaderSub.value();
             dispatchDataGraph.shaderSubstitutions.push_back(newShaderSub.get<ShaderSubstitutionDesc>());
@@ -284,7 +284,7 @@ void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph) {
  * @param dispatchBarrier
  */
 void from_json(const json &j, DispatchBarrierDesc &dispatchBarrier) {
-    const json &imageBarriersJson = j.find("image_barrier_refs").value();
+    const json imageBarriersJson = j.find("image_barrier_refs").value();
     for (auto imageBarrier = imageBarriersJson.begin(); imageBarrier != imageBarriersJson.end(); ++imageBarrier) {
         const json &newImageBarrier = imageBarrier.value();
         dispatchBarrier.imageBarriersRef.push_back(newImageBarrier.get<std::string>());
@@ -300,12 +300,12 @@ void from_json(const json &j, DispatchBarrierDesc &dispatchBarrier) {
         }
     }
 
-    const json &memoryBarriersJson = j.find("memory_barrier_refs").value();
+    const json memoryBarriersJson = j.find("memory_barrier_refs").value();
     for (auto memoryBarrier = memoryBarriersJson.begin(); memoryBarrier != memoryBarriersJson.end(); ++memoryBarrier) {
         const json &newMemoryBarrier = memoryBarrier.value();
         dispatchBarrier.memoryBarriersRef.push_back(newMemoryBarrier.get<std::string>());
     }
-    const json &bufferBarriersJson = j.find("buffer_barrier_refs").value();
+    const json bufferBarriersJson = j.find("buffer_barrier_refs").value();
     for (auto bufferBarrier = bufferBarriersJson.begin(); bufferBarrier != bufferBarriersJson.end(); ++bufferBarrier) {
         const json &newBufferBarrier = bufferBarrier.value();
         dispatchBarrier.bufferBarriersRef.push_back(newBufferBarrier.get<std::string>());
@@ -333,7 +333,7 @@ void from_json(const json &j, MarkBoundaryDesc &markBoundaryDesc) {
         }
     }
 
-    const json &resourcesJson = j.find("resources").value();
+    const json resourcesJson = j.find("resources").value();
     for (auto resource = resourcesJson.begin(); resource != resourcesJson.end(); ++resource) {
         const json &newResource = resource.value();
         markBoundaryDesc.resources.push_back(newResource.get<std::string>());
@@ -477,7 +477,7 @@ void from_json(const json &j, SpecializationConstant &specializationConstant) {
  */
 void from_json(const json &j, SpecializationConstantMap &specializationConstantMap) {
     specializationConstantMap.shaderTarget = j.at("shader_target").get<std::string>();
-    const json &constantsJson = j.find("specialization_constants").value();
+    const json constantsJson = j.find("specialization_constants").value();
     for (auto constant = constantsJson.begin(); constant != constantsJson.end(); ++constant) {
         const json &newConstant = constant.value();
         specializationConstantMap.specializationConstants.push_back(newConstant.get<SpecializationConstant>());
@@ -507,14 +507,14 @@ void from_json(const json &j, DataGraphDesc &dataGraph) {
     dataGraph.src = j.at("src").get<std::string>();
 
     if (j.count("shader_substitutions") != 0) {
-        const json &shaderSubJson = j.find("shader_substitutions").value();
+        const json shaderSubJson = j.find("shader_substitutions").value();
         for (auto shaderSub = shaderSubJson.begin(); shaderSub != shaderSubJson.end(); ++shaderSub) {
             const json &newShaderSub = shaderSub.value();
             dataGraph.shaderSubstitutions.push_back(newShaderSub.get<ShaderSubstitutionDesc>());
         }
     }
     if (j.count("specialization_constants") != 0) {
-        const json &conMapsJson = j.find("specialization_constants").value();
+        const json conMapsJson = j.find("specialization_constants").value();
         for (auto conMap = conMapsJson.begin(); conMap != conMapsJson.end(); ++conMap) {
             const json &newConMap = conMap.value();
             dataGraph.specializationConstantMaps.push_back(newConMap.get<SpecializationConstantMap>());
@@ -544,7 +544,7 @@ void from_json(const json &j, ShaderDesc &shader) {
         shader.pushConstantsSize = j.at("push_constants_size").get<uint32_t>();
     }
     if (j.count("specialization_constants") != 0) {
-        const json &specsJson = j.find("specialization_constants").value();
+        const json specsJson = j.find("specialization_constants").value();
         for (auto spec = specsJson.begin(); spec != specsJson.end(); ++spec) {
             const json &newSpec = spec.value();
             shader.specializationConstants.push_back(newSpec.get<SpecializationConstant>());
@@ -554,7 +554,7 @@ void from_json(const json &j, ShaderDesc &shader) {
         shader.buildOpts = j.at("build_options").get<std::string>();
     }
     if (j.count("include_dirs") != 0) {
-        const json &includesJson = j.find("include_dirs").value();
+        const json includesJson = j.find("include_dirs").value();
         for (auto include = includesJson.begin(); include != includesJson.end(); ++include) {
             const json &newInclude = include.value();
             shader.includeDirs.push_back(newInclude.get<std::string>());
@@ -583,7 +583,7 @@ void from_json(const json &j, RawDataDesc &raw_data) {
 void from_json(const json &j, TensorDesc &tensor) {
     tensor.guidStr = j.at("uid").get<std::string>();
     tensor.guid = tensor.guidStr;
-    const json &dimsJson = j.find("dims").value();
+    const json dimsJson = j.find("dims").value();
     for (auto dim = dimsJson.begin(); dim != dimsJson.end(); ++dim) {
         const json &newDim = dim.value();
         tensor.dims.push_back(newDim.get<int64_t>());
@@ -627,7 +627,7 @@ void from_json(const json &j, TensorDesc &tensor) {
 void from_json(const json &j, ImageDesc &image) {
     image.guidStr = j.at("uid").get<std::string>();
     image.guid = image.guidStr;
-    const json &dimsJson = j.find("dims").value();
+    const json dimsJson = j.find("dims").value();
     for (auto dim = dimsJson.begin(); dim != dimsJson.end(); ++dim) {
         const json &newDim = dim.value();
         image.dims.push_back(newDim.get<uint32_t>());
@@ -684,7 +684,7 @@ void from_json(const json &j, ImageDesc &image) {
         }
     }
     if (j.count("custom_border_color") != 0) {
-        const json &customColorJson = j.find("custom_border_color").value();
+        const json customColorJson = j.find("custom_border_color").value();
         if (image.borderColor.value() == BorderColor::FloatCustomEXT) {
             image.customBorderColor = customColorJson.get<std::array<float, 4>>();
         } else {
