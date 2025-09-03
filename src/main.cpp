@@ -80,6 +80,8 @@ void configureLogging() {
 int main(int argc, const char **argv) {
     configureLogging();
 
+    int retval = 0;
+    bool pause_on_exit = false;
     try {
         argparse::ArgumentParser parser(argv[0], details::version);
 
@@ -139,6 +141,9 @@ int main(int argc, const char **argv) {
             .help("Enable RenderDoc integration for frame capturing")
             .default_value(false)
             .implicit_value(true);
+        // This is needed especially when capturing from RDoc with emulation layers enabled,
+        // cause RDoc usually crashes when loading a capture that uses unknown extensions.
+        parser.add_argument("--pause-on-exit").help("pause before exiting").default_value(false).implicit_value(true);
 
         // Main Scenario-Runner CLI execution body
         parser.parse_args(argc, argv);
@@ -229,6 +234,8 @@ int main(int argc, const char **argv) {
             scenarioOptions.captureFrame = false;
         }
 
+        pause_on_exit = parser.get<bool>("--pause-on-exit");
+
         ScenarioSpec scenarioSpec(&fstream, workDir, outputDir);
         mlsdk::logging::info("Scenario file parsed");
         Scenario scenario(scenarioOptions, scenarioSpec);
@@ -240,7 +247,11 @@ int main(int argc, const char **argv) {
 
     } catch (const std::exception &err) {
         mlsdk::logging::error(err.what());
-        return -1;
+        retval = -1;
     }
-    return 0;
+    if (pause_on_exit) {
+        mlsdk::logging::info("Press enter to continue...");
+        std::ignore = getchar();
+    }
+    return retval;
 }
