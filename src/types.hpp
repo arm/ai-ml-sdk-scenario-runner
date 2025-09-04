@@ -155,13 +155,17 @@ struct ImageInfo {
     uint64_t memoryOffset{};
 };
 
-/// @brief Structure that describes the image barrier
-struct ImageBarrierData {
+/// @brief Base structure that describes a barrier
+struct BaseBarrierData {
     std::string debugName;
     MemoryAccess srcAccess;
     MemoryAccess dstAccess;
     std::vector<PipelineStage> srcStages;
     std::vector<PipelineStage> dstStages;
+};
+
+/// @brief Structure that describes the image barrier
+struct ImageBarrierData : BaseBarrierData {
     ImageLayout oldLayout;
     ImageLayout newLayout;
     vk::Image image;
@@ -169,31 +173,15 @@ struct ImageBarrierData {
 };
 
 /// @brief Structure that describes the tensor barrier
-struct TensorBarrierData {
-    std::string debugName;
-    MemoryAccess srcAccess;
-    MemoryAccess dstAccess;
-    std::vector<PipelineStage> srcStages;
-    std::vector<PipelineStage> dstStages;
+struct TensorBarrierData : BaseBarrierData {
     vk::TensorARM tensor;
 };
 
 /// @brief Structure that describes the memory barrier
-struct MemoryBarrierData {
-    std::string debugName;
-    MemoryAccess srcAccess;
-    MemoryAccess dstAccess;
-    std::vector<PipelineStage> srcStages;
-    std::vector<PipelineStage> dstStages;
-};
+struct MemoryBarrierData : BaseBarrierData {};
 
 /// @brief Structure that describes the image barrier
-struct BufferBarrierData {
-    std::string debugName;
-    MemoryAccess srcAccess;
-    MemoryAccess dstAccess;
-    std::vector<PipelineStage> srcStages;
-    std::vector<PipelineStage> dstStages;
+struct BufferBarrierData : BaseBarrierData {
     uint64_t offset;
     uint64_t size;
     vk::Buffer buffer;
