@@ -82,8 +82,6 @@ class Compute {
     /// \param dataManager Data manager object to retrieve resource
     void registerMarkBoundary(const MarkBoundaryDesc &markBoundaryDesc, const DataManager &dataManager);
 
-    /// \brief Any registered commands?
-    bool commandsEmpty() const { return _commands.empty(); }
     vk::raii::CommandBuffer &getCommandBuffer();
     void prepareCommandBuffer();
 
