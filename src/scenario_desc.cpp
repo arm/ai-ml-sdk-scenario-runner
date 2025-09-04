@@ -38,7 +38,9 @@ void ScenarioSpec::addCommand(std::unique_ptr<DispatchComputeDesc> command) {
     useComputeFamilyQueue = true;
 }
 
-bool ScenarioSpec::isLastCommand(CommandType type) const { return commands.back()->commandType == type; }
+bool ScenarioSpec::isFirstAndLastCommand(CommandType type) const {
+    return !commands.empty() && (commands.front()->commandType == type) && (commands.back()->commandType == type);
+}
 
 uint64_t ScenarioSpec::commandCount(CommandType type) const {
     return static_cast<uint64_t>(

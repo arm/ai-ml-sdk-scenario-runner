@@ -25,7 +25,7 @@ struct ScenarioSpec {
     void addCommand(std::unique_ptr<CommandDesc> command);
     void addCommand(std::unique_ptr<DispatchComputeDesc> command);
 
-    bool isLastCommand(CommandType type) const;
+    bool isFirstAndLastCommand(CommandType type) const;
 
     uint64_t commandCount(CommandType type) const;
 

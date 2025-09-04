@@ -422,7 +422,12 @@ void Scenario::setupCommands(int iteration) {
     // Setup commands
     mlsdk::logging::info("Setup commands");
     uint64_t numBoundaries = _scenarioSpec.commandCount(CommandType::MarkBoundary);
-    uint64_t skippedBoundary = 0;
+    // Check if first mark boundary shall be skipped
+    const auto skipFirstMarkBoundary = _scenarioSpec.isFirstAndLastCommand(CommandType::MarkBoundary);
+    if (skipFirstMarkBoundary) {
+        numBoundaries--;
+    }
+
     uint32_t nQueries = 0;
     for (auto &command : _scenarioSpec.commands) {
         switch (command->commandType) {
@@ -440,15 +445,11 @@ void Scenario::setupCommands(int iteration) {
         } break;
         case (CommandType::MarkBoundary): {
             auto &markBoundary = reinterpret_cast<MarkBoundaryDesc &>(*command);
-            if (_ctx._optionals.mark_boundary == true) {
-                if (iteration > 0) {
-                    // If the last command in the previous iteration was a boundary, a subsequent boundary is skipped
-                    if (_scenarioSpec.isLastCommand(CommandType::MarkBoundary) && _compute.commandsEmpty()) {
-                        skippedBoundary = 1;
-                        continue;
-                    }
+            if (_ctx._optionals.mark_boundary) {
+                if ((iteration > 0) && skipFirstMarkBoundary) {
+                    continue;
                 }
-                markBoundary.frameId += uint64_t(iteration) * (numBoundaries - skippedBoundary);
+                markBoundary.frameId += uint64_t(iteration) * numBoundaries;
                 _compute.registerMarkBoundary(markBoundary, _dataManager);
             } else {
                 mlsdk::logging::warning("Frame boundary extension not present");
