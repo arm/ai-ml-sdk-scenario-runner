@@ -155,11 +155,8 @@ Image::Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceM
     if (_mips > getFormatMaxMipLevels(ctx, _tiling, usageFlags)) {
         throw std::runtime_error("The mip level provided is not supported for " + _imageInfo.debugName);
     }
-    if (_mips <= 1 || imageInfo.isInput) {
-        _initialLayout = vk::ImageLayout::ePreinitialized;
-    } else {
-        _initialLayout = vk::ImageLayout::eUndefined;
-    }
+
+    _initialLayout = vk::ImageLayout::eUndefined;
 
     if (imageInfo.isAliased && _tiling != vk::ImageTiling::eLinear) {
         usageFlags |= vk::ImageUsageFlagBits::eTensorAliasingARM;
@@ -285,7 +282,7 @@ const std::vector<int64_t> &Image::shape() const { return _imageInfo.shape; }
 
 vk::ImageTiling Image::tiling() const { return _tiling; }
 
-void Image::transitionLayout(vk::raii::CommandBuffer &cmdBuf, vk::ImageLayout expectedLayout) {
+void Image::addTransitionLayoutCommand(vk::raii::CommandBuffer &cmdBuf, vk::ImageLayout expectedLayout) {
     if (_targetLayout == expectedLayout)
         return; // No transition needed
 
@@ -317,6 +314,27 @@ void Image::transitionLayout(vk::raii::CommandBuffer &cmdBuf, vk::ImageLayout ex
     cmdBuf.pipelineBarrier2(depInfo);
 
     _targetLayout = expectedLayout;
+}
+
+void Image::transitionLayout(const Context &ctx, vk::ImageLayout expectedLayout) {
+    const vk::CommandPoolCreateInfo cmdPoolCreateInfo({vk::CommandPoolCreateFlagBits::eResetCommandBuffer},
+                                                      ctx.familyQueueIdx());
+    auto cmdPool = ctx.device().createCommandPool(cmdPoolCreateInfo);
+    const vk::CommandBufferAllocateInfo cmdBufferAllocInfo(*cmdPool, vk::CommandBufferLevel::ePrimary, 1);
+    vk::raii::CommandBuffer cmdBuffer = std::move(ctx.device().allocateCommandBuffers(cmdBufferAllocInfo).front());
+    const vk::CommandBufferBeginInfo CmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+    cmdBuffer.begin(CmdBufferBeginInfo);
+    addTransitionLayoutCommand(cmdBuffer, expectedLayout);
+    cmdBuffer.end();
+    vk::SubmitInfo submitInfo({}, {}, *cmdBuffer);
+    auto queue = ctx.device().getQueue(ctx.familyQueueIdx(), 0);
+    auto fence = ctx.device().createFence({});
+    queue.submit(submitInfo, *fence);
+    const uint64_t timeout = static_cast<uint64_t>(-1);
+    auto res = ctx.device().waitForFences({*fence}, true, timeout);
+    if (res != vk::Result::eSuccess) {
+        throw std::runtime_error("Error while waiting for fence.");
+    }
 }
 
 void Image::allocateMemory(const Context &ctx) {
@@ -551,7 +569,7 @@ std::vector<char> Image::getImageData(Context &ctx) {
     region.imageOffset = offset;
     region.imageExtent = extent;
 
-    transitionLayout(cmdBuffer, vk::ImageLayout::eGeneral);
+    addTransitionLayoutCommand(cmdBuffer, vk::ImageLayout::eGeneral);
     cmdBuffer.copyImageToBuffer(_image, vk::ImageLayout::eGeneral, _stagingBuffer, {region});
     cmdBuffer.end();
 

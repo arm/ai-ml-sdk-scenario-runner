@@ -405,6 +405,8 @@ void Scenario::setupResources() {
             _perfCounters.emplace_back("Load Image: " + image->guidStr, "Scenario Setup").start();
             if (image->src || _dataManager.isSingleMemoryGroup(image->guid)) {
                 imageRec.fillFromDescription(_ctx, *image);
+            } else {
+                imageRec.transitionLayout(_ctx, vk::ImageLayout::eGeneral);
             }
             _perfCounters.back().stop();
         } break;
@@ -586,7 +588,7 @@ void Scenario::handleAliasedLayoutTransitions() {
 
                 auto &image = _dataManager.getImageMut(imageDesc.guid);
                 if (image.getImageLayout() != vk::ImageLayout::eTensorAliasingARM) {
-                    image.transitionLayout(_compute.getCommandBuffer(), vk::ImageLayout::eTensorAliasingARM);
+                    image.addTransitionLayoutCommand(_compute.getCommandBuffer(), vk::ImageLayout::eTensorAliasingARM);
                 }
             }
 
@@ -621,7 +623,7 @@ void Scenario::handleAliasedLayoutTransitions() {
                 }
 
                 if (image.getImageLayout() != targetLayout) {
-                    image.transitionLayout(_compute.getCommandBuffer(), targetLayout);
+                    image.addTransitionLayoutCommand(_compute.getCommandBuffer(), targetLayout);
                 }
             }
         }
