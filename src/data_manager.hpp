@@ -60,10 +60,6 @@ class DataManager {
     uint32_t numTensors() const;
     uint32_t numImages() const;
 
-    vk::DescriptorType getResourceDescriptorType(const Guid &guid) const;
-    /// Get descriptor type from binding descriptor
-    vk::DescriptorType getDescriptorType(const BindingDesc &bindingDesc) const;
-
     std::shared_ptr<ResourceMemoryManager> getOrCreateMemoryManager(const Guid &guid);
 
     void addResourceToGroup(const Guid &group, const Guid &resource);

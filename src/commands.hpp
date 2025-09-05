@@ -7,6 +7,8 @@
 
 #include "guid.hpp"
 
+#include "vulkan/vulkan_raii.hpp"
+
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -37,11 +39,19 @@ struct BindingDesc {
     BindingDesc() = default;
     BindingDesc(uint32_t set, uint32_t id, Guid resourceRef);
 
-    uint32_t set;
-    uint32_t id;
+    uint32_t set{};
+    uint32_t id{};
     Guid resourceRef;
     std::optional<uint32_t> lod;
     DescriptorType descriptorType = DescriptorType::Auto;
+};
+
+/**
+ * @brief Adds resolved descriptor type
+ *
+ */
+struct ResolvedBindingDesc : BindingDesc {
+    vk::DescriptorType vkDescriptorType{};
 };
 
 /**

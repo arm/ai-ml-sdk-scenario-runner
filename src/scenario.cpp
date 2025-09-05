@@ -92,6 +92,46 @@ struct BarrierDataFactory {
     }
 };
 
+constexpr vk::DescriptorType convertDescriptorType(const DescriptorType descriptorType) {
+    switch (descriptorType) {
+    case DescriptorType::StorageImage:
+        return vk::DescriptorType::eStorageImage;
+    case DescriptorType::Auto:
+        throw std::runtime_error("Cannot infer the descriptor type without context");
+    default:
+        throw std::runtime_error("Descriptor type is invalid");
+    }
+}
+
+vk::DescriptorType getResourceDescriptorType(const DataManager &dataManager, const Guid &guid) {
+    if (dataManager.hasBuffer(guid)) {
+        return vk::DescriptorType::eStorageBuffer;
+    }
+    if (dataManager.hasTensor(guid)) {
+        return vk::DescriptorType::eTensorARM;
+    }
+    if (dataManager.hasImage(guid)) {
+        if (dataManager.getImage(guid).isSampled()) {
+            return vk::DescriptorType::eCombinedImageSampler;
+        }
+        return vk::DescriptorType::eStorageImage;
+    }
+    throw std::runtime_error("Invalid resource descriptor type");
+}
+
+std::vector<ResolvedBindingDesc> convertBindings(const DataManager &dataManager,
+                                                 const std::vector<BindingDesc> &bindings) {
+    std::vector<ResolvedBindingDesc> bindingDesc;
+    bindingDesc.reserve(bindings.size());
+    for (const auto &binding : bindings) {
+        const auto vkType = binding.descriptorType == DescriptorType::Auto
+                                ? getResourceDescriptorType(dataManager, binding.resourceRef)
+                                : convertDescriptorType(binding.descriptorType);
+        bindingDesc.push_back({binding, vkType});
+    }
+    return bindingDesc;
+}
+
 } // namespace
 
 Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
@@ -631,12 +671,13 @@ void Scenario::handleAliasedLayoutTransitions() {
 void Scenario::createComputePipeline(const DispatchComputeDesc &dispatchCompute, int iteration, uint32_t &nQueries) {
     // Create Compute shader pipeline
     const auto &shaderDesc = _scenarioSpec.getShaderResource(dispatchCompute.shaderRef);
+    const auto bindings = convertBindings(_dataManager, dispatchCompute.bindings);
+
     _perfCounters
         .emplace_back("Create Pipeline: " + shaderDesc.guidStr + ". Iteration: " + std::to_string(iteration + 1),
                       "Pipeline Setup", true)
         .start();
-    _pipelines.emplace_back(_ctx, dispatchCompute.debugName, dispatchCompute.bindings, shaderDesc, _dataManager,
-                            _pipelineCache);
+    _pipelines.emplace_back(_ctx, dispatchCompute.debugName, bindings, shaderDesc, _pipelineCache);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
     const char *pushConstantData = nullptr;
     size_t pushConstantSize = 0;
@@ -645,8 +686,8 @@ void Scenario::createComputePipeline(const DispatchComputeDesc &dispatchCompute,
         pushConstantData = rawData.data();
         pushConstantSize = rawData.size();
     }
-    _compute.registerPipelineFenced(_pipelines.back(), _dataManager, dispatchCompute.bindings, pushConstantData,
-                                    pushConstantSize, dispatchCompute.implicitBarrier, dispatchCompute.rangeND[0],
+    _compute.registerPipelineFenced(_pipelines.back(), _dataManager, bindings, pushConstantData, pushConstantSize,
+                                    dispatchCompute.implicitBarrier, dispatchCompute.rangeND[0],
                                     dispatchCompute.rangeND[1], dispatchCompute.rangeND[2]);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
     _perfCounters.back().stop();
@@ -658,8 +699,8 @@ void Scenario::createDataGraphPipeline(const DispatchDataGraphDesc &dispatchData
     const VgfView &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraphRef);
     vgfView.createIntermediateResources(_ctx, _dataManager);
     for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
-        std::vector<BindingDesc> sequenceBindings =
-            vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings);
+        const auto bindings = vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings);
+        const auto sequenceBindings = convertBindings(_dataManager, bindings);
         auto moduleName = vgfView.getSPVModuleName(segmentIndex);
         _perfCounters
             .emplace_back("Create Pipeline: " + moduleName + ". Iteration: " + std::to_string(iteration + 1),
@@ -670,7 +711,7 @@ void Scenario::createDataGraphPipeline(const DispatchDataGraphDesc &dispatchData
     }
 }
 
-void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<BindingDesc> &sequenceBindings,
+void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<ResolvedBindingDesc> &sequenceBindings,
                               const VgfView &vgfView, const DispatchDataGraphDesc &dispatchDataGraph,
                               uint32_t &nQueries) {
     switch (vgfView.getSegmentType(segmentIndex)) {
@@ -689,8 +730,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Bin
             auto moduleName = vgfView.getSPVModuleName(segmentIndex);
             const auto &shaderDesc =
                 _scenarioSpec.getSubstitionShader(dispatchDataGraph.shaderSubstitutions, moduleName);
-            _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, sequenceBindings, shaderDesc, _dataManager,
-                                    _pipelineCache);
+            _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, sequenceBindings, shaderDesc, _pipelineCache);
             if (hasSPVModule) {
                 mlsdk::logging::warning("Performing shader substitution despite shader module containing code");
             }
@@ -704,7 +744,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Bin
             auto spv = vgfView.getSPVModule(segmentIndex);
             auto shaderDesc = ShaderDesc(Guid(moduleName), moduleName, {}, std::move(entryPoint), ShaderType::SPIR_V);
             _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, spv.begin(), spv.size(), sequenceBindings,
-                                    shaderDesc, _dataManager, _pipelineCache);
+                                    shaderDesc, _pipelineCache);
         }
 
         auto dispatchShape = vgfView.getDispatchShape(segmentIndex);

@@ -60,12 +60,11 @@ vk::raii::PipelineLayout createPipelineLayout(const Context &ctx,
     return vk::raii::PipelineLayout(ctx.device(), pipelineLayoutCreateInfo);
 }
 
-vk::raii::DescriptorSetLayout createDescriptorSetLayout(const Context &ctx, const std::vector<BindingDesc> &bindings,
-                                                        const DataManager &dataManager) {
+vk::raii::DescriptorSetLayout createDescriptorSetLayout(const Context &ctx,
+                                                        const std::vector<ResolvedBindingDesc> &bindings) {
     std::vector<vk::DescriptorSetLayoutBinding> descBindings;
     for (const auto &bindingDesc : bindings) {
-        const auto descriptorType = dataManager.getDescriptorType(bindingDesc);
-        const vk::DescriptorSetLayoutBinding descBinding(bindingDesc.id, descriptorType, 1,
+        const vk::DescriptorSetLayoutBinding descBinding(bindingDesc.id, bindingDesc.vkDescriptorType, 1,
                                                          vk::ShaderStageFlagBits::eAll);
         descBindings.emplace_back(descBinding);
     }
@@ -73,8 +72,8 @@ vk::raii::DescriptorSetLayout createDescriptorSetLayout(const Context &ctx, cons
     return vk::raii::DescriptorSetLayout(ctx.device(), descSetLayoutCreateInfo);
 }
 
-std::vector<std::vector<BindingDesc>> splitOutSets(const std::vector<BindingDesc> &allBindings) {
-    std::vector<std::vector<BindingDesc>> setBindings;
+std::vector<std::vector<ResolvedBindingDesc>> splitOutSets(const std::vector<ResolvedBindingDesc> &allBindings) {
+    std::vector<std::vector<ResolvedBindingDesc>> setBindings;
 
     for (auto &bindingDesc : allBindings) {
         while (setBindings.size() <= static_cast<size_t>(bindingDesc.set)) {
@@ -89,16 +88,9 @@ std::vector<std::vector<BindingDesc>> splitOutSets(const std::vector<BindingDesc
 
 } // namespace
 
-void Pipeline::computePipelineCommon(const Context &ctx, const std::vector<BindingDesc> &bindings,
-                                     const ShaderDesc &shaderDesc, const DataManager &dataManager,
+void Pipeline::computePipelineCommon(const Context &ctx, const ShaderDesc &shaderDesc,
                                      std::optional<PipelineCache> &pipelineCache) {
-    _type = PipelineType::Compute;
-    _shaderDesc = shaderDesc;
-
-    for (auto &setBindings : splitOutSets(bindings)) {
-        _descriptorSetLayouts.push_back(createDescriptorSetLayout(ctx, setBindings, dataManager));
-    }
-    _pipelineLayout = createPipelineLayout(ctx, _descriptorSetLayouts, _shaderDesc.pushConstantsSize);
+    _pipelineLayout = createPipelineLayout(ctx, _descriptorSetLayouts, shaderDesc.pushConstantsSize);
 
     std::vector<vk::SpecializationMapEntry> specMapEntries(shaderDesc.specializationConstants.size());
     std::vector<decltype(SpecializationConstant::value)> specConstValues(shaderDesc.specializationConstants.size());
@@ -114,7 +106,7 @@ void Pipeline::computePipelineCommon(const Context &ctx, const std::vector<Bindi
                                           specConstValues.size() * specConstSize, specConstValues.data());
 
     const vk::PipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(
-        {}, vk::ShaderStageFlagBits::eCompute, *_shader, _shaderDesc.entry.c_str(), &specInfo);
+        {}, vk::ShaderStageFlagBits::eCompute, *_shader, shaderDesc.entry.c_str(), &specInfo);
 
     vk::PipelineCreateFlags flags{};
     const void *pNext{nullptr};
@@ -135,37 +127,43 @@ void Pipeline::computePipelineCommon(const Context &ctx, const std::vector<Bindi
 }
 
 Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const uint32_t *spvCode, const size_t spvSize,
-                   const std::vector<BindingDesc> &sequenceBindings, const ShaderDesc &shaderDesc,
-                   const DataManager &dataManager, std::optional<PipelineCache> &pipelineCache)
-    : _debugName(debugName) {
+                   const std::vector<ResolvedBindingDesc> &sequenceBindings, const ShaderDesc &shaderDesc,
+                   std::optional<PipelineCache> &pipelineCache)
+    : _type{PipelineType::Compute}, _debugName(debugName) {
 
     validateShaderModule(spvCode, spvSize);
 
     _shader = createShaderModuleFromCode(ctx, spvCode, spvSize);
     trySetVkRaiiObjectDebugName(ctx, _shader, _debugName + " shader");
 
-    computePipelineCommon(ctx, sequenceBindings, shaderDesc, dataManager, pipelineCache);
+    for (const auto &setBindings : splitOutSets(sequenceBindings)) {
+        _descriptorSetLayouts.push_back(createDescriptorSetLayout(ctx, setBindings));
+    }
+
+    computePipelineCommon(ctx, shaderDesc, pipelineCache);
 }
 
-Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const std::vector<BindingDesc> &bindings,
-                   const ShaderDesc &shaderDesc, const DataManager &dataManager,
-                   std::optional<PipelineCache> &pipelineCache)
-    : _shader(createShaderModule(ctx, shaderDesc)), _debugName(debugName) {
+Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const std::vector<ResolvedBindingDesc> &bindings,
+                   const ShaderDesc &shaderDesc, std::optional<PipelineCache> &pipelineCache)
+    : _type{PipelineType::Compute}, _shader(createShaderModule(ctx, shaderDesc)), _debugName(debugName) {
 
     trySetVkRaiiObjectDebugName(ctx, _shader, shaderDesc.guidStr);
 
-    computePipelineCommon(ctx, bindings, shaderDesc, dataManager, pipelineCache);
+    for (const auto &setBindings : splitOutSets(bindings)) {
+        _descriptorSetLayouts.push_back(createDescriptorSetLayout(ctx, setBindings));
+    }
+
+    computePipelineCommon(ctx, shaderDesc, pipelineCache);
 }
 
 Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const uint32_t segmentIndex,
-                   const std::vector<BindingDesc> &sequenceBindings, const VgfView &vgfView,
+                   const std::vector<ResolvedBindingDesc> &sequenceBindings, const VgfView &vgfView,
                    const DataManager &dataManager, std::optional<PipelineCache> &pipelineCache)
-    : _debugName(debugName) {
-    _type = PipelineType::GraphCompute;
+    : _type{PipelineType::GraphCompute}, _debugName(debugName) {
 
     // Setup bindings
     for (auto &setBindings : splitOutSets(sequenceBindings)) {
-        _descriptorSetLayouts.push_back(createDescriptorSetLayout(ctx, setBindings, dataManager));
+        _descriptorSetLayouts.push_back(createDescriptorSetLayout(ctx, setBindings));
     }
     _pipelineLayout = createPipelineLayout(ctx, _descriptorSetLayouts);
 
@@ -175,12 +173,12 @@ Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const uint3
     std::vector<vk::DataGraphPipelineResourceInfoARM> resourceInfos;
     resourceInfos.reserve(sequenceBindings.size());
 
-    for (const auto &[set, id, resourceRef, lod, descType] : sequenceBindings) {
-        if (!dataManager.hasTensor(resourceRef)) {
+    for (const auto &binding : sequenceBindings) {
+        if (!dataManager.hasTensor(binding.resourceRef)) {
             throw std::runtime_error("Unsupported graph pipeline resource");
         }
 
-        const Tensor &tensor = dataManager.getTensor(resourceRef);
+        const Tensor &tensor = dataManager.getTensor(binding.resourceRef);
 
         const int64_t *strides_ptr = tensor.dimStrides().data();
         if (tensor.dimStrides().empty()) {
@@ -193,8 +191,8 @@ Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const uint3
                                      tensor.shape().data(),
                                      strides_ptr, // pStrides
                                      vk::TensorUsageFlagBitsARM::eDataGraph));
-        resourceInfos.emplace_back(static_cast<uint32_t>(set), static_cast<uint32_t>(id), /*arrayElement=*/0,
-                                   &tensorDescriptions.back());
+        resourceInfos.emplace_back(static_cast<uint32_t>(binding.set), static_cast<uint32_t>(binding.id),
+                                   /*arrayElement=*/0, &tensorDescriptions.back());
     }
 
     // Setup constant resource info
