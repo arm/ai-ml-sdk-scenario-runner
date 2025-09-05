@@ -6,14 +6,13 @@
 #pragma once
 
 #include "context.hpp"
-#include "resource.hpp"
 #include "resource_desc.hpp"
 #include "types.hpp"
 #include "vulkan_memory_manager.hpp"
 
 namespace mlsdk::scenariorunner {
 
-class Tensor : public Resource {
+class Tensor {
   public:
     /// \brief Constructor
     ///
@@ -57,32 +56,32 @@ class Tensor : public Resource {
 
     /// \brief Maps buffer memory to host
     /// \return Pointer to the mapped host memory
-    void *map();
+    void *map() const;
 
     /// \brief Un-maps a buffer from the host
-    void unmap();
+    void unmap() const;
 
     /// \brief checks if tensor's shape has been converted from dims=[] to dims=[1]
     bool isRankConverted() const { return _rankConverted; };
 
     void allocateMemory(const Context &ctx);
 
-    void fillFromDescription(const TensorDesc &desc);
+    void fillFromDescription(const TensorDesc &desc) const;
+    void fill(const void *data, size_t size) const;
+    void fillZero() const;
 
-    void store(Context &ctx, const std::string &filename) override;
+    std::vector<char> getTensorData() const;
+    void store(const std::string &filename) const;
 
     const std::string &debugName() const;
 
   private:
-    void fill(const void *data, size_t size);
-    void fillZero();
-
-    std::string _debugName{};
+    std::string _debugName;
     vk::raii::TensorARM _tensor{nullptr};
     vk::raii::TensorViewARM _tensorView{nullptr};
-    std::vector<int64_t> _shape{};
-    vk::Format _dataType = vk::Format::eUndefined;
-    std::vector<int64_t> _strides{};
+    std::vector<int64_t> _shape;
+    vk::Format _dataType{vk::Format::eUndefined};
+    std::vector<int64_t> _strides;
     std::shared_ptr<ResourceMemoryManager> _memoryManager{nullptr};
     vk::TensorTilingARM _tiling = vk::TensorTilingARM::eLinear;
     vk::DeviceSize _size{0};

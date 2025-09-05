@@ -6,13 +6,12 @@
 #pragma once
 
 #include "context.hpp"
-#include "resource.hpp"
 #include "types.hpp"
 #include "vulkan_memory_manager.hpp"
 
 namespace mlsdk::scenariorunner {
 
-class Buffer : public Resource {
+class Buffer {
   public:
     /// \brief Constructor
     ///
@@ -38,26 +37,28 @@ class Buffer : public Resource {
 
     /// \brief Maps buffer memory to host
     /// \return Pointer to the mapped host memory
-    void *map();
+    void *map() const;
 
     /// \brief Un-maps a buffer from the host
-    void unmap();
+    void unmap() const;
+
+    void fillFromDescription(const BufferDesc &buffer) const;
 
     /// \brief Fills the buffer with the given data
     ///
     /// \param ptr  pointer to data to fill the buffer with
     /// \param size size of data in bytes
-    void fill(const void *ptr, size_t size);
+    void fill(const void *ptr, size_t size) const;
 
     /// \brief Fills the buffer with zeros
-    void fillZero();
+    void fillZero() const;
 
-    void store(Context &ctx, const std::string &filename) override;
+    void store(const std::string &filename) const;
 
   private:
     vk::raii::Buffer _buffer{nullptr};
     uint32_t _size{0};
-    std::string _debugName{};
+    std::string _debugName;
     std::shared_ptr<ResourceMemoryManager> _memoryManager;
     uint64_t _memoryOffset{0};
 };

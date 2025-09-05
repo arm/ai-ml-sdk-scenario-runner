@@ -6,7 +6,6 @@
 #pragma once
 
 #include "context.hpp"
-#include "resource.hpp"
 #include "resource_desc.hpp"
 #include "types.hpp"
 
@@ -14,7 +13,7 @@ namespace mlsdk::scenariorunner {
 
 class ResourceMemoryManager;
 
-class Image : public Resource {
+class Image {
   public:
     /// \brief Constructor
     ///
@@ -60,7 +59,7 @@ class Image : public Resource {
 
     void fillFromDescription(const Context &ctx, const ImageDesc &desc);
 
-    void store(Context &ctx, const std::string &filename) override;
+    void store(Context &ctx, const std::string &filename);
 
     bool isSampled() const;
 
@@ -84,7 +83,7 @@ class Image : public Resource {
     const ImageInfo _imageInfo{};
     std::shared_ptr<ResourceMemoryManager> _memoryManager;
     uint32_t _mips{};
-    std::vector<vk::raii::ImageView> _imageViewMips{};
+    std::vector<vk::raii::ImageView> _imageViewMips;
     vk::ImageLayout _initialLayout{};
     vk::ImageLayout _targetLayout{};
     vk::ImageTiling _tiling{};

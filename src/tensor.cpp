@@ -118,14 +118,14 @@ const std::vector<int64_t> &Tensor::shape() const { return _shape; }
 
 vk::TensorTilingARM Tensor::tiling() const { return _tiling; }
 
-void *Tensor::map() {
+void *Tensor::map() const {
     if (!_memoryManager->isInitalized()) {
         throw std::runtime_error("Uninitialized MemoryManager for Tensor");
     }
     return _memoryManager->getDeviceMemory().mapMemory(_memoryOffset, _size);
 }
 
-void Tensor::unmap() {
+void Tensor::unmap() const {
     if (!_memoryManager->isInitalized()) {
         throw std::runtime_error("Uninitialized MemoryManager for Tensor");
     }
@@ -150,7 +150,7 @@ void Tensor::allocateMemory(const Context &ctx) {
     trySetVkRaiiObjectDebugName(ctx, _tensorView, _debugName + " view (default)");
 }
 
-void Tensor::fillFromDescription(const TensorDesc &desc) {
+void Tensor::fillFromDescription(const TensorDesc &desc) const {
     if (desc.src) {
         MemoryMap mapped(desc.src.value());
         auto dataPtr = vgfutils::numpy::parse(mapped);
@@ -165,7 +165,7 @@ void Tensor::fillFromDescription(const TensorDesc &desc) {
     }
 }
 
-void Tensor::fill(const void *data, size_t size) {
+void Tensor::fill(const void *data, size_t size) const {
     if (size < memSize()) {
         mlsdk::logging::warning("Tensor data size " + std::to_string(size) +
                                 " is different from allocated memory size " + std::to_string(memSize()));
@@ -179,48 +179,56 @@ void Tensor::fill(const void *data, size_t size) {
     unmap();
 }
 
-void Tensor::fillZero() {
+void Tensor::fillZero() const {
     void *pDeviceMemory = map();
     std::memset(pDeviceMemory, 0, memSize());
     unmap();
 }
 
-void Tensor::store(Context &, const std::string &filename) {
-    ScopeExit<void()> on_scope_exit_run([&] { unmap(); });
-    const char *mapped = reinterpret_cast<const char *>(map());
+std::vector<char> Tensor::getTensorData() const {
+    const ScopeExit<void()> onScopeExitRun([&]() { unmap(); });
 
-    if (memSize() != dataSize() && _shape.size() == _strides.size() && _shape.size() == 4) {
-        vgfutils::numpy::write(filename, _shape, getDTypeFromVkFormat(dataType()), [&](std::ostream &out) {
-            int64_t writtenBytes{0};
-            int64_t elementSize{elementSizeFromVkFormat(dataType())};
-            for (int64_t a = 0; a < _shape[0]; ++a) {
-                for (int64_t b = 0; b < _shape[1]; ++b) {
-                    for (int64_t c = 0; c < _shape[2]; ++c) {
-                        for (int64_t d = 0; d < _shape[3]; ++d) {
-                            for (int64_t e = 0; e < elementSize; ++e) {
-                                int64_t dataIdx =
-                                    a * _strides[0] + b * _strides[1] + c * _strides[2] + d * _strides[3] + e;
-                                out.put(mapped[dataIdx]);
-                                writtenBytes++;
-                            }
+    // 1) map the GPU memory
+    const auto *mapped = static_cast<char *>(map());
+    const auto dSize = dataSize();
+
+    std::vector<char> out;
+    // 2) If padded/tiled (memSize != dataSize) *and* a 4D tensor with strides,
+    //    walk element-by-element using those strides to lay out the data correctly
+    if (memSize() != dSize && _shape.size() == _strides.size() && _shape.size() == 4) {
+        out.reserve(dSize);
+        const int64_t elementSize{elementSizeFromVkFormat(dataType())};
+        for (int64_t a = 0; a < _shape[0]; ++a) {
+            for (int64_t b = 0; b < _shape[1]; ++b) {
+                for (int64_t c = 0; c < _shape[2]; ++c) {
+                    for (int64_t d = 0; d < _shape[3]; ++d) {
+                        for (int64_t e = 0; e < elementSize; ++e) {
+                            int64_t dataIdx = a * _strides[0] + b * _strides[1] + c * _strides[2] + d * _strides[3] + e;
+                            out.push_back(mapped[dataIdx]);
                         }
                     }
                 }
             }
-            return writtenBytes;
-        });
+        }
+    } else {
+        if (memSize() != dataSize()) {
+            mlsdk::logging::warning("Tensor data size " + std::to_string(dataSize()) +
+                                    " is different from allocated memory size " + std::to_string(memSize()));
+        }
 
-        return;
+        // 3) Otherwise data is contiguous: bulk copy
+        out.resize(dSize);
+        std::memcpy(out.data(), mapped, dSize);
     }
 
-    if (memSize() != dataSize()) {
-        mlsdk::logging::warning("Tensor data size " + std::to_string(dataSize()) +
-                                " is different from allocated memory size " + std::to_string(memSize()));
-    }
+    return out;
+}
 
-    vgfutils::numpy::DataPtr data(reinterpret_cast<const char *>(mapped),
-                                  _rankConverted ? std::vector<int64_t>(0) : _shape, getDTypeFromVkFormat(dataType()));
-    vgfutils::numpy::write(filename, data);
+void Tensor::store(const std::string &filename) const {
+    const auto data = getTensorData();
+    const vgfutils::numpy::DataPtr dataPtr(data.data(), _rankConverted ? std::vector<int64_t>(0) : _shape,
+                                           getDTypeFromVkFormat(dataType()));
+    vgfutils::numpy::write(filename, dataPtr);
 }
 
 const std::string &Tensor::debugName() const { return _debugName; }

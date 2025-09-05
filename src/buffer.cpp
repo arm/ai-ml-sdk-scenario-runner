@@ -39,21 +39,31 @@ uint32_t Buffer::size() const { return _size; }
 
 const std::string &Buffer::debugName() const { return _debugName; }
 
-void *Buffer::map() {
+void *Buffer::map() const {
     if (!_memoryManager->isInitalized()) {
         throw std::runtime_error("Uninitialized MemoryManager for Buffer");
     }
     return _memoryManager->getDeviceMemory().mapMemory(_memoryOffset, _size);
 }
 
-void Buffer::unmap() {
+void Buffer::unmap() const {
     if (!_memoryManager->isInitalized()) {
         throw std::runtime_error("Uninitialized MemoryManager for Buffer");
     }
     _memoryManager->getDeviceMemory().unmapMemory();
 }
 
-void Buffer::fill(const void *ptr, size_t size) {
+void Buffer::fillFromDescription(const BufferDesc &buffer) const {
+    if (buffer.src.has_value()) {
+        MemoryMap mapped(buffer.src.value());
+        auto dataPtr = vgfutils::numpy::parse(mapped);
+        fill(dataPtr.ptr, dataPtr.size());
+    } else {
+        fillZero();
+    }
+}
+
+void Buffer::fill(const void *ptr, size_t size) const {
     if (size != this->size()) {
         throw std::runtime_error("Buffer::fill: size mismatch");
     }
@@ -62,13 +72,13 @@ void Buffer::fill(const void *ptr, size_t size) {
     unmap();
 }
 
-void Buffer::fillZero() {
+void Buffer::fillZero() const {
     void *pDeviceMemory = map();
     std::memset(pDeviceMemory, 0, size());
     unmap();
 }
 
-void Buffer::store(Context &, const std::string &filename) {
+void Buffer::store(const std::string &filename) const {
     ScopeExit<void()> on_scope_exit_run([&] { unmap(); });
     vgfutils::numpy::DataPtr data(reinterpret_cast<const char *>(map()), {size()}, vgfutils::numpy::DType('i', 1));
     vgfutils::numpy::write(filename, data);

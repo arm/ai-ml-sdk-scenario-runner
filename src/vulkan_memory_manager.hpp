@@ -62,7 +62,7 @@ class ResourceMemoryManager {
 
     uint32_t getMemType() const { return _memType; }
 
-    vk::raii::DeviceMemory &getDeviceMemory() { return _deviceMemory; }
+    const vk::raii::DeviceMemory &getDeviceMemory() const { return _deviceMemory; }
 
   private:
     vk::DeviceSize _memSize{0};
