@@ -53,7 +53,8 @@ class Image : public Resource {
     /// \brief Get image shape
     /// \return Vector containing the shape of image
     const std::vector<int64_t> &shape() const;
-    void transitionLayout(vk::raii::CommandBuffer &cmdBuf, vk::ImageLayout expectedLayout);
+    void addTransitionLayoutCommand(vk::raii::CommandBuffer &cmdBuf, vk::ImageLayout expectedLayout);
+    void transitionLayout(const Context &ctx, vk::ImageLayout expectedLayout);
     void allocateMemory(const Context &ctx);
     void resetLayout();
 
