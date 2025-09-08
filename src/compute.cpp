@@ -32,16 +32,14 @@ struct PipelineBarrierDebugNameBuilder {
     std::string _value;
 };
 
-std::vector<vk::DescriptorPoolSize> getPoolSizes(const DataManager &dataManager,
-                                                 const std::vector<BindingDesc> &bindingDescs) {
+std::vector<vk::DescriptorPoolSize> getPoolSizes(const std::vector<ResolvedBindingDesc> &bindingDescs) {
     uint32_t numBuffers = 0;
     uint32_t numTensors = 0;
     uint32_t numSampledImages = 0;
     uint32_t numImages = 0;
 
     for (const auto &bindingDesc : bindingDescs) {
-        const auto descriptorType = dataManager.getDescriptorType(bindingDesc);
-        switch (descriptorType) {
+        switch (bindingDesc.vkDescriptorType) {
         case vk::DescriptorType::eStorageBuffer:
             numBuffers++;
             break;
@@ -149,14 +147,14 @@ Compute::DebugMarker::~DebugMarker() {
 }
 
 void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager &dataManager,
-                                     const std::vector<BindingDesc> &bindingDescs, const char *pushConstantData,
+                                     const std::vector<ResolvedBindingDesc> &bindingDescs, const char *pushConstantData,
                                      size_t pushConstantSize, bool implicitBarriers, uint32_t wgcx, uint32_t wgcy,
                                      uint32_t wgcz) {
 
     DebugMarker dbgMrk0(this, "dispatch (" + pipeline.debugName() + ")");
 
     // Count exact number of typed resources used by this pipeline
-    std::vector<vk::DescriptorPoolSize> poolSizes = getPoolSizes(dataManager, bindingDescs);
+    std::vector<vk::DescriptorPoolSize> poolSizes = getPoolSizes(bindingDescs);
 
     // Populate descriptor sets
     const uint32_t baseDescriptorSetIdxGlobal = static_cast<uint32_t>(_descriptorSets.size());
@@ -182,12 +180,12 @@ void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager
             const vk::Buffer &buf = dataManager.getBuffer(bindingDesc.resourceRef).buffer();
             const vk::DescriptorBufferInfo info(buf, 0, vk::WholeSize);
             vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(bindingDesc.id), 0, 1,
-                                          vk::DescriptorType::eStorageBuffer, {}, &info);
+                                          bindingDesc.vkDescriptorType, {}, &info);
             _ctx.device().updateDescriptorSets(vk::ArrayProxy<vk::WriteDescriptorSet>(dwrite), {});
         } else if (dataManager.hasTensor(bindingDesc.resourceRef)) {
             const vk::WriteDescriptorSetTensorARM info(1, &dataManager.getTensor(bindingDesc.resourceRef).tensorView());
             const vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(bindingDesc.id), 0, 1,
-                                                vk::DescriptorType::eTensorARM, {}, {}, {}, &info);
+                                                bindingDesc.vkDescriptorType, {}, {}, {}, &info);
             _ctx.device().updateDescriptorSets(vk::ArrayProxy<vk::WriteDescriptorSet>(dwrite), {});
         } else if (dataManager.hasImage(bindingDesc.resourceRef)) {
             vk::ImageView imageView;
@@ -199,9 +197,8 @@ void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager
                 imageView = image.imageView();
             }
             const vk::DescriptorImageInfo info(image.sampler(), imageView, image.getImageLayout());
-            const auto descriptorType = dataManager.getDescriptorType(bindingDesc);
-            const vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(bindingDesc.id), 0, 1, descriptorType,
-                                                &info);
+            const vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(bindingDesc.id), 0, 1,
+                                                bindingDesc.vkDescriptorType, &info);
             _ctx.device().updateDescriptorSets(vk::ArrayProxy<vk::WriteDescriptorSet>(dwrite), {});
         }
     }
@@ -358,6 +355,12 @@ void Compute::registerMarkBoundary(const MarkBoundaryDesc &markBoundaryDesc, con
         markBoundary.pNext = nullptr;
     }
     _commands.emplace_back(MarkBoundary{std::move(markBoundary)});
+}
+
+void Compute::submitAndWaitOnFence() {
+    // Unused arguments
+    std::vector<PerformanceCounter> perfCounters{};
+    submitAndWaitOnFence(perfCounters, 0);
 }
 
 void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters, int iteration) {

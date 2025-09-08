@@ -56,7 +56,7 @@ class Compute {
     /// \param wgcz (Optional) Workgroup count across dimension Z. Defaults to: 1. Not applicable for
     /// compute graph pipeline
     void registerPipelineFenced(const Pipeline &pipeline, const DataManager &dataManager,
-                                const std::vector<BindingDesc> &bindingDescs, const char *pushConstantData,
+                                const std::vector<ResolvedBindingDesc> &bindingDescs, const char *pushConstantData,
                                 size_t pushConstantSize, bool implicitBarriers, uint32_t wgcx = 1, uint32_t wgcy = 1,
                                 uint32_t wgcz = 1);
 
@@ -71,7 +71,8 @@ class Compute {
     void registerPipelineBarrier(const DispatchBarrierDesc &dispatchBarrierDescs, const DataManager &dataManager);
 
     /// \brief Submit the command buffer for execution and wait for completion
-    void submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters, int iteration = 0);
+    void submitAndWaitOnFence();
+    void submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters, int iteration);
 
     /// \brief Setup a query pool
     /// \param nQueries Number of queries to register

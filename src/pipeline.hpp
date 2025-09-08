@@ -26,18 +26,17 @@ class Pipeline {
     /// \param debugName Debug name
     /// \param bindings Bindings related meta-data
     /// \param shaderDesc Shader related meta-data
-    /// \param dataManager Data manager object
     /// \param pipelineCache optional pipeline cache object
-    Pipeline(const Context &ctx, const std::string &debugName, const std::vector<BindingDesc> &bindings,
-             const ShaderDesc &shaderDesc, const DataManager &dataManager, std::optional<PipelineCache> &pipelineCache);
+    Pipeline(const Context &ctx, const std::string &debugName, const std::vector<ResolvedBindingDesc> &bindings,
+             const ShaderDesc &shaderDesc, std::optional<PipelineCache> &pipelineCache);
 
     Pipeline(const Context &ctx, const std::string &debugName, const uint32_t *spvCode, const size_t spvSize,
-             const std::vector<BindingDesc> &sequenceBindings, const ShaderDesc &shaderDesc,
-             const DataManager &dataManager, std::optional<PipelineCache> &pipelineCache);
+             const std::vector<ResolvedBindingDesc> &sequenceBindings, const ShaderDesc &shaderDesc,
+             std::optional<PipelineCache> &pipelineCache);
 
     Pipeline(const Context &ctx, const std::string &debugName, const uint32_t segmentIndex,
-             const std::vector<BindingDesc> &sequenceBindings, const VgfView &vgfView, const DataManager &dataManager,
-             std::optional<PipelineCache> &pipelineCache);
+             const std::vector<ResolvedBindingDesc> &sequenceBindings, const VgfView &vgfView,
+             const DataManager &dataManager, std::optional<PipelineCache> &pipelineCache);
 
     /// \brief Vulkan® pipeline accessor
     /// \return The underlying Vulkan® pipeline of the object
@@ -63,7 +62,6 @@ class Pipeline {
 
   private:
     PipelineType _type{PipelineType::Unknown};
-    ShaderDesc _shaderDesc{};
     std::vector<vk::raii::DescriptorSetLayout> _descriptorSetLayouts;
     vk::raii::PipelineLayout _pipelineLayout{nullptr};
     vk::raii::Pipeline _pipeline{nullptr};
@@ -75,8 +73,7 @@ class Pipeline {
 
     void initSession(const Context &ctx);
 
-    void computePipelineCommon(const Context &ctx, const std::vector<BindingDesc> &bindings,
-                               const ShaderDesc &shaderDesc, const DataManager &dataManager,
+    void computePipelineCommon(const Context &ctx, const ShaderDesc &shaderDesc,
                                std::optional<PipelineCache> &pipelineCache);
 };
 

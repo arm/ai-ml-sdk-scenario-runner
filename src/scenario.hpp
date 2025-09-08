@@ -46,7 +46,7 @@ class Scenario {
     void createComputePipeline(const DispatchComputeDesc &dispatchCompute, int iteration, uint32_t &nQueries);
     void createDataGraphPipeline(const DispatchDataGraphDesc &dispatchDataGraph, int iteration, uint32_t &nQueries);
 
-    void createPipeline(const uint32_t segmentIndex, const std::vector<BindingDesc> &sequenceBindings,
+    void createPipeline(uint32_t segmentIndex, const std::vector<ResolvedBindingDesc> &sequenceBindings,
                         const VgfView &vgfView, const DispatchDataGraphDesc &dispatchDataGraph, uint32_t &nQueries);
 
     /// \brief Sets up runtime options
