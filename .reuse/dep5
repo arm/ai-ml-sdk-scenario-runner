@@ -17,10 +17,6 @@ Files: docs/source/assets/*.excalidraw
 Copyright: Copyright 2023-2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
 License: Apache-2.0
 
-Files: docs/source/assets/*.svg
-Copyright: Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
-License: Apache-2.0
-
 Files: schema/*.schema
 Copyright: Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
 License: Apache-2.0
