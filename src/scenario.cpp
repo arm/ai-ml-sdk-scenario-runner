@@ -272,6 +272,75 @@ class Creator final : public IResourceCreator {
     DataManager &_dataManager;
 };
 
+struct CommandDataFactory {
+    const DataManager &_dataManager;
+
+    DispatchComputeData createData(const DispatchComputeDesc &dispatchCompute) {
+        DispatchComputeData data;
+        data.debugName = dispatchCompute.debugName;
+        data.bindings = convertBindings(_dataManager, dispatchCompute.bindings);
+        data.computeDispatch.gwcx = dispatchCompute.rangeND[0];
+        data.computeDispatch.gwcy = dispatchCompute.rangeND[1];
+        data.computeDispatch.gwcz = dispatchCompute.rangeND[2];
+        data.shaderRef = dispatchCompute.shaderRef;
+        data.implicitBarrier = dispatchCompute.implicitBarrier;
+        data.pushDataRef = dispatchCompute.pushDataRef;
+        return data;
+    }
+
+    DispatchBarrierData createData(const DispatchBarrierDesc &dispatchBarrier) {
+        DispatchBarrierData data;
+        for (const auto &ref : dispatchBarrier.bufferBarriersRef) {
+            if (_dataManager.hasBufferBarrier(ref)) {
+                data.bufferBarriers.push_back(ref);
+            } else {
+                throw std::runtime_error("Cannot find Buffer memory barrier");
+            }
+        }
+        for (const auto &ref : dispatchBarrier.imageBarriersRef) {
+            if (_dataManager.hasImageBarrier(ref)) {
+                data.imageBarriers.push_back(ref);
+            } else {
+                throw std::runtime_error("Cannot find Image memory barrier");
+            }
+        }
+        for (const auto &ref : dispatchBarrier.memoryBarriersRef) {
+            if (_dataManager.hasMemoryBarrier(ref)) {
+                data.memoryBarriers.push_back(ref);
+            } else {
+                throw std::runtime_error("Cannot find Memory barrier");
+            }
+        }
+        for (const auto &ref : dispatchBarrier.tensorBarriersRef) {
+            if (_dataManager.hasTensorBarrier(ref)) {
+                data.tensorBarriers.push_back(ref);
+            } else {
+                throw std::runtime_error("Cannot find Tensor memory barrier");
+            }
+        }
+        return data;
+    }
+
+    MarkBoundaryData createData(const MarkBoundaryDesc &markBoundary) {
+        MarkBoundaryData data;
+
+        for (const auto &resourceRef : markBoundary.resources) {
+            const Guid guid(resourceRef);
+            if (_dataManager.hasBuffer(guid)) {
+                data.buffers.emplace_back(guid);
+            } else if (_dataManager.hasImage(guid)) {
+                data.images.emplace_back(guid);
+            } else if (_dataManager.hasTensor(guid)) {
+                data.tensors.emplace_back(guid);
+            } else {
+                throw std::runtime_error("Unsupported resource");
+            }
+        }
+        data.frameId = markBoundary.frameId;
+        return data;
+    }
+};
+
 } // namespace
 
 Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
@@ -547,29 +616,33 @@ void Scenario::setupCommands(int iteration) {
         numBoundaries--;
     }
 
+    CommandDataFactory factory{_dataManager};
     uint32_t nQueries = 0;
-    for (auto &command : _scenarioSpec.commands) {
+    for (const auto &command : _scenarioSpec.commands) {
         switch (command->commandType) {
         case (CommandType::DispatchCompute): {
             const auto &dispatchCompute = reinterpret_cast<DispatchComputeDesc &>(*command);
-            createComputePipeline(dispatchCompute, iteration, nQueries);
+            const auto data = factory.createData(dispatchCompute);
+            createComputePipeline(data, iteration, nQueries);
         } break;
         case (CommandType::DispatchBarrier): {
             const auto &dispatchBarrier = reinterpret_cast<DispatchBarrierDesc &>(*command);
-            _compute.registerPipelineBarrier(dispatchBarrier, _dataManager);
+            const auto data = factory.createData(dispatchBarrier);
+            _compute.registerPipelineBarrier(data, _dataManager);
         } break;
         case (CommandType::DispatchDataGraph): {
             const auto &dispatchDataGraph = reinterpret_cast<DispatchDataGraphDesc &>(*command);
             createDataGraphPipeline(dispatchDataGraph, iteration, nQueries);
         } break;
         case (CommandType::MarkBoundary): {
-            auto &markBoundary = reinterpret_cast<MarkBoundaryDesc &>(*command);
+            const auto &markBoundary = reinterpret_cast<MarkBoundaryDesc &>(*command);
+            auto data = factory.createData(markBoundary);
             if (_ctx._optionals.mark_boundary) {
                 if ((iteration > 0) && skipFirstMarkBoundary) {
                     continue;
                 }
-                markBoundary.frameId += uint64_t(iteration) * numBoundaries;
-                _compute.registerMarkBoundary(markBoundary, _dataManager);
+                data.frameId += uint64_t(iteration) * numBoundaries;
+                _compute.registerMarkBoundary(data, _dataManager);
             } else {
                 mlsdk::logging::warning("Frame boundary extension not present");
             }
@@ -725,16 +798,15 @@ void Scenario::handleAliasedLayoutTransitions() {
     }
 }
 
-void Scenario::createComputePipeline(const DispatchComputeDesc &dispatchCompute, int iteration, uint32_t &nQueries) {
+void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute, int iteration, uint32_t &nQueries) {
     // Create Compute shader pipeline
     const auto &shaderDesc = _scenarioSpec.getShaderResource(dispatchCompute.shaderRef);
-    const auto bindings = convertBindings(_dataManager, dispatchCompute.bindings);
 
     _perfCounters
         .emplace_back("Create Pipeline: " + shaderDesc.guidStr + ". Iteration: " + std::to_string(iteration + 1),
                       "Pipeline Setup", true)
         .start();
-    _pipelines.emplace_back(_ctx, dispatchCompute.debugName, bindings, shaderDesc, _pipelineCache);
+    _pipelines.emplace_back(_ctx, dispatchCompute.debugName, dispatchCompute.bindings, shaderDesc, _pipelineCache);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
     const char *pushConstantData = nullptr;
     size_t pushConstantSize = 0;
@@ -743,9 +815,8 @@ void Scenario::createComputePipeline(const DispatchComputeDesc &dispatchCompute,
         pushConstantData = rawData.data();
         pushConstantSize = rawData.size();
     }
-    _compute.registerPipelineFenced(_pipelines.back(), _dataManager, bindings, pushConstantData, pushConstantSize,
-                                    dispatchCompute.implicitBarrier, dispatchCompute.rangeND[0],
-                                    dispatchCompute.rangeND[1], dispatchCompute.rangeND[2]);
+    _compute.registerPipelineFenced(_pipelines.back(), _dataManager, dispatchCompute.bindings, pushConstantData,
+                                    pushConstantSize, dispatchCompute.implicitBarrier, dispatchCompute.computeDispatch);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
     _perfCounters.back().stop();
     mlsdk::logging::debug("Shader Pipeline: " + shaderDesc.guidStr + " created");
@@ -808,8 +879,8 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
         auto dispatchShape = vgfView.getDispatchShape(segmentIndex);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
         _compute.registerPipelineFenced(_pipelines.back(), _dataManager, sequenceBindings, nullptr, 0,
-                                        dispatchDataGraph.implicitBarrier, dispatchShape[0], dispatchShape[1],
-                                        dispatchShape[2]);
+                                        dispatchDataGraph.implicitBarrier,
+                                        {dispatchShape[0], dispatchShape[1], dispatchShape[2]});
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
         mlsdk::logging::debug("Shader Pipeline: " + vgfView.getSPVModuleName(segmentIndex) + " created");
     } break;

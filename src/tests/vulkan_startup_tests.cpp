@@ -115,7 +115,7 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
     // Create compute orchestrator to run commands
     Compute compute(ctx);
     bool implicitBarriers = true;
-    compute.registerPipelineFenced(pipe, dataManager, bindings, nullptr, 0, implicitBarriers, numElements, 1, 1);
+    compute.registerPipelineFenced(pipe, dataManager, bindings, nullptr, 0, implicitBarriers, {numElements, 1, 1});
 
     // Run and wait on fence
     compute.submitAndWaitOnFence();

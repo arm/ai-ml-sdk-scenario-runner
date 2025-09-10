@@ -207,4 +207,37 @@ struct TypedBinding {
     vk::DescriptorType vkDescriptorType{};
 };
 
+/// \brief Group count for x, y and z
+struct ComputeDispatch {
+    uint32_t gwcx{1};
+    uint32_t gwcy{1};
+    uint32_t gwcz{1};
+};
+
+/// \brief Compute data with typed bindings
+struct DispatchComputeData {
+    std::string debugName;
+    std::vector<TypedBinding> bindings;
+    ComputeDispatch computeDispatch{};
+    Guid shaderRef;
+    bool implicitBarrier{true};
+    std::optional<Guid> pushDataRef;
+};
+
+/// \brief Typed barriers
+struct DispatchBarrierData {
+    std::vector<Guid> memoryBarriers;
+    std::vector<Guid> imageBarriers;
+    std::vector<Guid> tensorBarriers;
+    std::vector<Guid> bufferBarriers;
+};
+
+/// \brief Typed resources
+struct MarkBoundaryData {
+    std::vector<Guid> buffers;
+    std::vector<Guid> images;
+    std::vector<Guid> tensors;
+    uint64_t frameId{};
+};
+
 } // namespace mlsdk::scenariorunner

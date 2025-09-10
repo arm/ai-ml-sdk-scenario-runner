@@ -148,8 +148,7 @@ Compute::DebugMarker::~DebugMarker() {
 
 void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager &dataManager,
                                      const std::vector<TypedBinding> &bindings, const char *pushConstantData,
-                                     size_t pushConstantSize, bool implicitBarriers, uint32_t wgcx, uint32_t wgcy,
-                                     uint32_t wgcz) {
+                                     size_t pushConstantSize, bool implicitBarriers, ComputeDispatch computeDispatch) {
 
     DebugMarker dbgMrk0(this, "dispatch (" + pipeline.debugName() + ")");
 
@@ -219,7 +218,7 @@ void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager
     if (pipeline.isDataGraphPipeline()) {
         _commands.emplace_back(DataGraphDispatch{pipeline.session()});
     } else {
-        _commands.emplace_back(ComputeDispatch{wgcx, wgcy, wgcz});
+        _commands.emplace_back(computeDispatch);
     }
 
     if (implicitBarriers) {
@@ -246,7 +245,7 @@ void Compute::registerWriteTimestamp(uint32_t query, vk::PipelineStageFlagBits2 
     _commands.emplace_back(WriteTimestamp{query, flag});
 }
 
-void Compute::registerPipelineBarrier(const DispatchBarrierDesc &dispatchBarrierDescs, const DataManager &dataManager) {
+void Compute::registerPipelineBarrier(const DispatchBarrierData &dispatchBarrierData, const DataManager &dataManager) {
     const uint32_t memoryBarrierIdx = static_cast<uint32_t>(_memoryBarriers.size());
     const uint32_t imageBarrierIdx = static_cast<uint32_t>(_imageBarriers.size());
     const uint32_t tensorBarrierIdx = static_cast<uint32_t>(_tensorBarriers.size());
@@ -256,7 +255,7 @@ void Compute::registerPipelineBarrier(const DispatchBarrierDesc &dispatchBarrier
 
     // Populate each individual barrier struct based on the guids
     std::vector<vk::MemoryBarrier2> memoryBarriers{};
-    for (auto &memoryBarrierRef : dispatchBarrierDescs.memoryBarriersRef) {
+    for (const auto &memoryBarrierRef : dispatchBarrierData.memoryBarriers) {
         const auto &memoryBarrier = dataManager.getMemoryBarrier(memoryBarrierRef);
         debugNameBuilder.addBarrier(memoryBarrier);
         memoryBarriers.emplace_back(memoryBarrier.memoryBarrier());
@@ -264,7 +263,7 @@ void Compute::registerPipelineBarrier(const DispatchBarrierDesc &dispatchBarrier
     _memoryBarriers.emplace_back(memoryBarriers);
 
     std::vector<vk::ImageMemoryBarrier2> imageBarriers{};
-    for (auto &imageBarrierRef : dispatchBarrierDescs.imageBarriersRef) {
+    for (const auto &imageBarrierRef : dispatchBarrierData.imageBarriers) {
         const auto &imageBarrier = dataManager.getImageBarrier(imageBarrierRef);
         debugNameBuilder.addBarrier(imageBarrier);
         imageBarriers.emplace_back(imageBarrier.imageBarrier());
@@ -272,7 +271,7 @@ void Compute::registerPipelineBarrier(const DispatchBarrierDesc &dispatchBarrier
     _imageBarriers.emplace_back(imageBarriers);
 
     std::vector<vk::TensorMemoryBarrierARM> tensorBarriers{};
-    for (auto &tensorBarrierRef : dispatchBarrierDescs.tensorBarriersRef) {
+    for (const auto &tensorBarrierRef : dispatchBarrierData.tensorBarriers) {
         const auto &tensorBarrier = dataManager.getTensorBarrier(tensorBarrierRef);
         debugNameBuilder.addBarrier(tensorBarrier);
         tensorBarriers.emplace_back(tensorBarrier.tensorBarrier());
@@ -280,12 +279,9 @@ void Compute::registerPipelineBarrier(const DispatchBarrierDesc &dispatchBarrier
     _tensorBarriers.emplace_back(tensorBarriers);
 
     std::vector<vk::BufferMemoryBarrier2> bufferBarriers{};
-    for (auto &bufferBarrierRef : dispatchBarrierDescs.bufferBarriersRef) {
-        if (dataManager.hasBufferBarrier(bufferBarrierRef)) {
-            bufferBarriers.emplace_back(dataManager.getBufferBarrier(bufferBarrierRef).bufferBarrier());
-        } else {
-            throw std::runtime_error("Cannot find Buffer memory barrier");
-        }
+    for (const auto &bufferBarrierRef : dispatchBarrierData.bufferBarriers) {
+        const auto &bufferBarrier = dataManager.getBufferBarrier(bufferBarrierRef);
+        bufferBarriers.emplace_back(bufferBarrier.bufferBarrier());
     }
     _bufferBarriers.emplace_back(bufferBarriers);
 
@@ -293,53 +289,41 @@ void Compute::registerPipelineBarrier(const DispatchBarrierDesc &dispatchBarrier
     _commands.emplace_back(MemoryBarrier{memoryBarrierIdx, imageBarrierIdx, tensorBarrierIdx, bufferBarrierIdx});
 }
 
-void Compute::registerMarkBoundary(const MarkBoundaryDesc &markBoundaryDesc, const DataManager &dataManager) {
-
-    for (auto &resourceRef : markBoundaryDesc.resources) {
-        if (!(dataManager.hasImage(resourceRef) || dataManager.hasBuffer(resourceRef) ||
-              dataManager.hasTensor(resourceRef))) {
-            throw std::runtime_error("Unsupported resource");
-        }
-    }
+void Compute::registerMarkBoundary(const MarkBoundaryData &markBoundaryData, const DataManager &dataManager) {
 
     std::vector<vk::Image> imageHandles;
-    imageHandles.reserve(markBoundaryDesc.resources.size());
+    imageHandles.reserve(markBoundaryData.images.size());
 
-    for (auto &resourceRef : markBoundaryDesc.resources) {
-        if (dataManager.hasImage(resourceRef)) {
-            const auto image = dataManager.getImage(resourceRef).image();
-            imageHandles.emplace_back(image);
-        }
+    for (const auto &resourceRef : markBoundaryData.images) {
+        auto image = dataManager.getImage(resourceRef).image();
+        imageHandles.emplace_back(std::move(image));
     }
     _imageArray.emplace_back(std::move(imageHandles));
 
     std::vector<vk::Buffer> bufferHandles;
-    bufferHandles.reserve(markBoundaryDesc.resources.size());
+    bufferHandles.reserve(markBoundaryData.buffers.size());
 
-    for (auto &resourceRef : markBoundaryDesc.resources) {
-        if (dataManager.hasBuffer(resourceRef)) {
-            const auto buffer = dataManager.getBuffer(resourceRef).buffer();
-            bufferHandles.emplace_back(buffer);
-        }
+    for (const auto &resourceRef : markBoundaryData.buffers) {
+        auto buffer = dataManager.getBuffer(resourceRef).buffer();
+        bufferHandles.emplace_back(std::move(buffer));
     }
     _bufferArray.emplace_back(std::move(bufferHandles));
     vk::FrameBoundaryEXT markBoundary;
     markBoundary.sType = vk::StructureType::eFrameBoundaryEXT;
 
     markBoundary.flags = vk::FrameBoundaryFlagBitsEXT::eFrameEnd;
-    markBoundary.frameID = markBoundaryDesc.frameId;
+    markBoundary.frameID = markBoundaryData.frameId;
     markBoundary.pImages = _imageArray.back().data();
     markBoundary.imageCount = static_cast<uint32_t>(_imageArray.back().size());
     markBoundary.pBuffers = _bufferArray.back().data();
     markBoundary.bufferCount = static_cast<uint32_t>(_bufferArray.back().size());
-    std::vector<vk::TensorARM> tensorHandles;
-    tensorHandles.reserve(markBoundaryDesc.resources.size());
 
-    for (auto &resourceRef : markBoundaryDesc.resources) {
-        if (dataManager.hasTensor(resourceRef)) {
-            auto tensor = dataManager.getTensor(resourceRef).tensor();
-            tensorHandles.emplace_back(tensor);
-        }
+    std::vector<vk::TensorARM> tensorHandles;
+    tensorHandles.reserve(markBoundaryData.tensors.size());
+
+    for (const auto &resourceRef : markBoundaryData.tensors) {
+        auto tensor = dataManager.getTensor(resourceRef).tensor();
+        tensorHandles.emplace_back(std::move(tensor));
     }
     _tensorArray.emplace_back(std::move(tensorHandles));
     vk::FrameBoundaryTensorsARM markBoundaryTensor;

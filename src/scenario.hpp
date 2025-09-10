@@ -43,7 +43,7 @@ class Scenario {
     void run(int count = 1, bool dryRun = false, bool captureFrame = false);
 
   private:
-    void createComputePipeline(const DispatchComputeDesc &dispatchCompute, int iteration, uint32_t &nQueries);
+    void createComputePipeline(const DispatchComputeData &dispatchCompute, int iteration, uint32_t &nQueries);
     void createDataGraphPipeline(const DispatchDataGraphDesc &dispatchDataGraph, int iteration, uint32_t &nQueries);
 
     void createPipeline(uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
