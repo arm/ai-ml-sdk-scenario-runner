@@ -43,6 +43,122 @@ std::string resourceType(const std::unique_ptr<ResourceDesc> &resource) {
     throw std::runtime_error("Unknown resource type in ScenarioSpec");
 }
 
+struct ResourceInfoFactory {
+    const DataManager &_dataManager;
+
+    BufferInfo createInfo(const BufferDesc &buffer) const {
+        BufferInfo info{};
+        info.debugName = buffer.guidStr;
+        info.size = buffer.size;
+        if (buffer.memoryGroup.has_value()) {
+            info.memoryOffset = buffer.memoryGroup->offset;
+        }
+        return info;
+    }
+
+    ImageInfo createInfo(const ImageDesc &image) const {
+        ImageInfo info{};
+        info.debugName = image.guidStr;
+        info.targetFormat = getVkFormatFromString(image.format);
+        info.shape.resize(image.dims.size());
+        std::copy(image.dims.begin(), image.dims.end(), info.shape.begin());
+        info.mips = image.mips;
+        // Image sampler settings
+        if (image.minFilter) {
+            info.samplerSettings.minFilter = image.minFilter.value();
+        }
+        if (image.magFilter) {
+            info.samplerSettings.magFilter = image.magFilter.value();
+        }
+        if (image.mipFilter) {
+            info.samplerSettings.mipFilter = image.mipFilter.value();
+        }
+        if (image.borderAddressMode) {
+            info.samplerSettings.borderAddressMode = image.borderAddressMode.value();
+        }
+        if (image.borderColor) {
+            info.samplerSettings.borderColor = image.borderColor.value();
+        }
+        if (image.customBorderColor) {
+            if (info.samplerSettings.borderColor == BorderColor::FloatCustomEXT) {
+                info.samplerSettings.customBorderColor =
+                    std::get<std::array<float, 4>>(image.customBorderColor.value());
+            } else {
+                info.samplerSettings.customBorderColor = std::get<std::array<int, 4>>(image.customBorderColor.value());
+            }
+        }
+
+        if (image.src) {
+            info.isInput = true;
+            info.format = getVkFormatFromDDS(image.src.value());
+        } else {
+            info.format = info.targetFormat; // Output dds does not change type
+            info.isInput = false;
+        }
+
+        if (image.tiling) {
+            info.tiling = image.tiling;
+        }
+
+        switch (image.shaderAccess) {
+        case ShaderAccessType::ReadOnly:
+            info.isSampled = true;
+            break;
+        case ShaderAccessType::WriteOnly:
+        case ShaderAccessType::ImageRead:
+            info.isStorage = true;
+            break;
+        case ShaderAccessType::ReadWrite:
+            info.isSampled = true;
+            info.isStorage = true;
+            break;
+        default:
+            throw std::runtime_error("Unknown shader access type in ScenarioSpec");
+        }
+
+        if (info.targetFormat == vk::Format::eR32Sfloat && info.format == vk::Format::eD32SfloatS8Uint) {
+            // Convert depth type to single channel color type, dropping stencil component
+            info.format = info.targetFormat;
+        }
+
+        if (image.memoryGroup.has_value()) {
+            info.memoryOffset = image.memoryGroup->offset;
+        }
+
+        for ([[maybe_unused]] const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+            if (resources.find(image.guid) != resources.end() && resources.size() != 1) {
+                info.isAliased = true;
+            }
+        }
+        return info;
+    }
+
+    TensorInfo createInfo(const TensorDesc &tensor) const {
+        TensorInfo info;
+        info.debugName = tensor.guidStr;
+        if (tensor.memoryGroup.has_value()) {
+            info.memoryOffset = tensor.memoryGroup->offset;
+        }
+        for ([[maybe_unused]] const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+            if (resources.find(tensor.guid) != resources.end() && resources.size() != 1) {
+                for (const auto &maybeImage : resources) {
+                    if (_dataManager.hasImage(maybeImage)) {
+                        info.isAliasedWithImage = true;
+                    }
+                }
+            }
+        }
+        info.format = getVkFormatFromString(tensor.format);
+        info.shape.resize(tensor.dims.size());
+        std::copy(tensor.dims.begin(), tensor.dims.end(), info.shape.begin());
+        if (tensor.tiling) {
+            info.tiling = tensor.tiling.value();
+        }
+
+        return info;
+    }
+};
+
 void fill(const BaseBarrierDesc &barrier, BaseBarrierData &data) {
     data.debugName = barrier.guidStr;
     data.srcAccess = barrier.srcAccess;
@@ -259,132 +375,32 @@ void Scenario::setupResources() {
 
     // Setup resource info
     // (Memory for Tensors and Images is allocated in next pass)
-    for (auto &resource : _scenarioSpec.resources) {
+    ResourceInfoFactory resourceInfoFactory{_dataManager};
+    for (const auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
         case (ResourceType::Buffer): {
-            const auto &buffer = reinterpret_cast<std::unique_ptr<BufferDesc> &>(resource);
-            BufferInfo info;
-            info.debugName = buffer->guidStr;
-            info.size = buffer->size;
-            if (buffer->memoryGroup.has_value()) {
-                info.memoryOffset = buffer->memoryGroup->offset;
-            }
+            const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
+            const auto info = resourceInfoFactory.createInfo(*buffer);
             _dataManager.createBuffer(resource->guid, info);
         } break;
         case (ResourceType::RawData): {
-            const auto &rawData = reinterpret_cast<std::unique_ptr<RawDataDesc> &>(resource);
+            const auto &rawData = reinterpret_cast<const std::unique_ptr<RawDataDesc> &>(resource);
             _dataManager.createRawData(resource->guid, rawData->guidStr, rawData->src.value());
         } break;
         case (ResourceType::Image): {
-            const auto &image = reinterpret_cast<std::unique_ptr<ImageDesc> &>(resource);
-
-            ImageInfo info;
-            info.debugName = image->guidStr;
-            info.targetFormat = getVkFormatFromString(image->format);
-            info.shape.resize(image->dims.size());
-            std::copy(image->dims.begin(), image->dims.end(), info.shape.begin());
-            info.mips = image->mips;
-            // Image sampler settings
-            if (image->minFilter) {
-                info.samplerSettings.minFilter = image->minFilter.value();
-            }
-            if (image->magFilter) {
-                info.samplerSettings.magFilter = image->magFilter.value();
-            }
-            if (image->mipFilter) {
-                info.samplerSettings.mipFilter = image->mipFilter.value();
-            }
-            if (image->borderAddressMode) {
-                info.samplerSettings.borderAddressMode = image->borderAddressMode.value();
-            }
-            if (image->borderColor) {
-                info.samplerSettings.borderColor = image->borderColor.value();
-            }
-            if (image->customBorderColor) {
-                if (info.samplerSettings.borderColor == BorderColor::FloatCustomEXT) {
-                    info.samplerSettings.customBorderColor =
-                        std::get<std::array<float, 4>>(image->customBorderColor.value());
-                } else {
-                    info.samplerSettings.customBorderColor =
-                        std::get<std::array<int, 4>>(image->customBorderColor.value());
-                }
-            }
-
-            if (image->src) {
-                info.isInput = true;
-                info.format = getVkFormatFromDDS(image->src.value());
-            } else {
-                info.format = info.targetFormat; // Output dds does not change type
-                info.isInput = false;
-            }
-
-            if (image->tiling) {
-                info.tiling = image->tiling;
-            }
-
-            switch (image->shaderAccess) {
-            case ShaderAccessType::ReadOnly:
-                info.isSampled = true;
-                break;
-            case ShaderAccessType::WriteOnly:
-            case ShaderAccessType::ImageRead:
-                info.isStorage = true;
-                break;
-            case ShaderAccessType::ReadWrite:
-                info.isSampled = true;
-                info.isStorage = true;
-                break;
-            default:
-                throw std::runtime_error("Unknown shader access type in ScenarioSpec");
-            }
-
-            if (info.targetFormat == vk::Format::eR32Sfloat && info.format == vk::Format::eD32SfloatS8Uint) {
-                // Convert depth type to single channel color type, dropping stencil component
-                info.format = info.targetFormat;
-            }
-
-            if (image->memoryGroup.has_value()) {
-                info.memoryOffset = image->memoryGroup->offset;
-            }
-
-            for ([[maybe_unused]] const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
-                if (resources.find(resource->guid) != resources.end() && resources.size() != 1) {
-                    info.isAliased = true;
-                }
-            }
-
-            _dataManager.createImage(image->guid, info);
+            const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
+            const auto info = resourceInfoFactory.createInfo(*image);
+            _dataManager.createImage(resource->guid, info);
         } break;
         case (ResourceType::DataGraph): {
-            const auto &dataGraph = reinterpret_cast<std::unique_ptr<DataGraphDesc> &>(resource);
+            const auto &dataGraph = reinterpret_cast<const std::unique_ptr<DataGraphDesc> &>(resource);
             _perfCounters.emplace_back("Parse VGF: " + dataGraph->guidStr, "Scenario Setup", true).start();
-            _dataManager.createVgfView(resource->guid, *dataGraph);
+            _dataManager.createVgfView(resource->guid, dataGraph->src.value());
             _perfCounters.back().stop();
         } break;
         case (ResourceType::Tensor): {
-            const auto &tensor = reinterpret_cast<std::unique_ptr<TensorDesc> &>(resource);
-
-            TensorInfo info;
-            info.debugName = tensor->guidStr;
-            if (tensor->memoryGroup.has_value()) {
-                info.memoryOffset = tensor->memoryGroup->offset;
-            }
-            for ([[maybe_unused]] const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
-                if (resources.find(tensor->guid) != resources.end() && resources.size() != 1) {
-                    for (const auto &maybeImage : resources) {
-                        if (_dataManager.hasImage(maybeImage)) {
-                            info.isAliasedWithImage = true;
-                        }
-                    }
-                }
-            }
-            info.format = getVkFormatFromString(tensor->format);
-            info.shape.resize(tensor->dims.size());
-            std::copy(tensor->dims.begin(), tensor->dims.end(), info.shape.begin());
-            if (tensor->tiling) {
-                info.tiling = tensor->tiling.value();
-            }
-
+            const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
+            const auto info = resourceInfoFactory.createInfo(*tensor);
             _dataManager.createTensor(resource->guid, info);
         } break;
         default:

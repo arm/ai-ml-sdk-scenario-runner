@@ -4,11 +4,7 @@
  */
 
 #include "data_manager.hpp"
-#include "barrier.hpp"
 #include "utils.hpp"
-
-#include "vgf/decoder.h"
-#include "vgf/decoder.hpp"
 
 #include <filesystem>
 #include <map>
@@ -38,47 +34,8 @@ void DataManager::createImage(Guid guid, const ImageInfo &info) {
     _images.insert({guid, Image(_ctx, info, getOrCreateMemoryManager(guid))});
 }
 
-void DataManager::createVgfView(Guid guid, const DataGraphDesc &desc) {
-    auto mapped = std::make_unique<MemoryMap>(desc.src.value());
-
-    std::unique_ptr<vgflib::HeaderDecoder> headerDecoder = vgflib::CreateHeaderDecoder(mapped->ptr());
-    if (!headerDecoder->IsValid()) {
-        throw std::runtime_error("Invalid VGF header");
-    }
-    if (!headerDecoder->CheckVersion()) {
-        throw std::runtime_error("Incompatible VGF header");
-    }
-
-    uint64_t moduleTableOffset = headerDecoder->GetModuleTableOffset();
-    uint64_t sequenceTableOffset = headerDecoder->GetModelSequenceTableOffset();
-    uint64_t resourceTableOffset = headerDecoder->GetModelResourceTableOffset();
-    uint64_t constantsOffset = headerDecoder->GetConstantsOffset();
-
-    // Verify file content
-    if (!vgflib::VerifyModuleTable(mapped->ptr(moduleTableOffset), headerDecoder->GetModuleTableSize())) {
-        throw std::runtime_error("Invalid module table");
-    }
-    if (!vgflib::VerifyModelSequenceTable(mapped->ptr(sequenceTableOffset),
-                                          headerDecoder->GetModelSequenceTableSize())) {
-        throw std::runtime_error("Invalid model sequence table");
-    }
-    if (!vgflib::VerifyModelResourceTable(mapped->ptr(resourceTableOffset),
-                                          headerDecoder->GetModelResourceTableSize())) {
-        throw std::runtime_error("Invalid model resource table");
-    }
-    if (!vgflib::VerifyConstant(mapped->ptr(constantsOffset), headerDecoder->GetConstantsSize())) {
-        throw std::runtime_error("Invalid constant section");
-    }
-
-    auto moduleTableDecoder = vgflib::CreateModuleTableDecoder(mapped->ptr(moduleTableOffset));
-    auto sequenceTableDecoder = vgflib::CreateModelSequenceTableDecoder(mapped->ptr(sequenceTableOffset));
-    auto resourceTableDecoder = vgflib::CreateModelResourceTableDecoder(mapped->ptr(resourceTableOffset));
-    auto constantTableDecoder = vgflib::CreateConstantDecoder(mapped->ptr(constantsOffset));
-
-    VgfView vgfView(std::move(mapped), std::move(moduleTableDecoder), std::move(sequenceTableDecoder),
-                    std::move(resourceTableDecoder), std::move(constantTableDecoder));
-
-    _vgfViews.insert({guid, std::move(vgfView)});
+void DataManager::createVgfView(Guid guid, const std::string &src) {
+    _vgfViews.insert({guid, VgfView::createVgfView(src)});
 }
 
 void DataManager::createImageBarrier(Guid guid, const ImageBarrierData &data) {

@@ -10,7 +10,6 @@
 #include "vgf-utils/numpy.hpp"
 
 #include "spirv-tools/libspirv.hpp"
-#include "vgf/decoder.h"
 #include "vulkan/vulkan_raii.hpp"
 
 namespace mlsdk::scenariorunner {
@@ -51,15 +50,6 @@ vk::Format getVkFormatFromString(const std::string &format);
  */
 vk::ImageAspectFlags getImageAspectMaskForVkFormat(vk::Format format);
 
-/** Get vk::Format enum element from the parser type.
- *
- *  @param[in] format parser type for encoding VkFormat.
- *
- *  @return vk::Format enum element
- *
- */
-vk::Format getVkFormatFromParser(const mlsdk_vk_format &format);
-
 /** Get NumPy dtype from vk::Format description.
  *
  *  @param[in] format vk::Format enum element.
@@ -87,18 +77,6 @@ uint64_t totalElementsFromShape(const std::vector<int64_t> &shape);
  * @return The index of the memory type if succeeds else UINT32_MAX on failure
  */
 uint32_t findMemoryIdx(const Context &ctx, uint32_t memTypeBits, vk::MemoryPropertyFlags required);
-
-/** Allocate device memory
- *
- * @param[in] ctx Internal runner context
- * @param[in] size Size in bytes
- * @param[in] memoryPropertyFlags Required memory property flags
- * @param[in] memoryTypeBits Bit mask of allowed memory types
- * @return The index of the memory type if succeeds else UINT32_MAX on failure
- */
-vk::raii::DeviceMemory allocateDeviceMemory(const Context &ctx, const vk::DeviceSize size,
-                                            const vk::MemoryPropertyFlags memoryPropertyFlags,
-                                            const uint32_t memoryTypeBits);
 
 /** Read the shader code from file. In case of GLSL shader, the code will be compiled into SPIR-V before being
  * returned.

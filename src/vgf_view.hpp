@@ -19,14 +19,7 @@ class DataManager;
 
 class VgfView {
   public:
-    VgfView(std::unique_ptr<MemoryMap> &&mapped, std::unique_ptr<vgflib::ModuleTableDecoder> &&moduleTableDecoder,
-            std::unique_ptr<vgflib::ModelSequenceTableDecoder> &&sequenceTableDecoder,
-            std::unique_ptr<vgflib::ModelResourceTableDecoder> &&resourceTableDecoder,
-            std::unique_ptr<vgflib::ConstantDecoder> &&constantTableDecoder)
-        : mapped(std::move(mapped)), moduleTableDecoder(std::move(moduleTableDecoder)),
-          sequenceTableDecoder(std::move(sequenceTableDecoder)), resourceTableDecoder(std::move(resourceTableDecoder)),
-          constantTableDecoder(std::move(constantTableDecoder)) {}
-    VgfView() = default;
+    static VgfView createVgfView(const std::string &vgfFile);
 
     size_t getNumSegments() const;
     ModuleType getSegmentType(uint32_t segmentIndex) const;
@@ -55,5 +48,10 @@ class VgfView {
     std::unique_ptr<vgflib::ModelSequenceTableDecoder> sequenceTableDecoder;
     std::unique_ptr<vgflib::ModelResourceTableDecoder> resourceTableDecoder;
     std::unique_ptr<vgflib::ConstantDecoder> constantTableDecoder;
+
+    VgfView(std::unique_ptr<MemoryMap> mapped, std::unique_ptr<vgflib::ModuleTableDecoder> moduleTableDecoder,
+            std::unique_ptr<vgflib::ModelSequenceTableDecoder> sequenceTableDecoder,
+            std::unique_ptr<vgflib::ModelResourceTableDecoder> resourceTableDecoder,
+            std::unique_ptr<vgflib::ConstantDecoder> constantTableDecoder);
 };
 } // namespace mlsdk::scenariorunner

@@ -3,16 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <fstream>
-
+#include "utils.hpp"
 #include "glsl_compiler.hpp"
 #include "logging.hpp"
-#include "utils.hpp"
 
 #include "vgf/vulkan_helpers.generated.hpp"
 
 #include "vulkan/vulkan_format_traits.hpp"
 
+#include <fstream>
 #include <limits>
 #include <numeric>
 
@@ -21,54 +20,7 @@ namespace mlsdk::scenariorunner {
 uint32_t numComponentsFromVkFormat(vk::Format format) { return vk::componentCount(format); }
 
 namespace {
-bool IsPow2(uint32_t value) { return ((value & (~(value - 1))) == value); }
-
-std::vector<uint32_t> getMemoryTypeIndices(const Context &ctx, const vk::MemoryPropertyFlags memoryPropertyFlags,
-                                           const uint32_t memoryTypeBits) {
-    const vk::PhysicalDeviceMemoryProperties memoryProperties = ctx.physicalDevice().getMemoryProperties();
-    std::vector<uint32_t> memoryTypeIndices;
-
-    // Compile a list of memory allocation infos
-    for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
-        // Exclude memory types that are not part of mask
-        if (((memoryTypeBits >> i) & 1) == 0) {
-            continue;
-        }
-
-        const auto &memoryType = memoryProperties.memoryTypes[i];
-
-        // Check that all required memory properies are supported
-        if ((memoryType.propertyFlags & memoryPropertyFlags) != memoryPropertyFlags) {
-            continue;
-        }
-
-        // Add memory type
-        memoryTypeIndices.emplace_back(i);
-    }
-
-    // Sort infos in priority order
-    std::sort(memoryTypeIndices.begin(), memoryTypeIndices.end(),
-              [&memoryProperties](const auto &leftIndex, const auto &rightIndex) {
-                  const auto &leftMemoryType = memoryProperties.memoryTypes[leftIndex];
-                  const auto &rightMemoryType = memoryProperties.memoryTypes[rightIndex];
-
-                  const auto &leftHeap = memoryProperties.memoryHeaps[leftMemoryType.heapIndex];
-                  const auto &rightHeap = memoryProperties.memoryHeaps[rightMemoryType.heapIndex];
-
-                  // Prioritize device local memory, it is likely faster
-                  const auto leftDeviceLocal = leftMemoryType.propertyFlags & vk::MemoryPropertyFlagBits::eDeviceLocal;
-                  const auto rightDeviceLocal =
-                      rightMemoryType.propertyFlags & vk::MemoryPropertyFlagBits::eDeviceLocal;
-                  if (leftDeviceLocal != rightDeviceLocal) {
-                      return leftDeviceLocal > rightDeviceLocal;
-                  }
-
-                  // Select the larger heap
-                  return leftHeap.size > rightHeap.size;
-              });
-
-    return memoryTypeIndices;
-}
+bool isPow2(uint32_t value) { return ((value & (~(value - 1))) == value); }
 
 } // namespace
 
@@ -76,7 +28,7 @@ uint32_t elementSizeFromVkFormat(vk::Format format) {
 
     uint32_t value = vk::blockSize(format);
 
-    if (IsPow2(value)) {
+    if (isPow2(value)) {
         return value;
     }
 
@@ -156,15 +108,6 @@ vk::ImageAspectFlags getImageAspectMaskForVkFormat(vk::Format format) {
     return vk::ImageAspectFlagBits::eColor;
 }
 
-vk::Format getVkFormatFromParser(const mlsdk_vk_format &format) {
-    auto formatType = static_cast<vgflib::FormatType>(format);
-    if (!vgflib::ValidateDecodedFormatType(formatType)) {
-        throw std::runtime_error("Unknown VkFormat: " + std::to_string(format));
-    }
-
-    return vgflib::ToRaiiFormat(format);
-}
-
 const vgfutils::numpy::DType getDTypeFromVkFormat(vk::Format format) {
     if (numComponentsFromVkFormat(format) != 1) {
         throw std::runtime_error("More than 1 components from VkFormat: " +
@@ -199,22 +142,6 @@ uint32_t findMemoryIdx(const Context &ctx, uint32_t memTypeBits, vk::MemoryPrope
     }
 
     return std::numeric_limits<uint32_t>::max();
-}
-
-vk::raii::DeviceMemory allocateDeviceMemory(const Context &ctx, const vk::DeviceSize size,
-                                            const vk::MemoryPropertyFlags memoryPropertyFlags,
-                                            const uint32_t memoryTypeBits) {
-    const auto memoryTypeIndices = getMemoryTypeIndices(ctx, memoryPropertyFlags, memoryTypeBits);
-
-    for (const auto index : memoryTypeIndices) {
-        try {
-            return vk::raii::DeviceMemory{ctx.device(), {size, index}};
-        } catch (const vk::OutOfDeviceMemoryError &) {
-            // Ignore exception and try next memory index
-        }
-    }
-
-    throw vk::OutOfDeviceMemoryError("Failed to allocate device memory of size " + std::to_string(size));
 }
 
 std::vector<uint32_t> readShaderCode(const ShaderDesc &shaderDesc) {
