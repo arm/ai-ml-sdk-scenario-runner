@@ -60,11 +60,10 @@ vk::raii::PipelineLayout createPipelineLayout(const Context &ctx,
     return vk::raii::PipelineLayout(ctx.device(), pipelineLayoutCreateInfo);
 }
 
-vk::raii::DescriptorSetLayout createDescriptorSetLayout(const Context &ctx,
-                                                        const std::vector<ResolvedBindingDesc> &bindings) {
+vk::raii::DescriptorSetLayout createDescriptorSetLayout(const Context &ctx, const std::vector<TypedBinding> &bindings) {
     std::vector<vk::DescriptorSetLayoutBinding> descBindings;
-    for (const auto &bindingDesc : bindings) {
-        const vk::DescriptorSetLayoutBinding descBinding(bindingDesc.id, bindingDesc.vkDescriptorType, 1,
+    for (const auto &binding : bindings) {
+        const vk::DescriptorSetLayoutBinding descBinding(binding.id, binding.vkDescriptorType, 1,
                                                          vk::ShaderStageFlagBits::eAll);
         descBindings.emplace_back(descBinding);
     }
@@ -72,8 +71,8 @@ vk::raii::DescriptorSetLayout createDescriptorSetLayout(const Context &ctx,
     return vk::raii::DescriptorSetLayout(ctx.device(), descSetLayoutCreateInfo);
 }
 
-std::vector<std::vector<ResolvedBindingDesc>> splitOutSets(const std::vector<ResolvedBindingDesc> &allBindings) {
-    std::vector<std::vector<ResolvedBindingDesc>> setBindings;
+std::vector<std::vector<TypedBinding>> splitOutSets(const std::vector<TypedBinding> &allBindings) {
+    std::vector<std::vector<TypedBinding>> setBindings;
 
     for (const auto &bindingDesc : allBindings) {
         while (setBindings.size() <= static_cast<size_t>(bindingDesc.set)) {
@@ -127,7 +126,7 @@ void Pipeline::computePipelineCommon(const Context &ctx, const ShaderDesc &shade
 }
 
 Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const uint32_t *spvCode, const size_t spvSize,
-                   const std::vector<ResolvedBindingDesc> &sequenceBindings, const ShaderDesc &shaderDesc,
+                   const std::vector<TypedBinding> &sequenceBindings, const ShaderDesc &shaderDesc,
                    std::optional<PipelineCache> &pipelineCache)
     : _type{PipelineType::Compute}, _debugName(debugName) {
 
@@ -143,7 +142,7 @@ Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const uint3
     computePipelineCommon(ctx, shaderDesc, pipelineCache);
 }
 
-Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const std::vector<ResolvedBindingDesc> &bindings,
+Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const std::vector<TypedBinding> &bindings,
                    const ShaderDesc &shaderDesc, std::optional<PipelineCache> &pipelineCache)
     : _type{PipelineType::Compute}, _shader(createShaderModule(ctx, shaderDesc)), _debugName(debugName) {
 
@@ -157,7 +156,7 @@ Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const std::
 }
 
 Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const uint32_t segmentIndex,
-                   const std::vector<ResolvedBindingDesc> &sequenceBindings, const VgfView &vgfView,
+                   const std::vector<TypedBinding> &sequenceBindings, const VgfView &vgfView,
                    const DataManager &dataManager, std::optional<PipelineCache> &pipelineCache)
     : _type{PipelineType::GraphCompute}, _debugName(debugName) {
 

@@ -93,29 +93,29 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
     dataManager.createBuffer(guidOut, info);
     prepareBuffer(guidOut, data);
 
-    std::vector<ResolvedBindingDesc> bindingDescs;
-    ResolvedBindingDesc binding;
+    std::vector<TypedBinding> bindings;
+    TypedBinding binding;
     binding.set = 0;
     binding.id = 0;
     binding.resourceRef = guidA;
     binding.vkDescriptorType = vk::DescriptorType::eStorageBuffer;
-    bindingDescs.push_back(binding);
+    bindings.push_back(binding);
     binding.id = 1;
     binding.resourceRef = guidB;
-    bindingDescs.push_back(binding);
+    bindings.push_back(binding);
     binding.id = 2;
     binding.resourceRef = guidOut;
-    bindingDescs.push_back(binding);
+    bindings.push_back(binding);
 
     // Create compute pipeline
     ShaderDesc shaderDesc(Guid("add_shader"), "add_shader", addShaderSPIRV, "main", ShaderType::SPIR_V);
     std::optional<PipelineCache> _pipelineCache{};
-    Pipeline pipe(ctx, "test_pipeline", bindingDescs, shaderDesc, _pipelineCache);
+    Pipeline pipe(ctx, "test_pipeline", bindings, shaderDesc, _pipelineCache);
 
     // Create compute orchestrator to run commands
     Compute compute(ctx);
     bool implicitBarriers = true;
-    compute.registerPipelineFenced(pipe, dataManager, bindingDescs, nullptr, 0, implicitBarriers, numElements, 1, 1);
+    compute.registerPipelineFenced(pipe, dataManager, bindings, nullptr, 0, implicitBarriers, numElements, 1, 1);
 
     // Run and wait on fence
     compute.submitAndWaitOnFence();

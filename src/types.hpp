@@ -4,6 +4,8 @@
  */
 #pragma once
 
+#include "guid.hpp"
+
 #include "vulkan/vulkan_raii.hpp"
 
 #include <array>
@@ -200,6 +202,15 @@ union Constant {
     int32_t i;   ///< Signed 32-bit integer value
     uint32_t ui; ///< Unsigned 32-bit integer value
     float f;     ///< 32-bit floating point value
+};
+
+/// \brief Typed binding
+struct TypedBinding {
+    uint32_t set{};
+    uint32_t id{};
+    Guid resourceRef;
+    std::optional<uint32_t> lod;
+    vk::DescriptorType vkDescriptorType{};
 };
 
 } // namespace mlsdk::scenariorunner

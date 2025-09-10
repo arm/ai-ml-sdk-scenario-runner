@@ -27,16 +27,16 @@ class Pipeline {
     /// \param bindings Bindings related meta-data
     /// \param shaderDesc Shader related meta-data
     /// \param pipelineCache optional pipeline cache object
-    Pipeline(const Context &ctx, const std::string &debugName, const std::vector<ResolvedBindingDesc> &bindings,
+    Pipeline(const Context &ctx, const std::string &debugName, const std::vector<TypedBinding> &bindings,
              const ShaderDesc &shaderDesc, std::optional<PipelineCache> &pipelineCache);
 
     Pipeline(const Context &ctx, const std::string &debugName, const uint32_t *spvCode, const size_t spvSize,
-             const std::vector<ResolvedBindingDesc> &sequenceBindings, const ShaderDesc &shaderDesc,
+             const std::vector<TypedBinding> &sequenceBindings, const ShaderDesc &shaderDesc,
              std::optional<PipelineCache> &pipelineCache);
 
     Pipeline(const Context &ctx, const std::string &debugName, const uint32_t segmentIndex,
-             const std::vector<ResolvedBindingDesc> &sequenceBindings, const VgfView &vgfView,
-             const DataManager &dataManager, std::optional<PipelineCache> &pipelineCache);
+             const std::vector<TypedBinding> &sequenceBindings, const VgfView &vgfView, const DataManager &dataManager,
+             std::optional<PipelineCache> &pipelineCache);
 
     /// \brief Vulkan® pipeline accessor
     /// \return The underlying Vulkan® pipeline of the object

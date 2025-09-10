@@ -235,17 +235,17 @@ vk::DescriptorType getResourceDescriptorType(const DataManager &dataManager, con
     throw std::runtime_error("Invalid resource descriptor type");
 }
 
-std::vector<ResolvedBindingDesc> convertBindings(const DataManager &dataManager,
-                                                 const std::vector<BindingDesc> &bindings) {
-    std::vector<ResolvedBindingDesc> bindingDesc;
-    bindingDesc.reserve(bindings.size());
-    for (const auto &binding : bindings) {
+std::vector<TypedBinding> convertBindings(const DataManager &dataManager,
+                                          const std::vector<BindingDesc> &bindingDescs) {
+    std::vector<TypedBinding> bindings;
+    bindings.reserve(bindingDescs.size());
+    for (const auto &binding : bindingDescs) {
         const auto vkType = binding.descriptorType == DescriptorType::Auto
                                 ? getResourceDescriptorType(dataManager, binding.resourceRef)
                                 : convertDescriptorType(binding.descriptorType);
-        bindingDesc.push_back({binding, vkType});
+        bindings.push_back({binding.set, binding.id, binding.resourceRef, binding.lod, vkType});
     }
-    return bindingDesc;
+    return bindings;
 }
 
 } // namespace
@@ -744,7 +744,7 @@ void Scenario::createDataGraphPipeline(const DispatchDataGraphDesc &dispatchData
     }
 }
 
-void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<ResolvedBindingDesc> &sequenceBindings,
+void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
                               const VgfView &vgfView, const DispatchDataGraphDesc &dispatchDataGraph,
                               uint32_t &nQueries) {
     switch (vgfView.getSegmentType(segmentIndex)) {
