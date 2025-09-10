@@ -455,12 +455,8 @@ void Scenario::setupResources() {
             auto &bufferRec = _dataManager.getBufferMut(buffer->guid);
             bufferRec.allocateMemory(_ctx);
             _perfCounters.emplace_back("Load Buffer: " + buffer->guidStr, "Scenario Setup").start();
-            if (buffer->src) {
-                MemoryMap mapped(buffer->src.value());
-                auto dataPtr = vgfutils::numpy::parse(mapped);
-                bufferRec.fill(dataPtr.ptr, dataPtr.size());
-            } else if (_dataManager.isSingleMemoryGroup(buffer->guid)) {
-                bufferRec.fillZero();
+            if (buffer->src || _dataManager.isSingleMemoryGroup(buffer->guid)) {
+                bufferRec.fillFromDescription(*buffer);
             }
             _perfCounters.back().stop();
         } break;
@@ -798,10 +794,10 @@ void Scenario::saveResults(bool dryRun) {
             const auto &guid = resourceDesc->guid;
             switch (resourceDesc->resourceType) {
             case ResourceType::Buffer:
-                _dataManager.getBufferMut(guid).store(_ctx, dst.value());
+                _dataManager.getBuffer(guid).store(dst.value());
                 break;
             case ResourceType::Tensor:
-                _dataManager.getTensorMut(guid).store(_ctx, dst.value());
+                _dataManager.getTensor(guid).store(dst.value());
                 break;
             case ResourceType::Image:
                 _dataManager.getImageMut(guid).store(_ctx, dst.value());

@@ -62,7 +62,7 @@ void saveHeaderToDDS(const DDSHeaderInfo &header, std::ofstream &fstream);
 /// \param filename file to create
 /// \param image image data to save to file
 /// \param data vector of raw data to save
-void saveDataToDDS(const std::string &filename, Image &image, std::vector<char> &data);
+void saveDataToDDS(const std::string &filename, const Image &image, const std::vector<char> &data);
 
 /// \brief Create a standard DDS (DX10) file header
 ///

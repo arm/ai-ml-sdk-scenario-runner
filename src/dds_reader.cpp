@@ -139,7 +139,7 @@ uint32_t calculatePitch(uint32_t width, uint32_t elementSize) {
     return (width * elementSize * 8 + 7) / 8;
 }
 
-DDSHeaderInfo generateDDSHeader(Image &image) {
+DDSHeaderInfo generateDDSHeader(const Image &image) {
     DDSHeaderInfo header =
         generateDefaultDDSHeader(static_cast<uint32_t>(image.shape()[2]), static_cast<uint32_t>(image.shape()[1]),
                                  elementSizeFromVkFormat(image.dataType()), vkFormatToDDSFormat(image.dataType()));
@@ -204,7 +204,7 @@ void saveHeaderToDDS(const DDSHeaderInfo &header, std::ofstream &fstream) {
     }
 }
 
-void saveDataToDDS(const std::string &filename, Image &image, std::vector<char> &data) {
+void saveDataToDDS(const std::string &filename, const Image &image, const std::vector<char> &data) {
     std::ofstream fstream(filename, std::ofstream::binary);
     if (!fstream.is_open()) {
         throw std::runtime_error("Error creating DDS file: " + filename);
