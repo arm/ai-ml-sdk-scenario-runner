@@ -17,11 +17,14 @@ class Image {
   public:
     /// \brief Constructor
     ///
-    /// \param ctx Contextual information about the Vulkan®  instance
     /// \param imageInfo ImageInfo struct
     /// \param memoryManager Memory manager for this resource
-    Image(Context &ctx, const ImageInfo &imageInfo, std::shared_ptr<ResourceMemoryManager> memoryManager);
+    Image(const ImageInfo &imageInfo, std::shared_ptr<ResourceMemoryManager> memoryManager);
     Image() = default;
+
+    /// \brief Setup instance, assumes all aliasing objects have been constructed
+    /// \param ctx                    Contextual information about the Vulkan instance
+    void setup(const Context &ctx);
 
     /// \brief Image accessor
     /// \return The underlying Vulkan® image
@@ -80,14 +83,12 @@ class Image {
     vk::raii::ImageView _imageView{nullptr};
     vk::raii::Sampler _sampler{nullptr};
     vk::Format _dataType{};
-    const ImageInfo _imageInfo{};
+    ImageInfo _imageInfo{};
     std::shared_ptr<ResourceMemoryManager> _memoryManager;
-    uint32_t _mips{};
     std::vector<vk::raii::ImageView> _imageViewMips;
     vk::ImageLayout _initialLayout{};
     vk::ImageLayout _targetLayout{};
     vk::ImageTiling _tiling{};
-    uint64_t _memoryOffset{0};
 };
 
 } // namespace mlsdk::scenariorunner

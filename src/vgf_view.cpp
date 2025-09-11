@@ -270,6 +270,7 @@ void VgfView::createIntermediateResources(const Context &ctx, DataManager &dataM
                 BufferInfo info{guidStr, expectedBufferSize};
                 dataManager.createBuffer(guidStr, info);
                 auto &buffer = dataManager.getBufferMut(guidStr);
+                buffer.setup(ctx);
                 buffer.allocateMemory(ctx);
             } break;
             case (DESCRIPTOR_TYPE_TENSOR_ARM): {
@@ -282,6 +283,7 @@ void VgfView::createIntermediateResources(const Context &ctx, DataManager &dataM
                 // Create Scenario Runner tensor
                 dataManager.createTensor(guidStr, info);
                 auto &tensor = dataManager.getTensorMut(guidStr);
+                tensor.setup(ctx);
                 tensor.allocateMemory(ctx);
             } break;
             default:

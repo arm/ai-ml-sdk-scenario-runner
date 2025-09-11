@@ -16,11 +16,14 @@ class Tensor {
   public:
     /// \brief Constructor
     ///
-    /// \param ctx                    Contextual information about the Vulkan instance
     /// \param tensorInfo             Tensor info
     /// \param memoryManager          Memory manager for this resource
-    Tensor(Context &ctx, const TensorInfo &tensorInfo, std::shared_ptr<ResourceMemoryManager> memoryManager);
+    Tensor(const TensorInfo &tensorInfo, std::shared_ptr<ResourceMemoryManager> memoryManager);
     Tensor() = default;
+
+    /// \brief Setup instance, assumes all aliasing objects have been constructed
+    /// \param ctx                    Contextual information about the Vulkan instance
+    void setup(const Context &ctx);
 
     /// \brief Tensor accessor
     /// \return The underlying Vulkan tensor
@@ -86,6 +89,7 @@ class Tensor {
     vk::TensorTilingARM _tiling = vk::TensorTilingARM::eLinear;
     vk::DeviceSize _size{0};
     uint64_t _memoryOffset{0};
+    bool _isAliasedWithImage{false};
     bool _rankConverted{false};
 };
 

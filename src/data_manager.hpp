@@ -20,10 +20,7 @@ namespace mlsdk::scenariorunner {
 
 class DataManager {
   public:
-    explicit DataManager(Context &ctx);
-
     void createBuffer(Guid guid, const BufferInfo &info);
-    void createBuffer(Guid guid, const BufferInfo &info, std::vector<char> &values);
     void createTensor(Guid guid, const TensorInfo &info);
     void createImage(Guid guid, const ImageInfo &info);
     void createRawData(Guid guid, const std::string &debugName, const std::string &src);
@@ -68,8 +65,6 @@ class DataManager {
 
   private:
     std::shared_ptr<ResourceMemoryManager> getMemoryManager(const Guid &guid) const;
-
-    Context &_ctx;
 
     std::unordered_map<Guid, Buffer> _buffers{};
     std::unordered_map<Guid, Tensor> _tensors{};
