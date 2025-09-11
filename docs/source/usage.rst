@@ -14,7 +14,7 @@ Resource memory aliasing
 
 It is useful for some resources to share the same underlying memory. Sharing memory allows resources to share inputs or outputs between shaders and VGF workloads.
 
-To enable the resource memory aliasing feature, in the scenario json file, a tensor must have a ``memory_group`` field with the ``uid`` contained inside naming the unique memory object that the resources will use. Only one resource in a single ``memory_group`` can have a ``src`` file.
+To enable the resource memory aliasing feature, in the scenario json file, a tensor must have a ``memory_group`` field with the ``id`` contained inside naming the unique memory object that the resources will use. Only one resource in a single ``memory_group`` can have a ``src`` file.
 
 The following example shows you how to setup a tensor resource that alias an image resource.
 

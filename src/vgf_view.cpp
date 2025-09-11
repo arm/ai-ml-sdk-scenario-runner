@@ -36,6 +36,10 @@ uint32_t bufferSize(const vgflib::DataView<int64_t> &shape) {
         std::abs(std::accumulate(shape.begin(), shape.end(), int64_t(1), std::multiplies<int64_t>())));
 }
 
+constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_UNKNOWN = 0;
+constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT = 6;
+constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_TENSOR_ARM = 1000460000;
+
 } // namespace
 
 VgfView::VgfView(std::unique_ptr<MemoryMap> mapped, std::unique_ptr<vgflib::ModuleTableDecoder> moduleTableDecoder,
@@ -200,9 +204,6 @@ void VgfView::validateResource(const DataManager &dataManager, uint32_t vgfMrtIn
         throw std::runtime_error("Descriptor type not found from VGF file");
     }
 
-    constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT = 6;
-    constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_TENSOR_ARM = 1000460000;
-
     switch (expectedType.value()) {
     case DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT: {
         // Check if resource types match
@@ -254,10 +255,6 @@ void VgfView::validateResource(const DataManager &dataManager, uint32_t vgfMrtIn
 
 void VgfView::createIntermediateResources(const Context &ctx, DataManager &dataManager) const {
     // Iterate over all VGF Resources, create intermediates
-    constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_UNKNOWN = 0;
-    constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT = 6;
-    constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_TENSOR_ARM = 1000460000;
-
     size_t numResources = resourceTableDecoder->size();
     for (uint32_t resourceIndex = 0; resourceIndex < numResources; ++resourceIndex) {
         auto resourceCategory = resourceTableDecoder->getCategory(resourceIndex);
