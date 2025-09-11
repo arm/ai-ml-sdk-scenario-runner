@@ -569,7 +569,6 @@ std::vector<char> Image::getImageData(Context &ctx) {
     region.imageOffset = offset;
     region.imageExtent = extent;
 
-    addTransitionLayoutCommand(cmdBuffer, vk::ImageLayout::eGeneral);
     cmdBuffer.copyImageToBuffer(_image, vk::ImageLayout::eGeneral, _stagingBuffer, {region});
     cmdBuffer.end();
 
