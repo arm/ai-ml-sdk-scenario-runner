@@ -9,17 +9,28 @@ if(NOT DOXYGEN_FOUND OR NOT SPHINX_FOUND)
     return()
 endif()
 
+if(CMAKE_CROSSCOMPILING)
+    message(WARNING "Cannot build the documentation when cross-compiling. Skipping.")
+    return()
+endif()
+
 file(MAKE_DIRECTORY ${SPHINX_GEN_DIR})
 
 # Generate a text file with the Scenario Runner tool help text
 set(SCENARIO_RUNNER_ARG_HELP_TXT ${SPHINX_GEN_DIR}/scenario_runner_help.txt)
 add_custom_command(
-    OUTPUT ${SCENARIO_RUNNER_ARG_HELP_TXT}
-    DEPENDS scenario-runner
-    COMMAND ./scenario-runner --help > ${SCENARIO_RUNNER_ARG_HELP_TXT}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    COMMENT "Generating scenario runner ARGPARSE help documentation"
+    OUTPUT "${SCENARIO_RUNNER_ARG_HELP_TXT}"
+    COMMAND ${CMAKE_COMMAND}
+            -Dcmd=$<IF:$<PLATFORM_ID:Windows>,.\\,./>$<TARGET_FILE_NAME:${SCENARIO_RUNNER_NAMESPACE}::scenario-runner>
+            -Dargs=--help
+            -Dwd=$<TARGET_FILE_DIR:${SCENARIO_RUNNER_NAMESPACE}::scenario-runner>
+            -Dout=${SCENARIO_RUNNER_ARG_HELP_TXT}
+            -P ${CMAKE_CURRENT_LIST_DIR}/redirect-output.cmake
+    COMMAND_EXPAND_LISTS
+    DEPENDS ${SCENARIO_RUNNER_NAMESPACE}::scenario-runner
+    BYPRODUCTS ${SCENARIO_RUNNER_ARG_HELP_TXT}
     VERBATIM
+    COMMENT "Generating scenario runner ARGPARSE help documentation"
 )
 
 set(DOC_SRC_FILES_FULL_PATHS ${SCENARIO_RUNNER_ARG_HELP_TXT})
