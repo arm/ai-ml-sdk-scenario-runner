@@ -75,7 +75,7 @@ vk::raii::DescriptorSetLayout createDescriptorSetLayout(const Context &ctx,
 std::vector<std::vector<ResolvedBindingDesc>> splitOutSets(const std::vector<ResolvedBindingDesc> &allBindings) {
     std::vector<std::vector<ResolvedBindingDesc>> setBindings;
 
-    for (auto &bindingDesc : allBindings) {
+    for (const auto &bindingDesc : allBindings) {
         while (setBindings.size() <= static_cast<size_t>(bindingDesc.set)) {
             setBindings.emplace_back(0);
         }

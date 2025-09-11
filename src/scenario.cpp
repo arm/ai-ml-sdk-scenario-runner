@@ -356,8 +356,7 @@ void Scenario::setupResources() {
 
     // Needed for old-style memory aliasing
     for (const auto &resource : _scenarioSpec.resources) {
-        switch (resource->resourceType) {
-        case (ResourceType::Tensor): {
+        if (resource->resourceType == ResourceType::Tensor) {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
             if (tensor->memoryGroup.has_value()) {
                 for (const auto &image : _scenarioSpec.resources) {
@@ -366,10 +365,6 @@ void Scenario::setupResources() {
                     }
                 }
             }
-        } break;
-        default:
-            // Skip the other types of resources
-            continue;
         }
     }
 
@@ -544,7 +539,7 @@ void Scenario::setupCommands(int iteration) {
 
 bool Scenario::hasAliasedOptimalTensors() const {
     // If any tensors in any memgroup have optimal tiling
-    for ([[maybe_unused]] const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+    for ([[maybe_unused]] const auto &[_, resources] : _dataManager.getResourceMemoryGroups()) {
         if (resources.size() <= 1)
             continue;
         for (auto resource : resources) {
@@ -560,7 +555,7 @@ bool Scenario::hasAliasedOptimalTensors() const {
 void Scenario::handleAliasedLayoutTransitions() {
 
     // Validation pass: ensure all resources in a group have the same tiling type
-    for (const auto &[group, resources] : _dataManager.getResourceMemoryGroups()) {
+    for ([[maybe_unused]] const auto &[_, resources] : _dataManager.getResourceMemoryGroups()) {
         bool allLinear = true;
         bool allOptimal = true;
         for (auto resource : resources) {
