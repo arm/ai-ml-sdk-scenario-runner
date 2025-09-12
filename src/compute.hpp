@@ -45,7 +45,7 @@ class Compute {
     ///
     /// \param pipeline Pipeline to register
     /// \param dataManager Data manager object to retrieve resource
-    /// \param bindingDescs List of bindings associated to each resource
+    /// \param bindings List of bindings associated to each resource
     /// \param pushConstantData Pointer to push constant data to set for the pipeline
     /// \param pushConstantSize Size of push constants data in bytes
     /// \param implicitBarriers True to enable implicit barriers
@@ -56,7 +56,7 @@ class Compute {
     /// \param wgcz (Optional) Workgroup count across dimension Z. Defaults to: 1. Not applicable for
     /// compute graph pipeline
     void registerPipelineFenced(const Pipeline &pipeline, const DataManager &dataManager,
-                                const std::vector<ResolvedBindingDesc> &bindingDescs, const char *pushConstantData,
+                                const std::vector<TypedBinding> &bindings, const char *pushConstantData,
                                 size_t pushConstantSize, bool implicitBarriers, uint32_t wgcx = 1, uint32_t wgcy = 1,
                                 uint32_t wgcz = 1);
 

@@ -32,14 +32,14 @@ struct PipelineBarrierDebugNameBuilder {
     std::string _value;
 };
 
-std::vector<vk::DescriptorPoolSize> getPoolSizes(const std::vector<ResolvedBindingDesc> &bindingDescs) {
+std::vector<vk::DescriptorPoolSize> getPoolSizes(const std::vector<TypedBinding> &bindings) {
     uint32_t numBuffers = 0;
     uint32_t numTensors = 0;
     uint32_t numSampledImages = 0;
     uint32_t numImages = 0;
 
-    for (const auto &bindingDesc : bindingDescs) {
-        switch (bindingDesc.vkDescriptorType) {
+    for (const auto &binding : bindings) {
+        switch (binding.vkDescriptorType) {
         case vk::DescriptorType::eStorageBuffer:
             numBuffers++;
             break;
@@ -147,58 +147,58 @@ Compute::DebugMarker::~DebugMarker() {
 }
 
 void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager &dataManager,
-                                     const std::vector<ResolvedBindingDesc> &bindingDescs, const char *pushConstantData,
+                                     const std::vector<TypedBinding> &bindings, const char *pushConstantData,
                                      size_t pushConstantSize, bool implicitBarriers, uint32_t wgcx, uint32_t wgcy,
                                      uint32_t wgcz) {
 
     DebugMarker dbgMrk0(this, "dispatch (" + pipeline.debugName() + ")");
 
     // Count exact number of typed resources used by this pipeline
-    std::vector<vk::DescriptorPoolSize> poolSizes = getPoolSizes(bindingDescs);
+    std::vector<vk::DescriptorPoolSize> poolSizes = getPoolSizes(bindings);
 
     // Populate descriptor sets
     const uint32_t baseDescriptorSetIdxGlobal = static_cast<uint32_t>(_descriptorSets.size());
     uint32_t maxSet = 0;
-    for (const auto &bindingDesc : bindingDescs) {
-        maxSet = maxSet < bindingDesc.set ? bindingDesc.set : maxSet;
+    for (const auto &binding : bindings) {
+        maxSet = maxSet < binding.set ? binding.set : maxSet;
 
         // Add new sets as needed
-        while (_descriptorSets.size() <= baseDescriptorSetIdxGlobal + bindingDesc.set) {
+        while (_descriptorSets.size() <= baseDescriptorSetIdxGlobal + binding.set) {
             const vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo(
                 vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 1, poolSizes);
             _descriptorPools.emplace_back(_ctx.device(), descriptorPoolCreateInfo);
 
-            const vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo(
-                *_descriptorPools.back(), pipeline.descriptorSetLayout(bindingDesc.set));
+            const vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo(*_descriptorPools.back(),
+                                                                          pipeline.descriptorSetLayout(binding.set));
 
             _descriptorSets.push_back(
                 std::move(vk::raii::DescriptorSets(_ctx.device(), descriptorSetAllocateInfo).front()));
         }
 
-        const vk::DescriptorSet &descSet = *_descriptorSets[baseDescriptorSetIdxGlobal + bindingDesc.set];
-        if (dataManager.hasBuffer(bindingDesc.resourceRef)) {
-            const vk::Buffer &buf = dataManager.getBuffer(bindingDesc.resourceRef).buffer();
+        const vk::DescriptorSet &descSet = *_descriptorSets[baseDescriptorSetIdxGlobal + binding.set];
+        if (dataManager.hasBuffer(binding.resourceRef)) {
+            const vk::Buffer &buf = dataManager.getBuffer(binding.resourceRef).buffer();
             const vk::DescriptorBufferInfo info(buf, 0, vk::WholeSize);
-            vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(bindingDesc.id), 0, 1,
-                                          bindingDesc.vkDescriptorType, {}, &info);
+            vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(binding.id), 0, 1, binding.vkDescriptorType,
+                                          {}, &info);
             _ctx.device().updateDescriptorSets(vk::ArrayProxy<vk::WriteDescriptorSet>(dwrite), {});
-        } else if (dataManager.hasTensor(bindingDesc.resourceRef)) {
-            const vk::WriteDescriptorSetTensorARM info(1, &dataManager.getTensor(bindingDesc.resourceRef).tensorView());
-            const vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(bindingDesc.id), 0, 1,
-                                                bindingDesc.vkDescriptorType, {}, {}, {}, &info);
+        } else if (dataManager.hasTensor(binding.resourceRef)) {
+            const vk::WriteDescriptorSetTensorARM info(1, &dataManager.getTensor(binding.resourceRef).tensorView());
+            const vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(binding.id), 0, 1,
+                                                binding.vkDescriptorType, {}, {}, {}, &info);
             _ctx.device().updateDescriptorSets(vk::ArrayProxy<vk::WriteDescriptorSet>(dwrite), {});
-        } else if (dataManager.hasImage(bindingDesc.resourceRef)) {
+        } else if (dataManager.hasImage(binding.resourceRef)) {
             vk::ImageView imageView;
-            const Image &image = dataManager.getImage(bindingDesc.resourceRef);
+            const Image &image = dataManager.getImage(binding.resourceRef);
 
-            if (bindingDesc.lod.has_value()) {
-                imageView = image.imageView(bindingDesc.lod.value());
+            if (binding.lod.has_value()) {
+                imageView = image.imageView(binding.lod.value());
             } else {
                 imageView = image.imageView();
             }
             const vk::DescriptorImageInfo info(image.sampler(), imageView, image.getImageLayout());
-            const vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(bindingDesc.id), 0, 1,
-                                                bindingDesc.vkDescriptorType, &info);
+            const vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(binding.id), 0, 1,
+                                                binding.vkDescriptorType, &info);
             _ctx.device().updateDescriptorSets(vk::ArrayProxy<vk::WriteDescriptorSet>(dwrite), {});
         }
     }
