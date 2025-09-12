@@ -431,8 +431,7 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     }
 
     // Create Image barrier
-    auto accessFlag =
-        vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite | vk::AccessFlagBits2::eHostWrite;
+    auto accessFlag = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite;
     auto memoryBarrier = vk::MemoryBarrier2(vk::PipelineStageFlagBits2::eAllCommands, accessFlag,
                                             vk::PipelineStageFlagBits2::eAllCommands, accessFlag);
     auto imageBarrier = vk::ImageMemoryBarrier2();

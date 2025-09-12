@@ -229,8 +229,7 @@ void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager
         const uint32_t tensorBarrierIdx = static_cast<uint32_t>(_tensorBarriers.size());
         const uint32_t bufferBarrierIdx = static_cast<uint32_t>(_bufferBarriers.size());
 
-        auto accessFlag =
-            vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite | vk::AccessFlagBits2::eHostWrite;
+        auto accessFlag = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite;
         _memoryBarriers.emplace_back(
             std::vector<vk::MemoryBarrier2>{vk::MemoryBarrier2(vk::PipelineStageFlagBits2::eAllCommands, accessFlag,
                                                                vk::PipelineStageFlagBits2::eAllCommands, accessFlag)});
