@@ -11,7 +11,7 @@
 
 namespace mlsdk::scenariorunner {
 
-typedef enum {
+enum DxgiFormat {
     DXGI_FORMAT_UNKNOWN = 0,
     DXGI_FORMAT_R32G32B32A32_FLOAT = 2,
     DXGI_FORMAT_R16G16B16A16_FLOAT = 10,
@@ -32,7 +32,7 @@ typedef enum {
     // todo: remove when non dxgi texture formats support is added.
     DXGI_FORMAT_R8G8B8_SNORM_CUSTOM = 133,
     DXGI_FORMAT_R8G8B8_SINT_CUSTOM = 134
-} DxgiFormat;
+};
 
 /// \brief Load data from a DDS file
 ///

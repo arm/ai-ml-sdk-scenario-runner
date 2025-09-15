@@ -6,7 +6,6 @@
 #include <argparse/argparse.hpp>
 #include <vgf/logging.hpp>
 
-#include "context.hpp"
 #include "logging.hpp"
 #include "scenario.hpp"
 #include "version.hpp"
