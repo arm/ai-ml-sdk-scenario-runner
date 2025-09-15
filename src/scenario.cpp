@@ -827,9 +827,9 @@ void Scenario::createDataGraphPipeline(const DispatchDataGraphDesc &dispatchData
     const VgfView &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraphRef);
     Creator creator{_ctx, _dataManager};
     vgfView.createIntermediateResources(creator);
+    const auto bindings = convertBindings(_dataManager, dispatchDataGraph.bindings);
     for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
-        const auto bindings = vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings);
-        const auto sequenceBindings = convertBindings(_dataManager, bindings);
+        const auto sequenceBindings = vgfView.resolveBindings(segmentIndex, _dataManager, bindings);
         auto moduleName = vgfView.getSPVModuleName(segmentIndex);
         _perfCounters
             .emplace_back("Create Pipeline: " + moduleName + ". Iteration: " + std::to_string(iteration + 1),

@@ -37,8 +37,19 @@ uint32_t bufferSize(const vgflib::DataView<int64_t> &shape) {
 }
 
 constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_UNKNOWN = 0;
-constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT = 6;
+constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_UNIFORM_BUFFER = 6;
 constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_TENSOR_ARM = 1000460000;
+
+constexpr vk::DescriptorType getVkDescriptorType(vgflib::DescriptorType descriptorType) {
+    switch (descriptorType) {
+    case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+        return vk::DescriptorType::eStorageBuffer;
+    case DESCRIPTOR_TYPE_TENSOR_ARM:
+        return vk::DescriptorType::eTensorARM;
+    default:
+        throw std::runtime_error("Descriptor type from VGF file not found");
+    }
+}
 
 } // namespace
 
@@ -157,10 +168,10 @@ vgflib::DataView<uint8_t> VgfView::getConstantData(uint32_t constantIndex) const
     return constantTableDecoder->getConstant(constantIndex);
 }
 
-std::vector<BindingDesc> VgfView::resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
-                                                  const std::vector<BindingDesc> &externalBindings) const {
+std::vector<TypedBinding> VgfView::resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
+                                                   const std::vector<TypedBinding> &externalBindings) const {
     // Get segment binding infos
-    std::vector<BindingDesc> bindings;
+    std::vector<TypedBinding> bindings;
     auto descSetSize = sequenceTableDecoder->getSegmentDescriptorSetInfosSize(segmentIndex);
     std::map<std::tuple<uint32_t, uint32_t>, uint32_t> mrtIndexes;
     // For each segment descriptor set:
@@ -168,10 +179,17 @@ std::vector<BindingDesc> VgfView::resolveBindings(uint32_t segmentIndex, const D
         auto handle = sequenceTableDecoder->getDescriptorBindingSlotsHandle(segmentIndex, set);
         // For each descriptor set binding:
         for (uint32_t slot = 0; slot < sequenceTableDecoder->getBindingsSize(handle); ++slot) {
-            auto bindingId = sequenceTableDecoder->getBindingSlotBinding(handle, slot);
             auto mrtIndex = sequenceTableDecoder->getBindingSlotMrtIndex(handle, slot);
+            const auto expectedType = resourceTableDecoder->getDescriptorType(mrtIndex);
+            const auto vkDescriptorType = getVkDescriptorType(expectedType.value_or(DESCRIPTOR_TYPE_UNKNOWN));
+            auto bindingId = sequenceTableDecoder->getBindingSlotBinding(handle, slot);
             auto guidStr = createResourceGuidStr(bindingId, resourceTableDecoder->getCategory(mrtIndex));
-            bindings.emplace_back(BindingDesc(set, bindingId, guidStr));
+            TypedBinding binding;
+            binding.set = set;
+            binding.id = bindingId;
+            binding.resourceRef = guidStr;
+            binding.vkDescriptorType = vkDescriptorType;
+            bindings.emplace_back(binding);
             mrtIndexes.insert({{set, bindingId}, mrtIndex});
         }
     }
@@ -205,7 +223,7 @@ void VgfView::validateResource(const DataManager &dataManager, uint32_t vgfMrtIn
     }
 
     switch (expectedType.value()) {
-    case DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT: {
+    case DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
         // Check if resource types match
         if (!dataManager.hasBuffer(externalResourceRef)) {
             throw std::runtime_error("This VGF resource is linked to a buffer resource,"
@@ -262,7 +280,7 @@ void VgfView::createIntermediateResources(IResourceCreator &creator) const {
             auto guidStr = createResourceGuidStr(resourceIndex, resourceCategory);
             auto type = resourceTableDecoder->getDescriptorType(resourceIndex);
             switch (type.value_or(DESCRIPTOR_TYPE_UNKNOWN)) {
-            case (DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT): {
+            case (DESCRIPTOR_TYPE_UNIFORM_BUFFER): {
                 auto shape = resourceTableDecoder->getTensorShape(resourceIndex);
                 auto expectedBufferSize = bufferSize(shape);
 

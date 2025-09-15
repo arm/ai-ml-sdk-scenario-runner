@@ -4,7 +4,6 @@
  */
 #pragma once
 
-#include "commands.hpp"
 #include "types.hpp"
 
 #include "vgf-utils/memory_map.hpp"
@@ -36,8 +35,8 @@ class VgfView {
     vgflib::DataView<int64_t> getConstantShape(uint32_t constantIndex) const;
     vgflib::DataView<uint8_t> getConstantData(uint32_t constantIndex) const;
 
-    std::vector<BindingDesc> resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
-                                             const std::vector<BindingDesc> &externalBindings) const;
+    std::vector<TypedBinding> resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
+                                              const std::vector<TypedBinding> &externalBindings) const;
     void createIntermediateResources(IResourceCreator &creator) const;
 
   private:
