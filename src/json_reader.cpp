@@ -30,8 +30,8 @@ void from_json(const json &j, SpecializationConstant &specializationConstant);
 // Function to de-serialize a SpecializationConstantMap from JSON
 void from_json(const json &j, SpecializationConstantMap &pushConstantMap);
 
-// Function to de-serialize a ShaderSubstitutionDesc from JSON
-void from_json(const json &j, ShaderSubstitutionDesc &shaderSubstitution);
+// Function to de-serialize a ShaderSubstitution from JSON
+void from_json(const json &j, ShaderSubstitution &shaderSubstitution);
 
 // Function to de-serialize SubresourceRange from JSON
 void from_json(const json &j, SubresourceRange &subresourceRange);
@@ -272,7 +272,7 @@ void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph) {
         const json shaderSubJson = j.find("shader_substitutions").value();
         for (auto shaderSub = shaderSubJson.begin(); shaderSub != shaderSubJson.end(); ++shaderSub) {
             const json &newShaderSub = shaderSub.value();
-            dispatchDataGraph.shaderSubstitutions.push_back(newShaderSub.get<ShaderSubstitutionDesc>());
+            dispatchDataGraph.shaderSubstitutions.push_back(newShaderSub.get<ShaderSubstitution>());
         }
     }
 }
@@ -485,12 +485,12 @@ void from_json(const json &j, SpecializationConstantMap &specializationConstantM
 }
 
 /**
- * @brief De-serialize ShaderSubstitutionDesc from JSON.
+ * @brief De-serialize ShaderSubstitution from JSON.
  *
  * @param j
  * @param shaderSubstitution
  */
-void from_json(const json &j, ShaderSubstitutionDesc &shaderSubstitution) {
+void from_json(const json &j, ShaderSubstitution &shaderSubstitution) {
     shaderSubstitution.shaderRef = j.at("shader_ref").get<std::string>();
     shaderSubstitution.target = j.at("target").get<std::string>();
 }
@@ -510,7 +510,7 @@ void from_json(const json &j, DataGraphDesc &dataGraph) {
         const json shaderSubJson = j.find("shader_substitutions").value();
         for (auto shaderSub = shaderSubJson.begin(); shaderSub != shaderSubJson.end(); ++shaderSub) {
             const json &newShaderSub = shaderSub.value();
-            dataGraph.shaderSubstitutions.push_back(newShaderSub.get<ShaderSubstitutionDesc>());
+            dataGraph.shaderSubstitutions.push_back(newShaderSub.get<ShaderSubstitution>());
         }
     }
     if (j.count("specialization_constants") != 0) {

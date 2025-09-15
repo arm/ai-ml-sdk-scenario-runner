@@ -6,6 +6,7 @@
 #pragma once
 
 #include "guid.hpp"
+#include "types.hpp"
 
 #include <cstdint>
 #include <optional>
@@ -34,40 +35,11 @@ struct CommandDesc {
  *
  */
 struct BindingDesc {
-    BindingDesc() = default;
-    BindingDesc(uint32_t set, uint32_t id, Guid resourceRef);
-
     uint32_t set{};
     uint32_t id{};
     Guid resourceRef;
     std::optional<uint32_t> lod;
     DescriptorType descriptorType = DescriptorType::Auto;
-};
-
-/**
- * @brief Maps the raw data resource containing push constants data
- * to the shader node in the graph which consumes these
- *
- */
-struct PushConstantMap {
-    PushConstantMap() = default;
-    explicit PushConstantMap(Guid pushDataRef, Guid shaderTarget);
-
-    Guid pushDataRef;
-    Guid shaderTarget;
-};
-
-/**
- * @brief Describes a placeholder shader node in the graph that will be substituted with an actual shader
- * implementation
- *
- */
-struct ShaderSubstitutionDesc {
-    ShaderSubstitutionDesc() = default;
-    explicit ShaderSubstitutionDesc(Guid shaderRef, const std::string &target);
-
-    Guid shaderRef;
-    std::string target;
 };
 
 /**
@@ -97,9 +69,9 @@ struct DispatchDataGraphDesc : CommandDesc {
     Guid dataGraphRef;
     std::string debugName;
     std::vector<BindingDesc> bindings;
-    std::vector<PushConstantMap> pushConstants = {};
-    std::vector<ShaderSubstitutionDesc> shaderSubstitutions = {};
-    bool implicitBarrier = true;
+    std::vector<PushConstantMap> pushConstants;
+    std::vector<ShaderSubstitution> shaderSubstitutions;
+    bool implicitBarrier{true};
 };
 
 /**

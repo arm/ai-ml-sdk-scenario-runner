@@ -96,7 +96,7 @@ struct DataGraphDesc : ResourceDesc {
     DataGraphDesc();
     DataGraphDesc(Guid guid, const std::string &guidStr, std::string src);
 
-    std::vector<ShaderSubstitutionDesc> shaderSubstitutions;
+    std::vector<ShaderSubstitution> shaderSubstitutions;
     std::vector<SpecializationConstantMap> specializationConstantMaps;
     uint32_t pushConstantsSize{};
 };
