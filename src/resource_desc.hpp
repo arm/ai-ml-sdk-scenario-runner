@@ -65,24 +65,10 @@ struct BufferDesc : ResourceDesc {
 };
 
 /**
- * @brief Specialization constants used in shaders
- *
- */
-struct SpecializationConstant {
-    SpecializationConstant() = default;
-    SpecializationConstant(int id, Constant value);
-    int id{};
-    Constant value;
-};
-
-/**
  * @brief SpecializationConstantMap is used to map specialization constants to multiple shaders within a graph
  *
  */
 struct SpecializationConstantMap {
-    SpecializationConstantMap() = default;
-    SpecializationConstantMap(std::vector<SpecializationConstant> specializationConstants, Guid shaderTarget);
-
     std::vector<SpecializationConstant> specializationConstants;
     Guid shaderTarget;
 };
@@ -99,8 +85,6 @@ struct DataGraphDesc : ResourceDesc {
     std::vector<SpecializationConstantMap> specializationConstantMaps;
     uint32_t pushConstantsSize{};
 };
-
-enum class ShaderType { Unknown, SPIR_V, GLSL };
 
 /**
  * @brief ShaderDesc describes a Shader.

@@ -127,6 +127,30 @@ struct TypedBinding {
     vk::DescriptorType vkDescriptorType{};
 };
 
+enum class ShaderType {
+    Unknown,
+    SPIR_V,
+    GLSL,
+};
+
+/// \brief Specialization constants used in shaders
+struct SpecializationConstant {
+    int id{};
+    Constant value;
+};
+
+/// \brief ShaderInfo describes a shader.
+struct ShaderInfo {
+    std::string debugName;
+    std::string entry;
+    uint32_t pushConstantsSize{};
+    std::vector<SpecializationConstant> specializationConstants;
+    std::string src;
+    ShaderType shaderType{ShaderType::Unknown};
+    std::string buildOpts;
+    std::vector<std::string> includeDirs;
+};
+
 /// \brief Group count for x, y and z
 struct ComputeDispatch {
     uint32_t gwcx{1};

@@ -6,7 +6,6 @@
 #include "image.hpp"
 #include "dds_reader.hpp"
 #include "logging.hpp"
-#include "resource_desc.hpp"
 #include "utils.hpp"
 #include "vulkan_debug_utils.hpp"
 

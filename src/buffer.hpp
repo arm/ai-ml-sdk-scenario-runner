@@ -6,6 +6,7 @@
 #pragma once
 
 #include "context.hpp"
+#include "resource_desc.hpp"
 #include "types.hpp"
 #include "vulkan_memory_manager.hpp"
 

@@ -8,7 +8,6 @@
 #include "buffer.hpp"
 #include "image.hpp"
 #include "raw_data.hpp"
-#include "resource_desc.hpp"
 #include "tensor.hpp"
 #include "vgf_view.hpp"
 

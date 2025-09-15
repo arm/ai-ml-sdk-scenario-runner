@@ -362,6 +362,18 @@ struct CommandDataFactory {
     }
 };
 
+ShaderInfo convert(const ShaderDesc &shaderDesc) {
+    ShaderInfo info{shaderDesc.guidStr,
+                    shaderDesc.entry,
+                    shaderDesc.pushConstantsSize,
+                    shaderDesc.specializationConstants,
+                    shaderDesc.src.value_or(std::string{}),
+                    shaderDesc.shaderType,
+                    shaderDesc.buildOpts,
+                    shaderDesc.includeDirs};
+    return info;
+}
+
 } // namespace
 
 Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
@@ -785,14 +797,14 @@ void Scenario::handleAliasedLayoutTransitions() {
 
 void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute, int iteration, uint32_t &nQueries) {
     // Create Compute shader pipeline
-    const auto &shaderDesc = _scenarioSpec.getShaderResource(dispatchCompute.shaderRef);
+    const auto shaderInfo = convert(_scenarioSpec.getShaderResource(dispatchCompute.shaderRef));
     const Pipeline::CommonArguments args{_ctx, dispatchCompute.debugName, dispatchCompute.bindings, _pipelineCache};
 
     _perfCounters
-        .emplace_back("Create Pipeline: " + shaderDesc.guidStr + ". Iteration: " + std::to_string(iteration + 1),
+        .emplace_back("Create Pipeline: " + shaderInfo.debugName + ". Iteration: " + std::to_string(iteration + 1),
                       "Pipeline Setup", true)
         .start();
-    _pipelines.emplace_back(args, shaderDesc);
+    _pipelines.emplace_back(args, shaderInfo);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
     const char *pushConstantData = nullptr;
     size_t pushConstantSize = 0;
@@ -805,7 +817,7 @@ void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute,
                                     pushConstantSize, dispatchCompute.implicitBarrier, dispatchCompute.computeDispatch);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
     _perfCounters.back().stop();
-    mlsdk::logging::debug("Shader Pipeline: " + shaderDesc.guidStr + " created");
+    mlsdk::logging::debug("Shader Pipeline: " + shaderInfo.debugName + " created");
 }
 
 void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, int iteration,
@@ -842,9 +854,9 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
         bool hasSPVModule = vgfView.hasSPVModule(segmentIndex);
         if (!dispatchDataGraph.shaderSubstitutions.empty()) {
             auto moduleName = vgfView.getSPVModuleName(segmentIndex);
-            const auto &shaderDesc =
-                _scenarioSpec.getSubstitionShader(dispatchDataGraph.shaderSubstitutions, moduleName);
-            _pipelines.emplace_back(args, shaderDesc);
+            const auto shaderInfo =
+                convert(_scenarioSpec.getSubstitionShader(dispatchDataGraph.shaderSubstitutions, moduleName));
+            _pipelines.emplace_back(args, shaderInfo);
             if (hasSPVModule) {
                 mlsdk::logging::warning("Performing shader substitution despite shader module containing code");
             }
@@ -853,11 +865,12 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
                 throw std::runtime_error("No SPIR-V module present and no shader substituion defined.");
             }
 
-            auto moduleName = vgfView.getSPVModuleName(segmentIndex);
-            auto entryPoint = vgfView.getSPVModuleEntryPoint(segmentIndex);
+            ShaderInfo shaderInfo;
+            shaderInfo.debugName = vgfView.getSPVModuleName(segmentIndex);
+            shaderInfo.entry = vgfView.getSPVModuleEntryPoint(segmentIndex);
             auto spv = vgfView.getSPVModule(segmentIndex);
-            auto shaderDesc = ShaderDesc(Guid(moduleName), moduleName, {}, std::move(entryPoint), ShaderType::SPIR_V);
-            _pipelines.emplace_back(args, spv.begin(), spv.size(), shaderDesc);
+            shaderInfo.shaderType = ShaderType::SPIR_V;
+            _pipelines.emplace_back(args, spv.begin(), spv.size(), shaderInfo);
         }
 
         auto dispatchShape = vgfView.getDispatchShape(segmentIndex);

@@ -5,8 +5,9 @@
 
 #include "pipeline.hpp"
 #include "logging.hpp"
-#include "spirv-tools/libspirv.hpp"
 #include "utils.hpp"
+
+#include "spirv-tools/libspirv.hpp"
 #include "vulkan_debug_utils.hpp"
 
 namespace mlsdk::scenariorunner {
@@ -23,8 +24,8 @@ vk::raii::ShaderModule createShaderModuleFromCode(const Context &ctx, const uint
     return vk::raii::ShaderModule(ctx.device(), shaderCreateInfo);
 }
 
-vk::raii::ShaderModule createShaderModule(const Context &ctx, const ShaderDesc &shaderDesc) {
-    const std::vector<uint32_t> code = readShaderCode(shaderDesc);
+vk::raii::ShaderModule createShaderModule(const Context &ctx, const ShaderInfo &shaderInfo) {
+    const std::vector<uint32_t> code = readShaderCode(shaderInfo);
     return createShaderModuleFromCode(ctx, code.data(), code.size());
 }
 
@@ -93,16 +94,16 @@ void Pipeline::createDescriptorSetLayouts(const Context &ctx, const std::vector<
     }
 }
 
-void Pipeline::computePipelineCommon(const Context &ctx, const ShaderDesc &shaderDesc,
+void Pipeline::computePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
                                      std::optional<PipelineCache> &pipelineCache) {
-    _pipelineLayout = createPipelineLayout(ctx, _descriptorSetLayouts, shaderDesc.pushConstantsSize);
+    _pipelineLayout = createPipelineLayout(ctx, _descriptorSetLayouts, shaderInfo.pushConstantsSize);
 
-    std::vector<vk::SpecializationMapEntry> specMapEntries(shaderDesc.specializationConstants.size());
-    std::vector<decltype(SpecializationConstant::value)> specConstValues(shaderDesc.specializationConstants.size());
+    std::vector<vk::SpecializationMapEntry> specMapEntries(shaderInfo.specializationConstants.size());
+    std::vector<decltype(SpecializationConstant::value)> specConstValues(shaderInfo.specializationConstants.size());
     const auto specConstSize = sizeof(SpecializationConstant::value);
-    for (uint32_t i = 0, offset = 0; i < static_cast<uint32_t>(shaderDesc.specializationConstants.size());
+    for (uint32_t i = 0, offset = 0; i < static_cast<uint32_t>(shaderInfo.specializationConstants.size());
          ++i, offset += specConstSize) {
-        const auto &specConst = shaderDesc.specializationConstants[i];
+        const auto &specConst = shaderInfo.specializationConstants[i];
         specMapEntries[i] = vk::SpecializationMapEntry(static_cast<uint32_t>(specConst.id), offset, specConstSize);
         specConstValues[i] = specConst.value;
     }
@@ -111,7 +112,7 @@ void Pipeline::computePipelineCommon(const Context &ctx, const ShaderDesc &shade
                                           specConstValues.size() * specConstSize, specConstValues.data());
 
     const vk::PipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(
-        {}, vk::ShaderStageFlagBits::eCompute, *_shader, shaderDesc.entry.c_str(), &specInfo);
+        {}, vk::ShaderStageFlagBits::eCompute, *_shader, shaderInfo.entry.c_str(), &specInfo);
 
     vk::PipelineCreateFlags flags{};
     const void *pNext{nullptr};
@@ -132,7 +133,7 @@ void Pipeline::computePipelineCommon(const Context &ctx, const ShaderDesc &shade
 }
 
 Pipeline::Pipeline(const CommonArguments &args, const uint32_t *spvCode, const size_t spvSize,
-                   const ShaderDesc &shaderDesc)
+                   const ShaderInfo &shaderInfo)
     : _type{PipelineType::Compute}, _debugName(args.debugName) {
 
     validateShaderModule(spvCode, spvSize);
@@ -141,16 +142,16 @@ Pipeline::Pipeline(const CommonArguments &args, const uint32_t *spvCode, const s
     trySetVkRaiiObjectDebugName(args.ctx, _shader, _debugName + " shader");
 
     createDescriptorSetLayouts(args.ctx, args.bindings);
-    computePipelineCommon(args.ctx, shaderDesc, args.pipelineCache);
+    computePipelineCommon(args.ctx, shaderInfo, args.pipelineCache);
 }
 
-Pipeline::Pipeline(const CommonArguments &args, const ShaderDesc &shaderDesc)
-    : _type{PipelineType::Compute}, _shader(createShaderModule(args.ctx, shaderDesc)), _debugName(args.debugName) {
+Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo)
+    : _type{PipelineType::Compute}, _shader(createShaderModule(args.ctx, shaderInfo)), _debugName(args.debugName) {
 
-    trySetVkRaiiObjectDebugName(args.ctx, _shader, shaderDesc.guidStr);
+    trySetVkRaiiObjectDebugName(args.ctx, _shader, shaderInfo.debugName);
 
     createDescriptorSetLayouts(args.ctx, args.bindings);
-    computePipelineCommon(args.ctx, shaderDesc, args.pipelineCache);
+    computePipelineCommon(args.ctx, shaderInfo, args.pipelineCache);
 }
 
 Pipeline::Pipeline(const CommonArguments &args, const uint32_t segmentIndex, const VgfView &vgfView,
