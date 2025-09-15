@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include "iresource.hpp"
 #include "types.hpp"
 
 #include "vgf-utils/memory_map.hpp"
@@ -15,7 +16,6 @@
 namespace mlsdk::scenariorunner {
 
 class DataManager;
-class IResourceCreator;
 
 class VgfView {
   public:
@@ -45,7 +45,7 @@ class VgfView {
     using MrtIndexes = std::map<std::tuple<uint32_t, uint32_t>, uint32_t>;
 
     std::pair<std::vector<TypedBinding>, MrtIndexes> getBindings(uint32_t segmentIndex) const;
-    void validateResource(const DataManager &dataManager, uint32_t vgfMrtIndex, Guid externalResourceRef) const;
+    void validateResource(const IResourceViewer &resourceViewer, uint32_t vgfMrtIndex) const;
 
     std::unique_ptr<MemoryMap> mapped;
     std::unique_ptr<vgflib::ModuleTableDecoder> moduleTableDecoder;

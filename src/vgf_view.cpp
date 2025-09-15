@@ -50,6 +50,15 @@ constexpr vk::DescriptorType getVkDescriptorType(vgflib::DescriptorType descript
     }
 }
 
+class DataManagerResourceViewerImpl final : public DataManagerResourceViewer {
+  public:
+    using DataManagerResourceViewer::DataManagerResourceViewer;
+
+    bool hasImage() const override { return false; }
+
+    const Image &getImage() const override { throw std::runtime_error("Image is an invalid resource type."); }
+};
+
 } // namespace
 
 VgfView::VgfView(std::unique_ptr<MemoryMap> mapped, std::unique_ptr<vgflib::ModuleTableDecoder> moduleTableDecoder,
@@ -207,6 +216,7 @@ std::vector<TypedBinding> VgfView::resolveBindings(uint32_t segmentIndex, const 
             throw std::runtime_error("No resource with this guid found");
         }
 
+        const DataManagerResourceViewerImpl resourceViewer(dataManager, externalBinding.resourceRef);
         for (auto &binding : bindings) {
             if (binding.set == externalBinding.set && binding.id == externalBinding.id) {
                 binding.resourceRef = externalBinding.resourceRef;
@@ -215,14 +225,14 @@ std::vector<TypedBinding> VgfView::resolveBindings(uint32_t segmentIndex, const 
                 if (mrtIndexSearch == mrtIndexes.end()) {
                     throw std::runtime_error("No resource found in MRT Table");
                 }
-                validateResource(dataManager, mrtIndexSearch->second, externalBinding.resourceRef);
+                validateResource(resourceViewer, mrtIndexSearch->second);
             }
         }
     }
     return bindings;
 }
 
-void VgfView::validateResource(const DataManager &dataManager, uint32_t vgfMrtIndex, Guid externalResourceRef) const {
+void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t vgfMrtIndex) const {
     std::optional<vgflib::DescriptorType> expectedType = resourceTableDecoder->getDescriptorType(vgfMrtIndex);
     if (!expectedType.has_value()) {
         throw std::runtime_error("Descriptor type not found from VGF file");
@@ -230,12 +240,7 @@ void VgfView::validateResource(const DataManager &dataManager, uint32_t vgfMrtIn
 
     switch (expectedType.value()) {
     case DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
-        // Check if resource types match
-        if (!dataManager.hasBuffer(externalResourceRef)) {
-            throw std::runtime_error("This VGF resource is linked to a buffer resource,"
-                                     "but JSON file states otherwise");
-        }
-        const Buffer &buffer = dataManager.getBuffer(externalResourceRef);
+        const auto &buffer = resourceViewer.getBuffer();
 
         // Check if buffer sizes match
         auto shape = resourceTableDecoder->getTensorShape(vgfMrtIndex);
@@ -245,12 +250,7 @@ void VgfView::validateResource(const DataManager &dataManager, uint32_t vgfMrtIn
         }
     } break;
     case DESCRIPTOR_TYPE_TENSOR_ARM: {
-        // Check if resource types matches
-        if (!dataManager.hasTensor(externalResourceRef)) {
-            throw std::runtime_error("This VGF resource is linked to a tensor resource,"
-                                     "but JSON file states otherwise");
-        }
-        const Tensor &tensor = dataManager.getTensor(externalResourceRef);
+        const auto &tensor = resourceViewer.getTensor();
         const std::vector<int64_t> actualTensorShape =
             tensor.isRankConverted() ? std::vector<int64_t>(0) : tensor.shape();
 

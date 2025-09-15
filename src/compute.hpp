@@ -192,7 +192,7 @@ class Compute {
                             const std::vector<vk::DescriptorPoolSize> &poolSizes, const Pipeline &pipeline);
 
     void _updateDescriptorSets(const vk::DescriptorSet &descSet, const TypedBinding &binding,
-                               const DataManager &dataManager);
+                               const IResourceViewer &resourceViewer);
 
     void _addImplicitBarriers();
 

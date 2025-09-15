@@ -181,21 +181,21 @@ void Compute::_addDescriptorSets(const uint32_t baseDescriptorSetIdxGlobal, uint
 }
 
 void Compute::_updateDescriptorSets(const vk::DescriptorSet &descSet, const TypedBinding &binding,
-                                    const DataManager &dataManager) {
-    if (dataManager.hasBuffer(binding.resourceRef)) {
-        const vk::Buffer &buf = dataManager.getBuffer(binding.resourceRef).buffer();
+                                    const IResourceViewer &resourceViewer) {
+    if (resourceViewer.hasBuffer()) {
+        const vk::Buffer &buf = resourceViewer.getBuffer().buffer();
         const vk::DescriptorBufferInfo info(buf, 0, vk::WholeSize);
         vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(binding.id), 0, 1, binding.vkDescriptorType, {},
                                       &info);
         _ctx.device().updateDescriptorSets(vk::ArrayProxy<vk::WriteDescriptorSet>(dwrite), {});
-    } else if (dataManager.hasTensor(binding.resourceRef)) {
-        const vk::WriteDescriptorSetTensorARM info(1, &dataManager.getTensor(binding.resourceRef).tensorView());
+    } else if (resourceViewer.hasTensor()) {
+        const vk::WriteDescriptorSetTensorARM info(1, &resourceViewer.getTensor().tensorView());
         const vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(binding.id), 0, 1, binding.vkDescriptorType,
                                             {}, {}, {}, &info);
         _ctx.device().updateDescriptorSets(vk::ArrayProxy<vk::WriteDescriptorSet>(dwrite), {});
-    } else if (dataManager.hasImage(binding.resourceRef)) {
+    } else if (resourceViewer.hasImage()) {
         vk::ImageView imageView;
-        const Image &image = dataManager.getImage(binding.resourceRef);
+        const Image &image = resourceViewer.getImage();
 
         if (binding.lod.has_value()) {
             imageView = image.imageView(binding.lod.value());
@@ -226,8 +226,9 @@ void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager
 
         _addDescriptorSets(baseDescriptorSetIdxGlobal, binding.set, poolSizes, pipeline);
 
-        const vk::DescriptorSet &descSet = *_descriptorSets[baseDescriptorSetIdxGlobal + binding.set];
-        _updateDescriptorSets(descSet, binding, dataManager);
+        const auto &descSet = *_descriptorSets[baseDescriptorSetIdxGlobal + binding.set];
+        const DataManagerResourceViewer resourceViewer(dataManager, binding.resourceRef);
+        _updateDescriptorSets(descSet, binding, resourceViewer);
     }
 
     const auto bindPoint = pipeline.isDataGraphPipeline() ? BindPoint::DataGraph : BindPoint::Compute;
