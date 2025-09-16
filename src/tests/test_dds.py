@@ -79,6 +79,15 @@ pytestmark = pytest.mark.dds
             "passthrough_glsl_sampler_RGBA16.comp",
             "passthrough_sampler_RGBA16.json",
         ),
+        (
+            64,
+            64,
+            4,
+            "u32",
+            "DXGI_FORMAT_R32_UINT",
+            "passthrough_R32_UINT.comp",
+            "passthrough_R32_UINT.json",
+        ),
     ],
 )
 def test_image_passthrough(

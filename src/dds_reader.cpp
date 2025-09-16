@@ -90,6 +90,8 @@ vk::Format ddsFormatToVkFormat(const DDSHeaderInfo &header) {
         return vk::Format::eR16Sfloat;
     case DXGI_FORMAT_R8_UNORM:
         return vk::Format::eR8Unorm;
+    case DXGI_FORMAT_R32_UINT:
+        return vk::Format::eR32Uint;
     default:
         throw std::runtime_error("Unknown DXGI format: " + std::to_string(header.header10.dxgiFormat));
     }
@@ -129,6 +131,8 @@ DxgiFormat vkFormatToDDSFormat(vk::Format vkFormat) {
         return DXGI_FORMAT_R16_FLOAT;
     case vk::Format::eR8Unorm:
         return DXGI_FORMAT_R8_UNORM;
+    case vk::Format::eR32Uint:
+        return DXGI_FORMAT_R32_UINT;
     default:
         throw std::runtime_error("Unknown VkFormat: " + vgflib::FormatTypeToName(vgflib::ToFormatType(vkFormat)));
     }
