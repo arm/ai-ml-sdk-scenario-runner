@@ -6,6 +6,7 @@
 #include "dds_reader.hpp"
 #include "frame_capturer.hpp"
 #include "guid.hpp"
+#include "iresource.hpp"
 #include "json_writer.hpp"
 #include "logging.hpp"
 #include "vgf-utils/numpy.hpp"
@@ -247,6 +248,29 @@ std::vector<TypedBinding> convertBindings(const DataManager &dataManager,
     }
     return bindings;
 }
+
+class Creator final : public IResourceCreator {
+  public:
+    Creator(const Context &ctx, DataManager &dataManager) : _ctx{ctx}, _dataManager{dataManager} {}
+
+    void createBuffer(Guid guid, const BufferInfo &info) override {
+        _dataManager.createBuffer(guid, info);
+        auto &buffer = _dataManager.getBufferMut(guid);
+        buffer.setup(_ctx);
+        buffer.allocateMemory(_ctx);
+    }
+
+    void createTensor(Guid guid, const TensorInfo &info) override {
+        _dataManager.createTensor(guid, info);
+        auto &tensor = _dataManager.getTensorMut(guid);
+        tensor.setup(_ctx);
+        tensor.allocateMemory(_ctx);
+    }
+
+  private:
+    const Context &_ctx;
+    DataManager &_dataManager;
+};
 
 } // namespace
 
@@ -730,7 +754,8 @@ void Scenario::createComputePipeline(const DispatchComputeDesc &dispatchCompute,
 void Scenario::createDataGraphPipeline(const DispatchDataGraphDesc &dispatchDataGraph, int iteration,
                                        uint32_t &nQueries) {
     const VgfView &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraphRef);
-    vgfView.createIntermediateResources(_ctx, _dataManager);
+    Creator creator{_ctx, _dataManager};
+    vgfView.createIntermediateResources(creator);
     for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
         const auto bindings = vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings);
         const auto sequenceBindings = convertBindings(_dataManager, bindings);

@@ -50,7 +50,7 @@ struct SubresourceRange {
 };
 
 /// \brief A variant of the potential custom border colors */
-typedef std::variant<std::array<float, 4>, std::array<int32_t, 4>> CustomColorValue;
+using CustomColorValue = std::variant<std::array<float, 4>, std::array<int32_t, 4>>;
 
 /// \brief Structure that describes DDS pixel data layout
 struct DDSPixelFormat {
@@ -187,12 +187,6 @@ struct BufferBarrierData : BaseBarrierData {
     uint64_t offset;
     uint64_t size;
     vk::Buffer buffer;
-};
-
-struct ConstantTensorData {
-    uint32_t id;
-    TensorInfo info;
-    std::vector<char> data;
 };
 
 /// \brief Constant structure

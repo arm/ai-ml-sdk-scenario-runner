@@ -14,8 +14,8 @@
 
 namespace mlsdk::scenariorunner {
 
-class Context;
 class DataManager;
+class IResourceCreator;
 
 class VgfView {
   public:
@@ -38,7 +38,7 @@ class VgfView {
 
     std::vector<BindingDesc> resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
                                              const std::vector<BindingDesc> &externalBindings) const;
-    void createIntermediateResources(const Context &ctx, DataManager &dataManager) const;
+    void createIntermediateResources(IResourceCreator &creator) const;
 
   private:
     void validateResource(const DataManager &dataManager, uint32_t vgfMrtIndex, Guid externalResourceRef) const;

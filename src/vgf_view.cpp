@@ -4,8 +4,8 @@
  */
 #include "vgf_view.hpp"
 
-#include "context.hpp"
 #include "data_manager.hpp"
+#include "iresource.hpp"
 
 #include <map>
 #include <numeric>
@@ -253,7 +253,7 @@ void VgfView::validateResource(const DataManager &dataManager, uint32_t vgfMrtIn
     }
 }
 
-void VgfView::createIntermediateResources(const Context &ctx, DataManager &dataManager) const {
+void VgfView::createIntermediateResources(IResourceCreator &creator) const {
     // Iterate over all VGF Resources, create intermediates
     size_t numResources = resourceTableDecoder->size();
     for (uint32_t resourceIndex = 0; resourceIndex < numResources; ++resourceIndex) {
@@ -268,10 +268,7 @@ void VgfView::createIntermediateResources(const Context &ctx, DataManager &dataM
 
                 // Create Scenario Runner buffer resource
                 BufferInfo info{guidStr, expectedBufferSize};
-                dataManager.createBuffer(guidStr, info);
-                auto &buffer = dataManager.getBufferMut(guidStr);
-                buffer.setup(ctx);
-                buffer.allocateMemory(ctx);
+                creator.createBuffer(guidStr, info);
             } break;
             case (DESCRIPTOR_TYPE_TENSOR_ARM): {
                 auto shape = resourceTableDecoder->getTensorShape(resourceIndex);
@@ -281,10 +278,7 @@ void VgfView::createIntermediateResources(const Context &ctx, DataManager &dataM
                                        -1, false};
 
                 // Create Scenario Runner tensor
-                dataManager.createTensor(guidStr, info);
-                auto &tensor = dataManager.getTensorMut(guidStr);
-                tensor.setup(ctx);
-                tensor.allocateMemory(ctx);
+                creator.createTensor(guidStr, info);
             } break;
             default:
                 throw std::runtime_error("Unknown resource type read from VGF file");

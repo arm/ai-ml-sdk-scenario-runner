@@ -6,7 +6,6 @@
 
 #include "barrier.hpp"
 #include "buffer.hpp"
-#include "context.hpp"
 #include "image.hpp"
 #include "raw_data.hpp"
 #include "resource_desc.hpp"
