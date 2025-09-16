@@ -68,6 +68,10 @@ DxgiFormat getDxgiFormat(const std::string &format) {
         return DXGI_FORMAT_R32G32B32A32_FLOAT;
     }
 
+    if (format == "DXGI_FORMAT_R32_UINT") {
+        return DXGI_FORMAT_R32_UINT;
+    }
+
     throw std::runtime_error("Unsupported format " + format);
 }
 
