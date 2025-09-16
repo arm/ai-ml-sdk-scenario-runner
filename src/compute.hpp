@@ -4,7 +4,6 @@
  */
 #pragma once
 
-#include "commands.hpp"
 #include "context.hpp"
 #include "data_manager.hpp"
 #include "perf_counter.hpp"
@@ -49,16 +48,10 @@ class Compute {
     /// \param pushConstantData Pointer to push constant data to set for the pipeline
     /// \param pushConstantSize Size of push constants data in bytes
     /// \param implicitBarriers True to enable implicit barriers
-    /// \param wgcx (Optional) Workgroup count across dimension X. Defaults to: 1. Not applicable for compute graph
-    /// pipeline
-    /// \param wgcy (Optional) Workgroup count across dimension Y. Defaults to: 1. Not applicable for compute
-    /// graph pipeline
-    /// \param wgcz (Optional) Workgroup count across dimension Z. Defaults to: 1. Not applicable for
-    /// compute graph pipeline
+    /// \param computeDispatch (Optional) Workgroup count across dimension X, Y and Z. Defaults to: 1, 1 and 1.
     void registerPipelineFenced(const Pipeline &pipeline, const DataManager &dataManager,
                                 const std::vector<TypedBinding> &bindings, const char *pushConstantData,
-                                size_t pushConstantSize, bool implicitBarriers, uint32_t wgcx = 1, uint32_t wgcy = 1,
-                                uint32_t wgcz = 1);
+                                size_t pushConstantSize, bool implicitBarriers, ComputeDispatch computeDispatch = {});
 
     /// \brief Register a timestamp query
     /// \param query Index of the query
@@ -66,9 +59,9 @@ class Compute {
     void registerWriteTimestamp(uint32_t query, vk::PipelineStageFlagBits2 flag);
 
     /// \brief Register a pipeline barrier for execution
-    /// \param dispatchBarrierDescs image barrier dispatch descriptor
+    /// \param dispatchBarrierData image barrier dispatch descriptor
     /// \param dataManager Data manager object to retrieve resource
-    void registerPipelineBarrier(const DispatchBarrierDesc &dispatchBarrierDescs, const DataManager &dataManager);
+    void registerPipelineBarrier(const DispatchBarrierData &dispatchBarrierData, const DataManager &dataManager);
 
     /// \brief Submit the command buffer for execution and wait for completion
     void submitAndWaitOnFence();
@@ -79,9 +72,9 @@ class Compute {
     void setupQueryPool(uint32_t nQueries);
 
     /// \brief Create the VkFrameBoundaryEXT struct with the correct resource
-    /// \param markBoundaryDesc MarkBoundary object
+    /// \param markBoundaryData MarkBoundary object
     /// \param dataManager Data manager object to retrieve resource
-    void registerMarkBoundary(const MarkBoundaryDesc &markBoundaryDesc, const DataManager &dataManager);
+    void registerMarkBoundary(const MarkBoundaryData &markBoundaryData, const DataManager &dataManager);
 
     vk::raii::CommandBuffer &getCommandBuffer();
     void prepareCommandBuffer();
@@ -105,12 +98,6 @@ class Compute {
     struct BindPipeline {
         vk::Pipeline pipeline{nullptr};
         BindPoint bindPoint;
-    };
-
-    struct ComputeDispatch {
-        uint32_t gwcx;
-        uint32_t gwcy;
-        uint32_t gwcz;
     };
 
     struct DataGraphDispatch {
