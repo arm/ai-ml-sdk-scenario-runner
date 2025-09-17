@@ -19,17 +19,17 @@ TEST(GroupManager, GroupHandling) {
     ASSERT_TRUE(gm.isAliased(tensor0));
     ASSERT_EQ(gm.getAliasCount(image0), 0U);
     ASSERT_FALSE(gm.isAliased(image0));
-    ASSERT_FALSE(gm.isAliasedTo(tensor0, ResourceIdType::Image));
-    ASSERT_FALSE(gm.isAliasedTo(image0, ResourceIdType::Tensor));
-    ASSERT_FALSE(gm.isAliasedTo(group0, ResourceIdType::Tensor));
+    ASSERT_FALSE(gm.hasAliasOfType(tensor0, ResourceIdType::Image));
+    ASSERT_FALSE(gm.hasAliasOfType(image0, ResourceIdType::Tensor));
+    ASSERT_FALSE(gm.hasAliasOfType(group0, ResourceIdType::Tensor));
 
     gm.addResourceToGroup(group0, image0, ResourceIdType::Image);
     ASSERT_EQ(gm.getAliasCount(tensor0), 2U);
     ASSERT_TRUE(gm.isAliased(tensor0));
     ASSERT_EQ(gm.getAliasCount(image0), 2U);
     ASSERT_TRUE(gm.isAliased(image0));
-    ASSERT_TRUE(gm.isAliasedTo(tensor0, ResourceIdType::Image));
-    ASSERT_TRUE(gm.isAliasedTo(image0, ResourceIdType::Tensor));
+    ASSERT_TRUE(gm.hasAliasOfType(tensor0, ResourceIdType::Image));
+    ASSERT_TRUE(gm.hasAliasOfType(image0, ResourceIdType::Tensor));
 
     auto mmTensor = gm.getMemoryManager(tensor0);
     auto mmImage = gm.getMemoryManager(image0);

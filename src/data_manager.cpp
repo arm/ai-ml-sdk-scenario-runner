@@ -8,19 +8,11 @@
 
 namespace mlsdk::scenariorunner {
 
-void DataManager::createBuffer(Guid guid, const BufferInfo &info,
-                               std::shared_ptr<ResourceMemoryManager> memoryManager) {
-    _buffers.insert({guid, Buffer(info, std::move(memoryManager))});
-}
+void DataManager::createBuffer(Guid guid, const BufferInfo &info) { _buffers.insert({guid, Buffer(info)}); }
 
-void DataManager::createTensor(Guid guid, const TensorInfo &info,
-                               std::shared_ptr<ResourceMemoryManager> memoryManager) {
-    _tensors.insert({guid, Tensor(info, std::move(memoryManager))});
-}
+void DataManager::createTensor(Guid guid, const TensorInfo &info) { _tensors.insert({guid, Tensor(info)}); }
 
-void DataManager::createImage(Guid guid, const ImageInfo &info, std::shared_ptr<ResourceMemoryManager> memoryManager) {
-    _images.insert({guid, Image(info, std::move(memoryManager))});
-}
+void DataManager::createImage(Guid guid, const ImageInfo &info) { _images.insert({guid, Image(info)}); }
 
 void DataManager::createVgfView(Guid guid, const std::string &src) {
     _vgfViews.insert({guid, VgfView::createVgfView(src)});

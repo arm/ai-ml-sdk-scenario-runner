@@ -23,12 +23,13 @@ constexpr vk::TensorTilingARM convertTiling(const Tiling tiling) {
 
 } // namespace
 
-Tensor::Tensor(const TensorInfo &tensorInfo, std::shared_ptr<ResourceMemoryManager> memoryManager)
+Tensor::Tensor(const TensorInfo &tensorInfo)
     : _debugName(tensorInfo.debugName), _shape(tensorInfo.shape), _dataType(tensorInfo.format),
-      _memoryManager(std::move(memoryManager)), _tiling(convertTiling(tensorInfo.tiling)),
-      _memoryOffset(tensorInfo.memoryOffset), _isAliasedWithImage(tensorInfo.isAliasedWithImage) {}
+      _tiling(convertTiling(tensorInfo.tiling)), _memoryOffset(tensorInfo.memoryOffset),
+      _isAliasedWithImage(tensorInfo.isAliasedWithImage) {}
 
-void Tensor::setup(const Context &ctx) {
+void Tensor::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> memoryManager) {
+    _memoryManager = std::move(memoryManager);
 
     // implicitly convert rank=[] to rank=[1]
     if (_shape.empty()) {

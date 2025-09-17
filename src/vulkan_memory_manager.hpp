@@ -5,7 +5,6 @@
 #pragma once
 
 #include "context.hpp"
-#include "image.hpp"
 #include "types.hpp"
 #include "utils.hpp"
 
@@ -13,8 +12,6 @@ namespace mlsdk::scenariorunner {
 
 class ResourceMemoryManager {
   public:
-    ResourceMemoryManager() {}
-
     bool isInitalized() const { return _initalized; }
 
     void allocateDeviceMemory(const Context &ctx, vk::MemoryPropertyFlags flags) {

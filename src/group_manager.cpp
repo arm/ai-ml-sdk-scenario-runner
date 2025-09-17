@@ -25,7 +25,7 @@ size_t GroupManager::getAliasCount(const Guid &resource) const {
 
 bool GroupManager::isAliased(const Guid &resource) const { return getAliasCount(resource) > 0; }
 
-bool GroupManager::isAliasedTo(const Guid &resource, ResourceIdType resourceIdType) const {
+bool GroupManager::hasAliasOfType(const Guid &resource, ResourceIdType resourceIdType) const {
     const auto it = _resourceToGroup.find(resource);
     if (it != _resourceToGroup.end()) {
         // Group found, look for requested type

@@ -33,7 +33,7 @@ class GroupManager {
     bool isAliased(const Guid &resource) const;
 
     ///  Returns true if resource is aliased with any resource of type
-    bool isAliasedTo(const Guid &resource, ResourceIdType resourceIdType) const;
+    bool hasAliasOfType(const Guid &resource, ResourceIdType resourceIdType) const;
 
     const std::unordered_map<Guid, std::set<std::pair<Guid, ResourceIdType>>> &getGroupResources() const {
         return _groupResources;

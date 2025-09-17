@@ -8,23 +8,23 @@
 #include "context.hpp"
 #include "resource_desc.hpp"
 #include "types.hpp"
+#include "vulkan_memory_manager.hpp"
 
 namespace mlsdk::scenariorunner {
-
-class ResourceMemoryManager;
 
 class Image {
   public:
     /// \brief Constructor
     ///
     /// \param imageInfo ImageInfo struct
-    /// \param memoryManager Memory manager for this resource
-    Image(const ImageInfo &imageInfo, std::shared_ptr<ResourceMemoryManager> memoryManager);
+    explicit Image(const ImageInfo &imageInfo);
     Image() = default;
 
     /// \brief Setup instance, assumes all aliasing objects have been constructed
-    /// \param ctx                    Contextual information about the Vulkan instance
-    void setup(const Context &ctx);
+    /// \param ctx           Contextual information about the Vulkan instance
+    /// \param memoryManager Memory manager for this resource
+    void setup(const Context &ctx,
+               std::shared_ptr<ResourceMemoryManager> memoryManager = std::make_shared<ResourceMemoryManager>());
 
     /// \brief Image accessor
     /// \return The underlying Vulkan® image

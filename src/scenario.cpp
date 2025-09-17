@@ -136,7 +136,7 @@ struct ResourceInfoFactory {
         if (tensor.memoryGroup.has_value()) {
             info.memoryOffset = tensor.memoryGroup->offset;
         }
-        info.isAliasedWithImage = _groupManager.isAliasedTo(tensor.guid, ResourceIdType::Image);
+        info.isAliasedWithImage = _groupManager.hasAliasOfType(tensor.guid, ResourceIdType::Image);
         info.format = getVkFormatFromString(tensor.format);
         info.shape.resize(tensor.dims.size());
         std::copy(tensor.dims.begin(), tensor.dims.end(), info.shape.begin());
@@ -437,7 +437,7 @@ void Scenario::setupResources() {
         case (ResourceType::Buffer): {
             const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
             const auto info = resourceInfoFactory.createInfo(*buffer);
-            _dataManager.createBuffer(resource->guid, info, _groupManager.getMemoryManager(resource->guid));
+            _dataManager.createBuffer(resource->guid, info);
         } break;
         case (ResourceType::RawData): {
             const auto &rawData = reinterpret_cast<const std::unique_ptr<RawDataDesc> &>(resource);
@@ -446,7 +446,7 @@ void Scenario::setupResources() {
         case (ResourceType::Image): {
             const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
             const auto info = resourceInfoFactory.createInfo(*image);
-            _dataManager.createImage(resource->guid, info, _groupManager.getMemoryManager(resource->guid));
+            _dataManager.createImage(resource->guid, info);
         } break;
         case (ResourceType::DataGraph): {
             const auto &dataGraph = reinterpret_cast<const std::unique_ptr<DataGraphDesc> &>(resource);
@@ -457,7 +457,7 @@ void Scenario::setupResources() {
         case (ResourceType::Tensor): {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
             const auto info = resourceInfoFactory.createInfo(*tensor);
-            _dataManager.createTensor(resource->guid, info, _groupManager.getMemoryManager(resource->guid));
+            _dataManager.createTensor(resource->guid, info);
         } break;
         default:
             // Skip the other types of resources
@@ -471,11 +471,11 @@ void Scenario::setupResources() {
         switch (resource->resourceType) {
         case (ResourceType::Buffer): {
             auto &bufferRef = _dataManager.getBufferMut(resource->guid);
-            bufferRef.setup(_ctx);
+            bufferRef.setup(_ctx, _groupManager.getMemoryManager(resource->guid));
         } break;
         case (ResourceType::Image): {
             auto &imageRef = _dataManager.getImageMut(resource->guid);
-            imageRef.setup(_ctx);
+            imageRef.setup(_ctx, _groupManager.getMemoryManager(resource->guid));
         } break;
         default:
             break; // No action
@@ -486,7 +486,7 @@ void Scenario::setupResources() {
     for (const auto &resource : _scenarioSpec.resources) {
         if (resource->resourceType == ResourceType::Tensor) {
             auto &tensorRef = _dataManager.getTensorMut(resource->guid);
-            tensorRef.setup(_ctx);
+            tensorRef.setup(_ctx, _groupManager.getMemoryManager(resource->guid));
         }
     }
 
