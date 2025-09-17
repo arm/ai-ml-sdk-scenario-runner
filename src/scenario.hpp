@@ -8,6 +8,7 @@
 #include "compute.hpp"
 #include "context.hpp"
 #include "data_manager.hpp"
+#include "group_manager.hpp"
 #include "guid.hpp"
 #include "pipeline.hpp"
 #include "scenario_desc.hpp"
@@ -69,6 +70,7 @@ class Scenario {
     std::optional<PipelineCache> _pipelineCache{};
     Compute _compute;
     std::vector<PerformanceCounter> _perfCounters{};
+    GroupManager _groupManager;
 };
 
 } // namespace mlsdk::scenariorunner

@@ -7,6 +7,7 @@ if(NOT ANDROID)
 
   add_executable(ScenarioRunnerTests
     guid_tests.cpp
+    group_manager_tests.cpp
     json_parser_tests.cpp
     vulkan_startup_tests.cpp
     logging_tests.cpp

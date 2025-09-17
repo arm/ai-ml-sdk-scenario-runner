@@ -71,10 +71,6 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
     auto guidB = Guid("inBufferB");
     auto guidOut = Guid("outBufferAdd");
 
-    dataManager.addResourceToGroup(guidA, guidA);
-    dataManager.addResourceToGroup(guidB, guidB);
-    dataManager.addResourceToGroup(guidOut, guidOut);
-
     const auto prepareBuffer = [&ctx, &dataManager](Guid guid, const std::vector<char> &values) {
         auto &buffer = dataManager.getBufferMut(guid);
         buffer.setup(ctx);
