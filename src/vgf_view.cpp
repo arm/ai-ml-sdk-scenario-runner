@@ -7,7 +7,6 @@
 #include "data_manager.hpp"
 #include "iresource.hpp"
 
-#include <map>
 #include <numeric>
 
 namespace mlsdk::scenariorunner {
@@ -168,12 +167,11 @@ vgflib::DataView<uint8_t> VgfView::getConstantData(uint32_t constantIndex) const
     return constantTableDecoder->getConstant(constantIndex);
 }
 
-std::vector<TypedBinding> VgfView::resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
-                                                   const std::vector<TypedBinding> &externalBindings) const {
+std::pair<std::vector<TypedBinding>, VgfView::MrtIndexes> VgfView::getBindings(uint32_t segmentIndex) const {
     // Get segment binding infos
     std::vector<TypedBinding> bindings;
     auto descSetSize = sequenceTableDecoder->getSegmentDescriptorSetInfosSize(segmentIndex);
-    std::map<std::tuple<uint32_t, uint32_t>, uint32_t> mrtIndexes;
+    MrtIndexes mrtIndexes;
     // For each segment descriptor set:
     for (uint32_t set = 0; set < descSetSize; ++set) {
         auto handle = sequenceTableDecoder->getDescriptorBindingSlotsHandle(segmentIndex, set);
@@ -193,6 +191,14 @@ std::vector<TypedBinding> VgfView::resolveBindings(uint32_t segmentIndex, const 
             mrtIndexes.insert({{set, bindingId}, mrtIndex});
         }
     }
+
+    return {std::move(bindings), std::move(mrtIndexes)};
+}
+
+std::vector<TypedBinding> VgfView::resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
+                                                   const std::vector<TypedBinding> &externalBindings) const {
+
+    auto [bindings, mrtIndexes] = getBindings(segmentIndex);
 
     for (const auto &externalBinding : externalBindings) {
         if (!(dataManager.hasTensor(externalBinding.resourceRef) ||

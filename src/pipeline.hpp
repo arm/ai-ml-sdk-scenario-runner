@@ -73,6 +73,8 @@ class Pipeline {
 
     void initSession(const Context &ctx);
 
+    void createDescriptorSetLayouts(const Context &ctx, const std::vector<TypedBinding> &bindings);
+
     void computePipelineCommon(const Context &ctx, const ShaderDesc &shaderDesc,
                                std::optional<PipelineCache> &pipelineCache);
 };

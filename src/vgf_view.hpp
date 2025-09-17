@@ -9,6 +9,7 @@
 #include "vgf-utils/memory_map.hpp"
 #include "vgf/decoder.hpp"
 
+#include <map>
 #include <memory>
 
 namespace mlsdk::scenariorunner {
@@ -40,6 +41,10 @@ class VgfView {
     void createIntermediateResources(IResourceCreator &creator) const;
 
   private:
+    // Map of (set, binding) to vgfMrtIndex
+    using MrtIndexes = std::map<std::tuple<uint32_t, uint32_t>, uint32_t>;
+
+    std::pair<std::vector<TypedBinding>, MrtIndexes> getBindings(uint32_t segmentIndex) const;
     void validateResource(const DataManager &dataManager, uint32_t vgfMrtIndex, Guid externalResourceRef) const;
 
     std::unique_ptr<MemoryMap> mapped;
