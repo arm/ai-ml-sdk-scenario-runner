@@ -37,6 +37,7 @@ option(SCENARIO_RUNNER_ENABLE_CCACHE "Enable CCACHE support" OFF)
 option(SCENARIO_RUNNER_ENABLE_RDOC "Build Scenario Runner w/ RDoc support enabled" OFF)
 option(SCENARIO_RUNNER_BUILD_DOCS "Build project documentation" OFF)
 option(MOLTEN_VK_SUPPORT "Darwin requires MoltenVK" OFF)
+option(SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT "Enable support for experimental image formats in DDS reader" OFF)
 
 # Handle build type, set default as Release
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")

@@ -69,6 +69,9 @@ class Builder:
         self.emulation_layer = args.emulation_layer
         self.enable_rdoc = args.enable_rdoc
         self.clang_tidy_fix = args.clang_tidy_fix
+        self.experimental_image_format_support = (
+            args.enable_experimental_image_format_support
+        )
 
         self.package_dir = args.package_dir or self.build_dir
         self.package_version = args.package_version
@@ -252,6 +255,11 @@ class Builder:
 
         if self.enable_rdoc:
             cmake_setup_cmd.append("-DSCENARIO_RUNNER_ENABLE_RDOC=ON")
+
+        if self.experimental_image_format_support:
+            cmake_setup_cmd.append(
+                "-DSCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT=ON"
+            )
 
         if not self.setup_platform_build(cmake_setup_cmd):
             return 1
@@ -592,6 +600,12 @@ def parse_arguments():
     parser.add_argument(
         "--clang-tidy-fix",
         help="Enable clang-tidy fix (requires --lint). Default: %(default)s",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--enable-experimental-image-format-support",
+        help=("Enable experimental image format support in DDS reader"),
         action="store_true",
         default=False,
     )
