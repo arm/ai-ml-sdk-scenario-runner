@@ -365,15 +365,6 @@ void Scenario::run(int repeatCount, bool dryRun, bool captureFrame) {
         // Clear and reset all data before execution
         _pipelines.clear();
         _compute.reset();
-        for (const auto &resource : _scenarioSpec.resources) {
-            if (resource->resourceType == ResourceType::Image) {
-                const auto &imageDesc = static_cast<const ImageDesc &>(*resource);
-                if (imageDesc.tiling.has_value() && imageDesc.tiling.value() == Tiling::Optimal) {
-                    auto &image = _dataManager.getImageMut(imageDesc.guid);
-                    image.resetLayout();
-                }
-            }
-        }
 
         if (frameCapturer) {
             frameCapturer->begin();
@@ -387,6 +378,19 @@ void Scenario::run(int repeatCount, bool dryRun, bool captureFrame) {
             }
             _compute.submitAndWaitOnFence(_perfCounters, i);
             saveProfilingData(i, repeatCount);
+        }
+
+        // Skip reset after final run
+        if (i + 1 < repeatCount) {
+            for (const auto &resource : _scenarioSpec.resources) {
+                if (resource->resourceType == ResourceType::Image) {
+                    const auto &imageDesc = static_cast<const ImageDesc &>(*resource);
+                    if (imageDesc.tiling.has_value() && imageDesc.tiling.value() == Tiling::Optimal) {
+                        auto &image = _dataManager.getImageMut(imageDesc.guid);
+                        image.resetLayout();
+                    }
+                }
+            }
         }
 
         if (frameCapturer) {
