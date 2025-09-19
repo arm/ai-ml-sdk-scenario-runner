@@ -62,7 +62,7 @@ class Image {
 
     void fillFromDescription(const Context &ctx, const ImageDesc &desc);
 
-    void store(Context &ctx, const std::string &filename);
+    void store(const Context &ctx, const std::string &filename);
 
     bool isSampled() const;
 
@@ -74,7 +74,7 @@ class Image {
     const ImageInfo &getInfo() const { return _imageInfo; }
 
   private:
-    std::vector<char> getImageData(Context &ctx);
+    std::vector<char> getImageData(const Context &ctx);
     uint32_t getFormatMaxMipLevels(const Context &ctx, vk::ImageTiling tiling, vk::ImageUsageFlags usageFlags);
 
     vk::raii::Image _image{nullptr};

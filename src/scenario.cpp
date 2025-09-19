@@ -15,6 +15,25 @@
 #include <unordered_set>
 
 namespace mlsdk::scenariorunner {
+/// \brief Compute data with typed bindings
+struct DispatchComputeData {
+    std::string debugName;
+    std::vector<TypedBinding> bindings;
+    ComputeDispatch computeDispatch{};
+    Guid shaderRef;
+    bool implicitBarrier{true};
+    std::optional<Guid> pushDataRef;
+};
+
+/// \brief Compute data graph with typed bindings
+struct DispatchDataGraphData {
+    Guid dataGraphRef;
+    std::string debugName;
+    std::vector<TypedBinding> bindings;
+    std::vector<PushConstantMap> pushConstants;
+    std::vector<ShaderSubstitution> shaderSubstitutions;
+    bool implicitBarrier{true};
+};
 
 namespace // unnamed namespace
 {
@@ -317,9 +336,7 @@ struct CommandDataFactory {
         data.debugName = dispatchDataGraph.debugName;
         data.bindings = convertBindings(_dataManager, dispatchDataGraph.bindings);
         data.pushConstants = dispatchDataGraph.pushConstants;
-        for (const auto &substitution : dispatchDataGraph.shaderSubstitutions) {
-            data.shaderSubstitutions.push_back({substitution.shaderRef, substitution.target});
-        }
+        data.shaderSubstitutions = dispatchDataGraph.shaderSubstitutions;
         data.implicitBarrier = dispatchDataGraph.implicitBarrier;
         return data;
     }

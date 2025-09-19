@@ -35,6 +35,55 @@ enum DxgiFormat {
     DXGI_FORMAT_R8G8B8_SINT_CUSTOM = 134
 };
 
+/// \brief Structure that describes DDS pixel data layout
+struct DDSPixelFormat {
+    uint32_t size{32};
+    uint32_t flags{};
+    uint32_t fourCC{};
+    uint32_t rgbBitCount{};
+    uint32_t rBitMask{};
+    uint32_t gBitMask{};
+    uint32_t bBitMask{};
+    uint32_t aBitMask{};
+};
+
+/// \brief Structure that describes main part of header from DDS file
+///
+/// \note Order of members and presence of "Reserved" data allow memcpy to work on file data
+struct DDSHeader {
+    uint32_t size{124};
+    uint32_t flags{};
+    uint32_t height{};
+    uint32_t width{};
+    uint32_t pitchOrLinearSize{};
+    uint32_t depth{};
+    uint32_t mipMapCount{};
+    uint32_t reserved[11]{};
+    DDSPixelFormat pixelFormat{};
+    uint32_t caps{};
+    uint32_t caps2{};
+    uint32_t caps3{};
+    uint32_t caps4{};
+    uint32_t reserved2{};
+};
+
+/// \brief Structure that describes optional extension to DDS header format
+struct DDSHeaderDX10 {
+    uint32_t dxgiFormat{};
+    uint32_t resourceDimension{};
+    uint32_t miscFlag{};
+    uint32_t arraySize{};
+    uint32_t miscFlags2{};
+};
+
+/// \brief Structure that stores all non-pixel data from DDS file
+struct DDSHeaderInfo {
+    uint32_t magicWord{};
+    DDSHeader header{};
+    DDSHeaderDX10 header10{};
+    bool isDx10{};
+};
+
 /// \brief Load data from a DDS file
 ///
 /// \param filename DDS file to load

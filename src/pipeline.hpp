@@ -16,8 +16,6 @@
 
 namespace mlsdk::scenariorunner {
 
-enum class PipelineType { Unknown, Compute, GraphCompute };
-
 class Pipeline {
   public:
     /// \brief Constructor
@@ -61,6 +59,8 @@ class Pipeline {
     const std::string &debugName() const;
 
   private:
+    enum class PipelineType { Unknown, Compute, GraphCompute };
+
     PipelineType _type{PipelineType::Unknown};
     std::vector<vk::raii::DescriptorSetLayout> _descriptorSetLayouts;
     vk::raii::PipelineLayout _pipelineLayout{nullptr};

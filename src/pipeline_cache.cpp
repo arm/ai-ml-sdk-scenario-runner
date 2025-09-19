@@ -38,7 +38,7 @@ bool PipelineCache::isValidPipelineCache(const std::vector<unsigned char> &cache
     return true;
 }
 
-PipelineCache::PipelineCache(Context &ctx, const std::filesystem::path &pipelineCachePath, bool clearCache,
+PipelineCache::PipelineCache(const Context &ctx, const std::filesystem::path &pipelineCachePath, bool clearCache,
                              bool failOnMiss)
     : _pipelineCachePath(pipelineCachePath), _failOnMiss(failOnMiss) {
     vk::PipelineCacheCreateInfo cacheCreateInfo;

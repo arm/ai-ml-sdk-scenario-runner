@@ -21,10 +21,10 @@ struct CommandTimestamps {
                       const float timestampPeriod, const int iteration = 1)
         : type(commandType), timestamps(commandTimestamps), period(timestampPeriod), iteration(iteration) {}
 
-    std::string type = {};
-    std::vector<uint64_t> timestamps = {};
-    float period = {};
-    int iteration;
+    std::string type;
+    std::vector<uint64_t> timestamps;
+    float period{};
+    int iteration{};
 };
 
 void to_json(json &j, const CommandTimestamps &commandTimestamps) {
@@ -95,7 +95,7 @@ void writePerfCounters(std::vector<PerformanceCounter> &perfCounters, std::files
 
 void writeProfilingData(const std::vector<uint64_t> &timestamps, const float timestampPeriod,
                         const std::vector<std::string> &profiledCommands, const std::filesystem::path &path,
-                        const int &iteration, const int &repeatCount) {
+                        const int iteration, const int repeatCount) {
     if (profiledCommands.size() * 2 != timestamps.size()) {
         throw std::runtime_error("Cannot map all timestamps to their respective commands");
     }

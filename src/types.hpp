@@ -52,55 +52,6 @@ struct SubresourceRange {
 /// \brief A variant of the potential custom border colors */
 using CustomColorValue = std::variant<std::array<float, 4>, std::array<int32_t, 4>>;
 
-/// \brief Structure that describes DDS pixel data layout
-struct DDSPixelFormat {
-    uint32_t size{32};
-    uint32_t flags{};
-    uint32_t fourCC{};
-    uint32_t rgbBitCount{};
-    uint32_t rBitMask{};
-    uint32_t gBitMask{};
-    uint32_t bBitMask{};
-    uint32_t aBitMask{};
-};
-
-/// \brief Structure that describes main part of header from DDS file
-///
-/// \note Order of members and presence of "Reserved" data allow memcpy to work on file data
-struct DDSHeader {
-    uint32_t size{124};
-    uint32_t flags{};
-    uint32_t height{};
-    uint32_t width{};
-    uint32_t pitchOrLinearSize{};
-    uint32_t depth{};
-    uint32_t mipMapCount{};
-    uint32_t reserved[11]{};
-    DDSPixelFormat pixelFormat{};
-    uint32_t caps{};
-    uint32_t caps2{};
-    uint32_t caps3{};
-    uint32_t caps4{};
-    uint32_t reserved2{};
-};
-
-/// \brief Structure that describes optional extension to DDS header format
-struct DDSHeaderDX10 {
-    uint32_t dxgiFormat{};
-    uint32_t resourceDimension{};
-    uint32_t miscFlag{};
-    uint32_t arraySize{};
-    uint32_t miscFlags2{};
-};
-
-/// \brief Structure that stores all non-pixel data from DDS file
-struct DDSHeaderInfo {
-    uint32_t magicWord{};
-    DDSHeader header{};
-    DDSHeaderDX10 header10{};
-    bool isDx10{};
-};
-
 /// \brief Structure that describes 1-dimensional buffer data
 ///
 /// \note We don't account for any specialized meta-data like
@@ -157,38 +108,6 @@ struct ImageInfo {
     uint64_t memoryOffset{};
 };
 
-/// @brief Base structure that describes a barrier
-struct BaseBarrierData {
-    std::string debugName;
-    MemoryAccess srcAccess;
-    MemoryAccess dstAccess;
-    std::vector<PipelineStage> srcStages;
-    std::vector<PipelineStage> dstStages;
-};
-
-/// @brief Structure that describes the image barrier
-struct ImageBarrierData : BaseBarrierData {
-    ImageLayout oldLayout;
-    ImageLayout newLayout;
-    vk::Image image;
-    SubresourceRange imageRange;
-};
-
-/// @brief Structure that describes the tensor barrier
-struct TensorBarrierData : BaseBarrierData {
-    vk::TensorARM tensor;
-};
-
-/// @brief Structure that describes the memory barrier
-struct MemoryBarrierData : BaseBarrierData {};
-
-/// @brief Structure that describes the image barrier
-struct BufferBarrierData : BaseBarrierData {
-    uint64_t offset;
-    uint64_t size;
-    vk::Buffer buffer;
-};
-
 /// \brief Constant structure
 ///
 /// Used for specialization constants
@@ -212,56 +131,6 @@ struct ComputeDispatch {
     uint32_t gwcx{1};
     uint32_t gwcy{1};
     uint32_t gwcz{1};
-};
-
-/// \brief Compute data with typed bindings
-struct DispatchComputeData {
-    std::string debugName;
-    std::vector<TypedBinding> bindings;
-    ComputeDispatch computeDispatch{};
-    Guid shaderRef;
-    bool implicitBarrier{true};
-    std::optional<Guid> pushDataRef;
-};
-
-/// \brief Typed barriers
-struct DispatchBarrierData {
-    std::vector<Guid> memoryBarriers;
-    std::vector<Guid> imageBarriers;
-    std::vector<Guid> tensorBarriers;
-    std::vector<Guid> bufferBarriers;
-};
-
-/// \brief Maps the raw data resource containing push constants data to the shader node in the graph which consumes
-/// these
-struct PushConstantMap {
-    Guid pushDataRef;
-    Guid shaderTarget;
-};
-
-/// \brief Describes a placeholder shader node in the graph that will be substituted with an actual shader
-/// implementation
-struct ShaderSubstitution {
-    Guid shaderRef;
-    std::string target;
-};
-
-/// \brief Compute data graph with typed bindings
-struct DispatchDataGraphData {
-    Guid dataGraphRef;
-    std::string debugName;
-    std::vector<TypedBinding> bindings;
-    std::vector<PushConstantMap> pushConstants;
-    std::vector<ShaderSubstitution> shaderSubstitutions;
-    bool implicitBarrier{true};
-};
-
-/// \brief Typed resources
-struct MarkBoundaryData {
-    std::vector<Guid> buffers;
-    std::vector<Guid> images;
-    std::vector<Guid> tensors;
-    uint64_t frameId{};
 };
 
 } // namespace mlsdk::scenariorunner

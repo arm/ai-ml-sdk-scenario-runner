@@ -21,7 +21,7 @@ class Buffer {
 
     /// \brief Setup instance, assumes all aliasing objects have been constructed
     /// \param ctx           Contextual information about the Vulkan instance
-    /// \param memoryManager Information about (possibly shared) underlying memory
+    /// \param memoryManager Memory manager for this resource
     void setup(const Context &ctx,
                std::shared_ptr<ResourceMemoryManager> memoryManager = std::make_shared<ResourceMemoryManager>());
 

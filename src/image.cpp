@@ -548,7 +548,7 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     }
 }
 
-std::vector<char> Image::getImageData(Context &ctx) {
+std::vector<char> Image::getImageData(const Context &ctx) {
     // Use staging buffer to get image data
     const vk::CommandPoolCreateInfo cmdPoolCreateInfo({vk::CommandPoolCreateFlagBits::eResetCommandBuffer},
                                                       ctx.familyQueueIdx());
@@ -585,13 +585,13 @@ std::vector<char> Image::getImageData(Context &ctx) {
     }
 
     std::vector<char> data(dataSize());
-    void *pBufferDeviceMemory = _stagingBufferDeviceMemory.mapMemory(0, data.size());
+    const void *pBufferDeviceMemory = _stagingBufferDeviceMemory.mapMemory(0, data.size());
     std::memcpy(data.data(), pBufferDeviceMemory, data.size());
     _stagingBufferDeviceMemory.unmapMemory();
     return data;
 }
 
-void Image::store(Context &ctx, const std::string &filename) {
+void Image::store(const Context &ctx, const std::string &filename) {
     auto data = getImageData(ctx);
     saveDataToDDS(filename, *this, data);
 }
