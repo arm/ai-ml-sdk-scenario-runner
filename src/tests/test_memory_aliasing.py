@@ -132,7 +132,7 @@ def test_generic_resources_no_compute(
         )
     if input_type == "tensor":
         input_npy = numpy_helper.generate(
-            [input_width, input_height, input_depth],
+            [1, input_width, input_height, input_depth],
             dtype=data_type,
             filename="inTensor.npy",
         )
@@ -218,7 +218,7 @@ def test_generic_resources_no_compute_two_outputs_offset(
         )
     if input_type == "tensor":
         input_npy = numpy_helper.generate(
-            [input_width, input_height, input_depth],
+            [1, input_width, input_height, input_depth],
             dtype=data_type,
             filename="inTensor.npy",
         )
@@ -316,7 +316,7 @@ def test_generic_resources_no_compute_two_outputs(
         )
     if input_type == "tensor":
         input_npy = numpy_helper.generate(
-            [input_width, input_height, input_depth],
+            [1, input_width, input_height, input_depth],
             dtype=data_type,
             filename="inTensor.npy",
         )

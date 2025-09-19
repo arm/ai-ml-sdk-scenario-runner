@@ -334,15 +334,23 @@ DDSHeaderInfo readDDSHeader(std::ifstream &file) {
     return info;
 }
 
-void loadDataFromDDS(const std::string &filename, std::vector<uint8_t> &data, vk::Format &initialFormat) {
+void loadDataFromDDS(const std::string &filename, std::vector<uint8_t> &data, vk::Format &initialFormat,
+                     uint32_t expectedHeight, uint32_t expectedWidth) {
     std::ifstream file(filename, std::ifstream::binary);
     file.exceptions(std::ios::badbit | std::ios::failbit);
     if (!file.is_open()) {
         throw std::runtime_error("Error while opening DDS file: " + filename);
     }
-
     DDSHeaderInfo header = readDDSHeader(file);
     validateDDSHeader(header);
+    if (expectedHeight && header.header.height != expectedHeight) {
+        throw std::runtime_error("DDS image height does not match that in the scenario file: " +
+                                 std::to_string(header.header.height) + " vs " + std::to_string(expectedHeight));
+    }
+    if (expectedWidth && header.header.width != expectedWidth) {
+        throw std::runtime_error("DDS image width does not match that in the scenario file: " +
+                                 std::to_string(header.header.width) + " vs " + std::to_string(expectedWidth));
+    }
 
     auto dataPos = file.tellg();
     file.seekg(0, std::ios::end);

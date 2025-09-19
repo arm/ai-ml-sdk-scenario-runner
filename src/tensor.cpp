@@ -163,10 +163,13 @@ void Tensor::fillFromDescription(const TensorDesc &desc) const {
     if (desc.src) {
         MemoryMap mapped(desc.src.value());
         auto dataPtr = vgfutils::numpy::parse(mapped);
-        uint64_t elementSizeFromDesc = elementSizeFromVkFormat(getVkFormatFromString(desc.format));
-        uint64_t expectedSize = elementSizeFromDesc * totalElementsFromShape(desc.dims);
-        if (expectedSize != dataPtr.size()) {
-            throw std::runtime_error("Tensor and data have different size mismatch");
+
+        for (size_t i = 0; i < desc.dims.size(); ++i) {
+            if (desc.dims[i] != dataPtr.shape[i]) {
+                throw std::runtime_error("Tensor descripton dimension at index " + std::to_string(i) +
+                                         " does not match data shape: " + std::to_string(desc.dims[i]) + " vs " +
+                                         std::to_string(dataPtr.shape[i]));
+            }
         }
         fill(dataPtr.ptr, dataPtr.size());
     } else {
