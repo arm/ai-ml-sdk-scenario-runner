@@ -6,7 +6,7 @@
             "image":{
                 "uid": "img0",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
 
                 "shader_access": "readwrite",
 
@@ -19,7 +19,7 @@
             "image":{
                 "uid": "img_src",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
                 "src": "something.dds"
             }
@@ -28,7 +28,7 @@
             "image":{
                 "uid": "img_dst",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
                 "dst": "something.dds"
             }
@@ -39,7 +39,7 @@
             "image":{
                 "uid": "img_min_mag_mip_linear",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
                 "mag_filter": "LINEAR",
                 "min_filter": "LINEAR",
@@ -50,7 +50,7 @@
             "image":{
                 "uid": "img_min_mag_mip_nearest",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
 
                 "mag_filter": "NEAREST",
@@ -64,7 +64,7 @@
             "image":{
                 "uid": "img_border_address_mode_clamp_border",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
 
                 "border_address_mode": "CLAMP_BORDER"
@@ -74,7 +74,7 @@
             "image": {
                 "uid": "img_border_address_mode_clamp_edge",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
 
                 "border_address_mode": "CLAMP_EDGE"
@@ -84,7 +84,7 @@
             "image": {
                 "uid": "img_border_address_mode_repeat",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
 
                 "border_address_mode": "REPEAT"
@@ -94,7 +94,7 @@
             "image": {
                 "uid": "img_border_address_mode_mirrored_repeat",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
 
                 "border_address_mode": "MIRRORED_REPEAT"
@@ -105,7 +105,7 @@
             "image": {
                 "uid": "img_border_color_float_transparent_black",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
 
                 "border_color": "FLOAT_TRANSPARENT_BLACK"
@@ -115,7 +115,7 @@
             "image": {
                 "uid": "img_border_color_float_opaque_black",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
 
                 "border_color": "FLOAT_OPAQUE_BLACK"
@@ -125,7 +125,7 @@
             "image": {
                 "uid": "img_border_color_float_opaque_white",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
 
                 "border_color": "FLOAT_OPAQUE_WHITE"
@@ -135,7 +135,7 @@
             "image": {
                 "uid": "img_border_color_int_transparent_black",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
 
                 "border_color": "INT_TRANSPARENT_BLACK"
@@ -145,7 +145,7 @@
             "image": {
                 "uid": "img_border_color_int_opaque_black",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
 
                 "border_color": "INT_OPAQUE_BLACK"
@@ -155,7 +155,7 @@
             "image": {
                 "uid": "img_border_color_int_opaque_white",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
 
                 "border_color": "INT_OPAQUE_WHITE"
@@ -165,7 +165,7 @@
             "image": {
                 "uid": "img_border_color_float_custom_ext",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
 
                 "border_color": "FLOAT_CUSTOM_EXT",
@@ -176,7 +176,7 @@
             "image": {
                 "uid": "img_border_color_int_custom_ext",
                 "format": "VK_FLOAT",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readonly",
 
                 "border_color": "INT_CUSTOM_EXT",

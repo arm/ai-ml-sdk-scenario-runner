@@ -5,7 +5,7 @@
         {
             "image":{
                 "uid": "img0",
-                "dims": [128, 256],
+                "dims": [1, 128, 256, 1],
                 "shader_access": "readwrite"
             }
         }
