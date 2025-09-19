@@ -394,7 +394,7 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
 
     // Determine image data, from file or zeroed
     if (desc.src) {
-        loadDataFromDDS(desc.src.value(), data, fileFormat);
+        loadDataFromDDS(desc.src.value(), data, fileFormat, desc.dims[2], desc.dims[1]);
     } else {
         data.resize(dataSize());
         std::fill_n(data.begin(), dataSize(), 0);

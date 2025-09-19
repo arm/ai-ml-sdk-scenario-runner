@@ -194,7 +194,10 @@ struct DDSHeaderInfo {
 /// \param filename DDS file to load
 /// \param data pixel data from file
 /// \param initialFormat vk::Format of DDS file
-void loadDataFromDDS(const std::string &filename, std::vector<uint8_t> &data, vk::Format &initialFormat);
+/// \param expectedHeight optional expected height value to check against
+/// \param expectedWidth optional expected width value to check against
+void loadDataFromDDS(const std::string &filename, std::vector<uint8_t> &data, vk::Format &initialFormat,
+                     uint32_t expectedHeight = 0, uint32_t expectedWidth = 0);
 
 /// \brief Get vk::Format from a DDS file
 ///

@@ -5,6 +5,8 @@
 
 #include "scenario_desc.hpp"
 #include "json_reader.hpp"
+#include <filesystem>
+#include <iostream>
 
 namespace mlsdk::scenariorunner {
 
@@ -19,6 +21,9 @@ void ScenarioSpec::addResource(std::unique_ptr<ResourceDesc> resource) {
         throw std::runtime_error("Not unique uid: " + resource->guidStr);
     }
     if (resource->src.has_value()) {
+        if (!std::filesystem::exists(resource->src.value())) {
+            std::cout << "Source file does not exist: " + resource->src.value() << "\n";
+        }
         auto resolvedPath = _workDir / std::filesystem::path(resource->src.value());
         resource->src = resolvedPath.string();
     }
