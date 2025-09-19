@@ -6,7 +6,7 @@
             "image":{
                 "uid": "img0",
                 "format": "VK_FLOAT",
-                "dims": [128, -1],
+                "dims": [1, 128, -1, 1],
                 "shader_access": "readwrite"
             }
         }
