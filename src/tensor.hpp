@@ -17,13 +17,14 @@ class Tensor {
     /// \brief Constructor
     ///
     /// \param tensorInfo             Tensor info
-    /// \param memoryManager          Memory manager for this resource
-    Tensor(const TensorInfo &tensorInfo, std::shared_ptr<ResourceMemoryManager> memoryManager);
+    explicit Tensor(const TensorInfo &tensorInfo);
     Tensor() = default;
 
     /// \brief Setup instance, assumes all aliasing objects have been constructed
     /// \param ctx                    Contextual information about the Vulkan instance
-    void setup(const Context &ctx);
+    /// \param memoryManager          Memory manager for this resource
+    void setup(const Context &ctx,
+               std::shared_ptr<ResourceMemoryManager> memoryManager = std::make_shared<ResourceMemoryManager>());
 
     /// \brief Tensor accessor
     /// \return The underlying Vulkan tensor
@@ -86,7 +87,7 @@ class Tensor {
     vk::Format _dataType{vk::Format::eUndefined};
     std::vector<int64_t> _strides;
     std::shared_ptr<ResourceMemoryManager> _memoryManager{nullptr};
-    vk::TensorTilingARM _tiling = vk::TensorTilingARM::eLinear;
+    vk::TensorTilingARM _tiling{vk::TensorTilingARM::eLinear};
     vk::DeviceSize _size{0};
     uint64_t _memoryOffset{0};
     bool _isAliasedWithImage{false};

@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "image.hpp"
 #include "dds_reader.hpp"
 #include "logging.hpp"
 #include "resource_desc.hpp"
 #include "utils.hpp"
 #include "vulkan_debug_utils.hpp"
-#include "vulkan_memory_manager.hpp"
 
 #include <cmath>
 
@@ -87,12 +87,12 @@ constexpr vk::ImageTiling convertTiling(const Tiling tiling) {
 
 } // namespace
 
-Image::Image(const ImageInfo &imageInfo, std::shared_ptr<ResourceMemoryManager> memoryManager)
-    : _imageInfo(imageInfo), _memoryManager(std::move(memoryManager)) {}
+Image::Image(const ImageInfo &imageInfo) : _imageInfo(imageInfo) {}
 
-void Image::setup(const Context &ctx) {
+void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> memoryManager) {
+    _memoryManager = std::move(memoryManager);
+
     // Create image
-
     if (_imageInfo.mips == 0) {
         throw std::runtime_error("Number of mips cannot be 0");
     }

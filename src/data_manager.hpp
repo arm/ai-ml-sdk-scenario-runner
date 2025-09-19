@@ -18,12 +18,9 @@ namespace mlsdk::scenariorunner {
 
 class DataManager {
   public:
-    void createBuffer(Guid guid, const BufferInfo &info,
-                      std::shared_ptr<ResourceMemoryManager> memoryManager = std::make_shared<ResourceMemoryManager>());
-    void createTensor(Guid guid, const TensorInfo &info,
-                      std::shared_ptr<ResourceMemoryManager> memoryManager = std::make_shared<ResourceMemoryManager>());
-    void createImage(Guid guid, const ImageInfo &info,
-                     std::shared_ptr<ResourceMemoryManager> memoryManager = std::make_shared<ResourceMemoryManager>());
+    void createBuffer(Guid guid, const BufferInfo &info);
+    void createTensor(Guid guid, const TensorInfo &info);
+    void createImage(Guid guid, const ImageInfo &info);
     void createRawData(Guid guid, const std::string &debugName, const std::string &src);
     void createVgfView(Guid guid, const std::string &src);
     void createImageBarrier(Guid guid, const ImageBarrierData &data);
