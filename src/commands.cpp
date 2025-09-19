@@ -37,31 +37,4 @@ DispatchBarrierDesc::DispatchBarrierDesc() : CommandDesc(CommandType::DispatchBa
  */
 MarkBoundaryDesc::MarkBoundaryDesc() : CommandDesc(CommandType::MarkBoundary) {}
 
-/**
- * @brief Construct a new BindingDesc object
- *
- * @param set
- * @param id
- * @param resourceRef
- */
-BindingDesc::BindingDesc(uint32_t set, uint32_t id, Guid resourceRef) : set(set), id(id), resourceRef(resourceRef) {}
-
-/**
- * @brief Construct a new PushConstantMap object
- *
- * @param pushDataRef
- * @param shaderTarget
- */
-PushConstantMap::PushConstantMap(Guid pushDataRef, Guid shaderTarget)
-    : pushDataRef(pushDataRef), shaderTarget(shaderTarget) {}
-
-/**
- * @brief Construct a new ShaderSubstitutionDesc object
- *
- * @param shaderRef
- * @param target
- */
-ShaderSubstitutionDesc::ShaderSubstitutionDesc(Guid shaderRef, const std::string &target)
-    : shaderRef(shaderRef), target(target) {}
-
 } // namespace mlsdk::scenariorunner

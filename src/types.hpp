@@ -232,6 +232,30 @@ struct DispatchBarrierData {
     std::vector<Guid> bufferBarriers;
 };
 
+/// \brief Maps the raw data resource containing push constants data to the shader node in the graph which consumes
+/// these
+struct PushConstantMap {
+    Guid pushDataRef;
+    Guid shaderTarget;
+};
+
+/// \brief Describes a placeholder shader node in the graph that will be substituted with an actual shader
+/// implementation
+struct ShaderSubstitution {
+    Guid shaderRef;
+    std::string target;
+};
+
+/// \brief Compute data graph with typed bindings
+struct DispatchDataGraphData {
+    Guid dataGraphRef;
+    std::string debugName;
+    std::vector<TypedBinding> bindings;
+    std::vector<PushConstantMap> pushConstants;
+    std::vector<ShaderSubstitution> shaderSubstitutions;
+    bool implicitBarrier{true};
+};
+
 /// \brief Typed resources
 struct MarkBoundaryData {
     std::vector<Guid> buffers;

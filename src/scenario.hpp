@@ -13,7 +13,6 @@
 #include "pipeline.hpp"
 #include "scenario_desc.hpp"
 #include "types.hpp"
-#include "utils.hpp"
 
 #include <list>
 #include <optional>
@@ -45,10 +44,10 @@ class Scenario {
 
   private:
     void createComputePipeline(const DispatchComputeData &dispatchCompute, int iteration, uint32_t &nQueries);
-    void createDataGraphPipeline(const DispatchDataGraphDesc &dispatchDataGraph, int iteration, uint32_t &nQueries);
+    void createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, int iteration, uint32_t &nQueries);
 
     void createPipeline(uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
-                        const VgfView &vgfView, const DispatchDataGraphDesc &dispatchDataGraph, uint32_t &nQueries);
+                        const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries);
 
     /// \brief Sets up runtime options
     void setupResources();

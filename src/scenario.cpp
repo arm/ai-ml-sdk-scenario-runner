@@ -9,6 +9,8 @@
 #include "iresource.hpp"
 #include "json_writer.hpp"
 #include "logging.hpp"
+#include "utils.hpp"
+
 #include "vgf-utils/numpy.hpp"
 #include <unordered_set>
 
@@ -309,6 +311,19 @@ struct CommandDataFactory {
         return data;
     }
 
+    DispatchDataGraphData createData(const DispatchDataGraphDesc &dispatchDataGraph) {
+        DispatchDataGraphData data;
+        data.dataGraphRef = dispatchDataGraph.dataGraphRef;
+        data.debugName = dispatchDataGraph.debugName;
+        data.bindings = convertBindings(_dataManager, dispatchDataGraph.bindings);
+        data.pushConstants = dispatchDataGraph.pushConstants;
+        for (const auto &substitution : dispatchDataGraph.shaderSubstitutions) {
+            data.shaderSubstitutions.push_back({substitution.shaderRef, substitution.target});
+        }
+        data.implicitBarrier = dispatchDataGraph.implicitBarrier;
+        return data;
+    }
+
     MarkBoundaryData createData(const MarkBoundaryDesc &markBoundary) {
         MarkBoundaryData data;
 
@@ -596,7 +611,8 @@ void Scenario::setupCommands(int iteration) {
         } break;
         case (CommandType::DispatchDataGraph): {
             const auto &dispatchDataGraph = reinterpret_cast<DispatchDataGraphDesc &>(*command);
-            createDataGraphPipeline(dispatchDataGraph, iteration, nQueries);
+            const auto data = factory.createData(dispatchDataGraph);
+            createDataGraphPipeline(data, iteration, nQueries);
         } break;
         case (CommandType::MarkBoundary): {
             const auto &markBoundary = reinterpret_cast<MarkBoundaryDesc &>(*command);
@@ -769,14 +785,13 @@ void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute,
     mlsdk::logging::debug("Shader Pipeline: " + shaderDesc.guidStr + " created");
 }
 
-void Scenario::createDataGraphPipeline(const DispatchDataGraphDesc &dispatchDataGraph, int iteration,
+void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, int iteration,
                                        uint32_t &nQueries) {
     const VgfView &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraphRef);
     Creator creator{_ctx, _dataManager};
     vgfView.createIntermediateResources(creator);
-    const auto bindings = convertBindings(_dataManager, dispatchDataGraph.bindings);
     for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
-        const auto sequenceBindings = vgfView.resolveBindings(segmentIndex, _dataManager, bindings);
+        const auto sequenceBindings = vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings);
         auto moduleName = vgfView.getSPVModuleName(segmentIndex);
         _perfCounters
             .emplace_back("Create Pipeline: " + moduleName + ". Iteration: " + std::to_string(iteration + 1),
@@ -788,7 +803,7 @@ void Scenario::createDataGraphPipeline(const DispatchDataGraphDesc &dispatchData
 }
 
 void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
-                              const VgfView &vgfView, const DispatchDataGraphDesc &dispatchDataGraph,
+                              const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph,
                               uint32_t &nQueries) {
     switch (vgfView.getSegmentType(segmentIndex)) {
     case ModuleType::GRAPH: {

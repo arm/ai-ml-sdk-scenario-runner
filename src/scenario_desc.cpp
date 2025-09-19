@@ -54,14 +54,14 @@ const ShaderDesc &ScenarioSpec::getShaderResource(const Guid &guid) const {
     return *ptr;
 }
 
-const ShaderDesc &ScenarioSpec::getSubstitionShader(const std::vector<ShaderSubstitutionDesc> &shaderSubstitutions,
+const ShaderDesc &ScenarioSpec::getSubstitionShader(const std::vector<ShaderSubstitution> &shaderSubstitutions,
                                                     const std::string &moduleName) const {
     uint32_t substitutedShaderIdx = shaderSubstitution(shaderSubstitutions, moduleName);
     const auto *ptr = dynamic_cast<const ShaderDesc *>(resources.at(substitutedShaderIdx).get());
     return *ptr;
 }
 
-uint32_t ScenarioSpec::shaderSubstitution(const std::vector<ShaderSubstitutionDesc> &shaderSubs,
+uint32_t ScenarioSpec::shaderSubstitution(const std::vector<ShaderSubstitution> &shaderSubs,
                                           const std::string &moduleName) const {
     for (const auto &shaderSub : shaderSubs) {
         if (shaderSub.target == moduleName) {

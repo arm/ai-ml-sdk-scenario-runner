@@ -33,7 +33,7 @@ struct ScenarioSpec {
     const ShaderDesc &getShaderResource(const Guid &guid) const;
 
     /// Assumes existence of module
-    const ShaderDesc &getSubstitionShader(const std::vector<ShaderSubstitutionDesc> &shaderSubstitutions,
+    const ShaderDesc &getSubstitionShader(const std::vector<ShaderSubstitution> &shaderSubstitutions,
                                           const std::string &moduleName) const;
 
     std::vector<std::unique_ptr<ResourceDesc>> resources;
@@ -46,8 +46,7 @@ struct ScenarioSpec {
     std::filesystem::path _workDir;
     std::filesystem::path _outputDir;
 
-    uint32_t shaderSubstitution(const std::vector<ShaderSubstitutionDesc> &shaderSubs,
-                                const std::string &moduleName) const;
+    uint32_t shaderSubstitution(const std::vector<ShaderSubstitution> &shaderSubs, const std::string &moduleName) const;
 };
 
 } // namespace mlsdk::scenariorunner
