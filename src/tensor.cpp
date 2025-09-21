@@ -26,7 +26,8 @@ constexpr vk::TensorTilingARM convertTiling(const Tiling tiling) {
 Tensor::Tensor(const TensorInfo &tensorInfo)
     : _debugName(tensorInfo.debugName), _shape(tensorInfo.shape), _dataType(tensorInfo.format),
       _tiling(convertTiling(tensorInfo.tiling)), _memoryOffset(tensorInfo.memoryOffset),
-      _isAliasedWithImage(tensorInfo.isAliasedWithImage) {}
+      _isAliasedWithImage(tensorInfo.isAliasedWithImage),
+      _descriptorBufferCaptureReplay(tensorInfo.descriptorBufferCaptureReplay) {}
 
 void Tensor::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> memoryManager) {
     _memoryManager = std::move(memoryManager);
@@ -91,7 +92,12 @@ void Tensor::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> me
 
     vk::TensorDescriptionARM description(_tiling, _dataType, rank, _shape.data(), strides_ptr, usageFlags);
 
-    vk::TensorCreateInfoARM createInfo(vk::TensorCreateFlagsARM(), &description, vk::SharingMode::eExclusive);
+    vk::TensorCreateFlagsARM flags{};
+    if (_descriptorBufferCaptureReplay) {
+        flags |= vk::TensorCreateFlagBitsARM::eDescriptorBufferCaptureReplay;
+    }
+
+    vk::TensorCreateInfoARM createInfo(flags, &description, vk::SharingMode::eExclusive);
     _tensor = vk::raii::TensorARM(ctx.device(), createInfo);
 
     trySetVkRaiiObjectDebugName(ctx, _tensor, _debugName);

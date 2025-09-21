@@ -27,6 +27,7 @@ struct ScenarioOptions {
     bool clearPipelineCache{false};
     bool failOnPipelineCacheMiss{false};
     bool enableGPUDebugMarkers{false};
+    bool captureFrame{false};
     std::filesystem::path pipelineCachePath{};
     std::filesystem::path sessionRAMsDumpDir{};
     std::filesystem::path perfCountersPath{};
@@ -40,7 +41,7 @@ class Scenario {
     Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec);
 
     /// \brief Executes the test case
-    void run(int count = 1, bool dryRun = false, bool captureFrame = false);
+    void run(int count = 1, bool dryRun = false);
 
   private:
     void createComputePipeline(const DispatchComputeData &dispatchCompute, int iteration, uint32_t &nQueries);
