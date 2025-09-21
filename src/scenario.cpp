@@ -132,7 +132,7 @@ struct ResourceInfoFactory {
         return info;
     }
 
-    TensorInfo createInfo(const TensorDesc &tensor) const {
+    TensorInfo createInfo(const TensorDesc &tensor, bool descriptorBufferCaptureReplay) const {
         TensorInfo info;
         info.debugName = tensor.guidStr;
         if (tensor.memoryGroup.has_value()) {
@@ -145,6 +145,7 @@ struct ResourceInfoFactory {
         if (tensor.tiling) {
             info.tiling = tensor.tiling.value();
         }
+        info.descriptorBufferCaptureReplay = descriptorBufferCaptureReplay;
 
         return info;
     }
@@ -352,10 +353,10 @@ Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
     setupResources();
 }
 
-void Scenario::run(int repeatCount, bool dryRun, bool captureFrame) {
+void Scenario::run(int repeatCount, bool dryRun) {
     std::unique_ptr<FrameCapturer> frameCapturer;
 
-    if (captureFrame) {
+    if (_opts.captureFrame) {
         frameCapturer = std::make_unique<FrameCapturer>();
     }
 
@@ -471,7 +472,7 @@ void Scenario::setupResources() {
         } break;
         case (ResourceType::Tensor): {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
-            const auto info = resourceInfoFactory.createInfo(*tensor);
+            const auto info = resourceInfoFactory.createInfo(*tensor, _opts.captureFrame);
             _dataManager.createTensor(resource->guid, info);
         } break;
         default:

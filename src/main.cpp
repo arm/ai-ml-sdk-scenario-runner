@@ -223,10 +223,10 @@ int main(int argc, const char **argv) {
             repeatCount = 1;
         }
 
-        bool captureFrame = parser.get<bool>("--capture-frame");
-        if (dryRun && captureFrame) {
+        scenarioOptions.captureFrame = parser.get<bool>("--capture-frame");
+        if (dryRun && scenarioOptions.captureFrame) {
             mlsdk::logging::warning("Frame capture overruled by dry-run");
-            captureFrame = false;
+            scenarioOptions.captureFrame = false;
         }
 
         ScenarioSpec scenarioSpec(&fstream, workDir, outputDir);
@@ -236,7 +236,7 @@ int main(int argc, const char **argv) {
             mlsdk::logging::error("Press enter to continue...");
             std::ignore = getchar();
         }
-        scenario.run(repeatCount, dryRun, captureFrame);
+        scenario.run(repeatCount, dryRun);
 
     } catch (const std::exception &err) {
         mlsdk::logging::error(err.what());

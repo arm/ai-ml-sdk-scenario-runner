@@ -122,6 +122,7 @@ struct TensorInfo {
     std::vector<int64_t> shape;
     vk::Format format;
     int64_t sparsityDimension{-1};
+    bool descriptorBufferCaptureReplay{false};
     bool isAliasedWithImage{false};
     Tiling tiling{Tiling::Linear};
     uint64_t memoryOffset{};

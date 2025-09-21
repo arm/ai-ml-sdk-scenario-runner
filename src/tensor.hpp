@@ -92,6 +92,7 @@ class Tensor {
     uint64_t _memoryOffset{0};
     bool _isAliasedWithImage{false};
     bool _rankConverted{false};
+    bool _descriptorBufferCaptureReplay{false};
 };
 
 } // namespace mlsdk::scenariorunner
