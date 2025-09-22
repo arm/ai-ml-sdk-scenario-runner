@@ -77,6 +77,10 @@ class Pipeline {
 
     void computePipelineCommon(const Context &ctx, const ShaderDesc &shaderDesc,
                                std::optional<PipelineCache> &pipelineCache);
+
+    void graphComputePipelineCommon(const Context &ctx, uint32_t segmentIndex, const VgfView &vgfView,
+                                    std::optional<PipelineCache> &pipelineCache,
+                                    const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos);
 };
 
 template <typename T>
