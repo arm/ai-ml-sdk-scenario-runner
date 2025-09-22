@@ -171,5 +171,10 @@ class Compute {
 #ifdef ML_SDK_ENABLE_RDOC
     bool _isRecording{false};
 #endif
+
+    void _updateDescriptorSets(const vk::DescriptorSet &descSet, const TypedBinding &binding,
+                               const DataManager &dataManager);
+
+    void _addMarkBoundary(uint64_t frameId);
 };
 } // namespace mlsdk::scenariorunner

@@ -87,6 +87,12 @@ std::vector<std::vector<TypedBinding>> splitOutSets(const std::vector<TypedBindi
 
 } // namespace
 
+void Pipeline::createDescriptorSetLayouts(const Context &ctx, const std::vector<TypedBinding> &bindings) {
+    for (auto &setBindings : splitOutSets(bindings)) {
+        _descriptorSetLayouts.push_back(createDescriptorSetLayout(ctx, setBindings));
+    }
+}
+
 void Pipeline::computePipelineCommon(const Context &ctx, const ShaderDesc &shaderDesc,
                                      std::optional<PipelineCache> &pipelineCache) {
     _pipelineLayout = createPipelineLayout(ctx, _descriptorSetLayouts, shaderDesc.pushConstantsSize);
@@ -135,10 +141,7 @@ Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const uint3
     _shader = createShaderModuleFromCode(ctx, spvCode, spvSize);
     trySetVkRaiiObjectDebugName(ctx, _shader, _debugName + " shader");
 
-    for (const auto &setBindings : splitOutSets(sequenceBindings)) {
-        _descriptorSetLayouts.push_back(createDescriptorSetLayout(ctx, setBindings));
-    }
-
+    createDescriptorSetLayouts(ctx, sequenceBindings);
     computePipelineCommon(ctx, shaderDesc, pipelineCache);
 }
 
@@ -148,10 +151,7 @@ Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const std::
 
     trySetVkRaiiObjectDebugName(ctx, _shader, shaderDesc.guidStr);
 
-    for (const auto &setBindings : splitOutSets(bindings)) {
-        _descriptorSetLayouts.push_back(createDescriptorSetLayout(ctx, setBindings));
-    }
-
+    createDescriptorSetLayouts(ctx, bindings);
     computePipelineCommon(ctx, shaderDesc, pipelineCache);
 }
 
@@ -160,10 +160,7 @@ Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const uint3
                    const DataManager &dataManager, std::optional<PipelineCache> &pipelineCache)
     : _type{PipelineType::GraphCompute}, _debugName(debugName) {
 
-    // Setup bindings
-    for (auto &setBindings : splitOutSets(sequenceBindings)) {
-        _descriptorSetLayouts.push_back(createDescriptorSetLayout(ctx, setBindings));
-    }
+    createDescriptorSetLayouts(ctx, sequenceBindings);
     _pipelineLayout = createPipelineLayout(ctx, _descriptorSetLayouts);
 
     // Setup tensor resource info

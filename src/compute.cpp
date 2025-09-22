@@ -140,7 +140,7 @@ vk::raii::CommandBuffer &Compute::getCommandBuffer() {
 
 void Compute::_waitForFence() {
     mlsdk::logging::info("Wait for fence");
-    const uint64_t timeout = static_cast<uint64_t>(-1);
+    const auto timeout = static_cast<uint64_t>(-1);
     auto res = _ctx.device().waitForFences({*_fence}, true, timeout);
     if (res != vk::Result::eSuccess) {
         throw std::runtime_error("Error while waiting for fence.");
@@ -164,6 +164,35 @@ Compute::DebugMarker::~DebugMarker() {
     _compute->_commands.emplace_back(PopDebugMarker{});
 }
 
+void Compute::_updateDescriptorSets(const vk::DescriptorSet &descSet, const TypedBinding &binding,
+                                    const DataManager &dataManager) {
+    if (dataManager.hasBuffer(binding.resourceRef)) {
+        const vk::Buffer &buf = dataManager.getBuffer(binding.resourceRef).buffer();
+        const vk::DescriptorBufferInfo info(buf, 0, vk::WholeSize);
+        vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(binding.id), 0, 1, binding.vkDescriptorType, {},
+                                      &info);
+        _ctx.device().updateDescriptorSets(vk::ArrayProxy<vk::WriteDescriptorSet>(dwrite), {});
+    } else if (dataManager.hasTensor(binding.resourceRef)) {
+        const vk::WriteDescriptorSetTensorARM info(1, &dataManager.getTensor(binding.resourceRef).tensorView());
+        const vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(binding.id), 0, 1, binding.vkDescriptorType,
+                                            {}, {}, {}, &info);
+        _ctx.device().updateDescriptorSets(vk::ArrayProxy<vk::WriteDescriptorSet>(dwrite), {});
+    } else if (dataManager.hasImage(binding.resourceRef)) {
+        vk::ImageView imageView;
+        const Image &image = dataManager.getImage(binding.resourceRef);
+
+        if (binding.lod.has_value()) {
+            imageView = image.imageView(binding.lod.value());
+        } else {
+            imageView = image.imageView();
+        }
+        const vk::DescriptorImageInfo info(image.sampler(), imageView, image.getImageLayout());
+        const vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(binding.id), 0, 1, binding.vkDescriptorType,
+                                            &info);
+        _ctx.device().updateDescriptorSets(vk::ArrayProxy<vk::WriteDescriptorSet>(dwrite), {});
+    }
+}
+
 void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager &dataManager,
                                      const std::vector<TypedBinding> &bindings, const char *pushConstantData,
                                      size_t pushConstantSize, bool implicitBarriers, ComputeDispatch computeDispatch) {
@@ -171,10 +200,10 @@ void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager
     DebugMarker dbgMrk0(this, "dispatch (" + pipeline.debugName() + ")");
 
     // Count exact number of typed resources used by this pipeline
-    std::vector<vk::DescriptorPoolSize> poolSizes = getPoolSizes(bindings);
+    const auto poolSizes = getPoolSizes(bindings);
 
     // Populate descriptor sets
-    const uint32_t baseDescriptorSetIdxGlobal = static_cast<uint32_t>(_descriptorSets.size());
+    const auto baseDescriptorSetIdxGlobal = static_cast<uint32_t>(_descriptorSets.size());
     uint32_t maxSet = 0;
     for (const auto &binding : bindings) {
         maxSet = maxSet < binding.set ? binding.set : maxSet;
@@ -193,31 +222,7 @@ void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager
         }
 
         const vk::DescriptorSet &descSet = *_descriptorSets[baseDescriptorSetIdxGlobal + binding.set];
-        if (dataManager.hasBuffer(binding.resourceRef)) {
-            const vk::Buffer &buf = dataManager.getBuffer(binding.resourceRef).buffer();
-            const vk::DescriptorBufferInfo info(buf, 0, vk::WholeSize);
-            vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(binding.id), 0, 1, binding.vkDescriptorType,
-                                          {}, &info);
-            _ctx.device().updateDescriptorSets(vk::ArrayProxy<vk::WriteDescriptorSet>(dwrite), {});
-        } else if (dataManager.hasTensor(binding.resourceRef)) {
-            const vk::WriteDescriptorSetTensorARM info(1, &dataManager.getTensor(binding.resourceRef).tensorView());
-            const vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(binding.id), 0, 1,
-                                                binding.vkDescriptorType, {}, {}, {}, &info);
-            _ctx.device().updateDescriptorSets(vk::ArrayProxy<vk::WriteDescriptorSet>(dwrite), {});
-        } else if (dataManager.hasImage(binding.resourceRef)) {
-            vk::ImageView imageView;
-            const Image &image = dataManager.getImage(binding.resourceRef);
-
-            if (binding.lod.has_value()) {
-                imageView = image.imageView(binding.lod.value());
-            } else {
-                imageView = image.imageView();
-            }
-            const vk::DescriptorImageInfo info(image.sampler(), imageView, image.getImageLayout());
-            const vk::WriteDescriptorSet dwrite(descSet, static_cast<uint32_t>(binding.id), 0, 1,
-                                                binding.vkDescriptorType, &info);
-            _ctx.device().updateDescriptorSets(vk::ArrayProxy<vk::WriteDescriptorSet>(dwrite), {});
-        }
+        _updateDescriptorSets(descSet, binding, dataManager);
     }
 
     const auto bindPoint = pipeline.isDataGraphPipeline() ? BindPoint::DataGraph : BindPoint::Compute;
@@ -241,10 +246,10 @@ void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager
 
     if (implicitBarriers) {
         // Set an implicit memory barrier
-        const uint32_t memoryBarrierIdx = static_cast<uint32_t>(_memoryBarriers.size());
-        const uint32_t imageBarrierIdx = static_cast<uint32_t>(_imageBarriers.size());
-        const uint32_t tensorBarrierIdx = static_cast<uint32_t>(_tensorBarriers.size());
-        const uint32_t bufferBarrierIdx = static_cast<uint32_t>(_bufferBarriers.size());
+        const auto memoryBarrierIdx = static_cast<uint32_t>(_memoryBarriers.size());
+        const auto imageBarrierIdx = static_cast<uint32_t>(_imageBarriers.size());
+        const auto tensorBarrierIdx = static_cast<uint32_t>(_tensorBarriers.size());
+        const auto bufferBarrierIdx = static_cast<uint32_t>(_bufferBarriers.size());
 
         auto accessFlag = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite;
         _memoryBarriers.emplace_back(
@@ -264,10 +269,10 @@ void Compute::registerWriteTimestamp(uint32_t query, vk::PipelineStageFlagBits2 
 }
 
 void Compute::registerPipelineBarrier(const DispatchBarrierData &dispatchBarrierData, const DataManager &dataManager) {
-    const uint32_t memoryBarrierIdx = static_cast<uint32_t>(_memoryBarriers.size());
-    const uint32_t imageBarrierIdx = static_cast<uint32_t>(_imageBarriers.size());
-    const uint32_t tensorBarrierIdx = static_cast<uint32_t>(_tensorBarriers.size());
-    const uint32_t bufferBarrierIdx = static_cast<uint32_t>(_bufferBarriers.size());
+    const auto memoryBarrierIdx = static_cast<uint32_t>(_memoryBarriers.size());
+    const auto imageBarrierIdx = static_cast<uint32_t>(_imageBarriers.size());
+    const auto tensorBarrierIdx = static_cast<uint32_t>(_tensorBarriers.size());
+    const auto bufferBarrierIdx = static_cast<uint32_t>(_bufferBarriers.size());
 
     PipelineBarrierDebugNameBuilder debugNameBuilder;
 
@@ -308,10 +313,8 @@ void Compute::registerPipelineBarrier(const DispatchBarrierData &dispatchBarrier
 }
 
 void Compute::registerMarkBoundary(const MarkBoundaryData &markBoundaryData, const DataManager &dataManager) {
-
     std::vector<vk::Image> imageHandles;
     imageHandles.reserve(markBoundaryData.images.size());
-
     for (const auto &resourceRef : markBoundaryData.images) {
         auto image = dataManager.getImage(resourceRef).image();
         imageHandles.emplace_back(std::move(image));
@@ -320,30 +323,33 @@ void Compute::registerMarkBoundary(const MarkBoundaryData &markBoundaryData, con
 
     std::vector<vk::Buffer> bufferHandles;
     bufferHandles.reserve(markBoundaryData.buffers.size());
-
     for (const auto &resourceRef : markBoundaryData.buffers) {
         auto buffer = dataManager.getBuffer(resourceRef).buffer();
         bufferHandles.emplace_back(std::move(buffer));
     }
     _bufferArray.emplace_back(std::move(bufferHandles));
-    vk::FrameBoundaryEXT markBoundary;
-    markBoundary.sType = vk::StructureType::eFrameBoundaryEXT;
-
-    markBoundary.flags = vk::FrameBoundaryFlagBitsEXT::eFrameEnd;
-    markBoundary.frameID = markBoundaryData.frameId;
-    markBoundary.pImages = _imageArray.back().data();
-    markBoundary.imageCount = static_cast<uint32_t>(_imageArray.back().size());
-    markBoundary.pBuffers = _bufferArray.back().data();
-    markBoundary.bufferCount = static_cast<uint32_t>(_bufferArray.back().size());
 
     std::vector<vk::TensorARM> tensorHandles;
     tensorHandles.reserve(markBoundaryData.tensors.size());
-
     for (const auto &resourceRef : markBoundaryData.tensors) {
         auto tensor = dataManager.getTensor(resourceRef).tensor();
         tensorHandles.emplace_back(std::move(tensor));
     }
     _tensorArray.emplace_back(std::move(tensorHandles));
+
+    _addMarkBoundary(markBoundaryData.frameId);
+}
+
+void Compute::_addMarkBoundary(uint64_t frameId) {
+    vk::FrameBoundaryEXT markBoundary;
+    markBoundary.sType = vk::StructureType::eFrameBoundaryEXT;
+    markBoundary.flags = vk::FrameBoundaryFlagBitsEXT::eFrameEnd;
+    markBoundary.frameID = frameId;
+    markBoundary.pImages = _imageArray.back().data();
+    markBoundary.imageCount = static_cast<uint32_t>(_imageArray.back().size());
+    markBoundary.pBuffers = _bufferArray.back().data();
+    markBoundary.bufferCount = static_cast<uint32_t>(_bufferArray.back().size());
+
     vk::FrameBoundaryTensorsARM markBoundaryTensor;
     markBoundaryTensor.sType = vk::StructureType::eFrameBoundaryTensorsARM;
     markBoundaryTensor.pTensors = _tensorArray.back().data();
