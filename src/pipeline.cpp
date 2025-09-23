@@ -174,23 +174,29 @@ Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const uint3
             throw std::runtime_error("Unsupported graph pipeline resource");
         }
 
-        const Tensor &tensor = dataManager.getTensor(binding.resourceRef);
+        const auto &tensor = dataManager.getTensor(binding.resourceRef);
 
-        const int64_t *strides_ptr = tensor.dimStrides().data();
+        const auto *strides = tensor.dimStrides().data();
         if (tensor.dimStrides().empty()) {
-            strides_ptr = nullptr;
+            strides = nullptr;
         }
 
         tensorDescriptions.emplace_back(
             vk::TensorDescriptionARM(tensor.tiling(), vk::Format(tensor.dataType()),
                                      static_cast<uint32_t>(tensor.shape().size()), // dimensions
                                      tensor.shape().data(),
-                                     strides_ptr, // pStrides
+                                     strides, // pStrides
                                      vk::TensorUsageFlagBitsARM::eDataGraph));
         resourceInfos.emplace_back(static_cast<uint32_t>(binding.set), static_cast<uint32_t>(binding.id),
                                    /*arrayElement=*/0, &tensorDescriptions.back());
     }
 
+    graphComputePipelineCommon(ctx, segmentIndex, vgfView, pipelineCache, resourceInfos);
+}
+
+void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIndex, const VgfView &vgfView,
+                                          std::optional<PipelineCache> &pipelineCache,
+                                          const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos) {
     // Setup constant resource info
     auto constantIndexes = vgfView.getSegmentConstantIndexes(segmentIndex);
     std::vector<vk::TensorDescriptionARM> constantTensorDescriptions;
