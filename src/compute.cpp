@@ -164,6 +164,22 @@ Compute::DebugMarker::~DebugMarker() {
     _compute->_commands.emplace_back(PopDebugMarker{});
 }
 
+void Compute::_addDescriptorSets(const uint32_t baseDescriptorSetIdxGlobal, uint32_t set,
+                                 const std::vector<vk::DescriptorPoolSize> &poolSizes, const Pipeline &pipeline) {
+    // Add new sets as needed
+    while (_descriptorSets.size() <= baseDescriptorSetIdxGlobal + set) {
+        const vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo(
+            vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 1, poolSizes);
+        _descriptorPools.emplace_back(_ctx.device(), descriptorPoolCreateInfo);
+
+        const vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo(*_descriptorPools.back(),
+                                                                      pipeline.descriptorSetLayout(set));
+
+        _descriptorSets.push_back(
+            std::move(vk::raii::DescriptorSets(_ctx.device(), descriptorSetAllocateInfo).front()));
+    }
+}
+
 void Compute::_updateDescriptorSets(const vk::DescriptorSet &descSet, const TypedBinding &binding,
                                     const DataManager &dataManager) {
     if (dataManager.hasBuffer(binding.resourceRef)) {
@@ -208,18 +224,7 @@ void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager
     for (const auto &binding : bindings) {
         maxSet = maxSet < binding.set ? binding.set : maxSet;
 
-        // Add new sets as needed
-        while (_descriptorSets.size() <= baseDescriptorSetIdxGlobal + binding.set) {
-            const vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo(
-                vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 1, poolSizes);
-            _descriptorPools.emplace_back(_ctx.device(), descriptorPoolCreateInfo);
-
-            const vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo(*_descriptorPools.back(),
-                                                                          pipeline.descriptorSetLayout(binding.set));
-
-            _descriptorSets.push_back(
-                std::move(vk::raii::DescriptorSets(_ctx.device(), descriptorSetAllocateInfo).front()));
-        }
+        _addDescriptorSets(baseDescriptorSetIdxGlobal, binding.set, poolSizes, pipeline);
 
         const vk::DescriptorSet &descSet = *_descriptorSets[baseDescriptorSetIdxGlobal + binding.set];
         _updateDescriptorSets(descSet, binding, dataManager);
@@ -245,23 +250,26 @@ void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager
     }
 
     if (implicitBarriers) {
-        // Set an implicit memory barrier
-        const auto memoryBarrierIdx = static_cast<uint32_t>(_memoryBarriers.size());
-        const auto imageBarrierIdx = static_cast<uint32_t>(_imageBarriers.size());
-        const auto tensorBarrierIdx = static_cast<uint32_t>(_tensorBarriers.size());
-        const auto bufferBarrierIdx = static_cast<uint32_t>(_bufferBarriers.size());
-
-        auto accessFlag = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite;
-        _memoryBarriers.emplace_back(
-            std::vector<vk::MemoryBarrier2>{vk::MemoryBarrier2(vk::PipelineStageFlagBits2::eAllCommands, accessFlag,
-                                                               vk::PipelineStageFlagBits2::eAllCommands, accessFlag)});
-        _imageBarriers.emplace_back(std::vector<vk::ImageMemoryBarrier2>{});
-        _tensorBarriers.emplace_back(std::vector<vk::TensorMemoryBarrierARM>{});
-        _bufferBarriers.emplace_back(std::vector<vk::BufferMemoryBarrier2>{});
-
-        DebugMarker dbgMrk1(this, "barriers (pipeline implicit)");
-        _commands.emplace_back(MemoryBarrier{memoryBarrierIdx, imageBarrierIdx, tensorBarrierIdx, bufferBarrierIdx});
+        _addImplicitBarriers();
     }
+}
+
+void Compute::_addImplicitBarriers() {
+    // Set an implicit memory barrier
+    const auto memoryBarrierIdx = static_cast<uint32_t>(_memoryBarriers.size());
+    const auto imageBarrierIdx = static_cast<uint32_t>(_imageBarriers.size());
+    const auto tensorBarrierIdx = static_cast<uint32_t>(_tensorBarriers.size());
+    const auto bufferBarrierIdx = static_cast<uint32_t>(_bufferBarriers.size());
+
+    auto accessFlag = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite;
+    _memoryBarriers.emplace_back(std::vector<vk::MemoryBarrier2>{vk::MemoryBarrier2(
+        vk::PipelineStageFlagBits2::eAllCommands, accessFlag, vk::PipelineStageFlagBits2::eAllCommands, accessFlag)});
+    _imageBarriers.emplace_back(std::vector<vk::ImageMemoryBarrier2>{});
+    _tensorBarriers.emplace_back(std::vector<vk::TensorMemoryBarrierARM>{});
+    _bufferBarriers.emplace_back(std::vector<vk::BufferMemoryBarrier2>{});
+
+    DebugMarker dbgMrk1(this, "barriers (pipeline implicit)");
+    _commands.emplace_back(MemoryBarrier{memoryBarrierIdx, imageBarrierIdx, tensorBarrierIdx, bufferBarrierIdx});
 }
 
 void Compute::registerWriteTimestamp(uint32_t query, vk::PipelineStageFlagBits2 flag) {
