@@ -104,9 +104,10 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
     bindings.push_back(binding);
 
     // Create compute pipeline
+    std::optional<PipelineCache> pipelineCache{};
+    const Pipeline::CommonArguments args{ctx, "test_pipeline", bindings, pipelineCache};
     ShaderDesc shaderDesc(Guid("add_shader"), "add_shader", addShaderSPIRV, "main", ShaderType::SPIR_V);
-    std::optional<PipelineCache> _pipelineCache{};
-    Pipeline pipe(ctx, "test_pipeline", bindings, shaderDesc, _pipelineCache);
+    Pipeline pipe(args, shaderDesc);
 
     // Create compute orchestrator to run commands
     Compute compute(ctx);
