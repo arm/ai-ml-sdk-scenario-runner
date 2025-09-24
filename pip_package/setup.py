@@ -8,7 +8,7 @@ from setuptools import find_packages
 from setuptools import setup
 
 setup(
-    name="scenario-runner",
+    name="ai_ml_sdk_scenario_runner",
     version=datetime.today().strftime("%m.%d"),
     packages=find_packages(),
     include_package_data=True,
