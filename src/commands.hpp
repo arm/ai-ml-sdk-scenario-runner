@@ -6,7 +6,6 @@
 #pragma once
 
 #include "guid.hpp"
-#include "types.hpp"
 
 #include <cstdint>
 #include <optional>
@@ -56,6 +55,26 @@ struct DispatchComputeDesc : CommandDesc {
     Guid shaderRef;
     bool implicitBarrier{true};
     std::optional<Guid> pushDataRef;
+};
+
+/**
+ * @brief Maps the raw data resource containing push constants data
+ * to the shader node in the graph which consumes these
+ *
+ */
+struct PushConstantMap {
+    Guid pushDataRef;
+    Guid shaderTarget;
+};
+
+/**
+ * @brief Describes a placeholder shader node in the graph that will be substituted with an actual shader
+ * implementation
+ *
+ */
+struct ShaderSubstitution {
+    Guid shaderRef;
+    std::string target;
 };
 
 /**

@@ -35,6 +35,9 @@ struct ScenarioOptions {
     std::vector<std::string> disabledExtensions{};
 };
 
+struct DispatchComputeData;
+struct DispatchDataGraphData;
+
 class Scenario {
   public:
     /// \brief Constructor

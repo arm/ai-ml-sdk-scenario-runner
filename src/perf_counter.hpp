@@ -8,8 +8,6 @@
 #include <string>
 #include <vector>
 
-using Clock = std::chrono::high_resolution_clock;
-
 namespace mlsdk::scenariorunner {
 
 class PerformanceCounter {
@@ -36,6 +34,8 @@ class PerformanceCounter {
     bool isPartOfTimeToInference() const { return _isPartOfTimeToInference; }
 
   private:
+    using Clock = std::chrono::high_resolution_clock;
+
     std::chrono::time_point<Clock> _startTimePoint;
     std::chrono::microseconds _elapsedTime;
     std::string _name;

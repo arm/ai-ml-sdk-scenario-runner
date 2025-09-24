@@ -9,6 +9,38 @@
 
 namespace mlsdk::scenariorunner {
 
+/// @brief Base structure that describes a barrier
+struct BaseBarrierData {
+    std::string debugName;
+    MemoryAccess srcAccess;
+    MemoryAccess dstAccess;
+    std::vector<PipelineStage> srcStages;
+    std::vector<PipelineStage> dstStages;
+};
+
+/// @brief Structure that describes the image barrier
+struct ImageBarrierData : BaseBarrierData {
+    ImageLayout oldLayout;
+    ImageLayout newLayout;
+    vk::Image image;
+    SubresourceRange imageRange;
+};
+
+/// @brief Structure that describes the tensor barrier
+struct TensorBarrierData : BaseBarrierData {
+    vk::TensorARM tensor;
+};
+
+/// @brief Structure that describes the memory barrier
+struct MemoryBarrierData : BaseBarrierData {};
+
+/// @brief Structure that describes the buffer barrier
+struct BufferBarrierData : BaseBarrierData {
+    uint64_t offset;
+    uint64_t size;
+    vk::Buffer buffer;
+};
+
 class VulkanImageBarrier {
   public:
     /// \brief Constructor

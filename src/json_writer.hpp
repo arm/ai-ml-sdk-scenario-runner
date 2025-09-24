@@ -16,5 +16,5 @@ void writePerfCounters(std::vector<PerformanceCounter> &perfCounters, std::files
 
 void writeProfilingData(const std::vector<uint64_t> &timestamps, const float timestampPeriod,
                         const std::vector<std::string> &profiledCommands, const std::filesystem::path &path,
-                        const int &iteration, const int &repeatCount);
+                        int iteration, int repeatCount);
 } // namespace mlsdk::scenariorunner

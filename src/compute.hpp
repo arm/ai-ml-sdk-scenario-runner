@@ -16,6 +16,22 @@
 
 namespace mlsdk::scenariorunner {
 
+/// \brief Typed barriers
+struct DispatchBarrierData {
+    std::vector<Guid> memoryBarriers;
+    std::vector<Guid> imageBarriers;
+    std::vector<Guid> tensorBarriers;
+    std::vector<Guid> bufferBarriers;
+};
+
+/// \brief Typed resources
+struct MarkBoundaryData {
+    std::vector<Guid> buffers;
+    std::vector<Guid> images;
+    std::vector<Guid> tensors;
+    uint64_t frameId{};
+};
+
 /// @brief Compute command orchestrator
 ///
 /// @note At the moment each compute handles a single shader

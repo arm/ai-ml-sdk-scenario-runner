@@ -14,7 +14,7 @@ namespace mlsdk::scenariorunner {
 
 class PipelineCache {
   public:
-    explicit PipelineCache(Context &ctx, const std::filesystem::path &pipelineCachePath, bool clearCache,
+    explicit PipelineCache(const Context &ctx, const std::filesystem::path &pipelineCachePath, bool clearCache,
                            bool failOnMiss);
     void save();
 

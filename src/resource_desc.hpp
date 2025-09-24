@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include "barrier.hpp"
 #include "commands.hpp"
 #include "guid.hpp"
 #include "types.hpp"
