@@ -10,11 +10,9 @@
 #include "data_manager.hpp"
 #include "group_manager.hpp"
 #include "guid.hpp"
-#include "pipeline.hpp"
 #include "scenario_desc.hpp"
 #include "types.hpp"
 
-#include <list>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -69,7 +67,6 @@ class Scenario {
     Context _ctx;
     DataManager _dataManager;
     ScenarioSpec &_scenarioSpec;
-    std::list<Pipeline> _pipelines{};
     std::optional<PipelineCache> _pipelineCache{};
     Compute _compute;
     std::vector<PerformanceCounter> _perfCounters{};

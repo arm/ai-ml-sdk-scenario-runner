@@ -52,19 +52,35 @@ class Compute {
     /// \brief Reset and setup resources
     void reset();
 
-    /// \brief Register a pipeline for execution with a fence synchronization
+    struct PipelineCreateArguments {
+        const std::string &debugName;
+        const std::vector<TypedBinding> &bindings;
+        std::optional<PipelineCache> &pipelineCache;
+    };
+
+    /// \brief Create a pipeline
+    ///
+    /// \param args Common arguments struct
+    /// \param shaderInfo Shader related meta-data
+    /// \param spvCode (Optional) Pointer to SPIR-V code
+    /// \param spvSize (Optional) Size of SPIR-V code in number of uint32_t
+    void createPipeline(const PipelineCreateArguments &args, const ShaderInfo &shaderInfo,
+                        const uint32_t *spvCode = nullptr, size_t spvSize = 0);
+    void createPipeline(const PipelineCreateArguments &args, uint32_t segmentIndex, const VgfView &vgfView,
+                        const DataManager &dataManager);
+
+    /// \brief Register last created pipeline for execution with a fence synchronization
     /// in the end
     ///
-    /// \param pipeline Pipeline to register
     /// \param dataManager Data manager object to retrieve resource
     /// \param bindings List of bindings associated to each resource
     /// \param pushConstantData Pointer to push constant data to set for the pipeline
     /// \param pushConstantSize Size of push constants data in bytes
     /// \param implicitBarriers True to enable implicit barriers
     /// \param computeDispatch (Optional) Workgroup count across dimension X, Y and Z. Defaults to: 1, 1 and 1.
-    void registerPipelineFenced(const Pipeline &pipeline, const DataManager &dataManager,
-                                const std::vector<TypedBinding> &bindings, const char *pushConstantData,
-                                size_t pushConstantSize, bool implicitBarriers, ComputeDispatch computeDispatch = {});
+    void registerPipelineFenced(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
+                                const char *pushConstantData, size_t pushConstantSize, bool implicitBarriers,
+                                ComputeDispatch computeDispatch = {});
 
     /// \brief Register a timestamp query
     /// \param query Index of the query
@@ -94,6 +110,8 @@ class Compute {
 
     /// \brief Write profiling data to file
     void writeProfilingFile(const std::filesystem::path &profilingPath, int iteration, int repeatCount) const;
+
+    void sessionRAMsDump(const std::filesystem::path &sessionRAMsDumpDir) const;
 
   private:
     enum class BindPoint {
@@ -168,6 +186,7 @@ class Compute {
     vk::raii::Queue _queue{nullptr};
     vk::raii::Fence _fence{nullptr};
 
+    std::vector<Pipeline> _pipelines{};
     std::vector<vk::raii::DescriptorPool> _descriptorPools{};
     std::vector<vk::raii::DescriptorSet> _descriptorSets{};
     std::vector<std::vector<vk::MemoryBarrier2>> _memoryBarriers{};

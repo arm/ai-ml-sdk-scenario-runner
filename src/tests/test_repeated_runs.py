@@ -17,6 +17,8 @@ DESCRIPTOR_TYPE_TENSOR_ARM = 1000460000
 VK_FORMAT_R8_SINT = 14
 pretendVulkanHeaderVersion = 123
 
+pytestmark = pytest.mark.repeated_runs
+
 
 def test_chained_shaders_execution_count_times(sdk_tools, numpy_helper):
     input1 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferA.npy")

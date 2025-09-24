@@ -132,23 +132,20 @@ void Pipeline::computePipelineCommon(const Context &ctx, const ShaderInfo &shade
     trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
 }
 
-Pipeline::Pipeline(const CommonArguments &args, const uint32_t *spvCode, const size_t spvSize,
-                   const ShaderInfo &shaderInfo)
+Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, const uint32_t *spvCode,
+                   const size_t spvSize)
     : _type{PipelineType::Compute}, _debugName(args.debugName) {
 
-    validateShaderModule(spvCode, spvSize);
+    if ((spvCode != nullptr) && (spvSize > 0)) {
+        validateShaderModule(spvCode, spvSize);
 
-    _shader = createShaderModuleFromCode(args.ctx, spvCode, spvSize);
-    trySetVkRaiiObjectDebugName(args.ctx, _shader, _debugName + " shader");
+        _shader = createShaderModuleFromCode(args.ctx, spvCode, spvSize);
+        trySetVkRaiiObjectDebugName(args.ctx, _shader, _debugName + " shader");
+    } else {
+        _shader = createShaderModule(args.ctx, shaderInfo);
 
-    createDescriptorSetLayouts(args.ctx, args.bindings);
-    computePipelineCommon(args.ctx, shaderInfo, args.pipelineCache);
-}
-
-Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo)
-    : _type{PipelineType::Compute}, _shader(createShaderModule(args.ctx, shaderInfo)), _debugName(args.debugName) {
-
-    trySetVkRaiiObjectDebugName(args.ctx, _shader, shaderInfo.debugName);
+        trySetVkRaiiObjectDebugName(args.ctx, _shader, shaderInfo.debugName);
+    }
 
     createDescriptorSetLayouts(args.ctx, args.bindings);
     computePipelineCommon(args.ctx, shaderInfo, args.pipelineCache);

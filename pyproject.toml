@@ -19,4 +19,5 @@ markers = [
     "vgf_shader",
     "tiling",
     "spec_const",
+    "repeated_runs",
 ]

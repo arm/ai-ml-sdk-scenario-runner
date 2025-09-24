@@ -7,7 +7,6 @@
 #include "commands.hpp"
 #include "compute.hpp"
 #include "glsl_compiler.hpp"
-#include "pipeline.hpp"
 #include "scenario.hpp"
 
 #include <vector>
@@ -103,20 +102,20 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
     binding.resourceRef = guidOut;
     bindings.push_back(binding);
 
+    // Create compute orchestrator to run commands
+    Compute compute(ctx);
+
     // Create compute pipeline
     std::optional<PipelineCache> pipelineCache{};
-    const Pipeline::CommonArguments args{ctx, "test_pipeline", bindings, pipelineCache};
+    const Compute::PipelineCreateArguments args{"test_pipeline", bindings, pipelineCache};
     ShaderInfo shaderInfo;
     shaderInfo.debugName = "add_shader";
     shaderInfo.src = addShaderSPIRV;
     shaderInfo.entry = "main";
     shaderInfo.shaderType = ShaderType::SPIR_V;
-    Pipeline pipe(args, shaderInfo);
-
-    // Create compute orchestrator to run commands
-    Compute compute(ctx);
+    compute.createPipeline(args, shaderInfo);
     bool implicitBarriers = true;
-    compute.registerPipelineFenced(pipe, dataManager, bindings, nullptr, 0, implicitBarriers, {numElements, 1, 1});
+    compute.registerPipelineFenced(dataManager, bindings, nullptr, 0, implicitBarriers, {numElements, 1, 1});
 
     // Run and wait on fence
     compute.submitAndWaitOnFence();

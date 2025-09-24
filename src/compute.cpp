@@ -7,6 +7,7 @@
 #include "logging.hpp"
 #include "utils.hpp"
 
+#include <fstream>
 #include <type_traits>
 
 namespace mlsdk::scenariorunner {
@@ -108,6 +109,7 @@ void Compute::reset() {
     _memoryBarriers.clear();
     _descriptorSets.clear();
     _descriptorPools.clear();
+    _pipelines.clear();
 
     _setup();
 }
@@ -209,10 +211,22 @@ void Compute::_updateDescriptorSets(const vk::DescriptorSet &descSet, const Type
     }
 }
 
-void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager &dataManager,
-                                     const std::vector<TypedBinding> &bindings, const char *pushConstantData,
-                                     size_t pushConstantSize, bool implicitBarriers, ComputeDispatch computeDispatch) {
+void Compute::createPipeline(const PipelineCreateArguments &args, const ShaderInfo &shaderInfo, const uint32_t *spvCode,
+                             size_t spvSize) {
+    const Pipeline::CommonArguments commonArgs{_ctx, args.debugName, args.bindings, args.pipelineCache};
+    (void)_pipelines.emplace_back(commonArgs, shaderInfo, spvCode, spvSize);
+}
 
+void Compute::createPipeline(const PipelineCreateArguments &args, uint32_t segmentIndex, const VgfView &vgfView,
+                             const DataManager &dataManager) {
+    const Pipeline::CommonArguments commonArgs{_ctx, args.debugName, args.bindings, args.pipelineCache};
+    (void)_pipelines.emplace_back(commonArgs, segmentIndex, vgfView, dataManager);
+}
+
+void Compute::registerPipelineFenced(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
+                                     const char *pushConstantData, size_t pushConstantSize, bool implicitBarriers,
+                                     ComputeDispatch computeDispatch) {
+    const auto &pipeline = _pipelines.back();
     DebugMarker dbgMrk0(this, "dispatch (" + pipeline.debugName() + ")");
 
     // Count exact number of typed resources used by this pipeline
@@ -518,6 +532,40 @@ void Compute::writeProfilingFile(const std::filesystem::path &profilingPath, int
         }
     }
     writeProfilingData(timestamps, timestampPeriod, profiledCommands, profilingPath, iteration, repeatCount);
+}
+
+void Compute::sessionRAMsDump(const std::filesystem::path &sessionRAMsDumpDir) const {
+    uint32_t graphPipelineIdx = 0;
+    for (const auto &pipeline : _pipelines) {
+        const auto &sessionMemory = pipeline.sessionMemory();
+        const auto &sessionMemoryDataSizes = pipeline.sessionMemoryDataSizes();
+
+        for (size_t i = 0; i < sessionMemory.size(); i++) {
+            const std::string neStatsFileName =
+                "Graph_Pipeline_" + std::to_string(graphPipelineIdx++) + "_Session_RAM_" + std::to_string(i) + ".txt";
+            std::ofstream fs;
+            fs.open(sessionRAMsDumpDir / neStatsFileName);
+
+            const vk::raii::DeviceMemory &deviceMemory = sessionMemory.at(i);
+            uint64_t dataSize = sessionMemoryDataSizes.at(i);
+
+            auto *dst = reinterpret_cast<unsigned char *>(deviceMemory.mapMemory(0, vk::WholeSize));
+
+            fs << std::hex << std::uppercase;
+            fs.fill('0');
+
+            for (size_t j = 0; j < dataSize; j++) {
+                if ((j % 16) == 0) {
+                    fs << std::endl << std::setw(8) << j << ":   ";
+                }
+                fs << std::setw(2) << static_cast<unsigned>(dst[j]) << " ";
+            }
+
+            deviceMemory.unmapMemory();
+            fs.close();
+        }
+        mlsdk::logging::info("Session RAM dump stored");
+    }
 }
 
 } // namespace mlsdk::scenariorunner
