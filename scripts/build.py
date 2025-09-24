@@ -5,8 +5,10 @@
 #
 """Builds the Scenario Runner App"""
 import argparse
+import os
 import pathlib
 import platform
+import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -310,13 +312,22 @@ class Builder:
                 subprocess.run(cmake_package_cmd, check=True)
 
             if self.package_type == "pip":
-                subprocess.run(
-                    [
-                        "install",
-                        "-D",
-                        f"{self.build_dir}/scenario-runner",
-                        "pip_package/scenario_runner/binaries/scenario-runner",
-                    ]
+                if sys.platform.startswith("win"):
+                    platformName = "win_amd64"
+                    executablePath = (
+                        f"{self.build_dir}/{self.build_type}/scenario-runner.exe"
+                    )
+                elif sys.platform.startswith("linux"):
+                    platformName = "manyLinux2014_x86_64"
+                    executablePath = f"{self.build_dir}/scenario-runner"
+                else:
+                    print(f"ERROR: Unknown platform: {sys.platform}")
+                    return 1
+
+                os.makedirs("pip_package/scenario_runner/binaries/", exist_ok=True)
+                shutil.copy(
+                    executablePath,
+                    "pip_package/scenario_runner/binaries/",
                 )
                 result = subprocess.Popen(
                     [
@@ -324,7 +335,7 @@ class Builder:
                         "setup.py",
                         "bdist_wheel",
                         "--plat-name",
-                        "manyLinux2014_x86_64",
+                        platformName,
                     ],
                     cwd="pip_package",
                 )
