@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """ Tests DDS files processing.  """
+import platform
 import subprocess
 
 import numpy as np
@@ -212,6 +213,10 @@ def create_repeating_reference_output(size, pixels):
             create_repeating_reference_output(64 * 4 * 4, [20, 13, 110, 4]),
         ),
     ],
+)
+@pytest.mark.skipif(
+    platform.system() == "Darwin",
+    reason="MoltenVK does not support VK_EXT_custom_border_color",
 )
 def test_border_access(
     sdk_tools,
