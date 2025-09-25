@@ -18,6 +18,7 @@ add_library(ScenarioRunnerLib
     glsl_compiler.cpp
     group_manager.cpp
     image.cpp
+    iresource.cpp
     json_reader.cpp
     json_writer.cpp
     logging.cpp
