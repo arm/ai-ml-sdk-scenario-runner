@@ -88,7 +88,7 @@ std::vector<std::vector<TypedBinding>> splitOutSets(const std::vector<TypedBindi
 } // namespace
 
 void Pipeline::createDescriptorSetLayouts(const Context &ctx, const std::vector<TypedBinding> &bindings) {
-    for (auto &setBindings : splitOutSets(bindings)) {
+    for (const auto &setBindings : splitOutSets(bindings)) {
         _descriptorSetLayouts.push_back(createDescriptorSetLayout(ctx, setBindings));
     }
 }
@@ -131,45 +131,42 @@ void Pipeline::computePipelineCommon(const Context &ctx, const ShaderDesc &shade
     trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
 }
 
-Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const uint32_t *spvCode, const size_t spvSize,
-                   const std::vector<TypedBinding> &sequenceBindings, const ShaderDesc &shaderDesc,
-                   std::optional<PipelineCache> &pipelineCache)
-    : _type{PipelineType::Compute}, _debugName(debugName) {
+Pipeline::Pipeline(const CommonArguments &args, const uint32_t *spvCode, const size_t spvSize,
+                   const ShaderDesc &shaderDesc)
+    : _type{PipelineType::Compute}, _debugName(args.debugName) {
 
     validateShaderModule(spvCode, spvSize);
 
-    _shader = createShaderModuleFromCode(ctx, spvCode, spvSize);
-    trySetVkRaiiObjectDebugName(ctx, _shader, _debugName + " shader");
+    _shader = createShaderModuleFromCode(args.ctx, spvCode, spvSize);
+    trySetVkRaiiObjectDebugName(args.ctx, _shader, _debugName + " shader");
 
-    createDescriptorSetLayouts(ctx, sequenceBindings);
-    computePipelineCommon(ctx, shaderDesc, pipelineCache);
+    createDescriptorSetLayouts(args.ctx, args.bindings);
+    computePipelineCommon(args.ctx, shaderDesc, args.pipelineCache);
 }
 
-Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const std::vector<TypedBinding> &bindings,
-                   const ShaderDesc &shaderDesc, std::optional<PipelineCache> &pipelineCache)
-    : _type{PipelineType::Compute}, _shader(createShaderModule(ctx, shaderDesc)), _debugName(debugName) {
+Pipeline::Pipeline(const CommonArguments &args, const ShaderDesc &shaderDesc)
+    : _type{PipelineType::Compute}, _shader(createShaderModule(args.ctx, shaderDesc)), _debugName(args.debugName) {
 
-    trySetVkRaiiObjectDebugName(ctx, _shader, shaderDesc.guidStr);
+    trySetVkRaiiObjectDebugName(args.ctx, _shader, shaderDesc.guidStr);
 
-    createDescriptorSetLayouts(ctx, bindings);
-    computePipelineCommon(ctx, shaderDesc, pipelineCache);
+    createDescriptorSetLayouts(args.ctx, args.bindings);
+    computePipelineCommon(args.ctx, shaderDesc, args.pipelineCache);
 }
 
-Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const uint32_t segmentIndex,
-                   const std::vector<TypedBinding> &sequenceBindings, const VgfView &vgfView,
-                   const DataManager &dataManager, std::optional<PipelineCache> &pipelineCache)
-    : _type{PipelineType::GraphCompute}, _debugName(debugName) {
+Pipeline::Pipeline(const CommonArguments &args, const uint32_t segmentIndex, const VgfView &vgfView,
+                   const DataManager &dataManager)
+    : _type{PipelineType::GraphCompute}, _debugName(args.debugName) {
 
-    createDescriptorSetLayouts(ctx, sequenceBindings);
-    _pipelineLayout = createPipelineLayout(ctx, _descriptorSetLayouts);
+    createDescriptorSetLayouts(args.ctx, args.bindings);
+    _pipelineLayout = createPipelineLayout(args.ctx, _descriptorSetLayouts);
 
     // Setup tensor resource info
     std::vector<vk::TensorDescriptionARM> tensorDescriptions;
-    tensorDescriptions.reserve(sequenceBindings.size());
+    tensorDescriptions.reserve(args.bindings.size());
     std::vector<vk::DataGraphPipelineResourceInfoARM> resourceInfos;
-    resourceInfos.reserve(sequenceBindings.size());
+    resourceInfos.reserve(args.bindings.size());
 
-    for (const auto &binding : sequenceBindings) {
+    for (const auto &binding : args.bindings) {
         if (!dataManager.hasTensor(binding.resourceRef)) {
             throw std::runtime_error("Unsupported graph pipeline resource");
         }
@@ -191,7 +188,7 @@ Pipeline::Pipeline(const Context &ctx, const std::string &debugName, const uint3
                                    /*arrayElement=*/0, &tensorDescriptions.back());
     }
 
-    graphComputePipelineCommon(ctx, segmentIndex, vgfView, pipelineCache, resourceInfos);
+    graphComputePipelineCommon(args.ctx, segmentIndex, vgfView, args.pipelineCache, resourceInfos);
 }
 
 void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIndex, const VgfView &vgfView,

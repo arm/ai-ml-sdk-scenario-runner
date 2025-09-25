@@ -231,6 +231,16 @@ void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager
         _updateDescriptorSets(descSet, binding, resourceViewer);
     }
 
+    _addBinds(pipeline, maxSet, baseDescriptorSetIdxGlobal);
+    _addPushConstants(pushConstantData, pipeline, pushConstantSize);
+    _addDispatch(pipeline, computeDispatch);
+
+    if (implicitBarriers) {
+        _addImplicitBarriers();
+    }
+}
+
+void Compute::_addBinds(const Pipeline &pipeline, const uint32_t maxSet, const uint32_t baseDescriptorSetIdxGlobal) {
     const auto bindPoint = pipeline.isDataGraphPipeline() ? BindPoint::DataGraph : BindPoint::Compute;
 
     _commands.emplace_back(BindPipeline{pipeline.pipeline(), bindPoint});
@@ -239,19 +249,20 @@ void Compute::registerPipelineFenced(const Pipeline &pipeline, const DataManager
         _commands.emplace_back(
             BindDescriptorSet{pipeline.pipelineLayout(), baseDescriptorSetIdxGlobal + setId, setId, bindPoint});
     }
+}
 
+void Compute::_addPushConstants(const char *pushConstantData, const Pipeline &pipeline, const size_t pushConstantSize) {
     if (pushConstantData != nullptr) {
         _commands.emplace_back(
             PushConstants{pipeline.pipelineLayout(), pushConstantData, static_cast<uint32_t>(pushConstantSize)});
     }
+}
+
+void Compute::_addDispatch(const Pipeline &pipeline, const ComputeDispatch &computeDispatch) {
     if (pipeline.isDataGraphPipeline()) {
         _commands.emplace_back(DataGraphDispatch{pipeline.session()});
     } else {
         _commands.emplace_back(computeDispatch);
-    }
-
-    if (implicitBarriers) {
-        _addImplicitBarriers();
     }
 }
 

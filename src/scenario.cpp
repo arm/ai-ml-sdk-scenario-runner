@@ -786,12 +786,13 @@ void Scenario::handleAliasedLayoutTransitions() {
 void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute, int iteration, uint32_t &nQueries) {
     // Create Compute shader pipeline
     const auto &shaderDesc = _scenarioSpec.getShaderResource(dispatchCompute.shaderRef);
+    const Pipeline::CommonArguments args{_ctx, dispatchCompute.debugName, dispatchCompute.bindings, _pipelineCache};
 
     _perfCounters
         .emplace_back("Create Pipeline: " + shaderDesc.guidStr + ". Iteration: " + std::to_string(iteration + 1),
                       "Pipeline Setup", true)
         .start();
-    _pipelines.emplace_back(_ctx, dispatchCompute.debugName, dispatchCompute.bindings, shaderDesc, _pipelineCache);
+    _pipelines.emplace_back(args, shaderDesc);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
     const char *pushConstantData = nullptr;
     size_t pushConstantSize = 0;
@@ -827,10 +828,10 @@ void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchData
 void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
                               const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph,
                               uint32_t &nQueries) {
+    const Pipeline::CommonArguments args{_ctx, dispatchDataGraph.debugName, sequenceBindings, _pipelineCache};
     switch (vgfView.getSegmentType(segmentIndex)) {
     case ModuleType::GRAPH: {
-        _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, segmentIndex, sequenceBindings, vgfView,
-                                _dataManager, _pipelineCache);
+        _pipelines.emplace_back(args, segmentIndex, vgfView, _dataManager);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
         _compute.registerPipelineFenced(_pipelines.back(), _dataManager, sequenceBindings, nullptr, 0,
                                         dispatchDataGraph.implicitBarrier);
@@ -843,7 +844,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
             auto moduleName = vgfView.getSPVModuleName(segmentIndex);
             const auto &shaderDesc =
                 _scenarioSpec.getSubstitionShader(dispatchDataGraph.shaderSubstitutions, moduleName);
-            _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, sequenceBindings, shaderDesc, _pipelineCache);
+            _pipelines.emplace_back(args, shaderDesc);
             if (hasSPVModule) {
                 mlsdk::logging::warning("Performing shader substitution despite shader module containing code");
             }
@@ -856,8 +857,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
             auto entryPoint = vgfView.getSPVModuleEntryPoint(segmentIndex);
             auto spv = vgfView.getSPVModule(segmentIndex);
             auto shaderDesc = ShaderDesc(Guid(moduleName), moduleName, {}, std::move(entryPoint), ShaderType::SPIR_V);
-            _pipelines.emplace_back(_ctx, dispatchDataGraph.debugName, spv.begin(), spv.size(), sequenceBindings,
-                                    shaderDesc, _pipelineCache);
+            _pipelines.emplace_back(args, spv.begin(), spv.size(), shaderDesc);
         }
 
         auto dispatchShape = vgfView.getDispatchShape(segmentIndex);
@@ -903,7 +903,7 @@ void Scenario::saveResults(bool dryRun) {
 
     // Save resources that have an output destination
     _perfCounters.emplace_back("Save Resources", "Save Results").start();
-    for (auto &resourceDesc : _scenarioSpec.resources) {
+    for (const auto &resourceDesc : _scenarioSpec.resources) {
         const auto &dst = resourceDesc->getDestination();
         if (dst.has_value()) {
             const auto &guid = resourceDesc->guid;
@@ -929,9 +929,9 @@ void Scenario::saveResults(bool dryRun) {
     // Hexdump the session ram for debugging
     if (!_opts.sessionRAMsDumpDir.empty()) {
         uint32_t graphPipelineIdx = 0;
-        for (auto &pipeline : _pipelines) {
-            auto &sessionMemory = pipeline.sessionMemory();
-            auto &sessionMemoryDataSizes = pipeline.sessionMemoryDataSizes();
+        for (const auto &pipeline : _pipelines) {
+            const auto &sessionMemory = pipeline.sessionMemory();
+            const auto &sessionMemoryDataSizes = pipeline.sessionMemoryDataSizes();
 
             for (size_t i = 0; i < sessionMemory.size(); i++) {
                 const std::string neStatsFileName = "Graph_Pipeline_" + std::to_string(graphPipelineIdx++) +

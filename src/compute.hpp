@@ -194,6 +194,12 @@ class Compute {
     void _updateDescriptorSets(const vk::DescriptorSet &descSet, const TypedBinding &binding,
                                const IResourceViewer &resourceViewer);
 
+    void _addBinds(const Pipeline &pipeline, uint32_t maxSet, uint32_t baseDescriptorSetIdxGlobal);
+
+    void _addPushConstants(const char *pushConstantData, const Pipeline &pipeline, size_t pushConstantSize);
+
+    void _addDispatch(const Pipeline &pipeline, const ComputeDispatch &computeDispatch);
+
     void _addImplicitBarriers();
 
     void _addMarkBoundary(uint64_t frameId);

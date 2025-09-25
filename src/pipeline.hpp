@@ -18,23 +18,23 @@ namespace mlsdk::scenariorunner {
 
 class Pipeline {
   public:
+    struct CommonArguments {
+        const Context &ctx;
+        const std::string &debugName;
+        const std::vector<TypedBinding> &bindings;
+        std::optional<PipelineCache> &pipelineCache;
+    };
+
     /// \brief Constructor
     ///
-    /// \param ctx GPU context
-    /// \param debugName Debug name
-    /// \param bindings Bindings related meta-data
+    /// \param args Common arguments struct
     /// \param shaderDesc Shader related meta-data
-    /// \param pipelineCache optional pipeline cache object
-    Pipeline(const Context &ctx, const std::string &debugName, const std::vector<TypedBinding> &bindings,
-             const ShaderDesc &shaderDesc, std::optional<PipelineCache> &pipelineCache);
+    Pipeline(const CommonArguments &args, const ShaderDesc &shaderDesc);
 
-    Pipeline(const Context &ctx, const std::string &debugName, const uint32_t *spvCode, const size_t spvSize,
-             const std::vector<TypedBinding> &sequenceBindings, const ShaderDesc &shaderDesc,
-             std::optional<PipelineCache> &pipelineCache);
+    Pipeline(const CommonArguments &args, const uint32_t *spvCode, size_t spvSize, const ShaderDesc &shaderDesc);
 
-    Pipeline(const Context &ctx, const std::string &debugName, const uint32_t segmentIndex,
-             const std::vector<TypedBinding> &sequenceBindings, const VgfView &vgfView, const DataManager &dataManager,
-             std::optional<PipelineCache> &pipelineCache);
+    Pipeline(const CommonArguments &args, uint32_t segmentIndex, const VgfView &vgfView,
+             const DataManager &dataManager);
 
     /// \brief Vulkan® pipeline accessor
     /// \return The underlying Vulkan® pipeline of the object
