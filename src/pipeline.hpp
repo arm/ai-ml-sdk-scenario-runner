@@ -4,10 +4,10 @@
  */
 #pragma once
 
-#include "commands.hpp"
 #include "context.hpp"
 #include "data_manager.hpp"
 #include "pipeline_cache.hpp"
+#include "types.hpp"
 
 #include <optional>
 #include <string>
@@ -28,10 +28,10 @@ class Pipeline {
     /// \brief Constructor
     ///
     /// \param args Common arguments struct
-    /// \param shaderDesc Shader related meta-data
-    Pipeline(const CommonArguments &args, const ShaderDesc &shaderDesc);
+    /// \param shaderInfo Shader related meta-data
+    Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo);
 
-    Pipeline(const CommonArguments &args, const uint32_t *spvCode, size_t spvSize, const ShaderDesc &shaderDesc);
+    Pipeline(const CommonArguments &args, const uint32_t *spvCode, size_t spvSize, const ShaderInfo &shaderInfo);
 
     Pipeline(const CommonArguments &args, uint32_t segmentIndex, const VgfView &vgfView,
              const DataManager &dataManager);
@@ -75,7 +75,7 @@ class Pipeline {
 
     void createDescriptorSetLayouts(const Context &ctx, const std::vector<TypedBinding> &bindings);
 
-    void computePipelineCommon(const Context &ctx, const ShaderDesc &shaderDesc,
+    void computePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
                                std::optional<PipelineCache> &pipelineCache);
 
     void graphComputePipelineCommon(const Context &ctx, uint32_t segmentIndex, const VgfView &vgfView,

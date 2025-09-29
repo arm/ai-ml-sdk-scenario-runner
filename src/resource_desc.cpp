@@ -32,24 +32,6 @@ BufferDesc::BufferDesc(Guid guid, const std::string &guidStr, uint32_t size, Sha
 BufferDesc::BufferDesc() : ResourceDesc(ResourceType::Buffer, Guid(), "<unnamed_buffer>") {}
 
 /**
- * @brief Construct a new SpecializationConstant object
- *
- * @param id
- * @param value
- */
-SpecializationConstant::SpecializationConstant(int id, Constant value) : id(id), value(value) {}
-
-/**
- * @brief Construct a new SpecializationConstantMap object
- *
- * @param specializationConstants
- * @param shaderTarget
- */
-SpecializationConstantMap::SpecializationConstantMap(std::vector<SpecializationConstant> specializationConstants,
-                                                     Guid shaderTarget)
-    : specializationConstants(std::move(specializationConstants)), shaderTarget(shaderTarget) {}
-
-/**
  * @brief Construct a new DataGraphDesc object
  *
  * @param guid

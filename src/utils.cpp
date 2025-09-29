@@ -144,10 +144,10 @@ uint32_t findMemoryIdx(const Context &ctx, uint32_t memTypeBits, vk::MemoryPrope
     return std::numeric_limits<uint32_t>::max();
 }
 
-std::vector<uint32_t> readShaderCode(const ShaderDesc &shaderDesc) {
-    switch (shaderDesc.shaderType) {
+std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo) {
+    switch (shaderInfo.shaderType) {
     case ShaderType::SPIR_V: {
-        std::ifstream shaderFile{shaderDesc.src.value(), std::ios::binary | std::ios::ate};
+        std::ifstream shaderFile{shaderInfo.src, std::ios::binary | std::ios::ate};
         if (!shaderFile.is_open()) {
             throw std::runtime_error("Cannot open SPIR-V shader file.");
         }
@@ -163,13 +163,13 @@ std::vector<uint32_t> readShaderCode(const ShaderDesc &shaderDesc) {
         return code;
     }
     case ShaderType::GLSL: {
-        std::ifstream shaderFile{shaderDesc.src.value()};
+        std::ifstream shaderFile{shaderInfo.src};
         if (!shaderFile.is_open()) {
             throw std::runtime_error("Cannot open GLSL shader file.");
         }
         shaderFile.exceptions(std::ios::badbit);
         std::string content((std::istreambuf_iterator<char>(shaderFile)), (std::istreambuf_iterator<char>()));
-        auto spirv = GlslCompiler::get().compile(content, shaderDesc.buildOpts, shaderDesc.includeDirs);
+        auto spirv = GlslCompiler::get().compile(content, shaderInfo.buildOpts, shaderInfo.includeDirs);
         if (!spirv.first.empty()) {
             throw std::runtime_error("Compilation error\n" + spirv.first);
         }

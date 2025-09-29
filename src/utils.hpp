@@ -6,10 +6,10 @@
 #pragma once
 
 #include "context.hpp"
-#include "resource_desc.hpp"
-#include "vgf-utils/numpy.hpp"
+#include "types.hpp"
 
 #include "spirv-tools/libspirv.hpp"
+#include "vgf-utils/numpy.hpp"
 #include "vulkan/vulkan_raii.hpp"
 
 namespace mlsdk::scenariorunner {
@@ -81,10 +81,10 @@ uint32_t findMemoryIdx(const Context &ctx, uint32_t memTypeBits, vk::MemoryPrope
 /** Read the shader code from file. In case of GLSL shader, the code will be compiled into SPIR-V before being
  * returned.
  *
- * @param[in] shaderDesc Shader description meta-data. Contains the filename, file type, etc.
+ * @param[in] shaderInfo Shader description meta-data. Contains the filename, file type, etc.
  * @return Bytes read from the file
  */
-std::vector<uint32_t> readShaderCode(const ShaderDesc &shaderDesc);
+std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo);
 
 /** Consumer function for messages communicated from the SPIRV-Tools library
  *
