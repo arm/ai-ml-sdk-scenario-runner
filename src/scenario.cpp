@@ -393,7 +393,6 @@ void Scenario::run(int repeatCount, bool dryRun) {
         mlsdk::logging::debug("Iteration: " + std::to_string(i));
 
         // Clear and reset all data before execution
-        _pipelines.clear();
         _compute.reset();
 
         if (frameCapturer) {
@@ -798,13 +797,13 @@ void Scenario::handleAliasedLayoutTransitions() {
 void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute, int iteration, uint32_t &nQueries) {
     // Create Compute shader pipeline
     const auto shaderInfo = convert(_scenarioSpec.getShaderResource(dispatchCompute.shaderRef));
-    const Pipeline::CommonArguments args{_ctx, dispatchCompute.debugName, dispatchCompute.bindings, _pipelineCache};
+    const Compute::PipelineCreateArguments args{dispatchCompute.debugName, dispatchCompute.bindings, _pipelineCache};
 
     _perfCounters
         .emplace_back("Create Pipeline: " + shaderInfo.debugName + ". Iteration: " + std::to_string(iteration + 1),
                       "Pipeline Setup", true)
         .start();
-    _pipelines.emplace_back(args, shaderInfo);
+    _compute.createPipeline(args, shaderInfo);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
     const char *pushConstantData = nullptr;
     size_t pushConstantSize = 0;
@@ -813,8 +812,8 @@ void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute,
         pushConstantData = rawData.data();
         pushConstantSize = rawData.size();
     }
-    _compute.registerPipelineFenced(_pipelines.back(), _dataManager, dispatchCompute.bindings, pushConstantData,
-                                    pushConstantSize, dispatchCompute.implicitBarrier, dispatchCompute.computeDispatch);
+    _compute.registerPipelineFenced(_dataManager, dispatchCompute.bindings, pushConstantData, pushConstantSize,
+                                    dispatchCompute.implicitBarrier, dispatchCompute.computeDispatch);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
     _perfCounters.back().stop();
     mlsdk::logging::debug("Shader Pipeline: " + shaderInfo.debugName + " created");
@@ -840,13 +839,12 @@ void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchData
 void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
                               const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph,
                               uint32_t &nQueries) {
-    const Pipeline::CommonArguments args{_ctx, dispatchDataGraph.debugName, sequenceBindings, _pipelineCache};
+    const Compute::PipelineCreateArguments args{dispatchDataGraph.debugName, sequenceBindings, _pipelineCache};
     switch (vgfView.getSegmentType(segmentIndex)) {
     case ModuleType::GRAPH: {
-        _pipelines.emplace_back(args, segmentIndex, vgfView, _dataManager);
+        _compute.createPipeline(args, segmentIndex, vgfView, _dataManager);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
-        _compute.registerPipelineFenced(_pipelines.back(), _dataManager, sequenceBindings, nullptr, 0,
-                                        dispatchDataGraph.implicitBarrier);
+        _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchDataGraph.implicitBarrier);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
         mlsdk::logging::debug("Graph Pipeline: " + vgfView.getSPVModuleName(segmentIndex) + " created");
     } break;
@@ -856,7 +854,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
             auto moduleName = vgfView.getSPVModuleName(segmentIndex);
             const auto shaderInfo =
                 convert(_scenarioSpec.getSubstitionShader(dispatchDataGraph.shaderSubstitutions, moduleName));
-            _pipelines.emplace_back(args, shaderInfo);
+            _compute.createPipeline(args, shaderInfo);
             if (hasSPVModule) {
                 mlsdk::logging::warning("Performing shader substitution despite shader module containing code");
             }
@@ -868,15 +866,14 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
             ShaderInfo shaderInfo;
             shaderInfo.debugName = vgfView.getSPVModuleName(segmentIndex);
             shaderInfo.entry = vgfView.getSPVModuleEntryPoint(segmentIndex);
-            auto spv = vgfView.getSPVModule(segmentIndex);
             shaderInfo.shaderType = ShaderType::SPIR_V;
-            _pipelines.emplace_back(args, spv.begin(), spv.size(), shaderInfo);
+            auto spv = vgfView.getSPVModule(segmentIndex);
+            _compute.createPipeline(args, shaderInfo, spv.begin(), spv.size());
         }
 
         auto dispatchShape = vgfView.getDispatchShape(segmentIndex);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
-        _compute.registerPipelineFenced(_pipelines.back(), _dataManager, sequenceBindings, nullptr, 0,
-                                        dispatchDataGraph.implicitBarrier,
+        _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchDataGraph.implicitBarrier,
                                         {dispatchShape[0], dispatchShape[1], dispatchShape[2]});
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
         mlsdk::logging::debug("Shader Pipeline: " + vgfView.getSPVModuleName(segmentIndex) + " created");
@@ -941,37 +938,7 @@ void Scenario::saveResults(bool dryRun) {
 
     // Hexdump the session ram for debugging
     if (!_opts.sessionRAMsDumpDir.empty()) {
-        uint32_t graphPipelineIdx = 0;
-        for (const auto &pipeline : _pipelines) {
-            const auto &sessionMemory = pipeline.sessionMemory();
-            const auto &sessionMemoryDataSizes = pipeline.sessionMemoryDataSizes();
-
-            for (size_t i = 0; i < sessionMemory.size(); i++) {
-                const std::string neStatsFileName = "Graph_Pipeline_" + std::to_string(graphPipelineIdx++) +
-                                                    "_Session_RAM_" + std::to_string(i) + ".txt";
-                std::ofstream fs;
-                fs.open(_opts.sessionRAMsDumpDir / neStatsFileName);
-
-                const vk::raii::DeviceMemory &deviceMemory = sessionMemory.at(i);
-                uint64_t dataSize = sessionMemoryDataSizes.at(i);
-
-                auto *dst = reinterpret_cast<unsigned char *>(deviceMemory.mapMemory(0, vk::WholeSize));
-
-                fs << std::hex << std::uppercase;
-                fs.fill('0');
-
-                for (size_t j = 0; j < dataSize; j++) {
-                    if ((j % 16) == 0) {
-                        fs << std::endl << std::setw(8) << j << ":   ";
-                    }
-                    fs << std::setw(2) << static_cast<unsigned>(dst[j]) << " ";
-                }
-
-                deviceMemory.unmapMemory();
-                fs.close();
-            }
-            mlsdk::logging::info("Session RAM dump stored");
-        }
+        _compute.sessionRAMsDump(_opts.sessionRAMsDumpDir);
     }
 }
 

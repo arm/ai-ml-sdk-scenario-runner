@@ -29,9 +29,9 @@ class Pipeline {
     ///
     /// \param args Common arguments struct
     /// \param shaderInfo Shader related meta-data
-    Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo);
-
-    Pipeline(const CommonArguments &args, const uint32_t *spvCode, size_t spvSize, const ShaderInfo &shaderInfo);
+    /// \param spvCode Pointer to SPIR-V code
+    /// \param spvSize Size of SPIR-V code in number of uint32_t
+    Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, const uint32_t *spvCode, size_t spvSize);
 
     Pipeline(const CommonArguments &args, uint32_t segmentIndex, const VgfView &vgfView,
              const DataManager &dataManager);
