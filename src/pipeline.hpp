@@ -22,7 +22,7 @@ class Pipeline {
         const Context &ctx;
         const std::string &debugName;
         const std::vector<TypedBinding> &bindings;
-        std::optional<PipelineCache> &pipelineCache;
+        std::shared_ptr<PipelineCache> pipelineCache;
     };
 
     /// \brief Constructor
@@ -76,10 +76,10 @@ class Pipeline {
     void createDescriptorSetLayouts(const Context &ctx, const std::vector<TypedBinding> &bindings);
 
     void computePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
-                               std::optional<PipelineCache> &pipelineCache);
+                               std::shared_ptr<PipelineCache> pipelineCache);
 
     void graphComputePipelineCommon(const Context &ctx, uint32_t segmentIndex, const VgfView &vgfView,
-                                    std::optional<PipelineCache> &pipelineCache,
+                                    std::shared_ptr<PipelineCache> pipelineCache,
                                     const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos);
 };
 

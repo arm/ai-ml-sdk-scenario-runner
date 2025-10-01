@@ -106,8 +106,7 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
     Compute compute(ctx);
 
     // Create compute pipeline
-    std::optional<PipelineCache> pipelineCache{};
-    const Compute::PipelineCreateArguments args{"test_pipeline", bindings, pipelineCache};
+    const Compute::PipelineCreateArguments args{"test_pipeline", bindings, nullptr};
     ShaderInfo shaderInfo;
     shaderInfo.debugName = "add_shader";
     shaderInfo.src = addShaderSPIRV;

@@ -95,7 +95,7 @@ void Pipeline::createDescriptorSetLayouts(const Context &ctx, const std::vector<
 }
 
 void Pipeline::computePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
-                                     std::optional<PipelineCache> &pipelineCache) {
+                                     std::shared_ptr<PipelineCache> pipelineCache) {
     _pipelineLayout = createPipelineLayout(ctx, _descriptorSetLayouts, shaderInfo.pushConstantsSize);
 
     std::vector<vk::SpecializationMapEntry> specMapEntries(shaderInfo.specializationConstants.size());
@@ -117,12 +117,12 @@ void Pipeline::computePipelineCommon(const Context &ctx, const ShaderInfo &shade
     vk::PipelineCreateFlags flags{};
     const void *pNext{nullptr};
     const vk::raii::PipelineCache *vkPipelineCache{nullptr};
-    if (pipelineCache.has_value()) {
-        if (pipelineCache.value().failOnCacheMiss()) {
+    if (pipelineCache) {
+        if (pipelineCache->failOnCacheMiss()) {
             flags |= vk::PipelineCreateFlagBits::eFailOnPipelineCompileRequired;
         }
-        pNext = pipelineCache.value().getCacheFeedbackCreateInfo();
-        vkPipelineCache = pipelineCache.value().get();
+        pNext = pipelineCache->getCacheFeedbackCreateInfo();
+        vkPipelineCache = pipelineCache->get();
     }
 
     const vk::ComputePipelineCreateInfo computePipelineCreateInfo(flags, pipelineShaderStageCreateInfo,
@@ -190,7 +190,7 @@ Pipeline::Pipeline(const CommonArguments &args, const uint32_t segmentIndex, con
 }
 
 void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIndex, const VgfView &vgfView,
-                                          std::optional<PipelineCache> &pipelineCache,
+                                          std::shared_ptr<PipelineCache> pipelineCache,
                                           const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos) {
     // Setup constant resource info
     auto constantIndexes = vgfView.getSegmentConstantIndexes(segmentIndex);
@@ -242,12 +242,12 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIn
 
     vk::PipelineCreateFlags2KHR flags{};
     const vk::raii::PipelineCache *vkPipelineCache{nullptr};
-    if (pipelineCache.has_value()) {
-        if (pipelineCache.value().failOnCacheMiss()) {
+    if (pipelineCache) {
+        if (pipelineCache->failOnCacheMiss()) {
             flags |= vk::PipelineCreateFlagBits2KHR::eFailOnPipelineCompileRequired;
         }
-        insertAfter(&pipelineShaderModuleCreateInfo, pipelineCache.value().getCacheFeedbackCreateInfo());
-        vkPipelineCache = pipelineCache.value().get();
+        insertAfter(&pipelineShaderModuleCreateInfo, pipelineCache->getCacheFeedbackCreateInfo());
+        vkPipelineCache = pipelineCache->get();
     }
 
     const vk::DataGraphPipelineCreateInfoARM pipelineCreateInfo(flags, *_pipelineLayout,

@@ -55,7 +55,7 @@ class Compute {
     struct PipelineCreateArguments {
         const std::string &debugName;
         const std::vector<TypedBinding> &bindings;
-        std::optional<PipelineCache> &pipelineCache;
+        std::shared_ptr<PipelineCache> pipelineCache;
     };
 
     /// \brief Create a pipeline
