@@ -458,7 +458,7 @@ def parse_arguments():
     )
     parser.add_argument(
         "--vgf-lib-path",
-        help="Path to the ml-sdk-vgf-lib repo. Default: %(default)s",
+        help="Path to the ai-ml-sdk-vgf-library repo. Default: %(default)s",
         default=f"{SCENARIO_RUNNER_DIR / '..' / 'vgf-lib'}",
     )
     parser.add_argument(

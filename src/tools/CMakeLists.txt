@@ -33,8 +33,8 @@ target_link_libraries(dds_utils
 target_compile_options(dds_utils PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
 
 if(ML_SDK_GENERATE_CPACK)
-    install(TARGETS glslc EXPORT ml-sdkConfig)
-    install(TARGETS dds_utils EXPORT ml-sdkConfig)
+    install(TARGETS glslc EXPORT ai_ml_sdk_for_vulkanConfig)
+    install(TARGETS dds_utils EXPORT ai_ml_sdk_for_vulkanConfig)
 else()
     install(TARGETS glslc EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
     install(TARGETS dds_utils EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
