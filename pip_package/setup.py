@@ -13,7 +13,12 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     package_data={
-        "scenario_runner": ["binaries/*"],
+        "scenario_runner": [
+            "binaries/*",
+            "binaries/*/*",
+            "binaries/*/*/*",
+            "binaries/*/*/*/*",
+        ],
     },
     entry_points={
         "console_scripts": [
