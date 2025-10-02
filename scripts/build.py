@@ -354,10 +354,22 @@ class Builder:
                     "pip_package/scenario_runner/binaries/",
                     dirs_exist_ok=True,
                 )
+
+                with open("pip_package/setup.py.template", "r") as templateFile:
+                    inputData = templateFile.read()
+
+                outputData = inputData.replace(
+                    "{VERSION_NUMBER}",
+                    f'"{self.package_version}"',
+                )
+
+                with open(f"{self.build_dir}/setup.py", "w") as outputFile:
+                    outputFile.write(outputData)
+
                 result = subprocess.Popen(
                     [
                         "python",
-                        "setup.py",
+                        f"{self.build_dir}/setup.py",
                         "bdist_wheel",
                         "--plat-name",
                         platformName,
@@ -532,6 +544,11 @@ def parse_arguments():
         "--package-type",
         choices=["zip", "tgz", "pip"],
         help="Package type",
+    )
+    parser.add_argument(
+        "--package-version",
+        help="Manually specify pip package version number",
+        default=datetime.today().strftime("%m.%d"),
     )
     parser.add_argument(
         "--package-source",
