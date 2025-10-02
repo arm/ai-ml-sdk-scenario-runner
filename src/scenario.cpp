@@ -615,8 +615,8 @@ void Scenario::setupCommands(int iteration) {
             .emplace_back("Load Pipeline Cache. Iteration: " + std::to_string(iteration + 1), "Load Pipeline Cache",
                           true)
             .start();
-        _pipelineCache =
-            PipelineCache(_ctx, _opts.pipelineCachePath, _opts.clearPipelineCache, _opts.failOnPipelineCacheMiss);
+        _pipelineCache = std::make_shared<PipelineCache>(_ctx, _opts.pipelineCachePath, _opts.clearPipelineCache,
+                                                         _opts.failOnPipelineCacheMiss);
         _perfCounters.back().stop();
     }
     // Setup commands
@@ -892,9 +892,9 @@ void Scenario::saveProfilingData(int iteration, int repeatCount) {
 }
 
 void Scenario::saveResults(bool dryRun) {
-    if (_pipelineCache.has_value()) {
+    if (_pipelineCache) {
         _perfCounters.emplace_back("Save Pipeline Cache", "Save Pipeline Cache").start();
-        _pipelineCache.value().save();
+        _pipelineCache->save();
         _perfCounters.back().stop();
     }
 

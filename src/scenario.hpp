@@ -67,7 +67,7 @@ class Scenario {
     Context _ctx;
     DataManager _dataManager;
     ScenarioSpec &_scenarioSpec;
-    std::optional<PipelineCache> _pipelineCache{};
+    std::shared_ptr<PipelineCache> _pipelineCache{};
     Compute _compute;
     std::vector<PerformanceCounter> _perfCounters{};
     GroupManager _groupManager;
