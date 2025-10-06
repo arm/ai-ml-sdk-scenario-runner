@@ -1,4 +1,4 @@
-## Scenario Runner — Release Notes
+# Scenario Runner — Release Notes
 
 ---
 
@@ -12,6 +12,7 @@ exploration**.
 ## Features
 
 ### Execution
+
 - **Workload Execution**: Runs shader and neural network graph workloads through
   both Vulkan® core compute and Vulkan® ML extensions for comprehensive ML
   workload testing
@@ -21,6 +22,7 @@ exploration**.
   devices, plus performance exploration and benchmarking capabilities
 
 ### Test description
+
 - **Declarative Scenarios**: Test cases and scenarios defined in JSON format for
   easy configuration, repeatability, and programmatic test generation
 - **Several types of resources**: Supports tensors, images, buffers, etc. so
