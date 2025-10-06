@@ -28,4 +28,11 @@ exploration**.
 - **Several types of resources**: Supports tensors, images, buffers, etc. so
   scenarios can exercise varied input/output.
 
+## Platform Support
+
+The following platform combinations are supported:
+
+- Linux - X86-64
+- Windows® - X86-64
+
 ---
