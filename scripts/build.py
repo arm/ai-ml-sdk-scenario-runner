@@ -38,7 +38,7 @@ class Builder:
     """
 
     def __init__(self, args) -> None:
-        self.build_dir = args.build_dir
+        self.build_dir = str(pathlib.Path(args.build_dir).resolve())
         self.prefix_path = args.prefix_path
         self.test_dir = pathlib.Path(self.build_dir) / "src" / "tests"
         self.threads = args.threads
@@ -67,6 +67,7 @@ class Builder:
         self.package = args.package
         self.package_type = args.package_type
         self.package_source = args.package_source
+        self.package_version = args.package_version
         self.emulation_layer = args.emulation_layer
         self.enable_rdoc = args.enable_rdoc
 
