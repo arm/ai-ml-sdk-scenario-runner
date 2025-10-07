@@ -62,7 +62,7 @@ class Builder:
         self.pybind11_path = absolute(args.pybind11_path)
         self.doc = args.doc
         self.enable_sanitizers = args.enable_sanitizers
-        self.run_linting = args.lint
+        self.lint = args.lint
         self.install = args.install
         self.package = args.package
         self.package_type = args.package_type
@@ -187,8 +187,8 @@ class Builder:
         if self.doc:
             cmake_setup_cmd.append("-DSCENARIO_RUNNER_BUILD_DOCS=ON")
 
-        if self.run_linting:
-            cmake_setup_cmd.append("-DSCENARIO_RUNNER_ENABLE_LINT=ON")
+        if self.lint:
+            cmake_setup_cmd.append("-DCMAKE_EXPORT_COMPILE_COMMANDS=ON")
 
         if self.enable_sanitizers:
             if self.target_platform != "host":
@@ -237,6 +237,38 @@ class Builder:
         try:
             subprocess.run(cmake_setup_cmd, check=True)
             subprocess.run(cmake_build_cmd, check=True)
+
+            if self.lint:
+                lint_cmd = [
+                    "cppcheck",
+                    f"-j{str(self.threads)}",
+                    "--std=c++17",
+                    "--error-exitcode=1",
+                    "--inline-suppr",
+                    f"--project={self.build_dir}/compile_commands.json",
+                    f"--cppcheck-build-dir={self.build_dir}/cppcheck",
+                    "--enable=information,performance,portability,style",
+                    f"-i={DEPENDENCY_DIR}",
+                    f"--suppress=missingIncludeSystem",
+                    f"--suppress=missingInclude",
+                    f"--suppress=unreadVariable",
+                    f"--suppress=unmatchedSuppression",
+                    f"--suppress=noValidConfiguration",
+                    f"--suppress=useStlAlgorithm",
+                    f"--suppress=useInitializationList",
+                    f"--suppress=unknownMacro",
+                    f"--suppress=*:MachineIndependent*",
+                    f"--suppress=*:{self.vgf_lib_path}*",
+                    f"--suppress=*:{self.vulkan_headers_path}*",
+                    f"--suppress=*:{self.spirv_tools_path}*",
+                    f"--suppress=*:{self.spirv_headers_path}*",
+                    f"--suppress=*:{self.glslang_path}*",
+                    f"--suppress=*:{self.flatbuffers_path}*",
+                    f"--suppress=*:{self.argparse_path}*",
+                    f"--suppress=*:{self.json_path}*",
+                    f"--suppress=*:{self.gtest_path}*",
+                ]
+                subprocess.run(lint_cmd, check=True)
 
             if self.run_tests:
                 test_cmd = [

@@ -34,7 +34,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 #############################################################################
 option(SCENARIO_RUNNER_BUILD_TESTS "Build Scenario Runner unit tests" OFF)
 option(SCENARIO_RUNNER_ENABLE_CCACHE "Enable CCACHE support" OFF)
-option(SCENARIO_RUNNER_ENABLE_LINT "Enable linting using cppcheck" OFF)
 option(SCENARIO_RUNNER_ENABLE_RDOC "Build Scenario Runner w/ RDoc support enabled" OFF)
 option(SCENARIO_RUNNER_BUILD_DOCS "Build project documentation" OFF)
 option(MOLTEN_VK_SUPPORT "Darwin requires MoltenVK" OFF)
@@ -68,73 +67,6 @@ include(version)
 if(SCENARIO_RUNNER_ENABLE_RDOC)
     find_package(RenderDoc REQUIRED)
 endif()
-
-# Enable cppcheck
-if(SCENARIO_RUNNER_ENABLE_LINT)
-    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
-        message(FATAL_ERROR "Linting (cppcheck) is not supported on the aarch64 platform.")
-    else()
-        message(STATUS "Cppcheck is enabled.")
-        find_program(CPPCHECK_EXECUTABLE NAMES cppcheck)
-        set(CMAKE_CXX_CPPCHECK_OPTIONS
-            --std=c++17
-            --force
-            --enable=style,performance,portability,information
-            --quiet
-            --inline-suppr
-            --error-exitcode=1
-            --suppress=missingIncludeSystem
-            --suppress=missingInclude
-            --suppress=unreadVariable
-            --suppress=unmatchedSuppression
-            --suppress=noValidConfiguration
-            --suppress=useStlAlgorithm
-            --suppress=useInitializationList
-            --suppress=unknownMacro
-            --suppress=*:${CMAKE_SOURCE_DIR}/src/resource_desc*
-            --suppress=*:${CMAKE_BINARY_DIR}*
-            )
-
-        if(EXISTS ${ML_SDK_VGF_LIB_PATH})
-            list(APPEND CMAKE_CXX_CPPCHECK_OPTIONS --suppress=*:*${ML_SDK_VGF_LIB_PATH}*)
-        endif()
-
-        if(EXISTS ${VULKAN_HEADERS_PATH})
-            list(APPEND CMAKE_CXX_CPPCHECK_OPTIONS --suppress=*:*${VULKAN_HEADERS_PATH}*)
-        endif()
-
-        if(EXISTS ${SPIRV_TOOLS_PATH})
-            list(APPEND CMAKE_CXX_CPPCHECK_OPTIONS --suppress=*:*${SPIRV_TOOLS_PATH}*)
-        endif()
-
-        if(EXISTS ${SPIRV_HEADERS_PATH})
-            list(APPEND CMAKE_CXX_CPPCHECK_OPTIONS --suppress=*:*${SPIRV_HEADERS_PATH}*)
-        endif()
-
-        if(EXISTS ${GLSLANG_PATH})
-            list(APPEND CMAKE_CXX_CPPCHECK_OPTIONS --suppress=*:*${GLSLANG_PATH}*)
-        endif()
-
-        if(EXISTS ${FLATBUFFERS_PATH})
-            list(APPEND CMAKE_CXX_CPPCHECK_OPTIONS --suppress=*:*${FLATBUFFERS_PATH}*)
-        endif()
-
-        if(EXISTS ${ARGPARSE_PATH})
-            list(APPEND CMAKE_CXX_CPPCHECK_OPTIONS --suppress=*:*${ARGPARSE_PATH}*)
-        endif()
-
-        if(EXISTS ${JSON_PATH})
-            list(APPEND CMAKE_CXX_CPPCHECK_OPTIONS --suppress=*:*${JSON_PATH}*)
-        endif()
-
-        if(EXISTS ${GTEST_PATH})
-            list(APPEND CMAKE_CXX_CPPCHECK_OPTIONS --suppress=*:*${GTEST_PATH}*)
-        endif()
-
-        set(CMAKE_CXX_CPPCHECK "${CPPCHECK_EXECUTABLE}" "${CMAKE_CXX_CPPCHECK_OPTIONS}")
-    endif()
-endif()
-unset(SCENARIO_RUNNER_ENABLE_LINT CACHE)
 
 add_subdirectory(src)
 
