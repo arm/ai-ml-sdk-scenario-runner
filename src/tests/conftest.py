@@ -5,6 +5,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -159,7 +161,12 @@ class SDKTool:
         cmd = [self.path.as_posix(), *as_strings]
 
         logger.debug("Executing command: %s", cmd)
-        subprocess.check_call(cmd)
+        try:
+            subprocess.run(cmd, check=True, text=True, stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as e:
+            # This is to capture process output in stderr and then reraise the same for pytest to handle negative tests
+            sys.stderr.write(e.stderr or "")
+            raise
 
 
 class SDKTools:
@@ -387,6 +394,13 @@ def pytest_addoption(parser) -> None:
         required=False,
         help="Specifies if emulation layer is enabled",
     )
+    parser.addoption(
+        "--sanitizers",
+        action="store_true",
+        default=False,
+        required=False,
+        help="Specifies if sanitizers are enabled",
+    )
 
 
 @pytest.fixture
@@ -472,3 +486,11 @@ def pytest_configure(config):
         "emulation_layer_incompatible: mark test as incompatible with emulation-layer",
     )
     sys.path.append(config.option.vgf_pylib_dir)
+
+    if config.getoption("--sanitizers") and platform.system() == "Windows":
+        asan_dll_path = os.getenv("ASAN_DLL_PATH")
+        if asan_dll_path is None or asan_dll_path == "":
+            raise pytest.UsageError("ASAN_DLL_PATH environment variable not set")
+
+        os.add_dll_directory(asan_dll_path)
+        os.environ["PATH"] += os.pathsep + asan_dll_path
