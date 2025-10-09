@@ -144,6 +144,7 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     vk::PhysicalDeviceVulkan11Features physicalDev11Feat;
     physicalDev11Feat.storageBuffer16BitAccess = available11Features.storageBuffer16BitAccess;
     physicalDev11Feat.uniformAndStorageBuffer16BitAccess = available11Features.uniformAndStorageBuffer16BitAccess;
+    physicalDev11Feat.storagePushConstant16 = available11Features.storagePushConstant16;
     physicalDev11Feat.pNext = prevPNext;
 
     vk::PhysicalDeviceVulkan12Features physicalDev2Feat;
