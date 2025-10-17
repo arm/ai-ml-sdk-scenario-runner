@@ -66,9 +66,8 @@ vk::ImageLayout convertImageLayout(ImageLayout layout) {
 }
 } // namespace
 
-VulkanImageBarrier::VulkanImageBarrier(const ImageBarrierData &imageBarrierData) {
-    _debugName = imageBarrierData.debugName;
-    _imageBarrier.sType = vk::StructureType::eImageMemoryBarrier2;
+VulkanImageBarrier::VulkanImageBarrier(const ImageBarrierData &imageBarrierData)
+    : _debugName{imageBarrierData.debugName} {
     _imageBarrier.srcAccessMask = convertAccessFlags(imageBarrierData.srcAccess);
     _imageBarrier.dstAccessMask = convertAccessFlags(imageBarrierData.dstAccess);
     _imageBarrier.srcStageMask = convertStageFlags(imageBarrierData.srcStages);
@@ -88,9 +87,8 @@ VulkanImageBarrier::VulkanImageBarrier(const ImageBarrierData &imageBarrierData)
 const vk::ImageMemoryBarrier2 &VulkanImageBarrier::imageBarrier() const { return _imageBarrier; }
 const std::string &VulkanImageBarrier::debugName() const { return _debugName; }
 
-VulkanTensorBarrier::VulkanTensorBarrier(const TensorBarrierData &tensorBarrierData) {
-    _debugName = tensorBarrierData.debugName;
-    _tensorBarrier.sType = vk::StructureType::eTensorMemoryBarrierARM;
+VulkanTensorBarrier::VulkanTensorBarrier(const TensorBarrierData &tensorBarrierData)
+    : _debugName{tensorBarrierData.debugName} {
     _tensorBarrier.srcAccessMask = convertAccessFlags(tensorBarrierData.srcAccess);
     _tensorBarrier.dstAccessMask = convertAccessFlags(tensorBarrierData.dstAccess);
     _tensorBarrier.srcStageMask = convertStageFlags(tensorBarrierData.srcStages);
@@ -103,9 +101,8 @@ VulkanTensorBarrier::VulkanTensorBarrier(const TensorBarrierData &tensorBarrierD
 const vk::TensorMemoryBarrierARM &VulkanTensorBarrier::tensorBarrier() const { return _tensorBarrier; }
 const std::string &VulkanTensorBarrier::debugName() const { return _debugName; }
 
-VulkanMemoryBarrier::VulkanMemoryBarrier(const MemoryBarrierData &memoryBarrierData) {
-    _debugName = memoryBarrierData.debugName;
-    _memoryBarrier.sType = vk::StructureType::eMemoryBarrier;
+VulkanMemoryBarrier::VulkanMemoryBarrier(const MemoryBarrierData &memoryBarrierData)
+    : _debugName{memoryBarrierData.debugName} {
     _memoryBarrier.srcAccessMask = convertAccessFlags(memoryBarrierData.srcAccess);
     _memoryBarrier.dstAccessMask = convertAccessFlags(memoryBarrierData.dstAccess);
     _memoryBarrier.srcStageMask = convertStageFlags(memoryBarrierData.srcStages);
@@ -115,9 +112,8 @@ VulkanMemoryBarrier::VulkanMemoryBarrier(const MemoryBarrierData &memoryBarrierD
 const vk::MemoryBarrier2 &VulkanMemoryBarrier::memoryBarrier() const { return _memoryBarrier; }
 const std::string &VulkanMemoryBarrier::debugName() const { return _debugName; }
 
-VulkanBufferBarrier::VulkanBufferBarrier(const BufferBarrierData &bufferBarrierData) {
-    _debugName = bufferBarrierData.debugName;
-    _bufferBarrier.sType = vk::StructureType::eBufferMemoryBarrier2;
+VulkanBufferBarrier::VulkanBufferBarrier(const BufferBarrierData &bufferBarrierData)
+    : _debugName{bufferBarrierData.debugName} {
     _bufferBarrier.srcAccessMask = convertAccessFlags(bufferBarrierData.srcAccess);
     _bufferBarrier.dstAccessMask = convertAccessFlags(bufferBarrierData.dstAccess);
     _bufferBarrier.srcStageMask = convertStageFlags(bufferBarrierData.srcStages);

@@ -376,7 +376,6 @@ void Compute::registerMarkBoundary(const MarkBoundaryData &markBoundaryData, con
 
 void Compute::_addMarkBoundary(uint64_t frameId) {
     vk::FrameBoundaryEXT markBoundary;
-    markBoundary.sType = vk::StructureType::eFrameBoundaryEXT;
     markBoundary.flags = vk::FrameBoundaryFlagBitsEXT::eFrameEnd;
     markBoundary.frameID = frameId;
     markBoundary.pImages = _imageArray.back().data();
@@ -385,7 +384,6 @@ void Compute::_addMarkBoundary(uint64_t frameId) {
     markBoundary.bufferCount = static_cast<uint32_t>(_bufferArray.back().size());
 
     vk::FrameBoundaryTensorsARM markBoundaryTensor;
-    markBoundaryTensor.sType = vk::StructureType::eFrameBoundaryTensorsARM;
     markBoundaryTensor.pTensors = _tensorArray.back().data();
     markBoundaryTensor.tensorCount = static_cast<uint32_t>(_tensorArray.back().size());
     markBoundaryTensor.pNext = nullptr;
