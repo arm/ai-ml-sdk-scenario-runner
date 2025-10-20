@@ -18,8 +18,10 @@ try:
 except:
     argcomplete = None
 
-SCENARIO_RUNNER_DIR = pathlib.Path(__file__).resolve().parent / ".."
+SCENARIO_RUNNER_DIR = pathlib.Path(__file__).parent / ".."
+SCENARIO_RUNNER_DIR = SCENARIO_RUNNER_DIR.resolve()
 DEPENDENCY_DIR = SCENARIO_RUNNER_DIR / ".." / ".." / "dependencies"
+DEPENDENCY_DIR = DEPENDENCY_DIR.resolve()
 CMAKE_TOOLCHAIN_PATH = SCENARIO_RUNNER_DIR / "cmake" / "toolchain"
 
 
@@ -70,6 +72,7 @@ class Builder:
         self.package_version = args.package_version
         self.emulation_layer = args.emulation_layer
         self.enable_rdoc = args.enable_rdoc
+        self.clang_tidy_fix = args.clang_tidy_fix
 
         if not self.install and self.package_type == "pip":
             self.install = "pip_install"
@@ -240,6 +243,11 @@ class Builder:
             subprocess.run(cmake_setup_cmd, check=True)
             subprocess.run(cmake_build_cmd, check=True)
 
+            if self.clang_tidy_fix and not self.lint:
+                print(
+                    "WARNING: --clang-tidy-fix requires --lint to be enabled, argument ignored."
+                )
+
             if self.lint:
                 lint_cmd = [
                     "cppcheck",
@@ -261,6 +269,18 @@ class Builder:
                     f"{SCENARIO_RUNNER_DIR}/src",
                 ]
                 subprocess.run(lint_cmd, check=True)
+
+                clang_tidy_cmd = [
+                    "run-clang-tidy",
+                    f"-j{self.threads}",
+                    f"-p{self.build_dir}",
+                    f"{SCENARIO_RUNNER_DIR / 'src'}",
+                ]
+
+                if self.clang_tidy_fix:
+                    clang_tidy_cmd.append("-fix")
+
+                subprocess.run(clang_tidy_cmd, check=True)
 
             if self.run_tests:
                 test_cmd = [
@@ -592,6 +612,12 @@ def parse_arguments():
     parser.add_argument(
         "--enable-rdoc",
         help=("Enable Rdoc support"),
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--clang-tidy-fix",
+        help="Enable clang-tidy fix (requires --lint). Default: %(default)s",
         action="store_true",
         default=False,
     )
