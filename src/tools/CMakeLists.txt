@@ -32,7 +32,7 @@ target_link_libraries(dds_utils
 )
 target_compile_options(dds_utils PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
 
-if(ML_SDK_GENERATE_CPACK)
+if(NOT (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR) AND ML_SDK_GENERATE_CPACK)
     install(TARGETS glslc EXPORT ai_ml_sdk_for_vulkanConfig)
     install(TARGETS dds_utils EXPORT ai_ml_sdk_for_vulkanConfig)
 else()
