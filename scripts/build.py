@@ -198,7 +198,10 @@ class Builder:
             f"-DSPIRV_HEADERS_PATH={self.spirv_headers_path}",
             f"-DGLSLANG_PATH={self.glslang_path}",
             f"-DARGPARSE_PATH={self.argparse_path}",
+            "-G",
+            "Ninja",
         ]
+
         if self.prefix_path:
             cmake_setup_cmd.append(f"-DCMAKE_PREFIX_PATH={self.prefix_path}")
 
@@ -329,16 +332,10 @@ class Builder:
                 ]
                 subprocess.run(test_cmd, check=True)
 
-                exe_ext, build_type_dir = (
-                    (".exe", self.build_type)
-                    if platform.system() == "Windows"
-                    else ("", "")
-                )
-
                 cmake_build_vgf_pylib = [
                     "cmake",
                     "--build",
-                    f"{self.build_dir}/vgf-lib/src",
+                    f"{self.build_dir}",
                     "--target",
                     "vgfpy",
                     "--config",
@@ -355,8 +352,10 @@ class Builder:
                     "--tb=short",
                     f"{SCENARIO_RUNNER_DIR / 'src' / 'tests'}",
                     "--vgf-pylib-dir",
-                    f"{self.build_dir}/vgf-lib/src/{build_type_dir}",
+                    f"{self.build_dir}/vgf-lib/src",
                 ]
+
+                exe_ext = ".exe" if platform.system() == "Windows" else ""
 
                 if self.install:
                     pytest_cmd += [
@@ -374,15 +373,15 @@ class Builder:
                 else:
                     pytest_cmd += [
                         "--scenario-runner",
-                        f"{self.build_dir}/{build_type_dir}/scenario-runner{exe_ext}",
+                        f"{self.build_dir}/scenario-runner{exe_ext}",
                         "--glsl-compiler",
-                        f"{self.build_dir}/src/tools/{build_type_dir}/glslc{exe_ext}",
+                        f"{self.build_dir}/src/tools/glslc{exe_ext}",
                         "--dds-utils",
-                        f"{self.build_dir}/src/tools/{build_type_dir}/dds_utils{exe_ext}",
+                        f"{self.build_dir}/src/tools//dds_utils{exe_ext}",
                         "--spirv-as",
-                        f"{self.build_dir}/spirv-tools/tools/{build_type_dir}/spirv-as{exe_ext}",
+                        f"{self.build_dir}/spirv-tools/tools/spirv-as{exe_ext}",
                         "--spirv-val",
-                        f"{self.build_dir}/spirv-tools/tools/{build_type_dir}/spirv-val{exe_ext}",
+                        f"{self.build_dir}/spirv-tools/tools/spirv-val{exe_ext}",
                     ]
 
                 if self.emulation_layer:
