@@ -410,6 +410,7 @@ class Builder:
                     "pip_package/scenario_runner/binaries/",
                     dirs_exist_ok=True,
                 )
+                shutil.copyfile("README.md", "pip_package/README.md")
 
                 os.environ[
                     "SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AI_ML_SDK_SCENARIO_RUNNER"

@@ -8,6 +8,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai_ml_sdk_scenario_runner"
+description = "ML SDK Scenario Runner"
+readme = "README.md"
 dynamic = ["version"]
 
 [project.scripts]
