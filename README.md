@@ -214,11 +214,8 @@ For more details, see the help output:
 
 ## License
 
-[Apache-2.0](LICENSES/Apache-2.0.txt)
-
-## Security
-
-If you have found a security issue, see [Security Section](SECURITY.md)
+The ML SDK Scenario Runner is distributed under the software licenses in
+LICENSES directory.
 
 ## Trademark notice
 
