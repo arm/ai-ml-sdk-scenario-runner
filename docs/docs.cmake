@@ -28,7 +28,6 @@ add_custom_command(
             -P ${CMAKE_CURRENT_LIST_DIR}/redirect-output.cmake
     COMMAND_EXPAND_LISTS
     DEPENDS ${SCENARIO_RUNNER_NAMESPACE}::scenario-runner
-    BYPRODUCTS ${SCENARIO_RUNNER_ARG_HELP_TXT}
     VERBATIM
     COMMENT "Generating scenario runner ARGPARSE help documentation"
 )
