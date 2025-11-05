@@ -8,14 +8,13 @@ declarative way via a JSON description. The Scenario Runner can parse the JSON,
 load the input stimulus that is described in the JSON, execute the scenario and
 produce output artifacts.
 
-### Cloning the repository
+## Cloning the repository
 
 To clone the ML SDK Scenario Runner as a stand-alone repository, you can use
 regular git clone commands. However, for better management of dependencies and
 to ensure everything is placed in the appropriate directories, we recommend
 using the `git-repo` tool to clone the repository as part of the ML SDK for
-Vulkan® suite. The tool is available
-[here](https://gerrit.googlesource.com/git-repo).
+Vulkan® suite. [Repo tool](https://gerrit.googlesource.com/git-repo).
 
 For a minimal build and to initialize only the Scenario Runner and its
 dependencies, run:
@@ -70,7 +69,7 @@ Runner in `<repo_root>/sw/scenario-runner/`. You can also find all the
 dependencies required by the ML SDK Scenario Runner in
 `<repo_root>/dependencies/`.
 
-### Building Scenario Runner from source
+## Building Scenario Runner from source
 
 The build system must have:
 
@@ -92,33 +91,33 @@ The following dependencies are also needed:
 
 For the preferred dependency versions see the manifest file.
 
-### Providing Flatc
+## Providing Flatc
 
 There are 3 options for providing the flatc binary and headers.
 
-1.  Using the default path. When the repository is initialized using the repo
-    manifest, the flatbuffers source is checked out in
-    `<repo-root>/dependencies/flatbuffers/`. The VGF Library cmake scripts
-    automatically find and build flatc in this location.
+1. Using the default path. When the repository is initialized using the repo
+   manifest, the flatbuffers source is checked out in
+   `<repo-root>/dependencies/flatbuffers/`. The VGF Library cmake scripts
+   automatically find and build flatc in this location.
 
-2.  Providing a custom flatc path. If flatc cannot be found in the default
-    `<repo-root>/dependencies/flatbuffers` path, you can provide a custom binary
-    file path to the build script using the `--flatc-path <path_to_flatc>`
-    option, see [Building with the script](#building-with-the-script).
+2. Providing a custom flatc path. If flatc cannot be found in the default
+   `<repo-root>/dependencies/flatbuffers` path, you can provide a custom binary
+   file path to the build script using the `--flatc-path <path_to_flatc>`
+   option, see [Building with the script](#building-with-the-script).
 
-3.  Installing flatc to the system. If flatc cannot be found in the default path
-    and no custom path is provided, it will be searched using `PATH`. To install
-    flatc to the system and make it available on the searchable `PATH`, see the
-    [flatbuffers documentation](https://flatbuffers.dev/). For example, on Linux
-    navigate to the flatbuffers checkout location and run the following
-    commands:
+3. Installing flatc to the system. If flatc cannot be found in the default path
+   and no custom path is provided, it will be searched using `PATH`. To install
+   flatc to the system and make it available on the searchable `PATH`, see the
+   [flatbuffers documentation](https://flatbuffers.dev/). For example, on Linux
+   navigate to the flatbuffers checkout location and run the following
+   commands:
 
 ```bash
 cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local
 cmake --build build --target install
 ```
 
-### Building with the script
+## Building with the script
 
 To build on Linux, run the following command:
 
@@ -187,7 +186,7 @@ For more command line options, consult the program help:
 python3 $SDK_PATH/sw/scenario-runner/scripts/build.py --help
 ```
 
-### Usage
+## Usage
 
 To run a scenario file, use the following command:
 
