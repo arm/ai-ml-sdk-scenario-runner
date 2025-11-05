@@ -62,6 +62,8 @@ vk::Format ddsFormatToVkFormat(const DDSHeaderInfo &header) {
         return vk::Format::eR32G32B32A32Sfloat;
     case DXGI_FORMAT_R16G16B16A16_FLOAT:
         return vk::Format::eR16G16B16A16Sfloat;
+    case DXGI_FORMAT_R16G16B16A16_SINT:
+        return vk::Format::eR16G16B16A16Sint;
     case DXGI_FORMAT_R16G16_FLOAT:
         return vk::Format::eR16G16Sfloat;
     case DXGI_FORMAT_R11G11B10_FLOAT:
@@ -78,20 +80,103 @@ vk::Format ddsFormatToVkFormat(const DDSHeaderInfo &header) {
         return vk::Format::eR8G8B8A8Sint;
     case DXGI_FORMAT_R8G8B8_SINT_CUSTOM:
         return vk::Format::eR8G8B8Sint;
-    case DXGI_FORMAT_R8G8_SINT:
-        return vk::Format::eR8G8Sint;
     case DXGI_FORMAT_R8G8_UNORM:
         return vk::Format::eR8G8Unorm;
+    case DXGI_FORMAT_R8G8_UINT:
+        return vk::Format::eR8G8Uint;
+    case DXGI_FORMAT_R8G8_SINT:
+        return vk::Format::eR8G8Sint;
+    case DXGI_FORMAT_R8_UNORM:
+        return vk::Format::eR8Unorm;
     case DXGI_FORMAT_R8_SNORM:
         return vk::Format::eR8Snorm;
+    case DXGI_FORMAT_R32_UINT:
+        return vk::Format::eR32Uint;
     case DXGI_FORMAT_R32_FLOAT:
         return vk::Format::eR32Sfloat;
     case DXGI_FORMAT_R16_FLOAT:
         return vk::Format::eR16Sfloat;
-    case DXGI_FORMAT_R8_UNORM:
-        return vk::Format::eR8Unorm;
-    case DXGI_FORMAT_R32_UINT:
-        return vk::Format::eR32Uint;
+#ifdef SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT
+    // These are image formats that haven't been fully tested yet.
+    case DXGI_FORMAT_R32G32B32A32_UINT:
+        return vk::Format::eR32G32B32A32Uint;
+    case DXGI_FORMAT_R32G32B32A32_SINT:
+        return vk::Format::eR32G32B32A32Sint;
+    case DXGI_FORMAT_R16G16B16A16_UNORM:
+        return vk::Format::eR16G16B16A16Unorm;
+    case DXGI_FORMAT_R16G16B16A16_UINT:
+        return vk::Format::eR16G16B16A16Uint;
+    case DXGI_FORMAT_R16G16B16A16_SNORM:
+        return vk::Format::eR16G16B16A16Snorm;
+    case DXGI_FORMAT_R16G16_UNORM:
+        return vk::Format::eR16G16Unorm;
+    case DXGI_FORMAT_R16G16_UINT:
+        return vk::Format::eR16G16Uint;
+    case DXGI_FORMAT_R16G16_SNORM:
+        return vk::Format::eR16G16Snorm;
+    case DXGI_FORMAT_R16G16_SINT:
+        return vk::Format::eR16G16Sint;
+    case DXGI_FORMAT_D32_FLOAT:
+        return vk::Format::eD32Sfloat;
+    case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+        return vk::Format::eR8G8B8A8Srgb;
+    case DXGI_FORMAT_R8G8B8A8_UINT:
+        return vk::Format::eR8G8B8A8Uint;
+    case DXGI_FORMAT_R8G8_SNORM:
+        return vk::Format::eR8G8Snorm;
+    case DXGI_FORMAT_R32_SINT:
+        return vk::Format::eR32Sint;
+    case DXGI_FORMAT_R16_UNORM:
+        return vk::Format::eR16Unorm;
+    case DXGI_FORMAT_R16_UINT:
+        return vk::Format::eR16Uint;
+    case DXGI_FORMAT_R16_SNORM:
+        return vk::Format::eR16Snorm;
+    case DXGI_FORMAT_R16_SINT:
+        return vk::Format::eR16Sint;
+    case DXGI_FORMAT_R8_UINT:
+        return vk::Format::eR8Uint;
+    case DXGI_FORMAT_R8_SINT:
+        return vk::Format::eR8Sint;
+    case DXGI_FORMAT_D24_UNORM_S8_UINT:
+        return vk::Format::eD24UnormS8Uint;
+    case DXGI_FORMAT_B8G8R8A8_UNORM:
+        return vk::Format::eB8G8R8A8Unorm;
+    case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+        return vk::Format::eB8G8R8A8Srgb;
+    case DXGI_FORMAT_B8G8R8X8_UNORM:
+        return vk::Format::eB8G8R8Unorm;
+    case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+        return vk::Format::eB8G8R8Srgb;
+    case DXGI_FORMAT_BC1_UNORM:
+        return vk::Format::eBc1RgbaUnormBlock;
+    case DXGI_FORMAT_BC1_UNORM_SRGB:
+        return vk::Format::eBc1RgbaSrgbBlock;
+    case DXGI_FORMAT_BC2_UNORM:
+        return vk::Format::eBc2UnormBlock;
+    case DXGI_FORMAT_BC2_UNORM_SRGB:
+        return vk::Format::eBc2SrgbBlock;
+    case DXGI_FORMAT_BC3_UNORM:
+        return vk::Format::eBc3UnormBlock;
+    case DXGI_FORMAT_BC3_UNORM_SRGB:
+        return vk::Format::eBc3SrgbBlock;
+    case DXGI_FORMAT_BC4_UNORM:
+        return vk::Format::eBc4UnormBlock;
+    case DXGI_FORMAT_BC4_SNORM:
+        return vk::Format::eBc4SnormBlock;
+    case DXGI_FORMAT_BC5_UNORM:
+        return vk::Format::eBc5UnormBlock;
+    case DXGI_FORMAT_BC5_SNORM:
+        return vk::Format::eBc5SnormBlock;
+    case DXGI_FORMAT_BC6H_UF16:
+        return vk::Format::eBc6HUfloatBlock;
+    case DXGI_FORMAT_BC6H_SF16:
+        return vk::Format::eBc6HSfloatBlock;
+    case DXGI_FORMAT_BC7_UNORM:
+        return vk::Format::eBc7UnormBlock;
+    case DXGI_FORMAT_BC7_UNORM_SRGB:
+        return vk::Format::eBc7SrgbBlock;
+#endif
     default:
         throw std::runtime_error("Unknown DXGI format: " + std::to_string(header.header10.dxgiFormat));
     }
@@ -99,8 +184,8 @@ vk::Format ddsFormatToVkFormat(const DDSHeaderInfo &header) {
 
 DxgiFormat vkFormatToDDSFormat(vk::Format vkFormat) {
     switch (vkFormat) {
-    case vk::Format::eR32G32B32A32Sfloat:
-        return DXGI_FORMAT_R32G32B32A32_FLOAT;
+    case vk::Format::eR16G16B16A16Sint:
+        return DXGI_FORMAT_R16G16B16A16_SINT;
     case vk::Format::eR16G16B16A16Sfloat:
         return DXGI_FORMAT_R16G16B16A16_FLOAT;
     case vk::Format::eR16G16Sfloat:
@@ -109,8 +194,6 @@ DxgiFormat vkFormatToDDSFormat(vk::Format vkFormat) {
         return DXGI_FORMAT_R11G11B10_FLOAT;
     case vk::Format::eD32SfloatS8Uint:
         return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
-    case vk::Format::eR8G8B8A8Unorm:
-        return DXGI_FORMAT_R8G8B8A8_UNORM;
     case vk::Format::eR8G8B8A8Snorm:
         return DXGI_FORMAT_R8G8B8A8_SNORM;
     case vk::Format::eR8G8B8Snorm:
@@ -119,20 +202,107 @@ DxgiFormat vkFormatToDDSFormat(vk::Format vkFormat) {
         return DXGI_FORMAT_R8G8B8A8_SINT;
     case vk::Format::eR8G8B8Sint:
         return DXGI_FORMAT_R8G8B8_SINT_CUSTOM;
-    case vk::Format::eR8G8Sint:
-        return DXGI_FORMAT_R8G8_SINT;
-    case vk::Format::eR8G8Unorm:
-        return DXGI_FORMAT_R8G8_UNORM;
     case vk::Format::eR8Snorm:
         return DXGI_FORMAT_R8_SNORM;
     case vk::Format::eR32Sfloat:
         return DXGI_FORMAT_R32_FLOAT;
+    case vk::Format::eR8G8Unorm:
+        return DXGI_FORMAT_R8G8_UNORM;
     case vk::Format::eR16Sfloat:
         return DXGI_FORMAT_R16_FLOAT;
     case vk::Format::eR8Unorm:
         return DXGI_FORMAT_R8_UNORM;
     case vk::Format::eR32Uint:
         return DXGI_FORMAT_R32_UINT;
+    case vk::Format::eR32G32B32A32Sfloat:
+        return DXGI_FORMAT_R32G32B32A32_FLOAT;
+    case vk::Format::eR8G8B8A8Unorm:
+        return DXGI_FORMAT_R8G8B8A8_UNORM;
+    case vk::Format::eR8G8Uint:
+        return DXGI_FORMAT_R8G8_UINT;
+    case vk::Format::eR8G8Sint:
+        return DXGI_FORMAT_R8G8_SINT;
+#ifdef SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT
+    // These are image formats that haven't been fully tested yet.
+    case vk::Format::eR32G32B32A32Uint:
+        return DXGI_FORMAT_R32G32B32A32_UINT;
+    case vk::Format::eR32G32B32A32Sint:
+        return DXGI_FORMAT_R32G32B32A32_SINT;
+    case vk::Format::eR16G16B16A16Unorm:
+        return DXGI_FORMAT_R16G16B16A16_UNORM;
+    case vk::Format::eR16G16B16A16Uint:
+        return DXGI_FORMAT_R16G16B16A16_UINT;
+    case vk::Format::eR16G16B16A16Snorm:
+        return DXGI_FORMAT_R16G16B16A16_SNORM;
+    case vk::Format::eR16G16Unorm:
+        return DXGI_FORMAT_R16G16_UNORM;
+    case vk::Format::eR16G16Uint:
+        return DXGI_FORMAT_R16G16_UINT;
+    case vk::Format::eR16G16Snorm:
+        return DXGI_FORMAT_R16G16_SNORM;
+    case vk::Format::eR16G16Sint:
+        return DXGI_FORMAT_R16G16_SINT;
+    case vk::Format::eD32Sfloat:
+        return DXGI_FORMAT_D32_FLOAT;
+    case vk::Format::eR8G8B8A8Srgb:
+        return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    case vk::Format::eR8G8B8A8Uint:
+        return DXGI_FORMAT_R8G8B8A8_UINT;
+    case vk::Format::eR8G8Snorm:
+        return DXGI_FORMAT_R8G8_SNORM;
+    case vk::Format::eR32Sint:
+        return DXGI_FORMAT_R32_SINT;
+    case vk::Format::eR16Unorm:
+        return DXGI_FORMAT_R16_UNORM;
+    case vk::Format::eR16Uint:
+        return DXGI_FORMAT_R16_UINT;
+    case vk::Format::eR16Snorm:
+        return DXGI_FORMAT_R16_SNORM;
+    case vk::Format::eR16Sint:
+        return DXGI_FORMAT_R16_SINT;
+    case vk::Format::eR8Uint:
+        return DXGI_FORMAT_R8_UINT;
+    case vk::Format::eR8Sint:
+        return DXGI_FORMAT_R8_SINT;
+    case vk::Format::eD24UnormS8Uint:
+        return DXGI_FORMAT_D24_UNORM_S8_UINT;
+    case vk::Format::eB8G8R8A8Unorm:
+        return DXGI_FORMAT_B8G8R8A8_UNORM;
+    case vk::Format::eB8G8R8A8Srgb:
+        return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+    case vk::Format::eB8G8R8Unorm:
+        return DXGI_FORMAT_B8G8R8X8_UNORM;
+    case vk::Format::eB8G8R8Srgb:
+        return DXGI_FORMAT_B8G8R8X8_UNORM_SRGB;
+    case vk::Format::eBc1RgbaUnormBlock:
+        return DXGI_FORMAT_BC1_UNORM;
+    case vk::Format::eBc1RgbaSrgbBlock:
+        return DXGI_FORMAT_BC1_UNORM_SRGB;
+    case vk::Format::eBc2UnormBlock:
+        return DXGI_FORMAT_BC2_UNORM;
+    case vk::Format::eBc2SrgbBlock:
+        return DXGI_FORMAT_BC2_UNORM_SRGB;
+    case vk::Format::eBc3UnormBlock:
+        return DXGI_FORMAT_BC3_UNORM;
+    case vk::Format::eBc3SrgbBlock:
+        return DXGI_FORMAT_BC3_UNORM_SRGB;
+    case vk::Format::eBc4UnormBlock:
+        return DXGI_FORMAT_BC4_UNORM;
+    case vk::Format::eBc4SnormBlock:
+        return DXGI_FORMAT_BC4_SNORM;
+    case vk::Format::eBc5UnormBlock:
+        return DXGI_FORMAT_BC5_UNORM;
+    case vk::Format::eBc5SnormBlock:
+        return DXGI_FORMAT_BC5_SNORM;
+    case vk::Format::eBc6HUfloatBlock:
+        return DXGI_FORMAT_BC6H_UF16;
+    case vk::Format::eBc6HSfloatBlock:
+        return DXGI_FORMAT_BC6H_SF16;
+    case vk::Format::eBc7UnormBlock:
+        return DXGI_FORMAT_BC7_UNORM;
+    case vk::Format::eBc7SrgbBlock:
+        return DXGI_FORMAT_BC7_UNORM_SRGB;
+#endif
     default:
         throw std::runtime_error("Unknown VkFormat: " + vgflib::FormatTypeToName(vgflib::ToFormatType(vkFormat)));
     }

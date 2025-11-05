@@ -72,6 +72,310 @@ DxgiFormat getDxgiFormat(const std::string &format) {
         return DXGI_FORMAT_R32_UINT;
     }
 
+#ifdef SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT
+    // These are image formats that haven't been fully tested yet.
+    if (format == "DXGI_FORMAT_R32G32B32A32_UINT") {
+        return DXGI_FORMAT_R32G32B32A32_UINT;
+    }
+    if (format == "DXGI_FORMAT_R32G32B32A32_SINT") {
+        return DXGI_FORMAT_R32G32B32A32_SINT;
+    }
+    if (format == "DXGI_FORMAT_R32G32B32_TYPELESS") {
+        return DXGI_FORMAT_R32G32B32_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_R32G32B32_FLOAT") {
+        return DXGI_FORMAT_R32G32B32_FLOAT;
+    }
+    if (format == "DXGI_FORMAT_R32G32B32_UINT") {
+        return DXGI_FORMAT_R32G32B32_UINT;
+    }
+    if (format == "DXGI_FORMAT_R32G32B32_SINT") {
+        return DXGI_FORMAT_R32G32B32_SINT;
+    }
+    if (format == "DXGI_FORMAT_R16G16B16A16_TYPELESS") {
+        return DXGI_FORMAT_R16G16B16A16_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_R16G16B16A16_UNORM") {
+        return DXGI_FORMAT_R16G16B16A16_UNORM;
+    }
+    if (format == "DXGI_FORMAT_R16G16B16A16_UINT") {
+        return DXGI_FORMAT_R16G16B16A16_UINT;
+    }
+    if (format == "DXGI_FORMAT_R16G16B16A16_SNORM") {
+        return DXGI_FORMAT_R16G16B16A16_SNORM;
+    }
+    if (format == "DXGI_FORMAT_R32G32_TYPELESS") {
+        return DXGI_FORMAT_R32G32_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_R32G32_FLOAT") {
+        return DXGI_FORMAT_R32G32_FLOAT;
+    }
+    if (format == "DXGI_FORMAT_R32G32_UINT") {
+        return DXGI_FORMAT_R32G32_UINT;
+    }
+    if (format == "DXGI_FORMAT_R32G32_SINT") {
+        return DXGI_FORMAT_R32G32_SINT;
+    }
+    if (format == "DXGI_FORMAT_R32G8X24_TYPELESS") {
+        return DXGI_FORMAT_R32G8X24_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS") {
+        return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_X32_TYPELESS_G8X24_UINT") {
+        return DXGI_FORMAT_X32_TYPELESS_G8X24_UINT;
+    }
+    if (format == "DXGI_FORMAT_R10G10B10A2_TYPELESS") {
+        return DXGI_FORMAT_R10G10B10A2_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_R10G10B10A2_UNORM") {
+        return DXGI_FORMAT_R10G10B10A2_UNORM;
+    }
+    if (format == "DXGI_FORMAT_R10G10B10A2_UINT") {
+        return DXGI_FORMAT_R10G10B10A2_UINT;
+    }
+    if (format == "DXGI_FORMAT_R8G8B8A8_TYPELESS") {
+        return DXGI_FORMAT_R8G8B8A8_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_R8G8B8A8_UNORM_SRGB") {
+        return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    }
+    if (format == "DXGI_FORMAT_R8G8B8A8_UINT") {
+        return DXGI_FORMAT_R8G8B8A8_UINT;
+    }
+    if (format == "DXGI_FORMAT_R16G16_TYPELESS") {
+        return DXGI_FORMAT_R16G16_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_R16G16_UNORM") {
+        return DXGI_FORMAT_R16G16_UNORM;
+    }
+    if (format == "DXGI_FORMAT_R16G16_UINT") {
+        return DXGI_FORMAT_R16G16_UINT;
+    }
+    if (format == "DXGI_FORMAT_R16G16_SNORM") {
+        return DXGI_FORMAT_R16G16_SNORM;
+    }
+    if (format == "DXGI_FORMAT_R16G16_SINT") {
+        return DXGI_FORMAT_R16G16_SINT;
+    }
+    if (format == "DXGI_FORMAT_R32_TYPELESS") {
+        return DXGI_FORMAT_R32_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_D32_FLOAT") {
+        return DXGI_FORMAT_D32_FLOAT;
+    }
+    if (format == "DXGI_FORMAT_R32_SINT") {
+        return DXGI_FORMAT_R32_SINT;
+    }
+    if (format == "DXGI_FORMAT_R24G8_TYPELESS") {
+        return DXGI_FORMAT_R24G8_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_D24_UNORM_S8_UINT") {
+        return DXGI_FORMAT_D24_UNORM_S8_UINT;
+    }
+    if (format == "DXGI_FORMAT_R24_UNORM_X8_TYPELESS") {
+        return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_X24_TYPELESS_G8_UINT") {
+        return DXGI_FORMAT_X24_TYPELESS_G8_UINT;
+    }
+    if (format == "DXGI_FORMAT_R8G8_TYPELESS") {
+        return DXGI_FORMAT_R8G8_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_R8G8_SNORM") {
+        return DXGI_FORMAT_R8G8_SNORM;
+    }
+    if (format == "DXGI_FORMAT_R16_TYPELESS") {
+        return DXGI_FORMAT_R16_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_D16_UNORM") {
+        return DXGI_FORMAT_D16_UNORM;
+    }
+    if (format == "DXGI_FORMAT_R16_UNORM") {
+        return DXGI_FORMAT_R16_UNORM;
+    }
+    if (format == "DXGI_FORMAT_R16_UINT") {
+        return DXGI_FORMAT_R16_UINT;
+    }
+    if (format == "DXGI_FORMAT_R16_SNORM") {
+        return DXGI_FORMAT_R16_SNORM;
+    }
+    if (format == "DXGI_FORMAT_R16_SINT") {
+        return DXGI_FORMAT_R16_SINT;
+    }
+    if (format == "DXGI_FORMAT_R8_TYPELESS") {
+        return DXGI_FORMAT_R8_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_R8_UINT") {
+        return DXGI_FORMAT_R8_UINT;
+    }
+    if (format == "DXGI_FORMAT_R8_SINT") {
+        return DXGI_FORMAT_R8_SINT;
+    }
+    if (format == "DXGI_FORMAT_A8_UNORM") {
+        return DXGI_FORMAT_A8_UNORM;
+    }
+    if (format == "DXGI_FORMAT_R1_UNORM") {
+        return DXGI_FORMAT_R1_UNORM;
+    }
+    if (format == "DXGI_FORMAT_R9G9B9E5_SHAREDEXP") {
+        return DXGI_FORMAT_R9G9B9E5_SHAREDEXP;
+    }
+    if (format == "DXGI_FORMAT_R8G8_B8G8_UNORM") {
+        return DXGI_FORMAT_R8G8_B8G8_UNORM;
+    }
+    if (format == "DXGI_FORMAT_G8R8_G8B8_UNORM") {
+        return DXGI_FORMAT_G8R8_G8B8_UNORM;
+    }
+    if (format == "DXGI_FORMAT_BC1_TYPELESS") {
+        return DXGI_FORMAT_BC1_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_BC1_UNORM") {
+        return DXGI_FORMAT_BC1_UNORM;
+    }
+    if (format == "DXGI_FORMAT_BC1_UNORM_SRGB") {
+        return DXGI_FORMAT_BC1_UNORM_SRGB;
+    }
+    if (format == "DXGI_FORMAT_BC2_TYPELESS") {
+        return DXGI_FORMAT_BC2_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_BC2_UNORM") {
+        return DXGI_FORMAT_BC2_UNORM;
+    }
+    if (format == "DXGI_FORMAT_BC2_UNORM_SRGB") {
+        return DXGI_FORMAT_BC2_UNORM_SRGB;
+    }
+    if (format == "DXGI_FORMAT_BC3_TYPELESS") {
+        return DXGI_FORMAT_BC3_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_BC3_UNORM") {
+        return DXGI_FORMAT_BC3_UNORM;
+    }
+    if (format == "DXGI_FORMAT_BC3_UNORM_SRGB") {
+        return DXGI_FORMAT_BC3_UNORM_SRGB;
+    }
+    if (format == "DXGI_FORMAT_BC4_TYPELESS") {
+        return DXGI_FORMAT_BC4_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_BC4_UNORM") {
+        return DXGI_FORMAT_BC4_UNORM;
+    }
+    if (format == "DXGI_FORMAT_BC4_SNORM") {
+        return DXGI_FORMAT_BC4_SNORM;
+    }
+    if (format == "DXGI_FORMAT_BC5_TYPELESS") {
+        return DXGI_FORMAT_BC5_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_BC5_UNORM") {
+        return DXGI_FORMAT_BC5_UNORM;
+    }
+    if (format == "DXGI_FORMAT_BC5_SNORM") {
+        return DXGI_FORMAT_BC5_SNORM;
+    }
+    if (format == "DXGI_FORMAT_B5G6R5_UNORM") {
+        return DXGI_FORMAT_B5G6R5_UNORM;
+    }
+    if (format == "DXGI_FORMAT_B5G5R5A1_UNORM") {
+        return DXGI_FORMAT_B5G5R5A1_UNORM;
+    }
+    if (format == "DXGI_FORMAT_B8G8R8A8_UNORM") {
+        return DXGI_FORMAT_B8G8R8A8_UNORM;
+    }
+    if (format == "DXGI_FORMAT_B8G8R8X8_UNORM") {
+        return DXGI_FORMAT_B8G8R8X8_UNORM;
+    }
+    if (format == "DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM") {
+        return DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM;
+    }
+    if (format == "DXGI_FORMAT_B8G8R8A8_TYPELESS") {
+        return DXGI_FORMAT_B8G8R8A8_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_B8G8R8A8_UNORM_SRGB") {
+        return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+    }
+    if (format == "DXGI_FORMAT_B8G8R8X8_TYPELESS") {
+        return DXGI_FORMAT_B8G8R8X8_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_B8G8R8X8_UNORM_SRGB") {
+        return DXGI_FORMAT_B8G8R8X8_UNORM_SRGB;
+    }
+    if (format == "DXGI_FORMAT_BC6H_TYPELESS") {
+        return DXGI_FORMAT_BC6H_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_BC6H_UF16") {
+        return DXGI_FORMAT_BC6H_UF16;
+    }
+    if (format == "DXGI_FORMAT_BC6H_SF16") {
+        return DXGI_FORMAT_BC6H_SF16;
+    }
+    if (format == "DXGI_FORMAT_BC7_TYPELESS") {
+        return DXGI_FORMAT_BC7_TYPELESS;
+    }
+    if (format == "DXGI_FORMAT_BC7_UNORM") {
+        return DXGI_FORMAT_BC7_UNORM;
+    }
+    if (format == "DXGI_FORMAT_BC7_UNORM_SRGB") {
+        return DXGI_FORMAT_BC7_UNORM_SRGB;
+    }
+    if (format == "DXGI_FORMAT_AYUV") {
+        return DXGI_FORMAT_AYUV;
+    }
+    if (format == "DXGI_FORMAT_Y410") {
+        return DXGI_FORMAT_Y410;
+    }
+    if (format == "DXGI_FORMAT_Y416") {
+        return DXGI_FORMAT_Y416;
+    }
+    if (format == "DXGI_FORMAT_NV12") {
+        return DXGI_FORMAT_NV12;
+    }
+    if (format == "DXGI_FORMAT_P010") {
+        return DXGI_FORMAT_P010;
+    }
+    if (format == "DXGI_FORMAT_P016") {
+        return DXGI_FORMAT_P016;
+    }
+    if (format == "DXGI_FORMAT_420_OPAQUE") {
+        return DXGI_FORMAT_420_OPAQUE;
+    }
+    if (format == "DXGI_FORMAT_YUY2") {
+        return DXGI_FORMAT_YUY2;
+    }
+    if (format == "DXGI_FORMAT_Y210") {
+        return DXGI_FORMAT_Y210;
+    }
+    if (format == "DXGI_FORMAT_Y216") {
+        return DXGI_FORMAT_Y216;
+    }
+    if (format == "DXGI_FORMAT_NV11") {
+        return DXGI_FORMAT_NV11;
+    }
+    if (format == "DXGI_FORMAT_AI44") {
+        return DXGI_FORMAT_AI44;
+    }
+    if (format == "DXGI_FORMAT_IA44") {
+        return DXGI_FORMAT_IA44;
+    }
+    if (format == "DXGI_FORMAT_P8") {
+        return DXGI_FORMAT_P8;
+    }
+    if (format == "DXGI_FORMAT_A8P8") {
+        return DXGI_FORMAT_A8P8;
+    }
+    if (format == "DXGI_FORMAT_B4G4R4A4_UNORM") {
+        return DXGI_FORMAT_B4G4R4A4_UNORM;
+    }
+    if (format == "DXGI_FORMAT_P208") {
+        return DXGI_FORMAT_P208;
+    }
+    if (format == "DXGI_FORMAT_V208") {
+        return DXGI_FORMAT_V208;
+    }
+    if (format == "DXGI_FORMAT_V408") {
+        return DXGI_FORMAT_V408;
+    }
+#endif
+
     throw std::runtime_error("Unsupported format " + format);
 }
 
