@@ -284,6 +284,10 @@ class Builder:
                 )
 
             if self.lint:
+                src_dirs = [
+                    f"{SCENARIO_RUNNER_DIR / 'src'}",
+                ]
+
                 lint_cmd = [
                     "cppcheck",
                     f"-j{str(self.threads)}",
@@ -299,18 +303,15 @@ class Builder:
                     "--suppress=unmatchedSuppression",
                     "--suppress=useStlAlgorithm",
                     "--suppress=*:MachineIndependent*",
-                    f"--suppress=*:{self.vgf_lib_path}*",
                     f"--suppress=*:{DEPENDENCY_DIR}*",
-                    f"{SCENARIO_RUNNER_DIR}/src",
-                ]
+                ] + src_dirs
                 subprocess.run(lint_cmd, check=True)
 
                 clang_tidy_cmd = [
                     "run-clang-tidy",
                     f"-j{self.threads}",
                     f"-p{self.build_dir}",
-                    f"{SCENARIO_RUNNER_DIR / 'src'}",
-                ]
+                ] + src_dirs
 
                 if self.clang_tidy_fix:
                     clang_tidy_cmd.append("-fix")
