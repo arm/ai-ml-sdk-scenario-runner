@@ -11,7 +11,7 @@
 
 #include <vector>
 
-#include "temp_folder.hpp"
+#include "vgf-utils/temp_folder.hpp"
 
 namespace mlsdk::scenariorunner {
 
