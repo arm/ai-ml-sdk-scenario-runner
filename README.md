@@ -208,6 +208,16 @@ For more details, see the help output:
 ./scenario-runner --help
 ```
 
+## PyPI
+
+The ML SDK Scenario Runner is available on PyPI as the [ai-ml-sdk-scenario-runner](https://pypi.org/project/ai-ml-sdk-scenario-runner) package.
+
+Install:
+
+```bash
+pip install ai-ml-sdk-scenario-runner
+```
+
 ## Known Limitations
 
 - Resources created with `Optimal` tiling cannot be used with memory aliasing.
