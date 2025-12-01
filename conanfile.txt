@@ -8,10 +8,10 @@
 
 [requires]
 argparse/3.1
-flatbuffers/23.5.26
-glslang/1.4.313.0
+flatbuffers/25.2.10
+glslang/1.4.328.1
 gtest/1.16.0
 nlohmann_json/3.11.3
-spirv-headers/1.4.313.0
-spirv-tools/1.4.313.0
-vulkan-headers/1.4.313.0
+spirv-headers/1.4.328.1
+spirv-tools/1.4.328.1
+vulkan-headers/1.4.328.1
