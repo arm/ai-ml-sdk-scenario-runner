@@ -171,8 +171,16 @@ python3 $SDK_PATH/sw/scenario-runner/scripts/build.py -j $(nproc) \
 ```
 
 To enable and run tests, use the `--test` flag. To lint the tests, use the
-`--lint` flag. To build the documentation, use the `--doc` flag. To build the
-documentation, you must have `sphinx` and `doxygen` installed on your machine.
+`--lint` flag. To enable tests and documentation building python dependencies
+must be installed:
+
+```bash
+pip install -r requirements.txt
+pip install -r tooling_requirements.txt
+```
+
+To build the documentation, use the `--doc` flag. To build the documentation,
+you must have `sphinx` and `doxygen` installed on your machine.
 
 You can install the build artifacts for this project into a specified location.
 To install the build artifacts, pass the `--install` option with the required
