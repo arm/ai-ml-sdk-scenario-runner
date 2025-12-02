@@ -14,7 +14,7 @@
                         "resource_ref": "output_tensor"
                     }
                 ],
-                "shader_ref": "tensor_shader",
+                "shader_ref": "tensor_shader_16bit",
                 "rangeND": [
                     64,
                     64,
@@ -26,8 +26,8 @@
     "resources": [
         {
             "shader": {
-                "uid": "tensor_shader",
-                "src": "tensor_shader.spv",
+                "uid": "tensor_shader_16bit",
+                "src": "tensor_shader_16bit.spv",
                 "entry": "main",
                 "type": "SPIR-V",
                 "push_constants_size": 0
@@ -60,7 +60,7 @@
                     64,
                     4
                 ],
-                "format": "VK_FORMAT_R16_UINT",
+                "format": "VK_FORMAT_R16_SINT",
                 "shader_access": "readwrite",
                 "memory_group": {
                     "id": "group0"
@@ -96,7 +96,7 @@
                     64,
                     4
                 ],
-                "format": "VK_FORMAT_R16_UINT",
+                "format": "VK_FORMAT_R16_SINT",
                 "shader_access": "readwrite",
                 "memory_group": {
                     "id": "group1"

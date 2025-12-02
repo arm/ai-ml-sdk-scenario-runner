@@ -256,7 +256,7 @@ def test_aliasing_optimal_tiling_copy_tensor_shader(
         "input_image.dds",
     )
 
-    sdk_tools.compile_shader("test_tiling/tensor_shader.comp")
+    sdk_tools.compile_shader("test_tiling/tensor_shader_16bit.comp")
 
     sdk_tools.run_scenario(
         f"test_tiling/aliasing_optimal_tiling_copy_tensor_shader.json"
