@@ -12,4 +12,5 @@ def main():
         "scenario-runner.exe" if sys.platform.startswith("win") else "scenario-runner"
     )
     binary_path = os.path.join(os.path.dirname(__file__), "binaries/bin", binary_name)
-    return subprocess.run([binary_path] + sys.argv[1:])
+    result = subprocess.run([binary_path] + sys.argv[1:])
+    return result.returncode
