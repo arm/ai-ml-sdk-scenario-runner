@@ -140,12 +140,12 @@
                 },
                 {
                     "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:google:flatbuffers:23.5.26:*:*:*:*:*:*:*",
+                    "referenceLocator": "cpe:2.3:a:google:flatbuffers:25.2.10:*:*:*:*:*:*:*",
                     "referenceType": "cpe23Type"
                 },
                 {
                     "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:crates_package:flatbuffers:23.5.26:*:*:*:*:*:*:*",
+                    "referenceLocator": "cpe:2.3:a:crates_package:flatbuffers:25.2.10:*:*:*:*:*:*:*",
                     "referenceType": "cpe23Type"
                 },
                 {
@@ -160,7 +160,7 @@
             "name": "FlatBuffers",
             "supplier": "Organization: google",
             "copyrightText": "Copyright Google Inc. All rights reserved.",
-            "versionInfo": "23.5.26"
+            "versionInfo": "25.2.10"
         },
         {
             "SPDXID": "SPDXRef-package-683c8c7b-3a1c-4cf9-bdea-a1c76433772e",
