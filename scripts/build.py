@@ -52,7 +52,6 @@ class Builder:
             args.force_no_debug_symbols_android_build
         )
         self.vulkan_headers_path = absolute(args.vulkan_headers_path)
-        self.flatc_path = args.flatc_path
         self.vgf_lib_path = absolute(args.vgf_lib_path)
         self.json_path = absolute(args.json_path)
         self.gtest_path = absolute(args.gtest_path)
@@ -207,9 +206,6 @@ class Builder:
 
         if self.prefix_path:
             cmake_setup_cmd.append(f"-DCMAKE_PREFIX_PATH={self.prefix_path}")
-
-        if self.flatc_path:
-            cmake_setup_cmd.append(f"-DFLATC_PATH={self.flatc_path}")
 
         if self.run_tests:
             cmake_setup_cmd.append("-DSCENARIO_RUNNER_BUILD_TESTS=ON")
@@ -495,11 +491,6 @@ def parse_arguments():
         "--vulkan-headers-path",
         help="Path to the vulkan headers folder. Default: %(default)s",
         default=f"{DEPENDENCY_DIR / 'Vulkan-Headers'}",
-    )
-    parser.add_argument(
-        "--flatc-path",
-        help="Path to the flatc compiler. Default: %(default)s",
-        default="",
     )
     parser.add_argument(
         "--vgf-lib-path",
