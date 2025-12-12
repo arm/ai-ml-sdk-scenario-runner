@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -9,13 +9,10 @@
 #include "context.hpp"
 #include "data_manager.hpp"
 #include "group_manager.hpp"
-#include "guid.hpp"
 #include "scenario_desc.hpp"
 #include "types.hpp"
 
-#include <optional>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace mlsdk::scenariorunner {
@@ -42,18 +39,18 @@ class Scenario {
     Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec);
 
     /// \brief Executes the test case
-    void run(int count = 1, bool dryRun = false);
+    void run(int repeatCount = 1, bool dryRun = false);
 
   private:
-    void createComputePipeline(const DispatchComputeData &dispatchCompute, int iteration, uint32_t &nQueries);
-    void createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, int iteration, uint32_t &nQueries);
+    void createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries);
+    void createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries);
 
     void createPipeline(uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
                         const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries);
 
     /// \brief Sets up runtime options
     void setupResources();
-    void setupCommands(int iteration = 0);
+    void setupCommands();
 
     /// \brief Save profiling data to file
     void saveProfilingData(int iteration, int repeatCount);
@@ -63,6 +60,7 @@ class Scenario {
 
     bool hasAliasedOptimalTensors() const;
     void handleAliasedLayoutTransitions();
+
     ScenarioOptions _opts;
     Context _ctx;
     DataManager _dataManager;

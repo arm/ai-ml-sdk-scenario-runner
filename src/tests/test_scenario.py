@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# SPDX-FileCopyrightText: Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 """ Validate the scenario against the json schema """
@@ -133,7 +133,6 @@ memory_barrier_path = resources_path / "memory_barrier"
         # mark_boundary
         (Ok(), mark_boundary_path/"reference.json"),
         (Ok(), mark_boundary_path/"minimal.json"),
-        (RequiredProperty("frame_id"), mark_boundary_path/"no_frame_id.json"),
         (RequiredProperty("resources"), mark_boundary_path/"no_resource.json"),
         (UnexpectedProperty("this_is_an_invalid_property"), mark_boundary_path/"invalid_property.json"),
 

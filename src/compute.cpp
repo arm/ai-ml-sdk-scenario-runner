@@ -1,14 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "compute.hpp"
 #include "json_writer.hpp"
 #include "logging.hpp"
-#include "utils.hpp"
 
 #include <fstream>
-#include <type_traits>
 
 namespace mlsdk::scenariorunner {
 
@@ -90,10 +88,10 @@ Compute::Compute(Context &ctx) : _ctx(ctx) {
                                                       _ctx.familyQueueIdx());
     _cmdPool = _ctx.device().createCommandPool(cmdPoolCreateInfo);
     _queue = _ctx.device().getQueue(_ctx.familyQueueIdx(), 0);
-    _setup();
+    _createFence();
 }
 
-void Compute::_setup() { _fence = _ctx.device().createFence({}); }
+void Compute::_createFence() { _fence = _ctx.device().createFence({}); }
 
 void Compute::reset() {
     _debugMarkerNames.clear();
@@ -110,8 +108,6 @@ void Compute::reset() {
     _descriptorSets.clear();
     _descriptorPools.clear();
     _pipelines.clear();
-
-    _setup();
 }
 
 void Compute::_setNextCommandBuffer() {
@@ -346,6 +342,30 @@ void Compute::registerPipelineBarrier(const DispatchBarrierData &dispatchBarrier
     _commands.emplace_back(MemoryBarrier{memoryBarrierIdx, imageBarrierIdx, tensorBarrierIdx, bufferBarrierIdx});
 }
 
+vk::FrameBoundaryEXT Compute::_createFrameBoundary() {
+    vk::FrameBoundaryEXT frameBoundary;
+    frameBoundary.flags = vk::FrameBoundaryFlagBitsEXT::eFrameEnd;
+    frameBoundary.frameID = 0;
+    frameBoundary.pImages = _imageArray.back().data();
+    frameBoundary.imageCount = static_cast<uint32_t>(_imageArray.back().size());
+    frameBoundary.pBuffers = _bufferArray.back().data();
+    frameBoundary.bufferCount = static_cast<uint32_t>(_bufferArray.back().size());
+
+    vk::FrameBoundaryTensorsARM frameBoundaryTensor;
+    frameBoundaryTensor.pTensors = _tensorArray.back().data();
+    frameBoundaryTensor.tensorCount = static_cast<uint32_t>(_tensorArray.back().size());
+    frameBoundaryTensor.pNext = nullptr;
+    _markBoundaryTensorArray.emplace_back(std::make_unique<vk::FrameBoundaryTensorsARM>(frameBoundaryTensor));
+    if (_tensorArray.back().size() > 0) {
+        frameBoundary.pNext = &(*_markBoundaryTensorArray.back());
+    } else {
+        frameBoundary.pNext = nullptr;
+    }
+    return frameBoundary;
+}
+
+void Compute::_addMarkBoundary() { _commands.emplace_back(MarkBoundary{_createFrameBoundary()}); }
+
 void Compute::registerMarkBoundary(const MarkBoundaryData &markBoundaryData, const DataManager &dataManager) {
     std::vector<vk::Image> imageHandles;
     imageHandles.reserve(markBoundaryData.images.size());
@@ -371,29 +391,7 @@ void Compute::registerMarkBoundary(const MarkBoundaryData &markBoundaryData, con
     }
     _tensorArray.emplace_back(std::move(tensorHandles));
 
-    _addMarkBoundary(markBoundaryData.frameId);
-}
-
-void Compute::_addMarkBoundary(uint64_t frameId) {
-    vk::FrameBoundaryEXT markBoundary;
-    markBoundary.flags = vk::FrameBoundaryFlagBitsEXT::eFrameEnd;
-    markBoundary.frameID = frameId;
-    markBoundary.pImages = _imageArray.back().data();
-    markBoundary.imageCount = static_cast<uint32_t>(_imageArray.back().size());
-    markBoundary.pBuffers = _bufferArray.back().data();
-    markBoundary.bufferCount = static_cast<uint32_t>(_bufferArray.back().size());
-
-    vk::FrameBoundaryTensorsARM markBoundaryTensor;
-    markBoundaryTensor.pTensors = _tensorArray.back().data();
-    markBoundaryTensor.tensorCount = static_cast<uint32_t>(_tensorArray.back().size());
-    markBoundaryTensor.pNext = nullptr;
-    _markBoundaryTensorArray.emplace_back(std::make_unique<vk::FrameBoundaryTensorsARM>(markBoundaryTensor));
-    if (_tensorArray.back().size() > 0) {
-        markBoundary.pNext = &(*_markBoundaryTensorArray.back());
-    } else {
-        markBoundary.pNext = nullptr;
-    }
-    _commands.emplace_back(MarkBoundary{std::move(markBoundary)});
+    _addMarkBoundary();
 }
 
 void Compute::submitAndWaitOnFence() {
@@ -412,8 +410,31 @@ void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters
     // Create command buffer vector
     perfCounters.emplace_back("Creating Command Buffer. Iteration: " + std::to_string(iteration + 1), "Run Scenario")
         .start();
+    _createFence();
     _setNextCommandBuffer();
     _beginCommandBuffer();
+
+    // If a frame boundary command is present, also add one after initial setup
+    bool hasFrameBoundary = false;
+    for (auto &cmd : _commands) {
+        if (std::holds_alternative<MarkBoundary>(cmd)) {
+            hasFrameBoundary = true;
+        }
+    }
+    if (hasFrameBoundary && _repeatNumber == 0) {
+        _cmdBufferArray.back().end();
+
+        auto frameBoundary = _createFrameBoundary();
+        frameBoundary.frameID = _repeatNumber++;
+
+        vk::SubmitInfo submitInfo({}, {}, *_cmdBufferArray.back(), {}, &frameBoundary);
+        _queue.submit(submitInfo, *_fence);
+        _waitForFence();
+        _createFence();
+        _setNextCommandBuffer();
+        _beginCommandBuffer();
+    }
+
     for (auto &cmd : _commands) {
         if (std::holds_alternative<BindDescriptorSet>(cmd)) {
             auto &typedCmd = std::get<BindDescriptorSet>(cmd);
@@ -471,9 +492,12 @@ void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters
             auto &typeCmd = std::get<MarkBoundary>(cmd);
             _cmdBufferArray.back().end();
             vk::SubmitInfo submitInfo({}, {}, *_cmdBufferArray.back(), {}, &typeCmd.markBoundary);
+
+            typeCmd.markBoundary.frameID = _repeatNumber++;
+
             _queue.submit(submitInfo, *_fence);
             _waitForFence();
-            _setup();
+            _createFence();
             _setNextCommandBuffer();
             _beginCommandBuffer();
         } else if (std::holds_alternative<PushDebugMarker>(cmd)) {

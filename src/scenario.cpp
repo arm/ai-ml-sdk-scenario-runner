@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "scenario.hpp"
@@ -357,7 +357,6 @@ struct CommandDataFactory {
                 throw std::runtime_error("Unsupported resource");
             }
         }
-        data.frameId = markBoundary.frameId;
         return data;
     }
 };
@@ -389,17 +388,15 @@ void Scenario::run(int repeatCount, bool dryRun) {
         frameCapturer = std::make_unique<FrameCapturer>();
     }
 
+    _compute.reset();
+    setupCommands();
+
     for (int i = 0; i < repeatCount; ++i) {
         mlsdk::logging::debug("Iteration: " + std::to_string(i));
-
-        // Clear and reset all data before execution
-        _compute.reset();
-
         if (frameCapturer) {
             frameCapturer->begin();
         }
 
-        setupCommands(i);
         if (!dryRun) {
             if (hasAliasedOptimalTensors()) {
                 _compute.prepareCommandBuffer();
@@ -608,25 +605,16 @@ void Scenario::setupResources() {
     }
 }
 
-void Scenario::setupCommands(int iteration) {
+void Scenario::setupCommands() {
     if (_opts.enablePipelineCaching) {
         mlsdk::logging::info("Load Pipeline Cache");
-        _perfCounters
-            .emplace_back("Load Pipeline Cache. Iteration: " + std::to_string(iteration + 1), "Load Pipeline Cache",
-                          true)
-            .start();
+        _perfCounters.emplace_back("Load Pipeline Cache.", "Load Pipeline Cache", true).start();
         _pipelineCache = std::make_shared<PipelineCache>(_ctx, _opts.pipelineCachePath, _opts.clearPipelineCache,
                                                          _opts.failOnPipelineCacheMiss);
         _perfCounters.back().stop();
     }
     // Setup commands
     mlsdk::logging::info("Setup commands");
-    uint64_t numBoundaries = _scenarioSpec.commandCount(CommandType::MarkBoundary);
-    // Check if first mark boundary shall be skipped
-    const auto skipFirstMarkBoundary = _scenarioSpec.isFirstAndLastCommand(CommandType::MarkBoundary);
-    if (skipFirstMarkBoundary) {
-        numBoundaries--;
-    }
 
     CommandDataFactory factory{_dataManager};
     uint32_t nQueries = 0;
@@ -635,7 +623,7 @@ void Scenario::setupCommands(int iteration) {
         case (CommandType::DispatchCompute): {
             const auto &dispatchCompute = reinterpret_cast<DispatchComputeDesc &>(*command);
             const auto data = factory.createData(dispatchCompute);
-            createComputePipeline(data, iteration, nQueries);
+            createComputePipeline(data, nQueries);
         } break;
         case (CommandType::DispatchBarrier): {
             const auto &dispatchBarrier = reinterpret_cast<DispatchBarrierDesc &>(*command);
@@ -645,16 +633,12 @@ void Scenario::setupCommands(int iteration) {
         case (CommandType::DispatchDataGraph): {
             const auto &dispatchDataGraph = reinterpret_cast<DispatchDataGraphDesc &>(*command);
             const auto data = factory.createData(dispatchDataGraph);
-            createDataGraphPipeline(data, iteration, nQueries);
+            createDataGraphPipeline(data, nQueries);
         } break;
         case (CommandType::MarkBoundary): {
             const auto &markBoundary = reinterpret_cast<MarkBoundaryDesc &>(*command);
-            auto data = factory.createData(markBoundary);
-            if (_ctx._optionals.mark_boundary) {
-                if ((iteration > 0) && skipFirstMarkBoundary) {
-                    continue;
-                }
-                data.frameId += uint64_t(iteration) * numBoundaries;
+            const auto data = factory.createData(markBoundary);
+            if (_ctx._optionals.mark_boundary || true) {
                 _compute.registerMarkBoundary(data, _dataManager);
             } else {
                 mlsdk::logging::warning("Frame boundary extension not present");
@@ -794,15 +778,12 @@ void Scenario::handleAliasedLayoutTransitions() {
     }
 }
 
-void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute, int iteration, uint32_t &nQueries) {
+void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries) {
     // Create Compute shader pipeline
     const auto shaderInfo = convert(_scenarioSpec.getShaderResource(dispatchCompute.shaderRef));
     const Compute::PipelineCreateArguments args{dispatchCompute.debugName, dispatchCompute.bindings, _pipelineCache};
 
-    _perfCounters
-        .emplace_back("Create Pipeline: " + shaderInfo.debugName + ". Iteration: " + std::to_string(iteration + 1),
-                      "Pipeline Setup", true)
-        .start();
+    _perfCounters.emplace_back("Create Pipeline: " + shaderInfo.debugName, "Pipeline Setup", true).start();
     _compute.createPipeline(args, shaderInfo);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
     const char *pushConstantData = nullptr;
@@ -819,18 +800,14 @@ void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute,
     mlsdk::logging::debug("Shader Pipeline: " + shaderInfo.debugName + " created");
 }
 
-void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, int iteration,
-                                       uint32_t &nQueries) {
+void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries) {
     const VgfView &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraphRef);
     Creator creator{_ctx, _dataManager};
     vgfView.createIntermediateResources(creator);
     for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
         const auto sequenceBindings = vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings);
         auto moduleName = vgfView.getSPVModuleName(segmentIndex);
-        _perfCounters
-            .emplace_back("Create Pipeline: " + moduleName + ". Iteration: " + std::to_string(iteration + 1),
-                          "Pipeline Setup", true)
-            .start();
+        _perfCounters.emplace_back("Create Pipeline: " + moduleName, "Pipeline Setup", true).start();
         createPipeline(segmentIndex, sequenceBindings, vgfView, dispatchDataGraph, nQueries);
         _perfCounters.back().stop();
     }

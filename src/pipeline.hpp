@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -9,7 +9,6 @@
 #include "pipeline_cache.hpp"
 #include "types.hpp"
 
-#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
