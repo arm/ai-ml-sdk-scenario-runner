@@ -57,7 +57,7 @@
             "licenseConcluded": "BSD-3-Clause",
             "licenseDeclared": "BSD-3-Clause",
             "name": "CMake",
-            "supplier": "Organization: conan",
+            "supplier": "Organization: CMake",
             "versionInfo": "v3.31.8"
         },
         {
@@ -524,7 +524,7 @@
                 },
                 {
                     "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/attrs@25.3.0",
+                    "referenceLocator": "pkg:pypi/attrs@25.4.0",
                     "referenceType": "purl"
                 },
                 {
@@ -538,7 +538,7 @@
             "licenseDeclared": "MIT",
             "name": "python-attrs",
             "supplier": "Organization: pypi",
-            "versionInfo": "25.3.0"
+            "versionInfo": "25.4.0"
         },
         {
             "SPDXID": "SPDXRef-package-4e35f71e-ae74-42bd-88c9-0d41ac1bba41",
@@ -652,7 +652,7 @@
                 },
                 {
                     "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/referencing@0.36.2",
+                    "referenceLocator": "pkg:pypi/referencing@0.37.0",
                     "referenceType": "purl"
                 },
                 {
@@ -666,7 +666,7 @@
             "licenseDeclared": "MIT",
             "name": "referencing",
             "supplier": "Organization: pypi",
-            "versionInfo": "0.36.2"
+            "versionInfo": "0.37.0"
         },
         {
             "SPDXID": "SPDXRef-package-771f263c-4199-4684-b11a-7894e65f74bd",
@@ -684,7 +684,7 @@
                 },
                 {
                     "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/iniconfig@2.1.0",
+                    "referenceLocator": "pkg:pypi/iniconfig@2.3.0",
                     "referenceType": "purl"
                 },
                 {
@@ -698,7 +698,7 @@
             "licenseDeclared": "MIT",
             "name": "RonnyPfannschmidt/iniconfig",
             "supplier": "Organization: pypi",
-            "versionInfo": "2.1.0"
+            "versionInfo": "2.3.0"
         },
         {
             "SPDXID": "SPDXRef-package-954e8df1-20e0-4478-a31b-b5a411fd3e5f",
@@ -706,7 +706,7 @@
             "externalRefs": [
                 {
                     "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/rpds-py@0.27.1",
+                    "referenceLocator": "pkg:pypi/rpds-py@0.28.0",
                     "referenceType": "purl"
                 },
                 {
@@ -730,7 +730,7 @@
             "licenseDeclared": "MIT",
             "name": "rpds-py",
             "supplier": "Organization: pypi",
-            "versionInfo": "0.27.1"
+            "versionInfo": "0.28.0"
         },
         {
             "SPDXID": "SPDXRef-package-c5af8272-fb0c-4b55-a344-7330045b54e4",
@@ -794,7 +794,7 @@
             "externalRefs": [
                 {
                     "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/tomli@2.2.1",
+                    "referenceLocator": "pkg:pypi/tomli@2.3.0",
                     "referenceType": "purl"
                 },
                 {
@@ -818,7 +818,7 @@
             "licenseDeclared": "MIT",
             "name": "tomli",
             "supplier": "Organization: pypi",
-            "versionInfo": "2.2.1"
+            "versionInfo": "2.3.0"
         },
         {
             "SPDXID": "SPDXRef-package-ebe0c66e-2c6c-46fb-b7a2-0b65fb2c4ca8",
@@ -846,25 +846,6 @@
             "name": "Vulkan-Headers",
             "supplier": "Organization: Khronos Group",
             "versionInfo": "vulkan-sdk-1.4.328.1"
-        },
-        {
-            "SPDXID": "SPDXRef-package-edd58207-4b2b-4095-b0a5-cf41f1d9d6dd",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "edd58207-4b2b-4095-b0a5-cf41f1d9d6dd",
-                    "referenceType": "BlackDuck-Version"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "(Apache-2.0)",
-            "licenseDeclared": "(Apache-2.0)",
-            "name": "ai-ml-sdk-vgf-lib",
-            "originator": "Organization: Arm Limited.",
-            "copyrightText": "Copyright (c) Arm Limited",
-            "supplier": "Organization: Arm Limited.",
-            "versionInfo": "ai-ml-sdk-vgf-lib"
         },
         {
             "SPDXID": "SPDXRef-package-edd58207-4b2b-4095-b0a5-cf41f1d9d6dd",
