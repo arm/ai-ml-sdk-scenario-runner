@@ -28,9 +28,6 @@
         "dst": {
             "type": "string"
         },
-        "alias_target": {
-            "type": "string"
-        },
         "tiling" : {
             "type": "string",
             "enum" : ["OPTIMAL","LINEAR"]

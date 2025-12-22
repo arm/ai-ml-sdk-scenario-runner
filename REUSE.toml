@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright 2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2025-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 version = 1
@@ -17,7 +17,7 @@ SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
 path = "docs/source/*.rst"
-SPDX-FileCopyrightText = "Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>"
+SPDX-FileCopyrightText = "Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>"
 SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
@@ -27,10 +27,10 @@ SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
 path = "schema/*.schema"
-SPDX-FileCopyrightText = "Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>"
+SPDX-FileCopyrightText = "Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>"
 SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
 path = "src/tests/**.json"
-SPDX-FileCopyrightText = "Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>"
+SPDX-FileCopyrightText = "Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>"
 SPDX-License-Identifier = "Apache-2.0"

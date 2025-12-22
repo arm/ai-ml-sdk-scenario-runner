@@ -455,21 +455,6 @@ void Scenario::setupResources() {
         }
     }
 
-    // Needed for old-style memory aliasing
-    for (const auto &resource : _scenarioSpec.resources) {
-        if (resource->resourceType == ResourceType::Tensor) {
-            const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
-            if (tensor->memoryGroup.has_value()) {
-                for (const auto &image : _scenarioSpec.resources) {
-                    if (image->resourceType == ResourceType::Image && image->guid == tensor->memoryGroup->memoryUid) {
-                        _groupManager.addResourceToGroup(tensor->memoryGroup->memoryUid, image->guid,
-                                                         ResourceIdType::Image);
-                    }
-                }
-            }
-        }
-    }
-
     // Setup resource info
     // (Memory for Tensors and Images is allocated in next pass)
     ResourceInfoFactory resourceInfoFactory{_groupManager};

@@ -7,8 +7,7 @@
                 "uid": "tensor0",
                 "dims" : [1, 128, 256, 3],
                 "format": "vk_float32",
-                "shader_access":"readwrite",
-                "alias_target": "my-image-to-alias"
+                "shader_access":"readwrite"
             }
         },
         {
