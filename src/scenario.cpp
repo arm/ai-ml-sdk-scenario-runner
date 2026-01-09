@@ -638,7 +638,7 @@ void Scenario::setupCommands() {
         case (CommandType::MarkBoundary): {
             const auto &markBoundary = reinterpret_cast<MarkBoundaryDesc &>(*command);
             const auto data = factory.createData(markBoundary);
-            if (_ctx._optionals.mark_boundary || true) {
+            if (_ctx._optionals.mark_boundary) {
                 _compute.registerMarkBoundary(data, _dataManager);
             } else {
                 mlsdk::logging::warning("Frame boundary extension not present");
