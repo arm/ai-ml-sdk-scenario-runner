@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -319,18 +319,8 @@ void from_json(const json &j, DispatchBarrierDesc &dispatchBarrier) {
  * @param markBoundaryDesc
  */
 void from_json(const json &j, MarkBoundaryDesc &markBoundaryDesc) {
-    try {
-        markBoundaryDesc.frameId = j.at("frame_id").get<uint64_t>();
-    } catch (...) {
-        mlsdk::logging::warning("\"frame_id\" should be of type uint64");
-        try {
-            mlsdk::logging::warning("Attempting to parse \"frame_id\" as a string");
-            uint64_t frameIdInt = std::stoull(j.at("frame_id").get<std::string>());
-            mlsdk::logging::warning("String parsed successfully, \"frame_id\" set to: " + std::to_string(frameIdInt));
-            markBoundaryDesc.frameId = frameIdInt;
-        } catch (...) {
-            throw std::runtime_error("Unable to parse \"frame_id\" as a string");
-        }
+    if (j.count("frame_id") != 0) {
+        mlsdk::logging::warning("Manual setting of frameID is deprecated");
     }
 
     const json resourcesJson = j.find("resources").value();

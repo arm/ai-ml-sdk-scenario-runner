@@ -28,8 +28,7 @@
                 "resources": [
                    "inBufferA",
                    "inBufferB"
-                ],
-                "frame_id" : 0
+                ]
             }
         },
         {

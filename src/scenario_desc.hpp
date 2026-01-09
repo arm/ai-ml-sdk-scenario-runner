@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2025-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -24,10 +24,6 @@ struct ScenarioSpec {
 
     void addCommand(std::unique_ptr<CommandDesc> command);
     void addCommand(std::unique_ptr<DispatchComputeDesc> command);
-
-    bool isFirstAndLastCommand(CommandType type) const;
-
-    uint64_t commandCount(CommandType type) const;
 
     /// Assumes existence of guid.
     const ShaderDesc &getShaderResource(const Guid &guid) const;

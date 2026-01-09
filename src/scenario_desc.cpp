@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2025-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -21,11 +21,11 @@ void ScenarioSpec::addResource(std::unique_ptr<ResourceDesc> resource) {
         throw std::runtime_error("Not unique uid: " + resource->guidStr);
     }
     if (resource->src.has_value()) {
+        auto resolvedPath = _workDir / std::filesystem::path(resource->src.value());
+        resource->src = resolvedPath.string();
         if (!std::filesystem::exists(resource->src.value())) {
             std::cout << "Source file does not exist: " + resource->src.value() << "\n";
         }
-        auto resolvedPath = _workDir / std::filesystem::path(resource->src.value());
-        resource->src = resolvedPath.string();
     }
     if (resource->dst.has_value()) {
         auto resolvedPath = _outputDir / std::filesystem::path(resource->dst.value());
@@ -41,16 +41,6 @@ void ScenarioSpec::addCommand(std::unique_ptr<CommandDesc> command) { commands.e
 void ScenarioSpec::addCommand(std::unique_ptr<DispatchComputeDesc> command) {
     commands.emplace_back(std::move(command));
     useComputeFamilyQueue = true;
-}
-
-bool ScenarioSpec::isFirstAndLastCommand(CommandType type) const {
-    return !commands.empty() && (commands.front()->commandType == type) && (commands.back()->commandType == type);
-}
-
-uint64_t ScenarioSpec::commandCount(CommandType type) const {
-    return static_cast<uint64_t>(
-        std::count_if(commands.begin(), commands.end(),
-                      [type](const std::unique_ptr<CommandDesc> &cmd) { return cmd->commandType == type; }));
 }
 
 const ShaderDesc &ScenarioSpec::getShaderResource(const Guid &guid) const {

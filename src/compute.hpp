@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -29,7 +29,6 @@ struct MarkBoundaryData {
     std::vector<Guid> buffers;
     std::vector<Guid> images;
     std::vector<Guid> tensors;
-    uint64_t frameId{};
 };
 
 /// @brief Compute command orchestrator
@@ -168,12 +167,9 @@ class Compute {
 
     struct DebugMarker;
 
-    /// \brief Setup
-    void _setup();
-
     void _setNextCommandBuffer();
     void _beginCommandBuffer();
-
+    void _createFence();
     void _waitForFence();
 
     /// \brief Fetch the QueryPoolResults, which contain runtime cycle-timestamps used for profiling
@@ -200,6 +196,7 @@ class Compute {
     std::vector<Command> _commands{};
     std::vector<vk::raii::CommandBuffer> _cmdBufferArray{};
     std::vector<std::string> _debugMarkerNames{};
+    uint64_t _repeatNumber{};
 
     vk::raii::QueryPool _queryPool{nullptr};
     uint32_t _nQueries{0};
@@ -221,6 +218,8 @@ class Compute {
 
     void _addImplicitBarriers();
 
-    void _addMarkBoundary(uint64_t frameId);
+    vk::FrameBoundaryEXT _createFrameBoundary();
+
+    void _addMarkBoundary();
 };
 } // namespace mlsdk::scenariorunner

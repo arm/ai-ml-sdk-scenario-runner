@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -111,7 +111,6 @@ struct MarkBoundaryDesc : CommandDesc {
     MarkBoundaryDesc();
 
     std::vector<std::string> resources;
-    uint64_t frameId{};
 };
 
 } // namespace mlsdk::scenariorunner
