@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -210,6 +210,9 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIn
         auto shape = vgfView.getConstantShape(constantIndex);
         auto vkFormat = vk::Format(vgfView.getConstantFormat(constantIndex));
         int64_t sparsityDimension = vgfView.getConstantSparsityDimension(constantIndex);
+        if (sparsityDimension == vgflib::CONSTANT_INVALID_SPARSITY_DIMENSION) {
+            throw std::runtime_error("Invalid constant metadata at index " + std::to_string(constantIndex));
+        }
 
         if (sparsityDimension >= 0) {
             constexpr uint32_t zeroCount = 2;
