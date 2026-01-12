@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "context.hpp"
@@ -112,6 +112,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         hasExtension(extensions, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.replicated_composites = hasExtension(extensions, VK_EXT_SHADER_REPLICATED_COMPOSITES_EXTENSION_NAME,
                                                     scenarioOptions.disabledExtensions);
+    _optionals.shader_bfloat16 =
+        hasExtension(extensions, VK_KHR_SHADER_BFLOAT16_EXTENSION_NAME, scenarioOptions.disabledExtensions);
 
     // Create device
     const float queuePriority = 1.0f;
@@ -136,10 +138,11 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
 
     const auto availableFeatures =
         _physicalDev.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features,
-                                  vk::PhysicalDeviceVulkan12Features>();
+                                  vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR>();
 
-    const auto &[available11Features, available12Features] =
-        availableFeatures.template get<vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features>();
+    const auto &[available11Features, available12Features, availableBfloat16] =
+        availableFeatures.template get<vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features,
+                                       vk::PhysicalDeviceShaderBfloat16FeaturesKHR>();
 
     vk::PhysicalDeviceVulkan11Features physicalDev11Feat;
     physicalDev11Feat.storageBuffer16BitAccess = available11Features.storageBuffer16BitAccess;
@@ -173,6 +176,12 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     dataGraphFeat.dataGraph = true;
     dataGraphFeat.pNext = &tensorFeat;
 
+    vk::PhysicalDeviceShaderBfloat16FeaturesKHR bfloat16Feat{};
+    if (_optionals.shader_bfloat16) {
+        bfloat16Feat.shaderBFloat16Type = availableBfloat16.shaderBFloat16Type;
+        bfloat16Feat.pNext = &dataGraphFeat;
+    }
+
     vk::PhysicalDeviceFeatures deviceFeat;
     deviceFeat.shaderInt16 = true;
     deviceFeat.shaderInt64 = true;
@@ -198,6 +207,9 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     if (_optionals.replicated_composites) {
         vulkanDeviceExtensions.push_back(VK_EXT_SHADER_REPLICATED_COMPOSITES_EXTENSION_NAME);
     }
+    if (_optionals.shader_bfloat16) {
+        vulkanDeviceExtensions.push_back(VK_KHR_SHADER_BFLOAT16_EXTENSION_NAME);
+    }
 #ifdef MOLTEN_VK_SUPPORT
     vulkanDeviceExtensions.push_back("VK_KHR_portability_subset");
 #endif
@@ -210,8 +222,9 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         nullptr,
         static_cast<uint32_t>(vulkanDeviceExtensions.size()), // enabledExtensionsCount
         vulkanDeviceExtensions.data(),
-        &deviceFeat,    // pEnabledFeatures
-        &dataGraphFeat, // pNext
+        &deviceFeat, // pEnabledFeatures
+        _optionals.shader_bfloat16 ? static_cast<const void *>(&bfloat16Feat)
+                                   : static_cast<const void *>(&dataGraphFeat), // pNext
     };
     _dev = vk::raii::Device(_physicalDev, deviceCreateInfo);
 } // namespace scenario-runner

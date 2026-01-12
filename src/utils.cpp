@@ -104,6 +104,8 @@ vk::Format getVkFormatFromString(const std::string &format) {
         return vk::Format::eR8Unorm;
     } else if (format == "VK_FORMAT_R32_UINT") {
         return vk::Format::eR32Uint;
+    } else if (format == "VK_FORMAT_R16_SFLOAT_FPENCODING_BFLOAT16_ARM") {
+        return vk::Format::eR16SfloatFpencodingBfloat16ARM;
     } else {
         throw std::runtime_error("Unknown VkFormat: " + format);
     }
@@ -121,6 +123,10 @@ const vgfutils::numpy::DType getDTypeFromVkFormat(vk::Format format) {
     if (numComponentsFromVkFormat(format) != 1) {
         throw std::runtime_error("More than 1 components from VkFormat: " +
                                  vgflib::FormatTypeToName(vgflib::ToFormatType(format)));
+    }
+    // Handle special case for BFLOAT16 to use raw byte encoding 'V' in numpy output
+    if (format == vk::Format::eR16SfloatFpencodingBfloat16ARM) {
+        return vgfutils::numpy::DType('V', 2);
     }
 
     char const *numeric = componentNumericFormat(format, 0);
