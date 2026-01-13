@@ -34,6 +34,10 @@ def RequiredMin(value):
     return f"is less than the minimum of {value}"
 
 
+def IsEmpty():
+    return "should be non-empty"
+
+
 def TooShort():
     return "is too short"
 
@@ -62,6 +66,10 @@ def Ok():
     return ""
 
 
+def InvalidType(type_name):
+    return f"is not of type '{type_name}'"
+
+
 def check_scenario(schema_filename, expected_msg, json_filename):
     json_filename = TEST_BASE / json_filename
 
@@ -78,6 +86,7 @@ def check_scenario(schema_filename, expected_msg, json_filename):
 commands_path = pathlib.Path("commands")
 dispatch_compute_path = commands_path / "dispatch_compute"
 dispatch_graph_path = commands_path / "dispatch_graph"
+dispatch_spirv_graph_path = commands_path / "dispatch_spirv_graph"
 dispatch_barrier_path = commands_path / "dispatch_barrier"
 mark_boundary_path = commands_path / "mark_boundary"
 resources_path = pathlib.Path("resources")
@@ -92,6 +101,7 @@ buffer_barrier_path = resources_path / "buffer_barrier"
 image_barrier_path = resources_path / "image_barrier"
 tensor_barrier_path = resources_path / "tensor_barrier"
 memory_barrier_path = resources_path / "memory_barrier"
+graph_constant_path = resources_path / "graph_constant"
 
 
 @pytest.mark.parametrize(
@@ -123,6 +133,12 @@ memory_barrier_path = resources_path / "memory_barrier"
         (UnexpectedProperty("this_is_an_invalid_property"), dispatch_graph_path/"invalid_property.json"),
         (RequiredProperty("bindings"), dispatch_graph_path/"missing_bindings.json"),
         (RequiredProperty("graph_ref"), dispatch_graph_path/"missing_graph_ref.json",),
+
+        # dispatch_spirv_graph
+        (Ok(), dispatch_spirv_graph_path/"reference.json"),
+        (Ok(), dispatch_spirv_graph_path/"graph_constants_ok.json"),
+        (InvalidType("array"), dispatch_spirv_graph_path/"graph_constants_invalid_type.json"),
+        (InvalidType("string"), dispatch_spirv_graph_path/"graph_constants_items_invalid_type.json"),
         # dispatch_graph->bindings
         (RequiredProperty("resource_ref"),dispatch_graph_path/"binding_missing_resource_ref.json"),
         (RequiredMin(0), dispatch_graph_path/"binding_negative_id.json"),
@@ -259,6 +275,16 @@ memory_barrier_path = resources_path / "memory_barrier"
         (RequiredMin(1), image_barrier_path/"invalid_subresource_range_mip_level_count.json"),
         (RequiredMin(1), image_barrier_path/"invalid_subresource_range_array_layer_count.json"),
         (UnexpectedProperty("this_is_an_invalid_property"), image_barrier_path/"invalid_property.json"),
+        # graph constant
+        (Ok(), graph_constant_path/"reference.json"),
+        (RequiredProperty("uid"), graph_constant_path/"missing_uid.json"),
+        (RequiredProperty("dims"), graph_constant_path/"missing_dims.json"),
+        (RequiredProperty("format"), graph_constant_path/"missing_format.json"),
+        (RequiredProperty("src"), graph_constant_path/"missing_src.json"),
+        (RequiredMin(1), graph_constant_path/"invalid_dim_value.json"),
+        (TooLong(), graph_constant_path/"invalid_dims_length.json"),
+        (IsEmpty(), graph_constant_path/"invalid_dims_empty.json"),
+        (UnexpectedProperty("this_is_an_invalid_property"), graph_constant_path/"invalid_property.json"),
         # TODO
         # 1. src and dst properties MUST be mutually exclusive
         # 2. double check completeness of negative test coverage

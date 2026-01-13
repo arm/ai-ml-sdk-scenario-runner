@@ -1,0 +1,32 @@
+{
+    "$id": "urn:scenario:resource:graph_constant",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "uid": {
+            "type": "string"
+        },
+        "dims": {
+            "type": "array",
+            "maxItems": 6,
+            "minItems": 1,
+            "items": {
+                "type": "integer",
+                "minimum": 1
+            }
+        },
+        "format": {
+            "type": "string"
+        },
+        "src": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "uid",
+        "dims",
+        "format",
+        "src"
+    ]
+}

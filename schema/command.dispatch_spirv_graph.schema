@@ -1,0 +1,32 @@
+{
+    "$id": "urn:scenario:command:dispatch_spirv_graph",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "bindings": {
+            "$ref":"urn:scenario:common#/definitions/bindings"
+        },
+        "graph_ref": {
+            "type": "string"
+        },
+        "implicit_barrier": {
+            "type": "boolean",
+            "default": true
+        },
+        "graph_constants": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+    "entry": {
+        "type": "string",
+        "default": "main"
+    }
+    },
+    "required": [
+        "bindings",
+        "graph_ref"
+    ]
+}

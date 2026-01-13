@@ -35,6 +35,9 @@
             },
             "image_barrier": {
                 "$ref":  "urn:scenario:resource:image_barrier"
+            },
+            "graph_constant": {
+                "$ref":  "urn:scenario:resource:graph_constant"
             }
         }
     }
