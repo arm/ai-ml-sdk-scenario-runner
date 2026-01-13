@@ -589,14 +589,6 @@ void from_json(const json &j, TensorDesc &tensor) {
     if (j.count("dst") != 0) {
         tensor.dst = j.at("dst").get<std::string>();
     }
-    if (j.count("alias_target") != 0) {
-        if (j.count("memory_group") != 0) {
-            throw std::runtime_error(
-                "Unable to use both alias_target and memory_group types of aliasing simultaneously");
-        }
-        mlsdk::logging::warning("Use of \"alias_target\" in the scenario is deprecated. Use \"memory_group\" instead.");
-        tensor.memoryGroup = MemoryGroup{Guid(j.at("alias_target").at("resource_ref").get<std::string>())};
-    }
     if (j.count("memory_group") != 0) {
         tensor.memoryGroup = j.at("memory_group").get<MemoryGroup>();
     }
