@@ -79,8 +79,8 @@ VgfView VgfView::createVgfView(const std::string &vgfFile) {
     };
 
     auto mapped = std::make_unique<MemoryMap>(vgfFile);
-
-    std::unique_ptr<vgflib::HeaderDecoder> headerDecoder = vgflib::CreateHeaderDecoder(mapped->ptr());
+    ensureMappedRange(mapped, 0, vgflib::HeaderSize(), "Header");
+    std::unique_ptr<vgflib::HeaderDecoder> headerDecoder = vgflib::CreateHeaderDecoder(mapped->ptr(), mapped->size());
     if (!headerDecoder || !headerDecoder->IsValid()) {
         throw std::runtime_error("Invalid VGF header");
     }
@@ -116,9 +116,11 @@ VgfView VgfView::createVgfView(const std::string &vgfFile) {
         throw std::runtime_error("Invalid constant section");
     }
 
-    auto moduleTableDecoder = vgflib::CreateModuleTableDecoder(mapped->ptr(moduleTableOffset));
-    auto sequenceTableDecoder = vgflib::CreateModelSequenceTableDecoder(mapped->ptr(sequenceTableOffset));
-    auto resourceTableDecoder = vgflib::CreateModelResourceTableDecoder(mapped->ptr(resourceTableOffset));
+    auto moduleTableDecoder = vgflib::CreateModuleTableDecoder(mapped->ptr(moduleTableOffset), moduleTableSize);
+    auto sequenceTableDecoder =
+        vgflib::CreateModelSequenceTableDecoder(mapped->ptr(sequenceTableOffset), sequenceTableSize);
+    auto resourceTableDecoder =
+        vgflib::CreateModelResourceTableDecoder(mapped->ptr(resourceTableOffset), resourceTableSize);
     auto constantTableDecoder = vgflib::CreateConstantDecoder(mapped->ptr(constantsOffset), constantsSize);
 
     VgfView vgfView(std::move(mapped), std::move(moduleTableDecoder), std::move(sequenceTableDecoder),
