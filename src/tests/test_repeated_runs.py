@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# SPDX-FileCopyrightText: Copyright 2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2025-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 """ Tests for shaders execution. """
@@ -24,7 +24,7 @@ def test_chained_shaders_execution_count_times(sdk_tools, numpy_helper):
     input1 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferA.npy")
     input2 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferB.npy")
 
-    sdk_tools.compile_shader("add_shader.comp", {"TestType": "float"})
+    sdk_tools.compile_shader("test_shader/add_shader.comp", {"TestType": "float"})
     sdk_tools.run_scenario("test_shader/chained_shaders.json", options=["--repeat=3"])
 
     result = numpy_helper.load("outBufferAdd2.npy", np.float32)
@@ -35,7 +35,7 @@ def test_performance_counters(sdk_tools, numpy_helper):
     input1 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferA.npy")
     input2 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferB.npy")
     dump_path = os.path.join(os.getcwd(), "perfCounterTest.json")
-    sdk_tools.compile_shader("add_shader.comp", {"TestType": "float"})
+    sdk_tools.compile_shader("test_shader/add_shader.comp", {"TestType": "float"})
     sdk_tools.run_scenario(
         "test_shader/chained_shaders.json",
         options=["--repeat=2", "--perf-counters-dump-path", dump_path],
@@ -51,7 +51,7 @@ def test_profiling(sdk_tools, numpy_helper):
     input1 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferA.npy")
     input2 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferB.npy")
     dump_path = os.path.join(os.getcwd(), "profilingTest.json")
-    sdk_tools.compile_shader("add_shader.comp", {"TestType": "float"})
+    sdk_tools.compile_shader("test_shader/add_shader.comp", {"TestType": "float"})
     sdk_tools.run_scenario(
         "test_shader/chained_shaders.json",
         options=["--repeat=3", "--profiling-dump-path", dump_path],
@@ -156,7 +156,7 @@ def test_enable_pipeline_cache_repeat_run(
     input1 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferA.npy")
     input2 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferB.npy")
 
-    sdk_tools.compile_shader("add_shader.comp", {"TestType": "float"})
+    sdk_tools.compile_shader("test_shader/add_shader.comp", {"TestType": "float"})
 
     cache_path = resources_helper.get_testenv_path("pipeline_cache")
     cache_path.mkdir()

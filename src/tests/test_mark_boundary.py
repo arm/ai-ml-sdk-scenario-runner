@@ -14,7 +14,7 @@ def test_mark_boundary(sdk_tools, numpy_helper):
     input1 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferA.npy")
     input2 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferB.npy")
 
-    sdk_tools.compile_shader("add_shader.comp", {"TestType": "float"})
+    sdk_tools.compile_shader("test_shader/add_shader.comp", {"TestType": "float"})
     sdk_tools.run_scenario("test_mark_boundary/mark_boundary.json")
 
     result = numpy_helper.load("outBufferAdd2.npy", np.float32)
@@ -32,7 +32,7 @@ def test_mark_boundary_and_shader(sdk_tools, numpy_helper):
     input1 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferA.npy")
     input2 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferB.npy")
 
-    sdk_tools.compile_shader("add_shader.comp", {"TestType": "float"})
+    sdk_tools.compile_shader("test_shader/add_shader.comp", {"TestType": "float"})
     sdk_tools.run_scenario("test_mark_boundary/mark_boundary_and_shader.json")
 
     result = numpy_helper.load("outBufferAdd.npy", np.float32)

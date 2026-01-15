@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# SPDX-FileCopyrightText: Copyright 2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2024,2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 """ Tests for shaders execution. """
@@ -29,7 +29,7 @@ def test_single_shader_execution(
     input1 = numpy_helper.generate([10], dtype=numpy_type, filename="inBufferA.npy")
     input2 = numpy_helper.generate([10], dtype=numpy_type, filename="inBufferB.npy")
 
-    sdk_tools.compile_shader("add_shader.comp", {"TestType": shader_type})
+    sdk_tools.compile_shader("test_shader/add_shader.comp", {"TestType": shader_type})
     sdk_tools.run_scenario(
         "test_shader/add_shader.json", {"{DATA_SIZE}": str(input1.nbytes)}
     )
@@ -42,7 +42,7 @@ def test_chained_shaders_execution(sdk_tools, numpy_helper):
     input1 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferA.npy")
     input2 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferB.npy")
 
-    sdk_tools.compile_shader("add_shader.comp", {"TestType": "float"})
+    sdk_tools.compile_shader("test_shader/add_shader.comp", {"TestType": "float"})
     sdk_tools.run_scenario("test_shader/chained_shaders.json")
 
     result = numpy_helper.load("outBufferAdd2.npy", np.float32)
