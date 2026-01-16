@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# SPDX-FileCopyrightText: Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 """ Tests for pipeline caching. """
@@ -16,7 +16,7 @@ def test_enable_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd)
     input1 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferA.npy")
     input2 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferB.npy")
 
-    sdk_tools.compile_shader("add_shader.comp", {"TestType": "float"})
+    sdk_tools.compile_shader("test_shader/add_shader.comp", {"TestType": "float"})
 
     cache_path = resources_helper.get_testenv_path("pipeline_cache")
     cache_path.mkdir()
@@ -97,7 +97,7 @@ def test_incorrect_pipeline_cache(sdk_tools, resources_helper, numpy_helper, cap
     input1 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferA.npy")
     input2 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferB.npy")
 
-    sdk_tools.compile_shader("add_shader.comp", {"TestType": "float"})
+    sdk_tools.compile_shader("test_shader/add_shader.comp", {"TestType": "float"})
 
     cache_path = resources_helper.get_testenv_path("incorrect_cache")
     cache_path.mkdir()
