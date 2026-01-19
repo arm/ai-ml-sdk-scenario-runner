@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -65,6 +65,8 @@ vk::Format getVkFormatFromString(const std::string &format) {
         return vk::Format::eR16Sfloat;
     } else if (format == "VK_FORMAT_R32_SFLOAT") {
         return vk::Format::eR32Sfloat;
+    } else if (format == "VK_FORMAT_B8G8R8A8_UNORM") {
+        return vk::Format::eB8G8R8A8Unorm;
     } else if (format == "VK_FORMAT_R8G8B8A8_UNORM") {
         return vk::Format::eR8G8B8A8Unorm;
     } else if (format == "VK_FORMAT_R64_SINT") {
