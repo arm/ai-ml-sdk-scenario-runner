@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -96,6 +96,8 @@ vk::Format ddsFormatToVkFormat(const DDSHeaderInfo &header) {
         return vk::Format::eR32Sfloat;
     case DXGI_FORMAT_R16_FLOAT:
         return vk::Format::eR16Sfloat;
+    case DXGI_FORMAT_B8G8R8A8_UNORM:
+        return vk::Format::eB8G8R8A8Unorm;
 #ifdef SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT
     // These are image formats that haven't been fully tested yet.
     case DXGI_FORMAT_R32G32B32A32_UINT:
@@ -140,8 +142,6 @@ vk::Format ddsFormatToVkFormat(const DDSHeaderInfo &header) {
         return vk::Format::eR8Sint;
     case DXGI_FORMAT_D24_UNORM_S8_UINT:
         return vk::Format::eD24UnormS8Uint;
-    case DXGI_FORMAT_B8G8R8A8_UNORM:
-        return vk::Format::eB8G8R8A8Unorm;
     case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
         return vk::Format::eB8G8R8A8Srgb;
     case DXGI_FORMAT_B8G8R8X8_UNORM:
@@ -216,6 +216,8 @@ DxgiFormat vkFormatToDDSFormat(vk::Format vkFormat) {
         return DXGI_FORMAT_R32_UINT;
     case vk::Format::eR32G32B32A32Sfloat:
         return DXGI_FORMAT_R32G32B32A32_FLOAT;
+    case vk::Format::eB8G8R8A8Unorm:
+        return DXGI_FORMAT_B8G8R8A8_UNORM;
     case vk::Format::eR8G8B8A8Unorm:
         return DXGI_FORMAT_R8G8B8A8_UNORM;
     case vk::Format::eR8G8Uint:
@@ -266,8 +268,6 @@ DxgiFormat vkFormatToDDSFormat(vk::Format vkFormat) {
         return DXGI_FORMAT_R8_SINT;
     case vk::Format::eD24UnormS8Uint:
         return DXGI_FORMAT_D24_UNORM_S8_UINT;
-    case vk::Format::eB8G8R8A8Unorm:
-        return DXGI_FORMAT_B8G8R8A8_UNORM;
     case vk::Format::eB8G8R8A8Srgb:
         return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
     case vk::Format::eB8G8R8Unorm:

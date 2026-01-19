@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -30,6 +30,7 @@ enum DxgiFormat {
     DXGI_FORMAT_R16_FLOAT = 54,
     DXGI_FORMAT_R8_UNORM = 61,
     DXGI_FORMAT_R8_SNORM = 63,
+    DXGI_FORMAT_B8G8R8A8_UNORM = 87,
     // These constants are not present in the DXGI standard.
     // todo: remove when non dxgi texture formats support is added.
     DXGI_FORMAT_R8G8B8_SNORM_CUSTOM = 133,
@@ -105,7 +106,6 @@ enum DxgiFormat {
     DXGI_FORMAT_BC5_SNORM = 84,
     DXGI_FORMAT_B5G6R5_UNORM = 85,
     DXGI_FORMAT_B5G5R5A1_UNORM = 86,
-    DXGI_FORMAT_B8G8R8A8_UNORM = 87,
     DXGI_FORMAT_B8G8R8X8_UNORM = 88,
     DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM = 89,
     DXGI_FORMAT_B8G8R8A8_TYPELESS = 90,

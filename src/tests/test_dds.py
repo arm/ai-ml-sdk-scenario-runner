@@ -98,6 +98,15 @@ pytestmark = pytest.mark.dds
             "passthrough_R11G11B10.comp",
             "passthrough_R11G11B10_FLOAT.json",
         ),
+        (
+            64,
+            64,
+            4,
+            "u8",
+            "DXGI_FORMAT_B8G8R8A8_UNORM",
+            "passthrough_BGRA8.comp",
+            "passthrough_B8G8R8A8_UNORM.json",
+        ),
     ],
 )
 def test_image_passthrough(
