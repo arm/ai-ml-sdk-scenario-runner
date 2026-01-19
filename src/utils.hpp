@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -11,6 +11,7 @@
 #include "spirv-tools/libspirv.hpp"
 #include "vgf-utils/numpy.hpp"
 #include "vulkan/vulkan_raii.hpp"
+#include <string>
 
 namespace mlsdk::scenariorunner {
 
@@ -85,6 +86,13 @@ uint32_t findMemoryIdx(const Context &ctx, uint32_t memTypeBits, vk::MemoryPrope
  * @return Bytes read from the file
  */
 std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo);
+
+/** Get lowercase file extension for a given path (including leading dot).
+ *
+ * @param[in] path Path string to get the extension from
+ * @return Lowercased extension or empty string if none
+ */
+std::string lowercaseExtension(const std::string &path);
 
 /** Consumer function for messages communicated from the SPIRV-Tools library
  *

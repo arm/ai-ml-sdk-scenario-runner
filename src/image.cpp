@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -82,6 +82,38 @@ constexpr vk::ImageTiling convertTiling(const Tiling tiling) {
     default:
         throw std::runtime_error("Unknown tiling");
     }
+}
+
+void loadDataFromNPY(const std::string &filename, vk::Format dataType, std::vector<uint8_t> &data,
+                     vk::Format &initialFormat, uint32_t expectedHeight, uint32_t expectedWidth) {
+    MemoryMap mapped(filename);
+    auto dataPtr = vgfutils::numpy::parse(mapped);
+
+    if (dataPtr.shape.size() != 4) {
+        throw std::runtime_error("Image data must be 4 dimensional for npy sources");
+    }
+
+    if (dataPtr.shape[0] != 1) {
+        throw std::runtime_error("Image batch dimension must be 1 for npy sources");
+    }
+
+    if ((dataPtr.shape[1] != static_cast<int64_t>(expectedHeight)) ||
+        (dataPtr.shape[2] != static_cast<int64_t>(expectedWidth)) ||
+        (dataPtr.shape[3] != static_cast<int64_t>(numComponentsFromVkFormat(dataType)))) {
+        throw std::runtime_error("Image description dimensions do not match npy data shape");
+    }
+
+    const auto expectedSize =
+        static_cast<uint64_t>(dataPtr.shape[0]) * expectedHeight * expectedWidth * elementSizeFromVkFormat(dataType);
+
+    if (dataPtr.size() != expectedSize) {
+        throw std::runtime_error("Image description size does not match data size: expected " +
+                                 std::to_string(expectedSize) + " vs " + std::to_string(dataPtr.size()));
+    }
+
+    data.resize(dataPtr.size());
+    std::memcpy(data.data(), dataPtr.ptr, dataPtr.size());
+    initialFormat = dataType;
 }
 
 } // namespace
@@ -394,7 +426,15 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
 
     // Determine image data, from file or zeroed
     if (desc.src) {
-        loadDataFromDDS(desc.src.value(), data, fileFormat, desc.dims[2], desc.dims[1]);
+        const auto extension = lowercaseExtension(desc.src.value());
+
+        if (extension == ".dds") {
+            loadDataFromDDS(desc.src.value(), data, fileFormat, desc.dims[2], desc.dims[1]);
+        } else if (extension == ".npy") {
+            loadDataFromNPY(desc.src.value(), _dataType, data, fileFormat, desc.dims[2], desc.dims[1]);
+        } else {
+            throw std::runtime_error("Unsupported image source file type for " + desc.src.value());
+        }
     } else {
         data.resize(dataSize());
         std::fill_n(data.begin(), dataSize(), 0);
