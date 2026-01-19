@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# SPDX-FileCopyrightText: Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 """ Tests DDS files processing.  """
@@ -88,6 +88,15 @@ pytestmark = pytest.mark.dds
             "DXGI_FORMAT_R32_UINT",
             "passthrough_R32_UINT.comp",
             "passthrough_R32_UINT.json",
+        ),
+        (
+            32,
+            32,
+            4,
+            "u32",
+            "DXGI_FORMAT_R11G11B10_FLOAT",
+            "passthrough_R11G11B10.comp",
+            "passthrough_R11G11B10_FLOAT.json",
         ),
     ],
 )
