@@ -38,7 +38,6 @@
             "shader": {
                 "uid": "read",
                 "src": "read_from_mipmaps.spv",
-                "entry": "main",
                 "type": "SPIR-V"
             }
         },

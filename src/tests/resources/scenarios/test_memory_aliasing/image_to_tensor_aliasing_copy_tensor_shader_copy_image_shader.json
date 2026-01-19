@@ -50,7 +50,6 @@
             "shader": {
                 "uid": "copy_img_shader",
                 "src": "copy_img_shader.spv",
-                "entry": "main",
                 "type": "SPIR-V",
                 "push_constants_size": 0
             }
@@ -59,7 +58,6 @@
             "shader": {
                 "uid": "copy_tensor_shader",
                 "src": "copy_tensor_shader.spv",
-                "entry": "main",
                 "type": "SPIR-V",
                 "push_constants_size": 0
             }

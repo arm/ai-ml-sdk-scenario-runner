@@ -27,7 +27,6 @@
     "resources": [
         {
             "shader": {
-                "entry": "main",
                 "src": "add_shader.spv",
                 "type": "SPIR-V",
                 "uid": "add_shader"

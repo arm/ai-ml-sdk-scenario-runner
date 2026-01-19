@@ -28,7 +28,6 @@
             "shader": {
                 "uid": "tensor_shader_16bit",
                 "src": "tensor_shader_16bit.spv",
-                "entry": "main",
                 "type": "SPIR-V",
                 "push_constants_size": 0
             }

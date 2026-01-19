@@ -41,7 +41,6 @@
     "resources": [
         {
             "shader": {
-                "entry": "main",
                 "src": "add_shader.spv",
                 "type": "SPIR-V",
                 "uid": "shader0"
@@ -49,7 +48,6 @@
         },
         {
             "shader": {
-                "entry": "main",
                 "src": "sub_shader.spv",
                 "type": "SPIR-V",
                 "uid": "shader1"

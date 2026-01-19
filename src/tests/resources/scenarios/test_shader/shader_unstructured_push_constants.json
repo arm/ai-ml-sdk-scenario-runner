@@ -23,7 +23,6 @@
     "resources": [
         {
             "shader": {
-                "entry": "main",
                 "push_constants_size": 36,
                 "src": "add_shader_unstructured_push_constants.spv",
                 "type": "SPIR-V",

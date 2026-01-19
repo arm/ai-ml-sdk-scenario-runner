@@ -32,7 +32,6 @@
     "resources": [
         {
             "shader": {
-                "entry": "main",
                 "src": "single_shader.spv",
                 "type": "SPIR-V",
                 "uid": "single_shader"

@@ -33,7 +33,6 @@
             "shader": {
                 "uid": "shader",
                 "src": "add_tensor_shader_two_inputs.spv",
-                "entry": "main",
                 "type": "SPIR-V"
             }
         },

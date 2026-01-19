@@ -43,7 +43,6 @@
     "resources": [
         {
             "shader": {
-                "entry": "main",
                 "src": "outputInput.spv",
                 "type": "SPIR-V",
                 "uid": "output_input"
@@ -51,7 +50,6 @@
         },
         {
             "shader": {
-                "entry": "main",
                 "src": "outputInput1.spv",
                 "type": "SPIR-V",
                 "uid": "output_input1"
