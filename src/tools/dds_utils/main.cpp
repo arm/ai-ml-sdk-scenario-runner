@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -54,6 +54,10 @@ DxgiFormat getDxgiFormat(const std::string &format) {
 
     if (format == "DXGI_FORMAT_R16G16B16A16_FLOAT") {
         return DXGI_FORMAT_R16G16B16A16_FLOAT;
+    }
+
+    if (format == "DXGI_FORMAT_R11G11B10_FLOAT") {
+        return DXGI_FORMAT_R11G11B10_FLOAT;
     }
 
     if (format == "DXGI_FORMAT_D32_FLOAT_S8X24_UINT") {
