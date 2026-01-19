@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -94,7 +94,7 @@ struct ShaderDesc : ResourceDesc {
     ShaderDesc();
     ShaderDesc(Guid guid, const std::string &guidStr, std::string src, std::string entry, ShaderType type);
 
-    std::string entry;
+    std::string entry{"main"};
     ShaderType shaderType{ShaderType::Unknown};
     uint32_t pushConstantsSize{};
     std::vector<SpecializationConstant> specializationConstants;

@@ -1,0 +1,84 @@
+;
+; SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+; SPDX-License-Identifier: Apache-2.0
+;
+               OpCapability Shader
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint GLCompute %main "custom_entrypoint" %gl_GlobalInvocationID
+               OpExecutionMode %main LocalSize 1 1 1
+               OpSource GLSL 450
+               OpSourceExtension "GL_EXT_shader_explicit_arithmetic_types_int8"
+               OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
+               OpSourceExtension "GL_GOOGLE_include_directive"
+               OpName %main "main"
+               OpName %out1 "out1"
+               OpMemberName %out1 0 "OutBuffer"
+               OpName %_ ""
+               OpName %gl_GlobalInvocationID "gl_GlobalInvocationID"
+               OpName %in1 "in1"
+               OpMemberName %in1 0 "In1Buffer"
+               OpName %__0 ""
+               OpName %in2 "in2"
+               OpMemberName %in2 0 "In2Buffer"
+               OpName %__1 ""
+               OpDecorate %_arr_int_uint_10 ArrayStride 4
+               OpMemberDecorate %out1 0 Offset 0
+               OpDecorate %out1 BufferBlock
+               OpDecorate %_ DescriptorSet 1
+               OpDecorate %_ Binding 2
+               OpDecorate %gl_GlobalInvocationID BuiltIn GlobalInvocationId
+               OpDecorate %_arr_int_uint_10_0 ArrayStride 4
+               OpMemberDecorate %in1 0 Offset 0
+               OpDecorate %in1 BufferBlock
+               OpDecorate %__0 DescriptorSet 0
+               OpDecorate %__0 Binding 0
+               OpDecorate %_arr_int_uint_10_1 ArrayStride 4
+               OpMemberDecorate %in2 0 Offset 0
+               OpDecorate %in2 BufferBlock
+               OpDecorate %__1 DescriptorSet 0
+               OpDecorate %__1 Binding 1
+               OpDecorate %gl_WorkGroupSize BuiltIn WorkgroupSize
+       %void = OpTypeVoid
+          %3 = OpTypeFunction %void
+        %int = OpTypeInt 32 1
+       %uint = OpTypeInt 32 0
+    %uint_10 = OpConstant %uint 10
+%_arr_int_uint_10 = OpTypeArray %int %uint_10
+       %out1 = OpTypeStruct %_arr_int_uint_10
+%_ptr_Uniform_out1 = OpTypePointer Uniform %out1
+          %_ = OpVariable %_ptr_Uniform_out1 Uniform
+      %int_0 = OpConstant %int 0
+     %v3uint = OpTypeVector %uint 3
+%_ptr_Input_v3uint = OpTypePointer Input %v3uint
+%gl_GlobalInvocationID = OpVariable %_ptr_Input_v3uint Input
+     %uint_0 = OpConstant %uint 0
+%_ptr_Input_uint = OpTypePointer Input %uint
+%_arr_int_uint_10_0 = OpTypeArray %int %uint_10
+        %in1 = OpTypeStruct %_arr_int_uint_10_0
+%_ptr_Uniform_in1 = OpTypePointer Uniform %in1
+        %__0 = OpVariable %_ptr_Uniform_in1 Uniform
+%_ptr_Uniform_int = OpTypePointer Uniform %int
+%_arr_int_uint_10_1 = OpTypeArray %int %uint_10
+        %in2 = OpTypeStruct %_arr_int_uint_10_1
+%_ptr_Uniform_in2 = OpTypePointer Uniform %in2
+        %__1 = OpVariable %_ptr_Uniform_in2 Uniform
+     %uint_1 = OpConstant %uint 1
+%gl_WorkGroupSize = OpConstantComposite %v3uint %uint_1 %uint_1 %uint_1
+       %main = OpFunction %void None %3
+          %5 = OpLabel
+         %19 = OpAccessChain %_ptr_Input_uint %gl_GlobalInvocationID %uint_0
+         %20 = OpLoad %uint %19
+         %25 = OpAccessChain %_ptr_Input_uint %gl_GlobalInvocationID %uint_0
+         %26 = OpLoad %uint %25
+         %28 = OpAccessChain %_ptr_Uniform_int %__0 %int_0 %26
+         %29 = OpLoad %int %28
+         %34 = OpAccessChain %_ptr_Input_uint %gl_GlobalInvocationID %uint_0
+         %35 = OpLoad %uint %34
+         %36 = OpAccessChain %_ptr_Uniform_int %__1 %int_0 %35
+         %37 = OpLoad %int %36
+         %38 = OpIAdd %int %29 %37
+         %39 = OpAccessChain %_ptr_Uniform_int %_ %int_0 %20
+               OpStore %39 %38
+               OpReturn
+               OpFunctionEnd

@@ -8,7 +8,8 @@
             "type": "string"
         },
         "entry": {
-            "type": "string"
+            "type": "string",
+            "default": "main"
         },
         "specialization_constants": {
             "$ref":"urn:scenario:specialization_constants"
@@ -31,8 +32,20 @@
         }
     },
     "required": [
-        "entry",
         "src",
         "uid"
+    ],
+    "allOf": [
+        {
+            "if": {
+                "properties": { "type": { "const": "GLSL" } },
+                "required": ["type"]
+            },
+            "then": {
+                "properties": {
+                    "entry": { "const": "main" }
+                }
+            }
+        }
     ]
 }
