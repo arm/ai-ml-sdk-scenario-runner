@@ -238,10 +238,10 @@ void from_json(const json &j, DispatchComputeDesc &dispatchCompute) {
     auto shaderRef = j.at("shader_ref").get<std::string>();
     dispatchCompute.shaderRef = shaderRef;
     dispatchCompute.debugName = shaderRef;
-    if (j.count("push_data_ref") != 0) {
+    if (j.contains("push_data_ref")) {
         dispatchCompute.pushDataRef = j.at("push_data_ref").get<std::string>();
     }
-    if (j.count("implicit_barrier") != 0) {
+    if (j.contains("implicit_barrier")) {
         dispatchCompute.implicitBarrier = j.at("implicit_barrier").get<bool>();
     }
 }
@@ -261,14 +261,14 @@ void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph) {
         const json &newBinding = binding.value();
         dispatchDataGraph.bindings.push_back(newBinding.get<BindingDesc>());
     }
-    if (j.count("push_constants") != 0) {
+    if (j.contains("push_constants")) {
         const json pushConstantsJson = j.find("push_constants").value();
         for (auto pushConstant = pushConstantsJson.begin(); pushConstant != pushConstantsJson.end(); ++pushConstant) {
             const json &newPushConstant = pushConstant.value();
             dispatchDataGraph.pushConstants.push_back(newPushConstant.get<PushConstantMap>());
         }
     }
-    if (j.count("shader_substitutions") != 0) {
+    if (j.contains("shader_substitutions")) {
         const json shaderSubJson = j.find("shader_substitutions").value();
         for (auto shaderSub = shaderSubJson.begin(); shaderSub != shaderSubJson.end(); ++shaderSub) {
             const json &newShaderSub = shaderSub.value();
@@ -319,7 +319,7 @@ void from_json(const json &j, DispatchBarrierDesc &dispatchBarrier) {
  * @param markBoundaryDesc
  */
 void from_json(const json &j, MarkBoundaryDesc &markBoundaryDesc) {
-    if (j.count("frame_id") != 0) {
+    if (j.contains("frame_id")) {
         mlsdk::logging::warning("Manual setting of frameID is deprecated");
     }
 
@@ -339,11 +339,11 @@ void from_json(const json &j, MarkBoundaryDesc &markBoundaryDesc) {
 void from_json(const json &j, BindingDesc &binding) {
     binding.set = j.at("set").get<uint32_t>();
     binding.id = j.at("id").get<uint32_t>();
-    if (j.count("lod") != 0) {
+    if (j.contains("lod")) {
         binding.lod = j.at("lod").get<int>();
     }
     binding.resourceRef = j.at("resource_ref").get<std::string>();
-    if (j.count("descriptor_type") != 0) {
+    if (j.contains("descriptor_type")) {
         binding.descriptorType = j.at("descriptor_type").get<DescriptorType>();
         if (binding.descriptorType == DescriptorType::Unknown) {
             throw std::runtime_error("Unknown descriptor_type value");
@@ -370,7 +370,7 @@ void from_json(const json &j, PushConstantMap &pushConstantMap) {
  */
 void from_json(const json &j, MemoryGroup &group) {
     group.memoryUid = j.at("id");
-    if (j.count("offset") != 0) {
+    if (j.contains("offset")) {
         group.offset = j.at("offset").get<uint64_t>();
     }
 }
@@ -426,13 +426,13 @@ void from_json(const json &j, BufferDesc &buffer) {
     if (buffer.shaderAccess == ShaderAccessType::Unknown) {
         throw std::runtime_error("Unknown shader_access value");
     }
-    if (j.count("src") != 0) {
+    if (j.contains("src")) {
         buffer.src = j.at("src").get<std::string>();
     }
-    if (j.count("dst") != 0) {
+    if (j.contains("dst")) {
         buffer.dst = j.at("dst").get<std::string>();
     }
-    if (j.count("memory_group") != 0) {
+    if (j.contains("memory_group")) {
         buffer.memoryGroup = j.at("memory_group").get<MemoryGroup>();
     }
 }
@@ -496,21 +496,21 @@ void from_json(const json &j, DataGraphDesc &dataGraph) {
     dataGraph.guid = dataGraph.guidStr;
     dataGraph.src = j.at("src").get<std::string>();
 
-    if (j.count("shader_substitutions") != 0) {
+    if (j.contains("shader_substitutions")) {
         const json shaderSubJson = j.find("shader_substitutions").value();
         for (auto shaderSub = shaderSubJson.begin(); shaderSub != shaderSubJson.end(); ++shaderSub) {
             const json &newShaderSub = shaderSub.value();
             dataGraph.shaderSubstitutions.push_back(newShaderSub.get<ShaderSubstitution>());
         }
     }
-    if (j.count("specialization_constants") != 0) {
+    if (j.contains("specialization_constants")) {
         const json conMapsJson = j.find("specialization_constants").value();
         for (auto conMap = conMapsJson.begin(); conMap != conMapsJson.end(); ++conMap) {
             const json &newConMap = conMap.value();
             dataGraph.specializationConstantMaps.push_back(newConMap.get<SpecializationConstantMap>());
         }
     }
-    if (j.count("push_constants_size") != 0) {
+    if (j.contains("push_constants_size")) {
         dataGraph.pushConstantsSize = j.at("push_constants_size").get<uint32_t>();
     }
 }
@@ -538,20 +538,20 @@ void from_json(const json &j, ShaderDesc &shader) {
         throw std::runtime_error("GLSL is required to have an entrypoint of 'main'");
     }
 
-    if (j.count("push_constants_size") != 0) {
+    if (j.contains("push_constants_size")) {
         shader.pushConstantsSize = j.at("push_constants_size").get<uint32_t>();
     }
-    if (j.count("specialization_constants") != 0) {
+    if (j.contains("specialization_constants")) {
         const json specsJson = j.find("specialization_constants").value();
         for (auto spec = specsJson.begin(); spec != specsJson.end(); ++spec) {
             const json &newSpec = spec.value();
             shader.specializationConstants.push_back(newSpec.get<SpecializationConstant>());
         }
     }
-    if (j.count("build_options") != 0) {
+    if (j.contains("build_options")) {
         shader.buildOpts = j.at("build_options").get<std::string>();
     }
-    if (j.count("include_dirs") != 0) {
+    if (j.contains("include_dirs")) {
         const json includesJson = j.find("include_dirs").value();
         for (auto include = includesJson.begin(); include != includesJson.end(); ++include) {
             const json &newInclude = include.value();
@@ -591,16 +591,16 @@ void from_json(const json &j, TensorDesc &tensor) {
     if (tensor.shaderAccess == ShaderAccessType::Unknown) {
         throw std::runtime_error("Unknown shader_access type");
     }
-    if (j.count("src") != 0) {
+    if (j.contains("src")) {
         tensor.src = j.at("src").get<std::string>();
     }
-    if (j.count("dst") != 0) {
+    if (j.contains("dst")) {
         tensor.dst = j.at("dst").get<std::string>();
     }
-    if (j.count("memory_group") != 0) {
+    if (j.contains("memory_group")) {
         tensor.memoryGroup = j.at("memory_group").get<MemoryGroup>();
     }
-    if (j.count("tiling") != 0) {
+    if (j.contains("tiling")) {
         tensor.tiling = j.at("tiling").get<scenariorunner::Tiling>();
         if (tensor.tiling == Tiling::Unknown) {
             throw std::runtime_error("Unknown tiling value");
@@ -623,7 +623,7 @@ void from_json(const json &j, ImageDesc &image) {
         image.dims.push_back(newDim.get<uint32_t>());
     }
     // for compatibility with the old json configs that had this field set as "false"
-    if (j.count("mips") == 0) {
+    if (!j.contains("mips")) {
         image.mips = 1;
     } else if (j.at("mips").is_boolean()) {
         mlsdk::logging::warning("Boolean mips flag is deprecated, defaulting to \"1\". Use integer value instead");
@@ -637,43 +637,43 @@ void from_json(const json &j, ImageDesc &image) {
     if (image.shaderAccess == ShaderAccessType::Unknown) {
         throw std::runtime_error("Unknown shader_access type");
     }
-    if (j.count("src") != 0) {
+    if (j.contains("src")) {
         image.src = j.at("src").get<std::string>();
     }
-    if (j.count("dst") != 0) {
+    if (j.contains("dst")) {
         image.dst = j.at("dst").get<std::string>();
     }
-    if (j.count("min_filter") != 0) {
+    if (j.contains("min_filter")) {
         image.minFilter = j.at("min_filter").get<FilterMode>();
         if (image.minFilter == FilterMode::Unknown) {
             throw std::runtime_error("Unknown min_filter value");
         }
     }
-    if (j.count("mag_filter") != 0) {
+    if (j.contains("mag_filter")) {
         image.magFilter = j.at("mag_filter").get<FilterMode>();
         if (image.magFilter == FilterMode::Unknown) {
             throw std::runtime_error("Unknown mag_filter value");
         }
     }
-    if (j.count("mip_filter") != 0) {
+    if (j.contains("mip_filter")) {
         image.mipFilter = j.at("mip_filter").get<FilterMode>();
         if (image.mipFilter == FilterMode::Unknown) {
             throw std::runtime_error("Unknown mip_filter value");
         }
     }
-    if (j.count("border_address_mode") != 0) {
+    if (j.contains("border_address_mode")) {
         image.borderAddressMode = j.at("border_address_mode").get<AddressMode>();
         if (image.borderAddressMode == AddressMode::Unknown) {
             throw std::runtime_error("Unknown border_address_mode value");
         }
     }
-    if (j.count("border_color") != 0) {
+    if (j.contains("border_color")) {
         image.borderColor = j.at("border_color").get<BorderColor>();
         if (image.borderColor == BorderColor::Unknown) {
             throw std::runtime_error("Unknown border_color value");
         }
     }
-    if (j.count("custom_border_color") != 0) {
+    if (j.contains("custom_border_color")) {
         const json customColorJson = j.find("custom_border_color").value();
         if (image.borderColor.value() == BorderColor::FloatCustomEXT) {
             image.customBorderColor = customColorJson.get<std::array<float, 4>>();
@@ -681,13 +681,13 @@ void from_json(const json &j, ImageDesc &image) {
             image.customBorderColor = customColorJson.get<std::array<int, 4>>();
         }
     }
-    if (j.count("tiling") != 0) {
+    if (j.contains("tiling")) {
         image.tiling = j.at("tiling").get<scenariorunner::Tiling>();
         if (image.tiling == Tiling::Unknown) {
             throw std::runtime_error("Unknown tiling value");
         }
     }
-    if (j.count("memory_group") != 0) {
+    if (j.contains("memory_group")) {
         image.memoryGroup = j.at("memory_group").get<MemoryGroup>();
     }
 }
@@ -802,7 +802,7 @@ void from_json(const json &j, ImageBarrierDesc &imageBarrier) {
         throw std::runtime_error("Unknown new_layout value");
     }
     imageBarrier.imageResource = j.at("image_resource").get<std::string>();
-    if (j.count("subresource_range") != 0) {
+    if (j.contains("subresource_range")) {
         imageBarrier.imageRange = j.at("subresource_range").get<SubresourceRange>();
     }
 
