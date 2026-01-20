@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright 2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2025-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 [build-system]
@@ -14,6 +14,7 @@ dynamic = ["version"]
 
 [project.scripts]
 scenario_runner = "scenario_runner.cli:main"
+scenario-runner = "scenario_runner.cli:main"
 
 [tool.setuptools]
 include-package-data = true
