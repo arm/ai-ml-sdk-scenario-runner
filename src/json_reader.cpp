@@ -529,7 +529,15 @@ void from_json(const json &j, ShaderDesc &shader) {
     if (shader.shaderType == ShaderType::Unknown) {
         throw std::runtime_error("Unknown shader type value");
     }
-    shader.entry = j.at("entry").get<std::string>();
+
+    if (j.contains("entry")) {
+        shader.entry = j.at("entry").get<std::string>();
+    }
+
+    if (shader.shaderType == ShaderType::GLSL && shader.entry != "main") {
+        throw std::runtime_error("GLSL is required to have an entrypoint of 'main'");
+    }
+
     if (j.count("push_constants_size") != 0) {
         shader.pushConstantsSize = j.at("push_constants_size").get<uint32_t>();
     }

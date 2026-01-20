@@ -45,6 +45,10 @@ def InvalidStringValue(value):
     return f"'{value}' is not one of ["
 
 
+def InvalidConstValue(value):
+    return f"'{value}' was expected"
+
+
 def InvalidMutuallyExclusive():
     return "is valid under each of "
 
@@ -146,9 +150,9 @@ memory_barrier_path = resources_path / "memory_barrier"
         (Ok(), shader_path/"valid_types.json"),
         (InvalidStringValue("PASCAL"), shader_path/"invalid_types.json"),
         (RequiredProperty("uid"), shader_path/"missing_uid.json"),
-        (RequiredProperty("entry"), shader_path/"missing_entry.json"),
         (RequiredProperty("src"), shader_path/"missing_src.json"),
         (UnexpectedProperty("this_is_an_invalid_property"), shader_path/"invalid_property.json"),
+        (InvalidConstValue("main"), shader_path/"glsl_invalid_entry.json"),
         # buffer
         (Ok(), buffer_path/"reference.json"),
         (Ok(), buffer_path/"minimal.json"),

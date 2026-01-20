@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """ Tests for shaders execution. """
+import json
 from pathlib import Path
 
 import numpy as np
@@ -32,6 +33,42 @@ def test_single_shader_execution(
     sdk_tools.compile_shader("test_shader/add_shader.comp", {"TestType": shader_type})
     sdk_tools.run_scenario(
         "test_shader/add_shader.json", {"{DATA_SIZE}": str(input1.nbytes)}
+    )
+
+    result = numpy_helper.load("outBufferAdd.npy", numpy_type)
+    assert np.array_equal(result, input1 + input2)
+
+
+@pytest.mark.parametrize(
+    "numpy_type",
+    [
+        np.int32,
+    ],
+)
+def test_single_shader_execution_with_given_entry(
+    sdk_tools,
+    numpy_helper,
+    numpy_type,
+):
+    input1 = numpy_helper.generate([10], dtype=numpy_type, filename="inBufferA.npy")
+    input2 = numpy_helper.generate([10], dtype=numpy_type, filename="inBufferB.npy")
+
+    path_to_spvasm = (
+        Path(__file__).parent
+        / "resources"
+        / "spvasm"
+        / "test_shader"
+        / "add_shader_custom_entry.spvasm"
+    )
+
+    path_to_spv = sdk_tools.assemble_spirv(str(path_to_spvasm))
+
+    sdk_tools.run_scenario(
+        "test_shader/add_shader_with_custom_entry.json",
+        {
+            "{DATA_SIZE}": str(input1.nbytes),
+            "{SPV}": json.dumps(path_to_spv.as_posix()),
+        },
     )
 
     result = numpy_helper.load("outBufferAdd.npy", numpy_type)

@@ -593,7 +593,6 @@ submit all commands in this frame.
         "resources": [
             {
                 "shader": {
-                    "entry": "main",
                     "src": "path/to/add_shader.spv",
                     "type": "SPIR-V",
                     "uid": "add_shader"

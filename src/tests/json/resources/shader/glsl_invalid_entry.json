@@ -1,0 +1,13 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "shader": {
+                "uid": "glsl_invalid_entry",
+                "entry": "custom_entry",
+                "src": "minimal_add.glsl",
+                "type": "GLSL"
+            }
+        }
+    ]
+}
