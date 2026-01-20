@@ -21,7 +21,6 @@
     "resources": [
         {
             "shader": {
-                "entry": "main",
                 "src": "tensor_write_fixed.spv",
                 "type": "SPIR-V",
                 "uid": "tensor_write_fixed_shader"

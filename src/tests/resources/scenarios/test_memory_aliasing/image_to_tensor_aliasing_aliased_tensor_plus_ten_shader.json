@@ -28,7 +28,6 @@
             "shader": {
                 "uid": "plus_ten_tensor",
                 "src": "plus_ten_tensor.spv",
-                "entry": "main",
                 "type": "SPIR-V"
             }
         },

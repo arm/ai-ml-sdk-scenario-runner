@@ -33,7 +33,6 @@
         "shader": {
           "uid": "float_shader",
           "src": "float_shader.comp",
-          "entry": "main",
           "type": "GLSL",
           "specialization_constants": [
             {

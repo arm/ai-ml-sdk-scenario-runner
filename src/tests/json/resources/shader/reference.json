@@ -5,7 +5,6 @@
         {
             "shader":{
                 "uid": "reference_shader",
-                "entry": "main",
                 "src": "ref_add.glsl",
                 "build_options": "-Werror -Os",
                 "type" : "GLSL",

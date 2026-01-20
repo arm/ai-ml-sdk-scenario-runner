@@ -33,7 +33,6 @@
         "shader": {
           "uid": "shader",
           "src": "shader.spv",
-          "entry": "main",
           "type": "SPIR-V"
         }
       },

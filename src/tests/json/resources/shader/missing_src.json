@@ -4,8 +4,7 @@
     "resources": [
         {
             "shader":{
-                "uid": "minimal_shader",
-                "entry": "main"
+                "uid": "minimal_shader"
             }
         }
     ]

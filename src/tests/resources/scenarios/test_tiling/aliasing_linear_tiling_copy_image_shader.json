@@ -28,7 +28,6 @@
             "shader": {
                 "uid": "image_shader",
                 "src": "image_shader.spv",
-                "entry": "main",
                 "type": "SPIR-V",
                 "push_constants_size": 0
             }

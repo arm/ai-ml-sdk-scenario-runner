@@ -33,7 +33,6 @@
         "shader": {
           "uid": "uint_shader",
           "src": "uint_shader.comp",
-          "entry": "main",
           "type": "GLSL",
           "specialization_constants": [
             {

@@ -56,7 +56,6 @@
         "shader": {
           "uid": "save",
           "src": "write_to_mipmaps.spv",
-          "entry": "main",
           "type": "SPIR-V",
           "push_constants_size": 16
         }
@@ -65,7 +64,6 @@
         "shader": {
           "uid": "read",
           "src": "read_from_mipmaps.spv",
-          "entry": "main",
           "type": "SPIR-V"
         }
       },

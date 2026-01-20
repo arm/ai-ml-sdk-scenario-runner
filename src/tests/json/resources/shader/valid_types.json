@@ -5,7 +5,6 @@
         {
             "shader":{
                 "uid": "glsl_shader",
-                "entry": "main",
                 "src": "minimal_add.glsl",
                 "type" : "GLSL"
             }
@@ -13,7 +12,6 @@
         {
             "shader":{
                 "uid": "spv_shader",
-                "entry": "main",
                 "src": "add.spv",
                 "type" : "SPIR-V"
             }
