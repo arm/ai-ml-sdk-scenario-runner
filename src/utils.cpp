@@ -59,6 +59,8 @@ vk::Format getVkFormatFromString(const std::string &format) {
         return vk::Format::eR8G8Unorm;
     } else if (format == "VK_FORMAT_R8G8B8_SINT") {
         return vk::Format::eR8G8B8Sint;
+    } else if (format == "VK_FORMAT_R8G8B8_UNORM") {
+        return vk::Format::eR8G8B8Unorm;
     } else if (format == "VK_FORMAT_R32_SINT") {
         return vk::Format::eR32Sint;
     } else if (format == "VK_FORMAT_R16_SFLOAT") {
@@ -75,6 +77,8 @@ vk::Format getVkFormatFromString(const std::string &format) {
         return vk::Format::eR8G8B8A8Snorm;
     } else if (format == "VK_FORMAT_R8G8B8_SNORM") {
         return vk::Format::eR8G8B8Snorm;
+    } else if (format == "VK_FORMAT_B8G8R8_UNORM") {
+        return vk::Format::eB8G8R8Unorm;
     } else if (format == "VK_FORMAT_R8G8B8A8_SINT") {
         return vk::Format::eR8G8B8A8Sint;
     } else if (format == "VK_FORMAT_R16G16B16A16_UNORM") {
