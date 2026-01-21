@@ -1,0 +1,49 @@
+{
+  "commands": [
+    {
+      "dispatch_spirv_graph": {
+        "graph_ref": "conv2d_graph",
+        "bindings": [
+          { "id": 0, "set": 0, "resource_ref": "conv2dInput" },
+          { "id": 1, "set": 0, "resource_ref": "conv2dOutput" }
+        ],
+        "graph_constants": ["weights0"]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "shader": {
+        "uid": "conv2d_graph",
+        "type": "SPIR-V",
+        "src": {SPV}
+      }
+    },
+    {
+      "tensor": {
+        "uid": "conv2dInput",
+        "shader_access": "readonly",
+        "dims": [1, 16, 16, 16],
+        "format": "VK_FORMAT_R8_SINT",
+        "src": "conv2dInput.npy"
+      }
+    },
+    {
+      "tensor": {
+        "uid": "conv2dOutput",
+        "shader_access": "writeonly",
+        "dims": [1, 8, 8, 16],
+        "format": "VK_FORMAT_R8_SINT",
+        "dst": {OUT}
+      }
+    },
+    {
+      "graph_constant": {
+        "uid": "weights0",
+        "dims": {CONST_DIMS},
+        "format": "VK_FORMAT_R8_SINT",
+        "src": {CONST}
+      }
+    }
+  ]
+}

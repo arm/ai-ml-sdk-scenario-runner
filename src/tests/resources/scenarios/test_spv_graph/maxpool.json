@@ -1,0 +1,39 @@
+{
+  "commands": [
+    {
+      "dispatch_graph": {
+        "graph_ref": "graph_ref",
+        "bindings": [
+          { "id": 0, "set": 0, "resource_ref": "maxpoolInput" },
+          { "id": 2, "set": 0, "resource_ref": "maxpoolOutput" }
+        ]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "graph": {
+        "uid": "graph_ref",
+        "src": "maxpool.vgf"
+      }
+    },
+    {
+      "tensor": {
+        "uid": "maxpoolInput",
+        "shader_access": "readonly",
+        "dims": [1, 16, 16, 16],
+        "format": "VK_FORMAT_R8_SINT",
+        "src": "maxpoolInput.npy"
+      }
+    },
+    {
+      "tensor": {
+        "uid": "maxpoolOutput",
+        "shader_access": "writeonly",
+        "dims": [1, 8, 8, 16],
+        "format": "VK_FORMAT_R8_SINT",
+        "dst": "maxpoolOutput.npy"
+      }
+    }
+  ]
+}

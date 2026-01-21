@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -116,6 +116,18 @@ union Constant {
     int32_t i;   ///< Signed 32-bit integer value
     uint32_t ui; ///< Unsigned 32-bit integer value
     float f;     ///< 32-bit floating point value
+};
+
+struct GraphConstantInfo {
+    GraphConstantInfo() = default;
+    GraphConstantInfo(const std::string &debugName, vk::Format format, std::vector<int64_t> dims, uint32_t index)
+        : format(format), dims(std::move(dims)), debugName(debugName), index(index) {}
+
+    vk::Format format{vk::Format::eUndefined};
+    std::vector<int64_t> dims;
+    std::vector<uint8_t> data;
+    std::string debugName;
+    uint32_t index{};
 };
 
 /// \brief Typed binding

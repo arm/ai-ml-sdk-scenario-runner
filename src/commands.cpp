@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -24,6 +24,12 @@ DispatchComputeDesc::DispatchComputeDesc() : CommandDesc(CommandType::DispatchCo
  *
  */
 DispatchDataGraphDesc::DispatchDataGraphDesc() : CommandDesc(CommandType::DispatchDataGraph) {}
+
+/**
+ * @brief Construct a new Dispatch Spirv Graph object
+ *
+ */
+DispatchSpirvGraphDesc::DispatchSpirvGraphDesc() : CommandDesc(CommandType::DispatchSpirvGraph) {}
 
 /**
  * @brief Construct a new Dispatch Barrier object

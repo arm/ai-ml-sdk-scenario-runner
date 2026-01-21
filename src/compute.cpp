@@ -209,6 +209,12 @@ void Compute::createPipeline(const PipelineCreateArguments &args, uint32_t segme
     (void)_pipelines.emplace_back(commonArgs, segmentIndex, vgfView, dataManager);
 }
 
+void Compute::createPipeline(const PipelineCreateArguments &args, const ShaderInfo &shaderInfo,
+                             const DataManager &dataManager, const std::vector<GraphConstantInfo> &constants) {
+    const Pipeline::CommonArguments commonArgs{_ctx, args.debugName, args.bindings, args.pipelineCache};
+    (void)_pipelines.emplace_back(commonArgs, shaderInfo, dataManager, constants);
+}
+
 void Compute::registerPipelineFenced(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
                                      const char *pushConstantData, size_t pushConstantSize, bool implicitBarriers,
                                      ComputeDispatch computeDispatch) {

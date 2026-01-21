@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -26,6 +26,9 @@ void from_json(const json &j, DispatchComputeDesc &dispatchCompute);
 
 // Function to de-serialize DispatchGraphDesc from JSON
 void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph);
+
+// Function to de-serialize DispatchSpirvGraphDesc from JSON
+void from_json(const json &j, DispatchSpirvGraphDesc &dispatchSpirvGraph);
 
 // Function to de-serialize a BindingDesc from JSON
 void from_json(const json &j, BindingDesc &binding);
@@ -58,6 +61,9 @@ void from_json(const json &j, BufferBarrierDesc &imageBarrier);
 
 // Function to de-serialize RawDataDesc from JSON
 void from_json(const json &j, RawDataDesc &raw_data);
+
+// Function to de-serialize GraphConstantDesc from JSON
+void from_json(const json &j, GraphConstantDesc &graphConstant);
 
 // Function to de-serialize TensorDesc from JSON
 void from_json(const json &j, TensorDesc &tensor);

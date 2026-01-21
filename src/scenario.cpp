@@ -36,8 +36,76 @@ struct DispatchDataGraphData {
     bool implicitBarrier{true};
 };
 
+/// \brief SPIR-V-only data graph with typed bindings and constants
+struct DispatchSpirvGraphData {
+    Guid dataGraphRef;
+    std::string debugName;
+    std::vector<TypedBinding> bindings;
+    std::vector<Guid> graphConstants;
+    bool implicitBarrier{true};
+};
+
 namespace // unnamed namespace
 {
+std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<Guid> &constantUids,
+                                                     const std::vector<std::unique_ptr<ResourceDesc>> &resources) {
+    std::vector<GraphConstantInfo> constants;
+    constants.reserve(constantUids.size());
+
+    // Build a quick lookup map from Guid -> GraphConstantDesc*
+    std::unordered_map<Guid, const GraphConstantDesc *> gcMap;
+    gcMap.reserve(resources.size());
+    for (const auto &res : resources) {
+        if (res->resourceType == ResourceType::GraphConstant) {
+            gcMap.emplace(res->guid, static_cast<const GraphConstantDesc *>(res.get()));
+        }
+    }
+
+    for (const auto &uid : constantUids) {
+        auto it = gcMap.find(uid);
+        if (it == gcMap.end()) {
+            throw std::runtime_error("Graph constant not found for provided GUID");
+        }
+        const GraphConstantDesc *gc = it->second;
+        if (!gc->src.has_value()) {
+            throw std::runtime_error("Graph constant missing src: " + gc->guidStr);
+        }
+
+        GraphConstantInfo spec(gc->guidStr, getVkFormatFromString(gc->format), gc->dims,
+                               static_cast<uint32_t>(constants.size()));
+
+        MemoryMap mapped(gc->src.value());
+        const auto constantData = vgfutils::numpy::parse(mapped);
+
+        if (constantData.shape.size() == spec.dims.size()) {
+            for (size_t i = 0; i < spec.dims.size(); ++i) {
+                if (spec.dims[i] != constantData.shape[i]) {
+                    throw std::runtime_error("Graph constant dims mismatch for: " + gc->guidStr);
+                }
+            }
+        } else {
+            throw std::runtime_error("Graph constant dims mismatch for: " + gc->guidStr);
+        }
+
+        // Validate that the NumPy payload size matches the declared format and shape
+        const uint64_t expectedDataSize =
+            static_cast<uint64_t>(elementSizeFromVkFormat(spec.format)) * totalElementsFromShape(spec.dims);
+        const uint64_t actualDataSize = static_cast<uint64_t>(constantData.size());
+        if (actualDataSize != expectedDataSize) {
+            throw std::runtime_error("Graph constant size does not match format and dims for: " + gc->guidStr +
+                                     "; expected " + std::to_string(expectedDataSize) + " vs " +
+                                     std::to_string(actualDataSize));
+        }
+
+        spec.data.resize(static_cast<size_t>(actualDataSize));
+        std::memcpy(spec.data.data(), constantData.ptr, static_cast<size_t>(actualDataSize));
+
+        constants.emplace_back(std::move(spec));
+    }
+
+    return constants;
+}
+
 std::string resourceType(const std::unique_ptr<ResourceDesc> &resource) {
     switch (resource->resourceType) {
     case (ResourceType::Unknown):
@@ -62,6 +130,8 @@ std::string resourceType(const std::unique_ptr<ResourceDesc> &resource) {
         return "TensorBarrier";
     case (ResourceType::BufferBarrier):
         return "BufferBarrier";
+    case (ResourceType::GraphConstant):
+        return "GraphConstant";
     }
     throw std::runtime_error("Unknown resource type in ScenarioSpec");
 }
@@ -349,6 +419,16 @@ struct CommandDataFactory {
         return data;
     }
 
+    DispatchSpirvGraphData createData(const DispatchSpirvGraphDesc &dispatchSpirvGraph) {
+        DispatchSpirvGraphData data;
+        data.dataGraphRef = dispatchSpirvGraph.dataGraphRef;
+        data.debugName = dispatchSpirvGraph.debugName;
+        data.bindings = convertBindings(_dataManager, dispatchSpirvGraph.bindings);
+        data.graphConstants = dispatchSpirvGraph.graphConstants;
+        data.implicitBarrier = dispatchSpirvGraph.implicitBarrier;
+        return data;
+    }
+
     MarkBoundaryData createData(const MarkBoundaryDesc &markBoundary) {
         MarkBoundaryData data;
 
@@ -629,6 +709,11 @@ void Scenario::setupCommands() {
             const auto data = factory.createData(dispatchDataGraph);
             createDataGraphPipeline(data, nQueries);
         } break;
+        case (CommandType::DispatchSpirvGraph): {
+            const auto &dispatchSpirvGraph = reinterpret_cast<DispatchSpirvGraphDesc &>(*command);
+            const auto data = factory.createData(dispatchSpirvGraph);
+            createSpirvGraphPipeline(data, nQueries);
+        } break;
         case (CommandType::MarkBoundary): {
             const auto &markBoundary = reinterpret_cast<MarkBoundaryDesc &>(*command);
             const auto data = factory.createData(markBoundary);
@@ -805,6 +890,53 @@ void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchData
         createPipeline(segmentIndex, sequenceBindings, vgfView, dispatchDataGraph, nQueries);
         _perfCounters.back().stop();
     }
+}
+
+void Scenario::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSpirvGraph, uint32_t &nQueries) {
+    const auto it =
+        std::find_if(_scenarioSpec.resources.begin(), _scenarioSpec.resources.end(),
+                     [&](const auto &resource) { return resource->guid == dispatchSpirvGraph.dataGraphRef; });
+    if (it == _scenarioSpec.resources.end()) {
+        throw std::runtime_error("Shader resource not found.");
+    }
+    const auto &shaderRes = *it;
+    if (shaderRes->resourceType != ResourceType::Shader) {
+        throw std::runtime_error("GUID does not reference a shader resource: " + shaderRes->guidStr);
+    }
+    const auto &shaderDesc = static_cast<const ShaderDesc &>(*shaderRes);
+
+    if (shaderDesc.shaderType != ShaderType::SPIR_V) {
+        throw std::runtime_error("Shader resource used to create Graph Pipeline must be of type SPIR-V");
+    }
+
+    if (!shaderDesc.src.has_value()) {
+        throw std::runtime_error("Shader resource missing src: " + shaderDesc.guidStr);
+    }
+
+    const auto shaderInfo = convert(shaderDesc);
+
+    // Validate the bindings
+    const auto sequenceBindings = dispatchSpirvGraph.bindings;
+    for (const auto &binding : sequenceBindings) {
+        if (!(_dataManager.hasTensor(binding.resourceRef))) {
+            throw std::runtime_error("No resource with this guid found");
+        }
+        if (binding.vkDescriptorType != vk::DescriptorType::eTensorARM) {
+            throw std::runtime_error("DataGraph binding must be a tensor descriptor");
+        }
+    }
+
+    const auto graphConstants = collectGraphConstants(dispatchSpirvGraph.graphConstants, _scenarioSpec.resources);
+
+    // Create pipeline and record DataGraph dispatch
+    _perfCounters.emplace_back("Create Pipeline: " + shaderInfo.debugName, "Pipeline Setup", true).start();
+    const Compute::PipelineCreateArguments args{dispatchSpirvGraph.debugName, sequenceBindings, _pipelineCache};
+    _compute.createPipeline(args, shaderInfo, _dataManager, graphConstants);
+    _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
+    _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchSpirvGraph.implicitBarrier);
+    _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
+    _perfCounters.back().stop();
+    mlsdk::logging::debug("Graph Pipeline: " + shaderInfo.debugName + " created");
 }
 
 void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,

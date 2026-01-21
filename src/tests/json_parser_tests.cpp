@@ -943,6 +943,89 @@ TEST(JsonParser, DipatchCompute) {
     ASSERT_TRUE(desc.pushDataRef.value() == Guid("RawData"));
 }
 
+TEST(JsonParser, DispatchSpirvGraph) {
+    const std::string jsonInput =
+        R""(
+    {
+        "bindings": [
+            {
+                "id": 0,
+                "resource_ref": "InputTensor",
+                "set": 0
+            },
+            {
+                "id": 1,
+                "resource_ref": "OutputTensor",
+                "set": 0
+            }
+        ],
+        "graph_ref": "graph1"
+    }
+    )"";
+
+    auto desc = MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput);
+
+    ASSERT_TRUE(desc.dataGraphRef.isValid());
+
+    ASSERT_TRUE(desc.bindings.size() == 2);
+    ASSERT_TRUE(desc.bindings[0].id == 0);
+    ASSERT_TRUE(desc.bindings[0].set == 0);
+    ASSERT_TRUE(desc.bindings[0].resourceRef.isValid());
+
+    ASSERT_TRUE(desc.bindings[1].id == 1);
+    ASSERT_TRUE(desc.bindings[1].set == 0);
+    ASSERT_TRUE(desc.bindings[1].resourceRef.isValid());
+}
+
+TEST(JsonParser, DispatchSpirvGraphInvalidGraphRefType) {
+    const std::string jsonInput =
+        R"(
+    {
+        "bindings": [],
+        "graph_ref": 1
+    }
+    )";
+
+    ASSERT_THROW(MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput), nlohmann::json::type_error);
+}
+
+TEST(JsonParser, DispatchSpirvGraphMissingBindings) {
+    const std::string jsonInput =
+        R"(
+    {
+        "graph_ref": "graph1"
+    }
+    )";
+
+    ASSERT_THROW(MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
+}
+
+TEST(JsonParser, DispatchSpirvGraphGraphConstantsInvalidType) {
+    const std::string jsonInput =
+        R"(
+    {
+        "bindings": [],
+        "graph_ref": "graph1",
+        "graph_constants": "const0"
+    }
+    )";
+
+    ASSERT_THROW(MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput), nlohmann::json::type_error);
+}
+
+TEST(JsonParser, DispatchSpirvGraphGraphConstantsItemsInvalidType) {
+    const std::string jsonInput =
+        R"(
+    {
+        "bindings": [],
+        "graph_ref": "graph1",
+        "graph_constants": [1]
+    }
+    )";
+
+    ASSERT_THROW(MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput), nlohmann::json::type_error);
+}
+
 TEST(JsonParser, BufferResource) {
     {
         const std::string jsonInput =
@@ -1071,6 +1154,36 @@ TEST(JsonParser, RawDataResource) {
 
     ASSERT_TRUE(desc.guid == Guid("RawData"));
     ASSERT_TRUE(desc.src == "./graph_data/rawdata.npy");
+}
+
+TEST(JsonParser, GraphConstantResource) {
+    const std::string jsonInput =
+        R""(
+    {
+        "uid": "weights0",
+        "dims": [16,2,2,2,2,16],
+        "format": "VK_FORMAT_R8_SINT",
+        "src": "graph_constant.npy"
+    }
+    )"";
+
+    auto desc = MakeFromJSON<GraphConstantDesc>(jsonInput);
+
+    ASSERT_TRUE(desc.guid == Guid("weights0"));
+    ASSERT_TRUE(desc.guid == Guid("weights0"));
+    ASSERT_TRUE(desc.dims.size() == 6);
+
+    ASSERT_TRUE(desc.dims[0] == 16);
+    ASSERT_TRUE(desc.dims[1] == 2);
+    ASSERT_TRUE(desc.dims[2] == 2);
+    ASSERT_TRUE(desc.dims[3] == 2);
+    ASSERT_TRUE(desc.dims[4] == 2);
+    ASSERT_TRUE(desc.dims[5] == 16);
+
+    ASSERT_TRUE(desc.src.has_value());
+    ASSERT_TRUE(desc.src.value() == "graph_constant.npy");
+
+    ASSERT_TRUE(desc.format == "VK_FORMAT_R8_SINT");
 }
 
 TEST(JsonParser, TensorResource) {
@@ -1721,4 +1834,32 @@ TEST(JsonParser, GlobalMemBarrier) {
         ASSERT_TRUE(desc.dstStages == std::vector<PipelineStage>{PipelineStage::All});
         ASSERT_TRUE(desc.srcStages == std::vector<PipelineStage>{PipelineStage::All});
     }
+}
+
+TEST(JsonParser, GraphConstantResourceInvalidDimsTooShort) {
+    const std::string jsonInput =
+        R"(
+    {
+        "uid": "graph_constant_0_ref",
+        "dims": [],
+        "format": "VK_FORMAT_R8_SINT",
+        "src": "constant-0.npy"
+    }
+    )";
+
+    ASSERT_THROW(MakeFromJSON<GraphConstantDesc>(jsonInput), std::runtime_error);
+}
+
+TEST(JsonParser, GraphConstantResourceInvalidDimsTooLong) {
+    const std::string jsonInput =
+        R"(
+    {
+        "uid": "graph_constant_0_ref",
+        "dims": [1,2,3,4,5,6,7],
+        "format": "VK_FORMAT_R8_SINT",
+        "src": "constant-0.npy"
+    }
+    )";
+
+    ASSERT_THROW(MakeFromJSON<GraphConstantDesc>(jsonInput), std::runtime_error);
 }
