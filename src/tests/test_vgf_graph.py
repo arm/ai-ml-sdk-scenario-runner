@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# SPDX-FileCopyrightText: Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 """ Tests for VGF graph. """
@@ -87,7 +87,7 @@ def test_conv2d_vgf(sdk_tools, resources_helper, numpy_helper):
 
     assert buffer.nbytes >= vgf.HeaderSize()
 
-    headerDecoder = vgf.CreateHeaderDecoder(buffer)
+    headerDecoder = vgf.CreateHeaderDecoder(buffer, buffer.nbytes)
     assert headerDecoder.IsValid()
     assert headerDecoder.CheckVersion()
 
@@ -96,7 +96,8 @@ def test_conv2d_vgf(sdk_tools, resources_helper, numpy_helper):
         headerDecoder.GetModuleTableSize(),
     )
     moduleDecoder = vgf.CreateModuleTableDecoder(
-        buffer[headerDecoder.GetModuleTableOffset() :]
+        buffer[headerDecoder.GetModuleTableOffset() :],
+        headerDecoder.GetModuleTableSize(),
     )
 
     assert moduleDecoder.getModuleCode(module0.reference) == memoryview(conv2dCode)
@@ -190,7 +191,7 @@ def test_conv2d_vgf_mismatching_resource_type_or_resource_data_type_or_resource_
 
     assert buffer.nbytes >= vgf.HeaderSize()
 
-    headerDecoder = vgf.CreateHeaderDecoder(buffer)
+    headerDecoder = vgf.CreateHeaderDecoder(buffer, buffer.nbytes)
     assert headerDecoder.IsValid()
     assert headerDecoder.CheckVersion()
 
@@ -199,7 +200,8 @@ def test_conv2d_vgf_mismatching_resource_type_or_resource_data_type_or_resource_
         headerDecoder.GetModuleTableSize(),
     )
     moduleDecoder = vgf.CreateModuleTableDecoder(
-        buffer[headerDecoder.GetModuleTableOffset() :]
+        buffer[headerDecoder.GetModuleTableOffset() :],
+        headerDecoder.GetModuleTableSize(),
     )
 
     assert moduleDecoder.getModuleCode(module0.reference) == memoryview(conv2dCode)
@@ -317,7 +319,7 @@ def test_maxpool_conv2d_parallel_vgf(sdk_tools, resources_helper, numpy_helper):
 
     assert buffer.nbytes >= vgf.HeaderSize()
 
-    headerDecoder = vgf.CreateHeaderDecoder(buffer)
+    headerDecoder = vgf.CreateHeaderDecoder(buffer, buffer.nbytes)
     assert headerDecoder.IsValid()
     assert headerDecoder.CheckVersion()
 
@@ -326,7 +328,8 @@ def test_maxpool_conv2d_parallel_vgf(sdk_tools, resources_helper, numpy_helper):
         headerDecoder.GetModuleTableSize(),
     )
     moduleDecoder = vgf.CreateModuleTableDecoder(
-        buffer[headerDecoder.GetModuleTableOffset() :]
+        buffer[headerDecoder.GetModuleTableOffset() :],
+        headerDecoder.GetModuleTableSize(),
     )
 
     assert moduleDecoder.size() == 2

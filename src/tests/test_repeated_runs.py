@@ -128,7 +128,7 @@ def test_conv2d_vgf_count(sdk_tools, resources_helper, numpy_helper):
 
     assert buffer.nbytes >= vgf.HeaderSize()
 
-    headerDecoder = vgf.CreateHeaderDecoder(buffer)
+    headerDecoder = vgf.CreateHeaderDecoder(buffer, buffer.nbytes)
     assert headerDecoder.IsValid()
     assert headerDecoder.CheckVersion()
 
@@ -137,7 +137,8 @@ def test_conv2d_vgf_count(sdk_tools, resources_helper, numpy_helper):
         headerDecoder.GetModuleTableSize(),
     )
     moduleDecoder = vgf.CreateModuleTableDecoder(
-        buffer[headerDecoder.GetModuleTableOffset() :]
+        buffer[headerDecoder.GetModuleTableOffset() :],
+        headerDecoder.GetModuleTableSize(),
     )
 
     assert moduleDecoder.getModuleCode(module0.reference) == memoryview(conv2dCode)
