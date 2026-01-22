@@ -106,6 +106,10 @@ vk::Format getVkFormatFromString(const std::string &format) {
         return vk::Format::eR32Uint;
     } else if (format == "VK_FORMAT_R16_SFLOAT_FPENCODING_BFLOAT16_ARM") {
         return vk::Format::eR16SfloatFpencodingBfloat16ARM;
+    } else if (format == "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM") {
+        return vk::Format::eR8SfloatFpencodingFloat8E4M3ARM;
+    } else if (format == "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E5M2_ARM") {
+        return vk::Format::eR8SfloatFpencodingFloat8E5M2ARM;
     } else {
         throw std::runtime_error("Unknown VkFormat: " + format);
     }
@@ -124,9 +128,13 @@ const vgfutils::numpy::DType getDTypeFromVkFormat(vk::Format format) {
         throw std::runtime_error("More than 1 components from VkFormat: " +
                                  vgflib::FormatTypeToName(vgflib::ToFormatType(format)));
     }
-    // Handle special case for BFLOAT16 to use raw byte encoding 'V' in numpy output
+    // Handle special case for BFLOAT16 and FLOAT8 to use raw byte encoding 'V' in numpy output
     if (format == vk::Format::eR16SfloatFpencodingBfloat16ARM) {
         return vgfutils::numpy::DType('V', 2);
+    }
+    if (format == vk::Format::eR8SfloatFpencodingFloat8E4M3ARM ||
+        format == vk::Format::eR8SfloatFpencodingFloat8E5M2ARM) {
+        return vgfutils::numpy::DType('V', 1);
     }
 
     char const *numeric = componentNumericFormat(format, 0);

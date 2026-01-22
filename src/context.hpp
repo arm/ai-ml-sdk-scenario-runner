@@ -20,6 +20,7 @@ struct OptionalExtensions {
     bool deferred_operation = false;
     bool replicated_composites = false;
     bool shader_bfloat16 = false;
+    bool shader_float8 = false;
 };
 
 /// \brief Type of family queue to use
