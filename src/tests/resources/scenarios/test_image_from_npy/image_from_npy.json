@@ -1,0 +1,21 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "image": {
+                "uid": "inputImage",
+                "dims": [
+                    1,
+                    80,
+                    48,
+                    1
+                ],
+                "format": "VK_FORMAT_R16G16_SFLOAT",
+                "shader_access": "image_read",
+                "mips": 1,
+                "src": "input.npy",
+                "dst": "output.dds"
+            }
+        }
+    ]
+}

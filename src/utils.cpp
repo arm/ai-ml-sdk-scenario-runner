@@ -11,6 +11,9 @@
 
 #include "vulkan/vulkan_format_traits.hpp"
 
+#include <algorithm>
+#include <cctype>
+#include <filesystem>
 #include <fstream>
 #include <limits>
 #include <numeric>
@@ -148,6 +151,13 @@ uint32_t findMemoryIdx(const Context &ctx, uint32_t memTypeBits, vk::MemoryPrope
     }
 
     return std::numeric_limits<uint32_t>::max();
+}
+
+std::string lowercaseExtension(const std::string &path) {
+    auto ext = std::filesystem::path(path).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return ext;
 }
 
 std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo) {

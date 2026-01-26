@@ -112,7 +112,11 @@ struct ResourceInfoFactory {
 
         if (image.src) {
             info.isInput = true;
-            info.format = getVkFormatFromDDS(image.src.value());
+            if (lowercaseExtension(image.src.value()) == ".dds") {
+                info.format = getVkFormatFromDDS(image.src.value());
+            } else {
+                info.format = info.targetFormat;
+            }
         } else {
             info.format = info.targetFormat; // Output dds does not change type
             info.isInput = false;
