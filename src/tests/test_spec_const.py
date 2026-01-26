@@ -38,11 +38,37 @@ pytestmark = pytest.mark.spec_const
             "uint_shader.comp",
             "default_passthrough_glsl.json",
         ),
+        (
+            42.0,
+            np.float32,
+            "float_shader.hlsl",
+            "float_passthrough_hlsl.json",
+        ),
+        (
+            42,
+            np.uint32,
+            "uint_shader.hlsl",
+            "uint_passthrough_hlsl.json",
+        ),
+        (
+            -42,
+            np.int32,
+            "int_shader.hlsl",
+            "int_passthrough_hlsl.json",
+        ),
+        (
+            100500,
+            np.uint32,
+            "uint_shader.hlsl",
+            "default_passthrough_hlsl.json",
+        ),
     ],
 )
 def test_compute_shader_glsl_passthrough_spec_const_value(
     sdk_tools, numpy_helper, expected_result, dtype, shader, scenario
 ):
+    if shader.endswith(".hlsl") and sdk_tools.hlsl_compiler.path is None:
+        pytest.skip("HLSL compiler not provided; skipping HLSL-dependent tests.")
     sdk_tools.compile_shader(f"test_spec_const/{shader}")
     sdk_tools.run_scenario(f"test_spec_const/{scenario}")
     result = numpy_helper.load("out_data.npy", dtype)
@@ -77,11 +103,37 @@ def test_compute_shader_glsl_passthrough_spec_const_value(
             "uint_shader.comp",
             "default_passthrough_spirv.json",
         ),
+        (
+            42.0,
+            np.float32,
+            "float_shader.hlsl",
+            "float_passthrough_spirv.json",
+        ),
+        (
+            42,
+            np.uint32,
+            "uint_shader.hlsl",
+            "uint_passthrough_spirv.json",
+        ),
+        (
+            -42,
+            np.int32,
+            "int_shader.hlsl",
+            "int_passthrough_spirv.json",
+        ),
+        (
+            100500,
+            np.uint32,
+            "uint_shader.hlsl",
+            "default_passthrough_spirv.json",
+        ),
     ],
 )
 def test_compute_shader_spirv_passthrough_spec_const_value(
     sdk_tools, numpy_helper, expected_result, dtype, shader, scenario
 ):
+    if shader.endswith(".hlsl") and sdk_tools.hlsl_compiler.path is None:
+        pytest.skip("HLSL compiler not provided; skipping HLSL-dependent tests.")
     sdk_tools.compile_shader(f"test_spec_const/{shader}", output="shader.spv")
     sdk_tools.run_scenario(f"test_spec_const/{scenario}")
     result = numpy_helper.load("out_data.npy", dtype)

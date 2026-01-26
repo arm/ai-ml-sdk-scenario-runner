@@ -109,13 +109,94 @@ pytestmark = pytest.mark.dds
             "passthrough_B8G8R8A8_UNORM.json",
         ),
         (
+            256,
+            100,
+            8,
+            "fp16",
+            "DXGI_FORMAT_R16G16B16A16_FLOAT",
+            "passthrough_RGBA16.hlsl",
+            "passthrough_RGBA16.json",
+        ),
+        (
+            64,
+            64,
+            4,
+            "fp16",
+            "DXGI_FORMAT_R16G16_FLOAT",
+            "passthrough_RG16.hlsl",
+            "passthrough_R16G16_FLOAT.json",
+        ),
+        (
+            64,
+            64,
+            4,
+            "fp16",
+            "DXGI_FORMAT_R16G16_FLOAT",
+            "passthrough_glsl_sampler.hlsl",
+            "passthrough_sampler.json",
+        ),
+        (
+            64,
+            64,
+            2,
+            "fp16",
+            "DXGI_FORMAT_R16_FLOAT",
+            "passthrough_glsl_sampler_R16.hlsl",
+            "passthrough_sampler_R16.json",
+        ),
+        (
+            1,
+            16,
+            4,
+            "fp16",
+            "DXGI_FORMAT_R16G16_FLOAT",
+            "passthrough_glsl_sampler_small_width.hlsl",
+            "passthrough_sampler_small_width.json",
+        ),
+        (
+            16,
+            1,
+            4,
+            "fp16",
+            "DXGI_FORMAT_R16G16_FLOAT",
+            "passthrough_glsl_sampler_small_height.hlsl",
+            "passthrough_sampler_small_height.json",
+        ),
+        (
+            256,
+            100,
+            8,
+            "fp16",
+            "DXGI_FORMAT_R16G16B16A16_FLOAT",
+            "passthrough_glsl_sampler_RGBA16.hlsl",
+            "passthrough_sampler_RGBA16.json",
+        ),
+        (
+            64,
+            64,
+            4,
+            "u32",
+            "DXGI_FORMAT_R32_UINT",
+            "passthrough_R32_UINT.hlsl",
+            "passthrough_R32_UINT.json",
+        ),
+        (
+            32,
+            32,
+            4,
+            "u32",
+            "DXGI_FORMAT_R11G11B10_FLOAT",
+            "passthrough_R11G11B10.hlsl",
+            "passthrough_R11G11B10_FLOAT.json",
+        ),
+        (
             64,
             64,
             4,
             "u8",
-            "DXGI_FORMAT_R8G8B8A8_UNORM",
-            "passthrough_BGRA8.comp",
-            "passthrough_R8G8B8A8_UNORM.json",
+            "DXGI_FORMAT_B8G8R8A8_UNORM",
+            "passthrough_BGRA8.hlsl",
+            "passthrough_B8G8R8A8_UNORM.json",
         ),
     ],
 )
@@ -130,6 +211,8 @@ def test_image_passthrough(
     shader,
     scenario,
 ):
+    if shader.endswith(".hlsl") and sdk_tools.hlsl_compiler.path is None:
+        pytest.skip("HLSL compiler not provided; skipping HLSL-dependent tests.")
     dds_file = sdk_tools.generate_dds_file(
         height,
         width,
@@ -146,7 +229,17 @@ def test_image_passthrough(
     assert sdk_tools.compare_dds(dds_file, result_dds_path, data_type)
 
 
-def test_image_passthrough_d32_type(sdk_tools, resources_helper, numpy_helper):
+@pytest.mark.parametrize(
+    "shader",
+    [
+        "test_dds/passthrough_depth.comp",
+        "test_dds/passthrough_depth.hlsl",
+    ],
+)
+def test_image_passthrough_d32_type(sdk_tools, resources_helper, numpy_helper, shader):
+    if shader.endswith(".hlsl") and sdk_tools.hlsl_compiler.path is None:
+        pytest.skip("HLSL compiler not provided; skipping HLSL-dependent tests.")
+
     def create_input(size):
         values = [
             0x00,  # 10
@@ -188,9 +281,7 @@ def test_image_passthrough_d32_type(sdk_tools, resources_helper, numpy_helper):
         data,
     )
 
-    sdk_tools.compile_shader(
-        "test_dds/passthrough_depth.comp", output="outputInput.spv"
-    )
+    sdk_tools.compile_shader(shader, output="outputInput.spv")
     sdk_tools.run_scenario("test_dds/passthrough_depth.json")
 
     ref_output = create_ref_output(width * height * dsize // 2)
@@ -240,6 +331,26 @@ def create_repeating_reference_output(size, pixels):
             "custom_color_border_int.json",
             create_repeating_reference_output(64 * 4 * 4, [20, 13, 110, 4]),
         ),
+        (
+            64,
+            4,
+            8,
+            "fp16",
+            "DXGI_FORMAT_R16G16B16A16_FLOAT",
+            "access_float_border.hlsl",
+            "color_border_float.json",
+            create_repeating_reference_output(64 * 4 * 8, [0, 0, 0, 0, 0, 0, 0, 60]),
+        ),
+        (
+            64,
+            4,
+            8,
+            "fp16",
+            "DXGI_FORMAT_R16G16B16A16_FLOAT",
+            "access_float_border.hlsl",
+            "custom_color_border_float.json",
+            create_repeating_reference_output(64 * 4 * 8, [248, 91, 0, 0, 0, 0, 0, 60]),
+        ),
     ],
 )
 @pytest.mark.skipif(
@@ -259,6 +370,8 @@ def test_border_access(
     scenario,
     ref_output,
 ):
+    if shader.endswith(".hlsl") and sdk_tools.hlsl_compiler.path is None:
+        pytest.skip("HLSL compiler not provided; skipping HLSL-dependent tests.")
     dds_file = sdk_tools.generate_dds_file(
         height,
         width,

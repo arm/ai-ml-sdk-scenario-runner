@@ -38,6 +38,7 @@ option(SCENARIO_RUNNER_ENABLE_RDOC "Build Scenario Runner w/ RDoc support enable
 option(SCENARIO_RUNNER_BUILD_DOCS "Build project documentation" OFF)
 option(MOLTEN_VK_SUPPORT "Darwin requires MoltenVK" OFF)
 option(SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT "Enable support for experimental image formats in DDS reader" OFF)
+option(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT "HLSL only supported on Windows and Linux" OFF)
 
 # Handle build type, set default as Release
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")
@@ -63,6 +64,7 @@ include(vulkan-headers)
 include(spirv-headers)
 include(spirv-tools)
 include(glslang)
+include(dxc)
 include(version)
 include(stb)
 
@@ -87,11 +89,43 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_L
     target_link_libraries(scenario-runner PRIVATE stdc++fs)
 endif()
 
-mlsdk_generate_version_header(
-    TARGET scenario-runner
-    SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/version.hpp.in"
-    DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/generated/version.hpp"
-    DEPENDENCIES
+
+if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
+    if(WIN32)
+        add_dependencies(scenario-runner dxc)
+        add_custom_command(TARGET scenario-runner POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:dxcompiler>"
+                "$<TARGET_FILE_DIR:scenario-runner>"
+        )
+        if(TARGET dxil)
+            add_custom_command(TARGET scenario-runner POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "$<TARGET_FILE:dxil>"
+                    "$<TARGET_FILE_DIR:scenario-runner>"
+            )
+        endif()
+    else()
+        if(TARGET dxcompiler)
+            add_custom_command(TARGET scenario-runner POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "$<TARGET_FILE:dxcompiler>"
+                    "$<TARGET_FILE_DIR:scenario-runner>"
+            )
+            install(FILES "$<TARGET_FILE:dxcompiler>" DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+        endif()
+        if(TARGET dxil)
+            add_custom_command(TARGET scenario-runner POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "$<TARGET_FILE:dxil>"
+                    "$<TARGET_FILE_DIR:scenario-runner>"
+            )
+            install(FILES "$<TARGET_FILE:dxil>" DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+        endif()
+    endif()
+endif()
+
+set(SCENARIO_RUNNER_VERISON_DEPS
         argparse
         glslang
         nlohmann_json
@@ -101,6 +135,18 @@ mlsdk_generate_version_header(
         VulkanHeaders
         stb_image
         stb_image_write
+)
+if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
+    list(APPEND SCENARIO_RUNNER_VERSION_DEPS dxc)
+endif()
+
+
+mlsdk_generate_version_header(
+    TARGET scenario-runner
+    SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/version.hpp.in"
+    DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/generated/version.hpp"
+    DEPENDENCIES
+        ${SCENARIO_RUNNER_VERSION_DEPS}
 )
 
 add_executable(${SCENARIO_RUNNER_NAMESPACE}::scenario-runner ALIAS scenario-runner)

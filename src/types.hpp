@@ -143,6 +143,7 @@ enum class ShaderType {
     Unknown,
     SPIR_V,
     GLSL,
+    HLSL,
 };
 
 /// \brief Specialization constants used in shaders

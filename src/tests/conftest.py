@@ -176,6 +176,7 @@ class SDKTools:
         self,
         scenario_runner,
         glsl_compiler,
+        hlsl_compiler,
         dds_utils,
         png_utils,
         resources_helper,
@@ -185,6 +186,7 @@ class SDKTools:
     ) -> None:
         self.scenario_runner = scenario_runner
         self.glsl_compiler = glsl_compiler
+        self.hlsl_compiler = hlsl_compiler
         self.dds_utils = dds_utils
         self.png_utils = png_utils
         self.resources_helper = resources_helper
@@ -354,6 +356,7 @@ class SDKTools:
         output: str | None = None,
     ) -> Path:
         """Compile the shader and return path to the SPIR-V module."""
+        suffix = Path(shader).suffix
         shader = self.resources_helper.prepare_shader(shader, replacements, output)
         logger.debug("Shader code:\n%s", shader.read_text())
 
@@ -362,14 +365,14 @@ class SDKTools:
         )
 
         extra_opts = []
+
         if compile_opts:
             # app fails when parameter is passed with -D
             compile_opts = compile_opts.replace("-D", "+D")
             extra_opts.extend(["--build-opts", compile_opts])
 
-        self.glsl_compiler.run(
-            "--input", shader, "--output", compiled_shader_path, *extra_opts
-        )
+        compiler = self.hlsl_compiler if suffix == ".hlsl" else self.glsl_compiler
+        compiler.run("--input", shader, "--output", compiled_shader_path, *extra_opts)
 
         return compiled_shader_path
 
@@ -421,6 +424,13 @@ def pytest_addoption(parser) -> None:
         type=valid_path,
         required=True,
         help="Path to the GLSL compiler",
+    )
+    parser.addoption(
+        "--hlsl-compiler",
+        type=valid_path,
+        required=False,
+        default=None,
+        help="Path to the HLSL compiler",
     )
     parser.addoption(
         "--dds-utils",
@@ -482,6 +492,12 @@ def glsl_compiler(request) -> SDKTool:
 
 
 @pytest.fixture
+def hlsl_compiler(request) -> SDKTool:
+    hlsl_compiler_path = request.config.getoption("--hlsl-compiler")
+    return SDKTool(hlsl_compiler_path)
+
+
+@pytest.fixture
 def dds_utils(request) -> SDKTool:
     dds_utils_path = request.config.getoption("--dds-utils")
     return SDKTool(dds_utils_path)
@@ -525,6 +541,7 @@ def resources_helper(tmp_path: Path) -> ResourcesHelper:
 def sdk_tools(
     scenario_runner,
     glsl_compiler,
+    hlsl_compiler,
     dds_utils,
     png_utils,
     resources_helper,
@@ -535,6 +552,7 @@ def sdk_tools(
     return SDKTools(
         scenario_runner,
         glsl_compiler,
+        hlsl_compiler,
         dds_utils,
         png_utils,
         resources_helper,

@@ -1,0 +1,44 @@
+{
+    "commands": [
+      {
+        "dispatch_compute": {
+          "shader_ref": "uint_shader",
+          "rangeND": [
+            1,
+            1,
+            1
+          ],
+          "bindings": [
+            {
+              "set": 0,
+              "id": 0,
+              "resource_ref": "out_ref"
+            }
+          ]
+        }
+      }
+    ],
+    "resources": [
+      {
+        "shader": {
+          "uid": "uint_shader",
+          "src": "uint_shader.hlsl",
+          "type": "HLSL",
+          "specialization_constants": [
+            {
+              "id": 0,
+              "value": 42
+            }
+          ]
+        }
+      },
+      {
+        "buffer": {
+          "uid": "out_ref",
+          "size": 4,
+          "shader_access": "writeonly",
+          "dst": "out_data.npy"
+        }
+      }
+    ]
+  }
