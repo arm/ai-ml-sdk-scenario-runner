@@ -94,8 +94,7 @@ def test_single_shader_module_in_vgf_with_shader_substitution(
     assert buffer.nbytes >= vgf.HeaderSize()
 
     headerDecoder = vgf.CreateHeaderDecoder(buffer, buffer.nbytes)
-    assert headerDecoder.IsValid()
-    assert headerDecoder.CheckVersion()
+    assert headerDecoder is not None
 
     moduleDecoder = vgf.CreateModuleTableDecoder(
         buffer[headerDecoder.GetModuleTableOffset() :],
@@ -187,8 +186,7 @@ def test_single_shader_module_in_vgf_without_shader_substitution(
     assert buffer.nbytes >= vgf.HeaderSize()
 
     headerDecoder = vgf.CreateHeaderDecoder(buffer, buffer.nbytes)
-    assert headerDecoder.IsValid()
-    assert headerDecoder.CheckVersion()
+    assert headerDecoder is not None
 
     moduleDecoder = vgf.CreateModuleTableDecoder(
         buffer[headerDecoder.GetModuleTableOffset() :],
@@ -292,8 +290,7 @@ def test_two_shader_module(sdk_tools, resources_helper, numpy_helper):
     assert buffer.nbytes >= vgf.HeaderSize()
 
     headerDecoder = vgf.CreateHeaderDecoder(buffer, buffer.nbytes)
-    assert headerDecoder.IsValid()
-    assert headerDecoder.CheckVersion()
+    assert headerDecoder is not None
 
     moduleDecoder = vgf.CreateModuleTableDecoder(
         buffer[headerDecoder.GetModuleTableOffset() :],

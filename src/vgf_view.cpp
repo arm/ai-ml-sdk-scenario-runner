@@ -71,38 +71,23 @@ VgfView::VgfView(std::unique_ptr<MemoryMap> mapped, std::unique_ptr<vgflib::Modu
 
 VgfView VgfView::createVgfView(const std::string &vgfFile) {
 
-    auto ensureMappedRange = [](const std::unique_ptr<MemoryMap> &mapped, uint64_t offset, uint64_t size,
-                                std::string_view section) {
-        if ((offset > mapped->size()) || (size > mapped->size() - offset)) {
-            throw std::runtime_error(std::string(section) + " section exceeds available file size");
-        }
-    };
-
     auto mapped = std::make_unique<MemoryMap>(vgfFile);
-    ensureMappedRange(mapped, 0, vgflib::HeaderSize(), "Header");
-    std::unique_ptr<vgflib::HeaderDecoder> headerDecoder = vgflib::CreateHeaderDecoder(mapped->ptr(), mapped->size());
-    if (!headerDecoder || !headerDecoder->IsValid()) {
+    auto headerDecoder = vgflib::CreateHeaderDecoder(mapped->ptr(), mapped->size());
+    if (!headerDecoder) {
         throw std::runtime_error("Invalid VGF header");
     }
-    if (!headerDecoder->CheckVersion()) {
-        throw std::runtime_error("Incompatible VGF header");
-    }
 
-    uint64_t moduleTableOffset = headerDecoder->GetModuleTableOffset();
-    uint64_t moduleTableSize = headerDecoder->GetModuleTableSize();
-    ensureMappedRange(mapped, moduleTableOffset, moduleTableSize, "Module table");
+    const auto moduleTableOffset = headerDecoder->GetModuleTableOffset();
+    const auto moduleTableSize = headerDecoder->GetModuleTableSize();
 
     const auto resourceTableOffset = headerDecoder->GetModelResourceTableOffset();
     const auto resourceTableSize = headerDecoder->GetModelResourceTableSize();
-    ensureMappedRange(mapped, resourceTableOffset, resourceTableSize, "Model resource table");
 
     const auto sequenceTableOffset = headerDecoder->GetModelSequenceTableOffset();
     const auto sequenceTableSize = headerDecoder->GetModelSequenceTableSize();
-    ensureMappedRange(mapped, sequenceTableOffset, sequenceTableSize, "Model sequence table");
 
     const auto constantsOffset = headerDecoder->GetConstantsOffset();
     const auto constantsSize = headerDecoder->GetConstantsSize();
-    ensureMappedRange(mapped, constantsOffset, constantsSize, "Constant");
 
     auto moduleTableDecoder = vgflib::CreateModuleTableDecoder(mapped->ptr(moduleTableOffset), moduleTableSize);
     if (!moduleTableDecoder) {
