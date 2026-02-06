@@ -43,6 +43,8 @@ target_link_libraries(ScenarioRunnerLib PUBLIC
     VGF::vgf
     VGF::vgf-utils
     Vulkan::Headers
+    PRIVATE
+        stb::stb
 )
 
 if(SCENARIO_RUNNER_ENABLE_RDOC)
