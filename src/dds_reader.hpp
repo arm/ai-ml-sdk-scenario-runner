@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "image.hpp"
+#include "image_formats.hpp"
 #include "vulkan/vulkan_core.h"
 
 namespace mlsdk::scenariorunner {
@@ -194,10 +195,9 @@ struct DDSHeaderInfo {
 /// \param filename DDS file to load
 /// \param data pixel data from file
 /// \param initialFormat vk::Format of DDS file
-/// \param expectedHeight optional expected height value to check against
-/// \param expectedWidth optional expected width value to check against
+/// \param options load options
 void loadDataFromDDS(const std::string &filename, std::vector<uint8_t> &data, vk::Format &initialFormat,
-                     uint32_t expectedHeight = 0, uint32_t expectedWidth = 0);
+                     const ImageLoadOptions &options);
 
 /// \brief Get vk::Format from a DDS file
 ///
@@ -220,7 +220,9 @@ void saveHeaderToDDS(const DDSHeaderInfo &header, std::ofstream &fstream);
 /// \param filename file to create
 /// \param image image data to save to file
 /// \param data vector of raw data to save
-void saveDataToDDS(const std::string &filename, const Image &image, const std::vector<char> &data);
+/// \param options save options
+void saveDataToDDS(const std::string &filename, const Image &image, const std::vector<char> &data,
+                   const ImageSaveOptions &options);
 
 /// \brief Create a standard DDS (DX10) file header
 ///

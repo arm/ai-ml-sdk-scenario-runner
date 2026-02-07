@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -32,6 +32,7 @@ add_library(ScenarioRunnerLib
     utils.cpp
     vgf_view.cpp
     frame_capturer.cpp
+    image_formats.cpp
 )
 target_link_libraries(ScenarioRunnerLib PUBLIC
     glslang::glslang
