@@ -33,6 +33,7 @@ add_library(ScenarioRunnerLib
     vgf_view.cpp
     frame_capturer.cpp
     image_formats.cpp
+    png_reader.cpp
 )
 target_link_libraries(ScenarioRunnerLib PUBLIC
     glslang::glslang

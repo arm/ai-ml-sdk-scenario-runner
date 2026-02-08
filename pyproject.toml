@@ -22,4 +22,5 @@ markers = [
     "tiling",
     "spec_const",
     "repeated_runs",
+    "png",
 ]

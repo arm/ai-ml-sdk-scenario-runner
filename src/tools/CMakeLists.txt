@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -32,10 +32,28 @@ target_link_libraries(dds_utils
 )
 target_compile_options(dds_utils PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
 
+
+add_executable(png_utils
+    png_utils/main.cpp)
+target_include_directories(png_utils PRIVATE
+    ../)
+target_link_libraries(png_utils
+  PUBLIC
+    argparse::argparse
+    ScenarioRunnerLib
+    ${CMAKE_DL_LIBS}
+  PRIVATE
+    stb::stb
+)
+target_compile_options(png_utils PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
+
+
 if(NOT (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR) AND ML_SDK_GENERATE_CPACK)
     install(TARGETS glslc EXPORT ai_ml_sdk_for_vulkanConfig)
     install(TARGETS dds_utils EXPORT ai_ml_sdk_for_vulkanConfig)
+    install(TARGETS png_utils EXPORT ai_ml_sdk_for_vulkanConfig)
 else()
     install(TARGETS glslc EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
     install(TARGETS dds_utils EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
+    install(TARGETS png_utils EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
 endif()

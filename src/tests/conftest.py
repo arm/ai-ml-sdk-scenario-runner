@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 from __future__ import annotations
@@ -13,6 +13,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from PIL import Image
 
 
 logger = logging.getLogger(__name__)
@@ -177,6 +178,7 @@ class SDKTools:
         scenario_runner,
         glsl_compiler,
         dds_utils,
+        png_utils,
         resources_helper,
         spirv_as,
         spirv_val,
@@ -185,6 +187,7 @@ class SDKTools:
         self.scenario_runner = scenario_runner
         self.glsl_compiler = glsl_compiler
         self.dds_utils = dds_utils
+        self.png_utils = png_utils
         self.resources_helper = resources_helper
         self.spirv_as = spirv_as
         self.spirv_val = spirv_val
@@ -260,6 +263,64 @@ class SDKTools:
                 dds_output_path,
                 "--element-dtype",
                 element_dtype,
+            )
+        except subprocess.CalledProcessError:
+            return False
+
+        return True
+
+    def generate_png_file(
+        self,
+        height: int,
+        width: int,
+        filename: str,
+        data: bytes | None = None,
+    ) -> Path:
+        """Generate PNG file."""
+        png_file_path = self.resources_helper.get_testenv_path(filename)
+
+        self.png_utils.run(
+            "--action",
+            "generate",
+            "--height",
+            height,
+            "--width",
+            width,
+            "--output",
+            png_file_path,
+        )
+
+        if data:
+            image = Image.frombytes("RGBA", (width, height), data)
+            image.save(png_file_path, format="PNG")
+
+        return png_file_path
+
+    def convert_png_to_npy(self, png_file_path: Path, filename: str | Path) -> Path:
+        """Extract data from PNG file and save as npy file."""
+        npy_file_path = self.resources_helper.get_testenv_path(filename)
+
+        self.png_utils.run(
+            "--action",
+            "to_npy",
+            "--input",
+            png_file_path,
+            "--output",
+            npy_file_path,
+        )
+
+        return npy_file_path
+
+    def compare_png(self, png_input_path: Path, png_output_path: Path) -> bool:
+        """Compare two PNG files."""
+        try:
+            self.png_utils.run(
+                "--action",
+                "compare",
+                "--input",
+                png_input_path,
+                "--output",
+                png_output_path,
             )
         except subprocess.CalledProcessError:
             return False
@@ -369,6 +430,12 @@ def pytest_addoption(parser) -> None:
         help="Path to the DDS utils",
     )
     parser.addoption(
+        "--png-utils",
+        type=valid_path,
+        required=True,
+        help="Path to the PNG utils",
+    )
+    parser.addoption(
         "--spirv-as",
         type=valid_path,
         required=True,
@@ -422,6 +489,12 @@ def dds_utils(request) -> SDKTool:
 
 
 @pytest.fixture
+def png_utils(request) -> SDKTool:
+    png_utils_path = request.config.getoption("--png-utils")
+    return SDKTool(png_utils_path)
+
+
+@pytest.fixture
 def spirv_as(request) -> SDKTool:
     spirv_as_path = request.config.getoption("--spirv-as")
     return SDKTool(spirv_as_path)
@@ -454,6 +527,7 @@ def sdk_tools(
     scenario_runner,
     glsl_compiler,
     dds_utils,
+    png_utils,
     resources_helper,
     spirv_as,
     spirv_val,
@@ -463,6 +537,7 @@ def sdk_tools(
         scenario_runner,
         glsl_compiler,
         dds_utils,
+        png_utils,
         resources_helper,
         spirv_as,
         spirv_val,
