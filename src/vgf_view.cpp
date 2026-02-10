@@ -274,7 +274,7 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
         // Check if tensor data formats match
         auto format = resourceTableDecoder->getVkFormat(vgfMrtIndex);
         if (static_cast<int32_t>(tensor.dataType()) != format) {
-            throw std::runtime_error("Mismatch of tensor data type declarations"
+            throw std::runtime_error("Mismatch of tensor data type declarations "
                                      "between JSON and VGF file");
         }
     } break;
