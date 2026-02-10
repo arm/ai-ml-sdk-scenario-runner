@@ -283,6 +283,9 @@ void Pipeline::initSession(const Context &ctx) {
         VkMemoryRequirements2 memoryReqs =
             ctx.device().getDataGraphPipelineSessionMemoryRequirementsARM(memoryRequirementsInfo);
 
+        mlsdk::logging::info("Datagraph pipeline session memory requirement: " +
+                             std::to_string(memoryReqs.memoryRequirements.size));
+
         //  Allocate memory for the session
         if (memoryReqs.memoryRequirements.size > 0) {
             vk::MemoryPropertyFlags memoryFlags = {};
