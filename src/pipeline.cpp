@@ -219,31 +219,8 @@ Pipeline::Pipeline(const CommonArguments &args, const uint32_t segmentIndex, con
 
     // Setup tensor resource info
     std::vector<vk::TensorDescriptionARM> tensorDescriptions;
-    tensorDescriptions.reserve(args.bindings.size());
     std::vector<vk::DataGraphPipelineResourceInfoARM> resourceInfos;
-    resourceInfos.reserve(args.bindings.size());
-
-    for (const auto &binding : args.bindings) {
-        if (!dataManager.hasTensor(binding.resourceRef)) {
-            throw std::runtime_error("Unsupported graph pipeline resource");
-        }
-
-        const auto &tensor = dataManager.getTensor(binding.resourceRef);
-
-        const auto *strides = tensor.dimStrides().data();
-        if (tensor.dimStrides().empty()) {
-            strides = nullptr;
-        }
-
-        tensorDescriptions.emplace_back(
-            vk::TensorDescriptionARM(tensor.tiling(), vk::Format(tensor.dataType()),
-                                     static_cast<uint32_t>(tensor.shape().size()), // dimensions
-                                     tensor.shape().data(),
-                                     strides, // pStrides
-                                     vk::TensorUsageFlagBitsARM::eDataGraph));
-        resourceInfos.emplace_back(static_cast<uint32_t>(binding.set), static_cast<uint32_t>(binding.id),
-                                   /*arrayElement=*/0, &tensorDescriptions.back());
-    }
+    makeResourceInfos(args.bindings, dataManager, tensorDescriptions, resourceInfos);
 
     graphComputePipelineCommon(args.ctx, segmentIndex, vgfView, args.pipelineCache, resourceInfos);
 }
@@ -338,6 +315,7 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIn
     trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
 
     initSession(ctx);
+    buildDataGraphPipeline(ctx, entryPoint, resourceInfos, constantInfos, pipelineCache);
 }
 
 void Pipeline::initSession(const Context &ctx) {
