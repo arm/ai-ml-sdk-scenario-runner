@@ -239,6 +239,90 @@ template <typename T> T MakeFromJSON(const std::string &s) {
 
 } // namespace
 
+TEST(JsonParser, MarkBoundaryInvalidResourcesType) {
+    const std::string jsonScenario =
+        R""(
+    {
+        "commands": [
+            {
+                "mark_boundary": {
+                    "resources": {}
+                }
+            }
+        ],
+        "resources": []
+    }
+    )"";
+
+    std::istringstream iss(jsonScenario);
+    ASSERT_THROW(ScenarioSpec(&iss, {}), nlohmann::json::type_error);
+}
+
+TEST(JsonParser, DispatchComputeInvalidShaderRefType) {
+    const std::string jsonInput =
+        R""(
+    {
+        "bindings": [],
+        "rangeND": [1, 1, 1],
+        "shader_ref": 123
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json::type_error);
+}
+
+TEST(JsonParser, DispatchComputeInvalidPushDataRefType) {
+    const std::string jsonInput =
+        R""(
+    {
+        "bindings": [],
+        "rangeND": [1, 1, 1],
+        "shader_ref": "shader",
+        "push_data_ref": 5
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json::type_error);
+}
+
+TEST(JsonParser, DispatchDataGraphInvalidGraphRefType) {
+    const std::string jsonInput =
+        R""(
+    {
+        "bindings": [],
+        "graph_ref": 10
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<DispatchDataGraphDesc>(jsonInput), nlohmann::json::type_error);
+}
+
+TEST(JsonParser, DispatchDataGraphPushConstantsInvalidType) {
+    const std::string jsonInput =
+        R""(
+    {
+        "bindings": [],
+        "graph_ref": "graph1",
+        "push_constants": {}
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<DispatchDataGraphDesc>(jsonInput), nlohmann::json::type_error);
+}
+
+TEST(JsonParser, DataGraphInvalidSpecializationConstantsMapType) {
+    const std::string jsonInput =
+        R""(
+    {
+        "uid": "g",
+        "src": "./graphs/g.vgf",
+        "specialization_constants_map": 5
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<DataGraphDesc>(jsonInput), nlohmann::json::type_error);
+}
+
 // Test the JSON parser:
 // 1. Deserialize a JSON test case
 // 2. Validate the number of commands and resources
@@ -278,7 +362,7 @@ TEST(JsonParser, NoCommands) {
     )"";
 
     std::istringstream iss(jsonInput);
-    ASSERT_NO_THROW(ScenarioSpec(&iss, {}));
+    ASSERT_THROW(ScenarioSpec(&iss, {}), nlohmann::json_abi_v3_11_3::detail::out_of_range);
 }
 
 TEST(JsonParser, NoResources) {
@@ -303,7 +387,7 @@ TEST(JsonParser, NoResources) {
     )"";
 
     std::istringstream iss(jsonInput);
-    ASSERT_NO_THROW(ScenarioSpec(&iss, {}));
+    ASSERT_THROW(ScenarioSpec(&iss, {}), nlohmann::json_abi_v3_11_3::detail::out_of_range);
 }
 
 TEST(JsonParser, UnknownResource) {
@@ -319,7 +403,8 @@ TEST(JsonParser, UnknownResource) {
                 "uid": "InBuffer1"
             }
         }
-    ]
+    ],
+    "commands": []
     }
     )"";
 
@@ -344,7 +429,8 @@ TEST(JsonParser, UnknownCommand) {
                 "graph_ref": "graph1"
             }
         }
-    ]
+    ],
+    "resources": []
     }
     )"";
 
@@ -358,7 +444,8 @@ TEST(JsonParser, Resources) {
     {
     "resources": [
         {RESOURCE}
-    ]
+    ],
+    "commands": []
     }
     )"";
     const std::regex resourceRegex("\\{RESOURCE\\}");
@@ -600,7 +687,8 @@ TEST(JsonParser, Commands) {
     {
     "commands": [
         {COMMAND}
-    ]
+    ],
+    "resources": []
     }
     )"";
     const std::regex commandRegex("\\{COMMAND\\}");
@@ -1013,6 +1101,151 @@ TEST(JsonParser, TensorResource) {
     ASSERT_TRUE(desc.shaderAccess == ShaderAccessType::ReadOnly);
     ASSERT_TRUE(desc.tiling.has_value());
     ASSERT_TRUE(desc.tiling.value() == Tiling::Optimal);
+}
+
+TEST(JsonParser, TensorResourceMissingDims) {
+
+    const std::string jsonInput =
+        R""(
+    {
+        "src": "./graph_data/intensor1.npy",
+        "format": "VK_FORMAT_R8_SINT",
+        "shader_access": "readonly",
+        "uid": "InTensor1",
+        "tiling": "OPTIMAL"
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<TensorDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
+}
+
+TEST(JsonParser, TensorResourceDimsInvalidType) {
+
+    const std::string jsonInput =
+        R""(
+    {
+        "src": "./graph_data/intensor1.npy",
+        "dims": "1",
+        "format": "VK_FORMAT_R8_SINT",
+        "shader_access": "readonly",
+        "uid": "InTensor1",
+        "tiling": "OPTIMAL"
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<TensorDesc>(jsonInput), nlohmann::json::type_error);
+}
+
+TEST(JsonParser, ImageResourceMissingDims) {
+
+    const std::string jsonInput =
+        R""(
+    {
+        "format": "VK_FORMAT_R8G8B8A8_SRGB",
+        "shader_access": "readwrite",
+        "uid": "InputColorBuffer0",
+        "mips": false
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<ImageDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
+}
+
+TEST(JsonParser, ImageResourceDimsInvalidType) {
+
+    const std::string jsonInput =
+        R""(
+    {
+        "dims": "256",
+        "format": "VK_FORMAT_R8G8B8A8_SRGB",
+        "shader_access": "readwrite",
+        "uid": "InputColorBuffer0",
+        "mips": false
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<ImageDesc>(jsonInput), nlohmann::json::type_error);
+}
+
+TEST(JsonParser, MarkBoundaryMissingResources) {
+    const std::string jsonScenario =
+        R""(
+    {
+        "commands": [
+            {
+                "mark_boundary": {
+                }
+            }
+        ]
+    }
+    )"";
+
+    std::istringstream iss(jsonScenario);
+    ASSERT_THROW(ScenarioSpec(&iss, {}), nlohmann::json_abi_v3_11_3::detail::out_of_range);
+}
+
+TEST(JsonParser, DispatchComputeMissingRangeND) {
+
+    const std::string jsonInput =
+        R""(
+    {
+        "bindings": [
+            {
+                "id": 0,
+                "resource_ref": "InBuffer1",
+                "set": 0
+            }
+        ],
+        "shader_ref": "add_shader"
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
+}
+
+TEST(JsonParser, DispatchComputeRangeNDInvalidType) {
+
+    const std::string jsonInput =
+        R""(
+    {
+        "bindings": [
+            {
+                "id": 0,
+                "resource_ref": "InBuffer1",
+                "set": 0
+            }
+        ],
+        "rangeND": "10",
+        "shader_ref": "add_shader"
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json::type_error);
+}
+
+TEST(JsonParser, DispatchComputeMissingBindings) {
+
+    const std::string jsonInput =
+        R""(
+    {
+        "rangeND": [1, 1, 1],
+        "shader_ref": "add_shader"
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
+}
+
+TEST(JsonParser, DispatchDataGraphMissingBindings) {
+
+    const std::string jsonInput =
+        R""(
+    {
+        "graph_ref": "graph1"
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<DispatchDataGraphDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
 }
 
 TEST(JsonParser, ImageResource) {
