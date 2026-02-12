@@ -10,6 +10,10 @@
         "push_data_ref": {
             "type": "string"
         },
+        "implicit_barrier": {
+            "type": "boolean",
+            "default": true
+        },
         "rangeND": {
             "type": "array",
             "items": {

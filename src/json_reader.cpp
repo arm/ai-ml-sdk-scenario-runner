@@ -248,6 +248,9 @@ void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph) {
     if (j.contains("shader_substitutions")) {
         dispatchDataGraph.shaderSubstitutions = j.at("shader_substitutions").get<std::vector<ShaderSubstitution>>();
     }
+    if (j.contains("implicit_barrier")) {
+        dispatchDataGraph.implicitBarrier = j.at("implicit_barrier").get<bool>();
+    }
 }
 
 /**

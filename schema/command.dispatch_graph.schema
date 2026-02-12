@@ -10,6 +10,10 @@
         "graph_ref": {
             "type": "string"
         },
+        "implicit_barrier": {
+            "type": "boolean",
+            "default": true
+        },
         "shader_substitutions": {
             "type": "array",
             "items": {
