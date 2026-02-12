@@ -1,0 +1,181 @@
+{
+    "commands": [
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "addInput0"
+                    },
+                    {
+                        "id": 2,
+                        "set": 0,
+                        "resource_ref": "addInput1"
+                    },
+                    {
+                        "id": 3,
+                        "set": 0,
+                        "resource_ref": "addOutput"
+                    }
+                ],
+                "rangeND": [
+                    16,
+                    16,
+                    16
+                ],
+                "shader_ref": "add_shader"
+            }
+        },
+        {
+            "dispatch_graph": {
+                "graph_ref": "simple_graph",
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "addOutput"
+                    },
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "graphOutput"
+                    }
+                ]
+            }
+        },
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "graphOutput"
+                    },
+                    {
+                        "id": 4,
+                        "set": 0,
+                        "resource_ref": "subInput"
+                    },
+                    {
+                        "id": 5,
+                        "set": 0,
+                        "resource_ref": "subOutput"
+                    }
+                ],
+                "rangeND": [
+                    8,
+                    8,
+                    16
+                ],
+                "shader_ref": "sub_shader"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "src": "add_shader.spv",
+                "type": "SPIR-V",
+                "uid": "add_shader"
+            }
+        },
+        {
+            "shader": {
+                "src": "sub_shader.spv",
+                "type": "SPIR-V",
+                "uid": "sub_shader"
+            }
+        },
+        {
+            "graph": {
+                "uid": "simple_graph",
+                "src": "simple_graph.vgf"
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "readonly",
+                "dims": [
+                    1,
+                    16,
+                    16,
+                    16
+                ],
+                "src": "addInput0.npy",
+                "format": "VK_FORMAT_R8_SINT",
+                "uid": "addInput0"
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "readonly",
+                "dims": [
+                    1,
+                    16,
+                    16,
+                    16
+                ],
+                "src": "addInput1.npy",
+                "format": "VK_FORMAT_R8_SINT",
+                "uid": "addInput1"
+            }
+        },
+        {
+            "tensor": {
+                "dst": "addOutput.npy",
+                "shader_access": "readwrite",
+                "dims": [
+                    1,
+                    16,
+                    16,
+                    16
+                ],
+                "format": "VK_FORMAT_R8_SINT",
+                "uid": "addOutput"
+            }
+        },
+        {
+            "tensor": {
+                "dst": "graphOutput.npy",
+                "shader_access": "readwrite",
+                "dims": [
+                    1,
+                    8,
+                    8,
+                    16
+                ],
+                "format": "VK_FORMAT_R8_SINT",
+                "uid": "graphOutput"
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "readonly",
+                "dims": [
+                    1,
+                    8,
+                    8,
+                    16
+                ],
+                "src": "subInput.npy",
+                "format": "VK_FORMAT_R8_SINT",
+                "uid": "subInput"
+            }
+        },
+        {
+            "tensor": {
+                "dst": "subOutput.npy",
+                "shader_access": "writeonly",
+                "dims": [
+                    1,
+                    8,
+                    8,
+                    16
+                ],
+                "format": "VK_FORMAT_R8_SINT",
+                "uid": "subOutput"
+            }
+        }
+    ]
+}
