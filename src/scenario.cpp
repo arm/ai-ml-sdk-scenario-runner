@@ -6,6 +6,7 @@
 #include "dds_reader.hpp"
 #include "frame_capturer.hpp"
 #include "guid.hpp"
+#include "image_formats.hpp"
 #include "iresource.hpp"
 #include "json_writer.hpp"
 #include "logging.hpp"
@@ -112,13 +113,15 @@ struct ResourceInfoFactory {
 
         if (image.src) {
             info.isInput = true;
-            if (lowercaseExtension(image.src.value()) == ".dds") {
-                info.format = getVkFormatFromDDS(image.src.value());
+            const auto filename = image.src.value();
+            const auto *handler = getImageFormatHandler(filename);
+            if (handler) {
+                info.format = handler->getFormat(filename);
             } else {
                 info.format = info.targetFormat;
             }
         } else {
-            info.format = info.targetFormat; // Output dds does not change type
+            info.format = info.targetFormat; // Output file does not change type
             info.isInput = false;
         }
 

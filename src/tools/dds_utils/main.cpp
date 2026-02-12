@@ -423,7 +423,7 @@ DDSContent load(const std::string &ddsPath) {
     }
     std::vector<uint8_t> ddsData(static_cast<size_t>(size));
     vk::Format format;
-    loadDataFromDDS(ddsPath, ddsData, format);
+    loadDataFromDDS(ddsPath, ddsData, format, {});
 
     return {ddsHeader, ddsData};
 }

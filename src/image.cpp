@@ -5,6 +5,7 @@
 
 #include "image.hpp"
 #include "dds_reader.hpp"
+#include "image_formats.hpp"
 #include "logging.hpp"
 #include "utils.hpp"
 #include "vulkan_debug_utils.hpp"
@@ -428,8 +429,9 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     if (desc.src) {
         const auto extension = lowercaseExtension(desc.src.value());
 
-        if (extension == ".dds") {
-            loadDataFromDDS(desc.src.value(), data, fileFormat, desc.dims[2], desc.dims[1]);
+        const auto *handler = getImageFormatHandler(desc.src.value());
+        if (handler) {
+            handler->loadData(desc.src.value(), data, fileFormat, ImageLoadOptions{desc.dims[2], desc.dims[1]});
         } else if (extension == ".npy") {
             loadDataFromNPY(desc.src.value(), _dataType, data, fileFormat, desc.dims[2], desc.dims[1]);
         } else {
@@ -632,7 +634,11 @@ std::vector<char> Image::getImageData(const Context &ctx) {
 
 void Image::store(const Context &ctx, const std::string &filename) {
     auto data = getImageData(ctx);
-    saveDataToDDS(filename, *this, data);
+    const auto *handler = getImageFormatHandler(filename);
+    if (!handler) {
+        throw std::runtime_error("Unsupported image destination format: " + filename);
+    }
+    handler->saveData(filename, *this, data, ImageSaveOptions{});
 }
 
 bool Image::isSampled() const { return _imageInfo.isSampled; }

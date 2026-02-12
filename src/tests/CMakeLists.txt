@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 if(NOT ANDROID)
@@ -12,6 +12,7 @@ if(NOT ANDROID)
     json_parser_tests.cpp
     vulkan_startup_tests.cpp
     logging_tests.cpp
+    image_formats_tests.cpp
   )
   target_link_libraries(ScenarioRunnerTests PRIVATE
     GTest::gtest_main

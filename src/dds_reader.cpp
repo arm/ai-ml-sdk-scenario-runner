@@ -335,7 +335,7 @@ DDSHeaderInfo readDDSHeader(std::ifstream &file) {
 }
 
 void loadDataFromDDS(const std::string &filename, std::vector<uint8_t> &data, vk::Format &initialFormat,
-                     uint32_t expectedHeight, uint32_t expectedWidth) {
+                     const ImageLoadOptions &options) {
     std::ifstream file(filename, std::ifstream::binary);
     file.exceptions(std::ios::badbit | std::ios::failbit);
     if (!file.is_open()) {
@@ -343,13 +343,14 @@ void loadDataFromDDS(const std::string &filename, std::vector<uint8_t> &data, vk
     }
     DDSHeaderInfo header = readDDSHeader(file);
     validateDDSHeader(header);
-    if (expectedHeight && header.header.height != expectedHeight) {
-        throw std::runtime_error("DDS image height does not match that in the scenario file: " +
-                                 std::to_string(header.header.height) + " vs " + std::to_string(expectedHeight));
+    if (options.expectedHeight && header.header.height != options.expectedHeight) {
+        throw std::runtime_error(
+            "DDS image height does not match that in the scenario file: " + std::to_string(header.header.height) +
+            " vs " + std::to_string(options.expectedHeight));
     }
-    if (expectedWidth && header.header.width != expectedWidth) {
+    if (options.expectedWidth && header.header.width != options.expectedWidth) {
         throw std::runtime_error("DDS image width does not match that in the scenario file: " +
-                                 std::to_string(header.header.width) + " vs " + std::to_string(expectedWidth));
+                                 std::to_string(header.header.width) + " vs " + std::to_string(options.expectedWidth));
     }
 
     auto dataPos = file.tellg();
@@ -386,7 +387,8 @@ void saveHeaderToDDS(const DDSHeaderInfo &header, std::ofstream &fstream) {
     }
 }
 
-void saveDataToDDS(const std::string &filename, const Image &image, const std::vector<char> &data) {
+void saveDataToDDS(const std::string &filename, const Image &image, const std::vector<char> &data,
+                   const ImageSaveOptions &) {
     std::ofstream fstream(filename, std::ofstream::binary);
     if (!fstream.is_open()) {
         throw std::runtime_error("Error creating DDS file: " + filename);
