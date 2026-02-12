@@ -87,6 +87,7 @@ The following dependencies are also needed:
 - [SPIRV-Headers](https://github.com/KhronosGroup/SPIRV-Headers).
 - [SPIRV-Tools](https://github.com/KhronosGroup/SPIRV-Tools).
 - [Vulkan-Headers](https://github.com/KhronosGroup/Vulkan-Headers).
+- [stb](https://github.com/nothings/stb) headers ``stb_image.h`` and ``stb_image_write.h`` (these are downloaded automatically during CMake configure)
 - [GoogleTest](https://github.com/google/googletest). Optional, for testing.
 
 For the preferred dependency versions see the manifest file.

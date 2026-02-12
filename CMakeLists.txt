@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 cmake_minimum_required(VERSION 3.25)
@@ -64,6 +64,7 @@ include(spirv-headers)
 include(spirv-tools)
 include(glslang)
 include(version)
+include(stb)
 
 if(SCENARIO_RUNNER_ENABLE_RDOC)
     find_package(RenderDoc REQUIRED)
@@ -93,6 +94,8 @@ mlsdk_generate_version_header(
         SPIRV-Tools
         VGF
         VulkanHeaders
+        stb_image
+        stb_image_write
 )
 
 add_executable(${SCENARIO_RUNNER_NAMESPACE}::scenario-runner ALIAS scenario-runner)
