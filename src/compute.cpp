@@ -554,7 +554,14 @@ void Compute::writeProfilingFile(const std::filesystem::path &profilingPath, int
             profiledCommands.push_back("DataGraphDispatch");
         }
     }
-    writeProfilingData(timestamps, timestampPeriod, profiledCommands, profilingPath, iteration, repeatCount);
+    std::vector<uint64_t> memoryUsages;
+    for (const auto &pipeline : _pipelines) {
+        if (pipeline.isDataGraphPipeline()) {
+            memoryUsages.push_back(pipeline.getDataGraphPipelineMemoryRequirement());
+        }
+    }
+    writeProfilingData(timestamps, timestampPeriod, profiledCommands, memoryUsages, profilingPath, iteration,
+                       repeatCount);
 }
 
 void Compute::sessionRAMsDump(const std::filesystem::path &sessionRAMsDumpDir) const {
