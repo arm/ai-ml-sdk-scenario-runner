@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -19,6 +19,7 @@ struct OptionalExtensions {
     bool maintenance5 = false;
     bool deferred_operation = false;
     bool replicated_composites = false;
+    bool shader_bfloat16 = false;
 };
 
 /// \brief Type of family queue to use
