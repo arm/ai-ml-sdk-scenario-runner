@@ -113,7 +113,7 @@ struct ResourceInfoFactory {
 
         if (image.src) {
             info.isInput = true;
-            const auto filename = image.src.value();
+            const auto &filename = image.src.value();
             const auto *handler = getImageFormatHandler(filename);
             if (handler) {
                 info.format = handler->getFormat(filename);
