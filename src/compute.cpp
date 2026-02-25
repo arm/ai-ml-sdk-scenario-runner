@@ -520,6 +520,7 @@ void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters
     // Wait to finish
     perfCounters.emplace_back("Wait for Fence. Iteration: " + std::to_string(iteration + 1), "Run Scenario").start();
     _waitForFence();
+    _cmdBufferArray.clear();
     perfCounters.back().stop();
 }
 
