@@ -22,7 +22,10 @@
             "enum": ["GLSL", "SPIR-V"]
         },
         "include_dirs": {
-            "type": "string"
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
         },
         "push_constants_size": {
             "type": "integer"
