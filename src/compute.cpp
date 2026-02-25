@@ -89,26 +89,15 @@ Compute::Compute(Context &ctx) : _ctx(ctx) {
                                                       _ctx.familyQueueIdx());
     _cmdPool = _ctx.device().createCommandPool(cmdPoolCreateInfo);
     _queue = _ctx.device().getQueue(_ctx.familyQueueIdx(), 0);
-    _createFence();
+    _fence = _ctx.device().createFence({});
 }
 
-void Compute::_createFence() { _fence = _ctx.device().createFence({}); }
+void Compute::_resetFence() { _ctx.device().resetFences({*_fence}); }
 
 void Compute::reset() {
-    _debugMarkerNames.clear();
     _cmdBufferArray.clear();
-    _commands.clear();
-    _markBoundaryTensorArray.clear();
-    _tensorArray.clear();
-    _bufferArray.clear();
-    _imageArray.clear();
-    _bufferBarriers.clear();
-    _imageBarriers.clear();
-    _tensorBarriers.clear();
-    _memoryBarriers.clear();
-    _descriptorSets.clear();
-    _descriptorPools.clear();
-    _pipelines.clear();
+    _cmdPool.reset(vk::CommandPoolResetFlagBits::eReleaseResources);
+    _resetFence();
 }
 
 void Compute::_setNextCommandBuffer() {
@@ -411,7 +400,7 @@ void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters
     // Create command buffer vector
     perfCounters.emplace_back("Creating Command Buffer. Iteration: " + std::to_string(iteration + 1), "Run Scenario")
         .start();
-    _createFence();
+    _resetFence();
     _setNextCommandBuffer();
     _beginCommandBuffer();
 
@@ -431,7 +420,7 @@ void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters
         vk::SubmitInfo submitInfo({}, {}, *_cmdBufferArray.back(), {}, &frameBoundary);
         _queue.submit(submitInfo, *_fence);
         _waitForFence();
-        _createFence();
+        _resetFence();
         _setNextCommandBuffer();
         _beginCommandBuffer();
     }
@@ -498,7 +487,7 @@ void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters
 
             _queue.submit(submitInfo, *_fence);
             _waitForFence();
-            _createFence();
+            _resetFence();
             _setNextCommandBuffer();
             _beginCommandBuffer();
         } else if (std::holds_alternative<PushDebugMarker>(cmd)) {

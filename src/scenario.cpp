@@ -395,11 +395,13 @@ void Scenario::run(int repeatCount, bool dryRun) {
         frameCapturer = std::make_unique<FrameCapturer>();
     }
 
-    _compute.reset();
     setupCommands();
 
     for (int i = 0; i < repeatCount; ++i) {
         mlsdk::logging::debug("Iteration: " + std::to_string(i));
+        if (i > 0) {
+            _compute.reset();
+        }
         if (frameCapturer) {
             frameCapturer->begin();
         }
