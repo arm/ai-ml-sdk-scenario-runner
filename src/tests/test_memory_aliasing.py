@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# SPDX-FileCopyrightText: Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 """  Tests for memory aliasing. """
@@ -589,3 +589,21 @@ def test_image_to_tensor_aliasing_copy_tensor_shader_copy_image_shader(
     sdk_tools.convert_dds_to_npy(output_image_dds, "output_image.dds.npy", 2)
     output_image_dds_npy = numpy_helper.load("output_image.dds.npy", np.uint16)
     assert equal_cmp_as_fp16(output_npy, output_image_dds_npy)
+
+
+def test_deprecated_alias_target_field(sdk_tools):
+    width, height, dsize = 64, 10, 4
+
+    sdk_tools.compile_shader("test_memory_aliasing/plus_ten_tensor.comp")
+
+    sdk_tools.generate_dds_file(
+        height,
+        width,
+        "fp16",
+        dsize,
+        "DXGI_FORMAT_R16G16_FLOAT",
+        "temp.dds",
+    )
+
+    with pytest.raises(Exception):
+        sdk_tools.run_scenario("test_memory_aliasing/deprecated_alias_target.json")
