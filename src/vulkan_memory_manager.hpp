@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -7,6 +7,8 @@
 #include "context.hpp"
 #include "types.hpp"
 #include "utils.hpp"
+
+#include <limits>
 
 namespace mlsdk::scenariorunner {
 
@@ -20,6 +22,28 @@ class ResourceMemoryManager {
         }
         const vk::MemoryAllocateInfo memoryAllocateInfo(_memSize, findMemoryIdx(ctx, _memType, flags));
         _deviceMemory = vk::raii::DeviceMemory(ctx.device(), memoryAllocateInfo);
+
+        // Create the staging buffer
+        vk::BufferCreateInfo bufferCreateInfo{vk::BufferCreateFlags(),
+                                              _memSize,
+                                              vk::BufferUsageFlagBits::eTransferSrc |
+                                                  vk::BufferUsageFlagBits::eTransferDst,
+                                              vk::SharingMode::eExclusive,
+                                              ctx.familyQueueIdx(),
+                                              nullptr};
+
+        _stagingBuffer = vk::raii::Buffer(ctx.device(), bufferCreateInfo);
+        const vk::MemoryRequirements memReqs = _stagingBuffer.getMemoryRequirements();
+        const auto memoryFlags = vk::MemoryPropertyFlagBits::eHostVisible;
+        const uint32_t memTypeIndex = findMemoryIdx(ctx, memReqs.memoryTypeBits, memoryFlags);
+        if (memTypeIndex == std::numeric_limits<uint32_t>::max()) {
+            throw std::runtime_error("Cannot find a memory type with the required properties");
+        }
+
+        const vk::MemoryAllocateInfo memAllocInfo(memReqs.size, memTypeIndex);
+        _stagingBufferDeviceMemory = vk::raii::DeviceMemory(ctx.device(), memAllocInfo);
+        _stagingBuffer.bindMemory(*_stagingBufferDeviceMemory, 0);
+
         _initalized = true;
     }
 
@@ -61,6 +85,25 @@ class ResourceMemoryManager {
 
     const vk::raii::DeviceMemory &getDeviceMemory() const { return _deviceMemory; }
 
+    const vk::raii::Buffer &getStagingBuffer() const { return _stagingBuffer; }
+
+    void *mapStagingBufferMemory(uint64_t offset, uint64_t size) const {
+        if (!isInitalized()) {
+            throw std::runtime_error("Staging buffer memory has not been allocated");
+        }
+        if (offset + size > _memSize) {
+            throw std::runtime_error("Attempt to map staging buffer memory out of bounds");
+        }
+        return _stagingBufferDeviceMemory.mapMemory(offset, size);
+    }
+
+    void unmapStagingBufferMemory() const {
+        if (!isInitalized()) {
+            throw std::runtime_error("Staging buffer memory has not been allocated");
+        }
+        _stagingBufferDeviceMemory.unmapMemory();
+    }
+
   private:
     vk::DeviceSize _memSize{0};
     vk::DeviceSize _subRecOffset{0};
@@ -72,5 +115,7 @@ class ResourceMemoryManager {
     uint32_t _memType{UINT32_MAX};
     vk::raii::DeviceMemory _deviceMemory{nullptr};
     bool _initalized{false};
+    vk::raii::Buffer _stagingBuffer{nullptr};
+    vk::raii::DeviceMemory _stagingBufferDeviceMemory{nullptr};
 };
 } // namespace mlsdk::scenariorunner

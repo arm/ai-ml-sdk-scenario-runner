@@ -251,26 +251,6 @@ void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> mem
 
     _memoryManager->updateFormat(_dataType);
     _memoryManager->updateImageType(vk::ImageType::e2D);
-
-    // Create the staging buffer
-    vk::BufferCreateInfo bufferCreateInfo{vk::BufferCreateFlags(),
-                                          dataSize(),
-                                          vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst,
-                                          vk::SharingMode::eExclusive,
-                                          ctx.familyQueueIdx(),
-                                          nullptr};
-
-    _stagingBuffer = vk::raii::Buffer(ctx.device(), bufferCreateInfo);
-    const vk::MemoryRequirements memReqs = _stagingBuffer.getMemoryRequirements();
-    const auto flags = vk::MemoryPropertyFlagBits::eHostVisible;
-    const uint32_t memTypeIndex = findMemoryIdx(ctx, memReqs.memoryTypeBits, flags);
-    if (memTypeIndex == std::numeric_limits<uint32_t>::max()) {
-        throw std::runtime_error("Cannot find a memory type with the required properties");
-    }
-
-    const vk::MemoryAllocateInfo memAllocInfo(memReqs.size, memTypeIndex);
-    _stagingBufferDeviceMemory = vk::raii::DeviceMemory(ctx.device(), memAllocInfo);
-    _stagingBuffer.bindMemory(*_stagingBufferDeviceMemory, 0);
 }
 
 uint32_t Image::getFormatMaxMipLevels(const Context &ctx, vk::ImageTiling tiling, vk::ImageUsageFlags usageFlags) {
@@ -491,9 +471,9 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     imageBarrier.subresourceRange.baseArrayLayer = 0;
     imageBarrier.subresourceRange.layerCount = 1;
 
-    void *pBufferDeviceMemory = _stagingBufferDeviceMemory.mapMemory(0, data.size());
+    void *pBufferDeviceMemory = _memoryManager->mapStagingBufferMemory(0, data.size());
     std::memcpy(pBufferDeviceMemory, data.data(), data.size());
-    _stagingBufferDeviceMemory.unmapMemory();
+    _memoryManager->unmapStagingBufferMemory();
 
     // Setup of casting operation
     const vk::CommandPoolCreateInfo cmdPoolCreateInfo({vk::CommandPoolCreateFlagBits::eResetCommandBuffer},
@@ -519,7 +499,8 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     region.imageExtent = extent;
 
     cmdBuffer.pipelineBarrier2(vk::DependencyInfo((vk::DependencyFlags)0, memoryBarrier, {}, imageBarrier));
-    cmdBuffer.copyBufferToImage(_stagingBuffer, _image, vk::ImageLayout::eTransferDstOptimal, region);
+    cmdBuffer.copyBufferToImage(_memoryManager->getStagingBuffer(), _image, vk::ImageLayout::eTransferDstOptimal,
+                                region);
 
     // Create blit command
     vk::ImageBlit2 blit{};
@@ -612,7 +593,7 @@ std::vector<char> Image::getImageData(const Context &ctx) {
     region.imageOffset = offset;
     region.imageExtent = extent;
 
-    cmdBuffer.copyImageToBuffer(_image, vk::ImageLayout::eGeneral, _stagingBuffer, {region});
+    cmdBuffer.copyImageToBuffer(_image, vk::ImageLayout::eGeneral, _memoryManager->getStagingBuffer(), {region});
     cmdBuffer.end();
 
     vk::SubmitInfo submitInfo({}, {}, *cmdBuffer);
@@ -626,9 +607,9 @@ std::vector<char> Image::getImageData(const Context &ctx) {
     }
 
     std::vector<char> data(dataSize());
-    const void *pBufferDeviceMemory = _stagingBufferDeviceMemory.mapMemory(0, data.size());
+    const void *pBufferDeviceMemory = _memoryManager->mapStagingBufferMemory(0, data.size());
     std::memcpy(data.data(), pBufferDeviceMemory, data.size());
-    _stagingBufferDeviceMemory.unmapMemory();
+    _memoryManager->unmapStagingBufferMemory();
     return data;
 }
 
