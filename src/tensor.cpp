@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -127,25 +127,10 @@ const std::vector<int64_t> &Tensor::shape() const { return _shape; }
 
 vk::TensorTilingARM Tensor::tiling() const { return _tiling; }
 
-void *Tensor::map() const {
-    if (!_memoryManager->isInitalized()) {
-        throw std::runtime_error("Uninitialized MemoryManager for Tensor");
-    }
-    return _memoryManager->getDeviceMemory().mapMemory(_memoryOffset, _size);
-}
-
-void Tensor::unmap() const {
-    if (!_memoryManager->isInitalized()) {
-        throw std::runtime_error("Uninitialized MemoryManager for Tensor");
-    }
-    _memoryManager->getDeviceMemory().unmapMemory();
-}
-
 void Tensor::allocateMemory(const Context &ctx) {
     // Allocate memory
     if (!_memoryManager->isInitalized()) {
-        _memoryManager->allocateDeviceMemory(ctx, vk::MemoryPropertyFlagBits::eHostVisible |
-                                                      vk::MemoryPropertyFlagBits::eHostCoherent);
+        _memoryManager->allocateDeviceMemory(ctx, vk::MemoryPropertyFlagBits::eDeviceLocal);
     }
 
     // Bind tensor to memory
@@ -159,7 +144,7 @@ void Tensor::allocateMemory(const Context &ctx) {
     trySetVkRaiiObjectDebugName(ctx, _tensorView, _debugName + " view (default)");
 }
 
-void Tensor::fillFromDescription(const TensorDesc &desc) const {
+void Tensor::fillFromDescription(const Context &ctx, const TensorDesc &desc) const {
     if (desc.src) {
         MemoryMap mapped(desc.src.value());
         auto dataPtr = vgfutils::numpy::parse(mapped);
@@ -175,6 +160,8 @@ void Tensor::fillFromDescription(const TensorDesc &desc) const {
     } else {
         fillZero();
     }
+
+    _memoryManager->uploadData(ctx, _memoryManager->getSubresourceOffset() + _memoryOffset, _size);
 }
 
 void Tensor::fill(const void *data, size_t size) const {
@@ -186,22 +173,25 @@ void Tensor::fill(const void *data, size_t size) const {
                                 " vs " + std::to_string(size);
         throw std::runtime_error(msg);
     }
-    void *pDeviceMemory = map();
+    void *pDeviceMemory = _memoryManager->mapStagingBufferMemory(0, memSize());
     std::memcpy(pDeviceMemory, data, size);
-    unmap();
+    _memoryManager->unmapStagingBufferMemory();
 }
 
 void Tensor::fillZero() const {
-    void *pDeviceMemory = map();
+    void *pDeviceMemory = _memoryManager->mapStagingBufferMemory(0, memSize());
     std::memset(pDeviceMemory, 0, memSize());
-    unmap();
+    _memoryManager->unmapStagingBufferMemory();
 }
 
-std::vector<char> Tensor::getTensorData() const {
-    const ScopeExit<void()> onScopeExitRun([&]() { unmap(); });
+std::vector<char> Tensor::getTensorData(const Context &ctx) const {
+    _memoryManager->downloadData(ctx, _memoryManager->getSubresourceOffset() + _memoryOffset, _size);
+
+    const ScopeExit<void()> onScopeExitRun([&]() { _memoryManager->unmapStagingBufferMemory(); });
 
     // 1) map the GPU memory
-    const auto *mapped = static_cast<char *>(map());
+    const auto *mapped = static_cast<char *>(
+        _memoryManager->mapStagingBufferMemory(_memoryManager->getSubresourceOffset() + _memoryOffset, _size));
     const auto dSize = dataSize();
 
     std::vector<char> out;
@@ -236,8 +226,8 @@ std::vector<char> Tensor::getTensorData() const {
     return out;
 }
 
-void Tensor::store(const std::string &filename) const {
-    const auto data = getTensorData();
+void Tensor::store(const Context &ctx, const std::string &filename) const {
+    const auto data = getTensorData(ctx);
     const vgfutils::numpy::DataPtr dataPtr(data.data(), _rankConverted ? std::vector<int64_t>(0) : _shape,
                                            getDTypeFromVkFormat(dataType()));
     vgfutils::numpy::write(filename, dataPtr);

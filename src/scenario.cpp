@@ -563,7 +563,7 @@ void Scenario::setupResources() {
             tensorRec.allocateMemory(_ctx);
             _perfCounters.emplace_back("Load Tensor: " + tensor->guidStr, "Scenario Setup").start();
             if (tensor->src || !_groupManager.isAliased(tensor->guid)) {
-                tensorRec.fillFromDescription(*tensor);
+                tensorRec.fillFromDescription(_ctx, *tensor);
             }
             _perfCounters.back().stop();
         } break;
@@ -585,7 +585,7 @@ void Scenario::setupResources() {
             bufferRec.allocateMemory(_ctx);
             _perfCounters.emplace_back("Load Buffer: " + buffer->guidStr, "Scenario Setup").start();
             if (buffer->src || !_groupManager.isAliased(buffer->guid)) {
-                bufferRec.fillFromDescription(*buffer);
+                bufferRec.fillFromDescription(_ctx, *buffer);
             }
             _perfCounters.back().stop();
         } break;
@@ -888,10 +888,10 @@ void Scenario::saveResults(bool dryRun) {
             const auto &guid = resourceDesc->guid;
             switch (resourceDesc->resourceType) {
             case ResourceType::Buffer:
-                _dataManager.getBuffer(guid).store(dst.value());
+                _dataManager.getBuffer(guid).store(_ctx, dst.value());
                 break;
             case ResourceType::Tensor:
-                _dataManager.getTensor(guid).store(dst.value());
+                _dataManager.getTensor(guid).store(_ctx, dst.value());
                 break;
             case ResourceType::Image:
                 _dataManager.getImageMut(guid).store(_ctx, dst.value());
