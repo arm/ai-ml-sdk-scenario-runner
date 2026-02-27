@@ -534,6 +534,10 @@ void from_json(const json &j, TensorDesc &tensor) {
     if (j.contains("dst")) {
         tensor.dst = j.at("dst").get<std::string>();
     }
+    if (j.contains("alias_target")) {
+        throw std::runtime_error(
+            "The alias_target field is deprecated, please use the memory_group functionality instead");
+    }
     if (j.contains("memory_group")) {
         tensor.memoryGroup = j.at("memory_group").get<MemoryGroup>();
     }
