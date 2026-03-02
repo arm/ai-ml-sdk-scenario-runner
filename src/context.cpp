@@ -114,6 +114,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
                                                     scenarioOptions.disabledExtensions);
     _optionals.shader_bfloat16 =
         hasExtension(extensions, VK_KHR_SHADER_BFLOAT16_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+    _optionals.shader_float8 =
+        hasExtension(extensions, VK_EXT_SHADER_FLOAT8_EXTENSION_NAME, scenarioOptions.disabledExtensions);
 
     // Create device
     const float queuePriority = 1.0f;
@@ -138,11 +140,13 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
 
     const auto availableFeatures =
         _physicalDev.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features,
-                                  vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR>();
+                                  vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR,
+                                  vk::PhysicalDeviceShaderFloat8FeaturesEXT>();
 
-    const auto &[available11Features, available12Features, availableBfloat16] =
-        availableFeatures.template get<vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features,
-                                       vk::PhysicalDeviceShaderBfloat16FeaturesKHR>();
+    const auto &[available11Features, available12Features, availableBfloat16, availableFloat8] =
+        availableFeatures
+            .template get<vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features,
+                          vk::PhysicalDeviceShaderBfloat16FeaturesKHR, vk::PhysicalDeviceShaderFloat8FeaturesEXT>();
 
     vk::PhysicalDeviceVulkan11Features physicalDev11Feat;
     physicalDev11Feat.storageBuffer16BitAccess = available11Features.storageBuffer16BitAccess;
@@ -172,9 +176,16 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     tensorFeat.tensors = true;
     tensorFeat.pNext = &physicalDev3Feat;
 
+    vk::PhysicalDeviceShaderFloat8FeaturesEXT float8Feat{};
+    if (_optionals.shader_float8) {
+        float8Feat.shaderFloat8 = availableFloat8.shaderFloat8;
+        float8Feat.pNext = &tensorFeat;
+    }
+
     vk::PhysicalDeviceDataGraphFeaturesARM dataGraphFeat;
     dataGraphFeat.dataGraph = true;
-    dataGraphFeat.pNext = &tensorFeat;
+    dataGraphFeat.pNext =
+        _optionals.shader_float8 ? static_cast<void *>(&float8Feat) : static_cast<void *>(&tensorFeat);
 
     vk::PhysicalDeviceShaderBfloat16FeaturesKHR bfloat16Feat{};
     if (_optionals.shader_bfloat16) {
@@ -209,6 +220,9 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     }
     if (_optionals.shader_bfloat16) {
         vulkanDeviceExtensions.push_back(VK_KHR_SHADER_BFLOAT16_EXTENSION_NAME);
+    }
+    if (_optionals.shader_float8) {
+        vulkanDeviceExtensions.push_back(VK_EXT_SHADER_FLOAT8_EXTENSION_NAME);
     }
 #ifdef MOLTEN_VK_SUPPORT
     vulkanDeviceExtensions.push_back("VK_KHR_portability_subset");
