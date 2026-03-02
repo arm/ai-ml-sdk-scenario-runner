@@ -81,6 +81,11 @@ target_link_libraries(scenario-runner PRIVATE
     ${CMAKE_DL_LIBS}
 )
 target_compile_options(scenario-runner PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
+# Link stdc++fs for GCC versions < 9, since std::filesystem requires
+# explicit -lstdc++fs linking prior to GCC 9.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+    target_link_libraries(scenario-runner PRIVATE stdc++fs)
+endif()
 
 mlsdk_generate_version_header(
     TARGET scenario-runner

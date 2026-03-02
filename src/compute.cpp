@@ -7,6 +7,7 @@
 #include "logging.hpp"
 
 #include <fstream>
+#include <iomanip>
 
 namespace mlsdk::scenariorunner {
 
