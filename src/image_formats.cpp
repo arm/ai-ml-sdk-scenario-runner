@@ -6,6 +6,7 @@
 #include "image_formats.hpp"
 
 #include "dds_reader.hpp"
+#include "png_reader.hpp"
 #include "utils.hpp"
 
 #include <array>
@@ -15,12 +16,18 @@ namespace mlsdk::scenariorunner {
 
 namespace {
 
-const std::array<ImageFormatHandler, 1> kImageFormatHandlers = {
+const std::array<ImageFormatHandler, 2> kImageFormatHandlers = {
     ImageFormatHandler{
         {".dds"},
         getVkFormatFromDDS,
         loadDataFromDDS,
         saveDataToDDS,
+    },
+    ImageFormatHandler{
+        {".png"},
+        getVkFormatFromPNG,
+        loadDataFromPNG,
+        saveDataToPNG,
     },
 };
 

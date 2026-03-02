@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <set>
 #include <string>
@@ -16,10 +17,19 @@
 namespace mlsdk::scenariorunner {
 
 struct ImageLoadOptions {
+    // Common options
     /// Expected height in pixels (0 to skip check).
     uint32_t expectedHeight{0};
     /// Expected width in pixels (0 to skip check).
     uint32_t expectedWidth{0};
+
+    // PNG options
+    /// Maximum allowed height in pixels (0 to skip check).
+    uint32_t maxHeight{8192};
+    /// Maximum allowed width in pixels (0 to skip check).
+    uint32_t maxWidth{8192};
+    /// Maximum decoded byte size (0 to skip check).
+    uint64_t maxDecodedBytes{8192 * 8192 * 4};
 };
 
 struct ImageSaveOptions {};

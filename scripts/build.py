@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 """Builds the Scenario Runner App"""
@@ -376,6 +376,8 @@ class Builder:
                         f"{self.install}/bin/glslc{exe_ext}",
                         "--dds-utils",
                         f"{self.install}/bin/dds_utils{exe_ext}",
+                        "--png-utils",
+                        f"{self.install}/bin/png_utils{exe_ext}",
                         "--spirv-as",
                         f"{self.install}/bin/spirv-as{exe_ext}",
                         "--spirv-val",
@@ -389,6 +391,8 @@ class Builder:
                         f"{self.build_dir}/src/tools/glslc{exe_ext}",
                         "--dds-utils",
                         f"{self.build_dir}/src/tools//dds_utils{exe_ext}",
+                        "--png-utils",
+                        f"{self.build_dir}/src/tools//png_utils{exe_ext}",
                         "--spirv-as",
                         f"{self.build_dir}/spirv-tools/tools/spirv-as{exe_ext}",
                         "--spirv-val",
