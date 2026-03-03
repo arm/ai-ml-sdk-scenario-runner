@@ -288,10 +288,12 @@ void Pipeline::initSession(const Context &ctx) {
 
         //  Allocate memory for the session
         if (memoryReqs.memoryRequirements.size > 0) {
-            vk::MemoryPropertyFlags memoryFlags = {};
+            vk::MemoryPropertyFlags memoryFlags;
             if (ctx.sessionMemoryDumpEnabled()) {
                 mlsdk::logging::warning("Enabling session memory dumping is known to cause issues on certain GPUs.");
                 memoryFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+            } else {
+                memoryFlags = vk::MemoryPropertyFlagBits::eDeviceLocal;
             }
             auto memoryTypeIdx = findMemoryIdx(ctx, memoryReqs.memoryRequirements.memoryTypeBits, memoryFlags);
 
