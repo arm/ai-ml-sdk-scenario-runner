@@ -134,7 +134,7 @@ const vgfutils::numpy::DType getDTypeFromVkFormat(vk::Format format) {
     }
     if (format == vk::Format::eR8SfloatFpencodingFloat8E4M3ARM ||
         format == vk::Format::eR8SfloatFpencodingFloat8E5M2ARM) {
-        return vgfutils::numpy::DType('V', 1);
+        return vgfutils::numpy::DType('V', 1, '<');
     }
 
     char const *numeric = componentNumericFormat(format, 0);
