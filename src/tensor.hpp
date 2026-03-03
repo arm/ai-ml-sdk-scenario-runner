@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -58,24 +58,17 @@ class Tensor {
     /// \return tiling
     vk::TensorTilingARM tiling() const;
 
-    /// \brief Maps buffer memory to host
-    /// \return Pointer to the mapped host memory
-    void *map() const;
-
-    /// \brief Un-maps a buffer from the host
-    void unmap() const;
-
     /// \brief checks if tensor's shape has been converted from dims=[] to dims=[1]
     bool isRankConverted() const { return _rankConverted; };
 
     void allocateMemory(const Context &ctx);
 
-    void fillFromDescription(const TensorDesc &desc) const;
+    void fillFromDescription(const Context &ctx, const TensorDesc &desc) const;
     void fill(const void *data, size_t size) const;
     void fillZero() const;
 
-    std::vector<char> getTensorData() const;
-    void store(const std::string &filename) const;
+    std::vector<char> getTensorData(const Context &ctx) const;
+    void store(const Context &ctx, const std::string &filename) const;
 
     const std::string &debugName() const;
 

@@ -34,7 +34,7 @@ class ResourceMemoryManager {
 
         _stagingBuffer = vk::raii::Buffer(ctx.device(), bufferCreateInfo);
         const vk::MemoryRequirements memReqs = _stagingBuffer.getMemoryRequirements();
-        const auto memoryFlags = vk::MemoryPropertyFlagBits::eHostVisible;
+        const auto memoryFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
         const uint32_t memTypeIndex = findMemoryIdx(ctx, memReqs.memoryTypeBits, memoryFlags);
         if (memTypeIndex == std::numeric_limits<uint32_t>::max()) {
             throw std::runtime_error("Cannot find a memory type with the required properties");
@@ -102,6 +102,82 @@ class ResourceMemoryManager {
             throw std::runtime_error("Staging buffer memory has not been allocated");
         }
         _stagingBufferDeviceMemory.unmapMemory();
+    }
+
+    void uploadData(const Context &ctx, vk::DeviceSize offset, vk::DeviceSize size) const {
+        // Create device buffer to copy data to
+        vk::BufferCreateInfo bufferCreateInfo{
+            vk::BufferCreateFlags(), size,   vk::BufferUsageFlagBits::eTransferDst, vk::SharingMode::eExclusive,
+            ctx.familyQueueIdx(),    nullptr};
+        vk::raii::Buffer deviceBuffer = vk::raii::Buffer(ctx.device(), bufferCreateInfo);
+        deviceBuffer.bindMemory(*_deviceMemory, offset);
+
+        // Create host visible buffer to copy data from
+        vk::BufferCreateInfo stagingBufferCreateInfo{
+            vk::BufferCreateFlags(), size,   vk::BufferUsageFlagBits::eTransferSrc, vk::SharingMode::eExclusive,
+            ctx.familyQueueIdx(),    nullptr};
+        vk::raii::Buffer stagingBuffer = vk::raii::Buffer(ctx.device(), stagingBufferCreateInfo);
+        stagingBuffer.bindMemory(*_stagingBufferDeviceMemory, offset);
+
+        // Copy data from staging buffer to device local buffer
+        const vk::CommandPoolCreateInfo cmdPoolCreateInfo({vk::CommandPoolCreateFlagBits::eResetCommandBuffer},
+                                                          ctx.familyQueueIdx());
+        auto cmdPool = ctx.device().createCommandPool(cmdPoolCreateInfo);
+        const vk::CommandBufferAllocateInfo cmdBufferAllocInfo(*cmdPool, vk::CommandBufferLevel::ePrimary, 1);
+        vk::raii::CommandBuffer cmdBuffer = std::move(ctx.device().allocateCommandBuffers(cmdBufferAllocInfo).front());
+        const vk::CommandBufferBeginInfo CmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+        cmdBuffer.begin(CmdBufferBeginInfo);
+        vk::BufferCopy copyRegion{0, 0, size};
+        cmdBuffer.copyBuffer(stagingBuffer, deviceBuffer, copyRegion);
+        cmdBuffer.end();
+
+        vk::SubmitInfo submitInfo({}, {}, *cmdBuffer);
+        auto queue = ctx.device().getQueue(ctx.familyQueueIdx(), 0);
+        auto fence = ctx.device().createFence({});
+        queue.submit(submitInfo, *fence);
+        const uint64_t timeout = static_cast<uint64_t>(-1);
+        auto res = ctx.device().waitForFences({*fence}, true, timeout);
+        if (res != vk::Result::eSuccess) {
+            throw std::runtime_error("Error while waiting for fence.");
+        }
+    }
+
+    void downloadData(const Context &ctx, vk::DeviceSize offset, vk::DeviceSize size) const {
+        // Create device buffer to copy data from
+        vk::BufferCreateInfo bufferCreateInfo{
+            vk::BufferCreateFlags(), size,   vk::BufferUsageFlagBits::eTransferSrc, vk::SharingMode::eExclusive,
+            ctx.familyQueueIdx(),    nullptr};
+        vk::raii::Buffer deviceBuffer = vk::raii::Buffer(ctx.device(), bufferCreateInfo);
+        deviceBuffer.bindMemory(*_deviceMemory, offset);
+
+        // Create host visible buffer to copy data to
+        vk::BufferCreateInfo stagingBufferCreateInfo{
+            vk::BufferCreateFlags(), size,   vk::BufferUsageFlagBits::eTransferDst, vk::SharingMode::eExclusive,
+            ctx.familyQueueIdx(),    nullptr};
+        vk::raii::Buffer stagingBuffer = vk::raii::Buffer(ctx.device(), stagingBufferCreateInfo);
+        stagingBuffer.bindMemory(*_stagingBufferDeviceMemory, offset);
+
+        // Copy data from device local buffer to staging buffer
+        const vk::CommandPoolCreateInfo cmdPoolCreateInfo({vk::CommandPoolCreateFlagBits::eResetCommandBuffer},
+                                                          ctx.familyQueueIdx());
+        auto cmdPool = ctx.device().createCommandPool(cmdPoolCreateInfo);
+        const vk::CommandBufferAllocateInfo cmdBufferAllocInfo(*cmdPool, vk::CommandBufferLevel::ePrimary, 1);
+        vk::raii::CommandBuffer cmdBuffer = std::move(ctx.device().allocateCommandBuffers(cmdBufferAllocInfo).front());
+        const vk::CommandBufferBeginInfo CmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+        cmdBuffer.begin(CmdBufferBeginInfo);
+        vk::BufferCopy copyRegion{0, 0, size};
+        cmdBuffer.copyBuffer(deviceBuffer, stagingBuffer, copyRegion);
+        cmdBuffer.end();
+
+        vk::SubmitInfo submitInfo({}, {}, *cmdBuffer);
+        auto queue = ctx.device().getQueue(ctx.familyQueueIdx(), 0);
+        auto fence = ctx.device().createFence({});
+        queue.submit(submitInfo, *fence);
+        const uint64_t timeout = static_cast<uint64_t>(-1);
+        auto res = ctx.device().waitForFences({*fence}, true, timeout);
+        if (res != vk::Result::eSuccess) {
+            throw std::runtime_error("Error while waiting for fence.");
+        }
     }
 
   private:

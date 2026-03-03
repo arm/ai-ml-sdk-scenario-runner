@@ -354,13 +354,7 @@ void Image::transitionLayout(const Context &ctx, vk::ImageLayout expectedLayout)
 void Image::allocateMemory(const Context &ctx) {
     // Allocate memory
     if (!_memoryManager->isInitalized()) {
-        vk::MemoryPropertyFlags memoryFlags;
-        if (_imageInfo.isAliased) {
-            memoryFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
-        } else {
-            memoryFlags = vk::MemoryPropertyFlagBits::eDeviceLocal;
-        }
-        _memoryManager->allocateDeviceMemory(ctx, memoryFlags);
+        _memoryManager->allocateDeviceMemory(ctx, vk::MemoryPropertyFlagBits::eDeviceLocal);
     }
 
     // Bind image to memory

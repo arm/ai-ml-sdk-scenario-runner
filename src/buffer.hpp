@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -40,25 +40,22 @@ class Buffer {
     /// \return Debug name associated with the buffer
     const std::string &debugName() const;
 
-    /// \brief Maps buffer memory to host
-    /// \return Pointer to the mapped host memory
-    void *map() const;
-
-    /// \brief Un-maps a buffer from the host
-    void unmap() const;
-
-    void fillFromDescription(const BufferDesc &buffer) const;
+    void fillFromDescription(const Context &ctx, const BufferDesc &buffer) const;
 
     /// \brief Fills the buffer with the given data
     ///
+    /// \param ctx  Contextual information about the Vulkan instance
     /// \param ptr  pointer to data to fill the buffer with
     /// \param size size of data in bytes
-    void fill(const void *ptr, size_t size) const;
+    void fill(const Context &ctx, const void *ptr, size_t size) const;
 
     /// \brief Fills the buffer with zeros
-    void fillZero() const;
+    void fillZero(const Context &ctx) const;
 
-    void store(const std::string &filename) const;
+    /// \brief Retrieves the buffer data and writes it to a file
+    void store(const Context &ctx, const std::string &filename) const;
+
+    std::shared_ptr<ResourceMemoryManager> memoryManager() const { return _memoryManager; }
 
   private:
     vk::raii::Buffer _buffer{nullptr};

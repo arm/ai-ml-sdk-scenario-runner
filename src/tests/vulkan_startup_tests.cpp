@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <gtest/gtest.h>
@@ -74,7 +74,7 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
         auto &buffer = dataManager.getBufferMut(guid);
         buffer.setup(ctx);
         buffer.allocateMemory(ctx);
-        buffer.fill(values.data(), values.size());
+        buffer.fill(ctx, values.data(), values.size());
     };
     info.size = numElements * sizeof(float);
     data.resize(info.size);
@@ -121,12 +121,13 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
 
     // Retrieve results
     auto &outputBuf = dataManager.getBufferMut(guidOut);
-    float *outputPtr = static_cast<float *>(outputBuf.map());
+    outputBuf.memoryManager()->downloadData(ctx, 0, info.size);
+    float *outputPtr = static_cast<float *>(outputBuf.memoryManager()->mapStagingBufferMemory(0, info.size));
 
     const std::vector<float> output(outputPtr, outputPtr + numElements);
     for (uint32_t i = 0; i < numElements; ++i) {
         EXPECT_NEAR(expectedOutput[i], output[i], epsilon);
     }
-    outputBuf.unmap();
+    outputBuf.memoryManager()->unmapStagingBufferMemory();
 }
 } // namespace mlsdk::scenariorunner
