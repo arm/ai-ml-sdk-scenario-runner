@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -78,8 +78,6 @@ class Image {
     uint32_t getFormatMaxMipLevels(const Context &ctx, vk::ImageTiling tiling, vk::ImageUsageFlags usageFlags);
 
     vk::raii::Image _image{nullptr};
-    vk::raii::Buffer _stagingBuffer{nullptr};
-    vk::raii::DeviceMemory _stagingBufferDeviceMemory{nullptr};
     vk::raii::ImageView _imageView{nullptr};
     vk::raii::Sampler _sampler{nullptr};
     vk::Format _dataType{};
