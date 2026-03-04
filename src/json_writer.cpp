@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -94,14 +94,19 @@ void writePerfCounters(std::vector<PerformanceCounter> &perfCounters, std::files
 }
 
 void writeProfilingData(const std::vector<uint64_t> &timestamps, const float timestampPeriod,
-                        const std::vector<std::string> &profiledCommands, const std::filesystem::path &path,
-                        const int iteration, const int repeatCount) {
+                        const std::vector<std::string> &profiledCommands, const std::vector<uint64_t> &memoryUsages,
+                        const std::filesystem::path &path, const int iteration, const int repeatCount) {
     if (profiledCommands.size() * 2 != timestamps.size()) {
         throw std::runtime_error("Cannot map all timestamps to their respective commands");
     }
     for (size_t idx = 0, commandIdx = 0; idx < timestamps.size(); idx += 2, ++commandIdx) {
         _profilingDataJsonOutput["Timestamps"] += CommandTimestamps(
             profiledCommands[commandIdx], {timestamps[idx], timestamps[idx + 1]}, timestampPeriod, iteration);
+    }
+    for (size_t idx = 0; idx < memoryUsages.size(); ++idx) {
+        _profilingDataJsonOutput["Memory Usage"] += {{"Command type", "DataGraphDispatch"},
+                                                     {"Session memory [bytes]", memoryUsages[idx]},
+                                                     {"Iteration", iteration}};
     }
     // Check if this is the last iteration
     if (iteration + 1 == repeatCount) {

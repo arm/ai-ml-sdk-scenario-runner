@@ -49,6 +49,8 @@ class Pipeline {
 
     const std::vector<vk::DeviceSize> &sessionMemoryDataSizes() const { return _sessionMemoryDataSizes; }
 
+    uint64_t getDataGraphPipelineMemoryRequirement() const { return _dataGraphPipelineMemoryRequirement; }
+
     bool isDataGraphPipeline() const { return _type == PipelineType::GraphCompute; };
 
     template <typename T>
@@ -69,6 +71,7 @@ class Pipeline {
     std::vector<vk::DeviceSize> _sessionMemoryDataSizes;
     vk::raii::ShaderModule _shader{nullptr};
     std::string _debugName{};
+    uint64_t _dataGraphPipelineMemoryRequirement{};
 
     void initSession(const Context &ctx);
 
