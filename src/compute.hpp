@@ -169,7 +169,7 @@ class Compute {
 
     void _setNextCommandBuffer();
     void _beginCommandBuffer();
-    void _createFence();
+    void _resetFence();
     void _waitForFence();
 
     /// \brief Fetch the QueryPoolResults, which contain runtime cycle-timestamps used for profiling
