@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -89,12 +89,10 @@ int main(int argc, const char **argv) {
 
         parser.add_argument("--scenario")
             .help("file to load the scenario from. File should be in JSON format")
-            .default_value<std::string>("")
-            .required();
-        parser.add_argument("--output").help("output folder").default_value<std::string>("");
-        parser.add_argument("--profiling-dump-path")
-            .help("path to save runtime profiling")
-            .default_value<std::string>("");
+            .required()
+            .nargs(1);
+        parser.add_argument("--output").help("output folder").nargs(1);
+        parser.add_argument("--profiling-dump-path").help("path to save runtime profiling").nargs(1);
         parser.add_argument("--pipeline-caching")
             .help("enable the pipeline caching")
             .default_value(false)
@@ -105,40 +103,45 @@ int main(int argc, const char **argv) {
             .implicit_value(true);
         parser.add_argument("--cache-path")
             .help("set pipeline cache location")
-            .default_value<std::string>(std::filesystem::temp_directory_path().string());
+            .default_value<std::string>(std::filesystem::temp_directory_path().string())
+            .nargs(1);
         parser.add_argument("--fail-on-pipeline-cache-miss")
             .help("ensure an error is generated on a pipeline cache miss")
             .default_value(false)
             .implicit_value(true);
         parser.add_argument("--perf-counters-dump-path")
             .help("path to save performance counter stats")
-            .default_value<std::string>("");
+            .default_value<std::string>("")
+            .nargs(1);
         parser.add_argument("--log-level")
-            .help("set logging level")
-            .default_value("debug")
-            .choices("debug", "info", "warning", "error");
+            .help("set logging level [default: info]")
+            .choices("debug", "info", "warning", "error")
+            .nargs(1);
         parser.add_argument("--wait-for-key-stroke-before-run")
-            .help("Wait for a key stroke before run")
+            .help("wait for a key stroke before run")
             .default_value(false)
             .implicit_value(true);
         parser.add_argument("--dry-run")
-            .help("Setup pipelines but skip the actual execution")
+            .help("setup pipelines but skip the actual execution")
             .default_value(false)
             .implicit_value(true);
         parser.add_argument("--disable-extension")
             .append()
             .store_into(scenarioOptions.disabledExtensions)
-            .nargs(argparse::nargs_pattern::any)
+            .choices("VK_EXT_custom_border_color", "VK_EXT_frame_boundary", "VK_KHR_maintenance_5",
+                     "VK_KHR_deferred_host_operations")
+            .nargs(argparse::nargs_pattern::at_least_one)
             .help("specify extensions to disable out of the following: " + printExtensionList());
         parser.add_argument("--enable-gpu-debug-markers")
             .help("enable GPU debug markers")
             .default_value(false)
             .implicit_value(true);
         parser.add_argument("--session-memory-dump-dir")
-            .help("path to dump the contents of the sessions ram after inference completes");
-        parser.add_argument("--repeat").help("Repeat count for scenario execution").default_value(1).scan<'i', int>();
+            .help("path to dump the contents of the sessions ram after inference completes")
+            .nargs(1);
+        parser.add_argument("--repeat").help("optional repeat count for scenario execution").nargs(1).scan<'i', int>();
         parser.add_argument("--capture-frame")
-            .help("Enable RenderDoc integration for frame capturing")
+            .help("enable RenderDoc integration for frame capturing")
             .default_value(false)
             .implicit_value(true);
         // This is needed especially when capturing from RDoc with emulation layers enabled,
@@ -161,8 +164,8 @@ int main(int argc, const char **argv) {
         }
 
         std::filesystem::path outputDir = workDir;
-        if (!parser.get("output").empty()) {
-            outputDir = std::filesystem::path(parser.get("output"));
+        if (parser.is_used("--output")) {
+            outputDir = std::filesystem::path(parser.get("--output"));
         }
 
         if (!outputDir.empty() && !std::filesystem::exists(outputDir)) {
@@ -193,7 +196,7 @@ int main(int argc, const char **argv) {
             }
         }
 
-        if (parser.present("--session-memory-dump-dir")) {
+        if (parser.is_used("--session-memory-dump-dir")) {
             auto sessionRAMsDumpDir = parser.get("--session-memory-dump-dir");
             scenarioOptions.sessionRAMsDumpDir = std::filesystem::path(sessionRAMsDumpDir);
             if (!std::filesystem::is_directory(scenarioOptions.sessionRAMsDumpDir)) {
@@ -201,25 +204,28 @@ int main(int argc, const char **argv) {
             }
         }
 
-        auto perfCountersPath = parser.get("--perf-counters-dump-path");
-        if (!perfCountersPath.empty()) {
+        if (parser.is_used("--perf-counters-dump-path")) {
+            auto perfCountersPath = parser.get("--perf-counters-dump-path");
             scenarioOptions.perfCountersPath = std::filesystem::path(perfCountersPath);
             if (!std::ofstream(scenarioOptions.perfCountersPath)) {
                 throw std::runtime_error("Unable to open perf counters file for writing " + perfCountersPath);
             }
         }
 
-        auto profilingPath = parser.get("--profiling-dump-path");
-        if (!profilingPath.empty()) {
+        if (parser.is_used("--profiling-dump-path")) {
+            auto profilingPath = parser.get("--profiling-dump-path");
             scenarioOptions.profilingPath = std::filesystem::path(profilingPath);
             if (!std::ofstream(scenarioOptions.profilingPath)) {
                 throw std::runtime_error("Unable to open profiling data file for writing " + profilingPath);
             }
         }
 
-        int repeatCount = parser.get<int>("--repeat");
-        if (repeatCount <= 0) {
-            throw std::runtime_error("Expected positive number for repeat");
+        int repeatCount = 1;
+        if (parser.is_used("--repeat")) {
+            repeatCount = parser.get<int>("--repeat");
+            if (repeatCount <= 0) {
+                throw std::runtime_error("Expected positive number for repeat");
+            }
         }
 
         bool dryRun = parser.get<bool>("--dry-run");
@@ -244,14 +250,14 @@ int main(int argc, const char **argv) {
             std::ignore = getchar();
         }
         scenario.run(repeatCount, dryRun);
-
     } catch (const std::exception &err) {
         mlsdk::logging::error(err.what());
         retval = -1;
     }
-    if (pause_on_exit) {
+    if (pause_on_exit) { // cppcheck-suppress-begin knownConditionTrueFalse
         mlsdk::logging::info("Press enter to continue...");
         std::ignore = getchar();
     }
+    // cppcheck-suppress-end knownConditionTrueFalse
     return retval;
 }
