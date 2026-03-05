@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 #
-# SPDX-FileCopyrightText: Copyright 2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2024, 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
-""" Tests for mipmaps writing. """
 import numpy as np
 import pytest
+
+"""Tests for mipmaps writing."""
+
 
 pytestmark = pytest.mark.mipmaps_writing
 

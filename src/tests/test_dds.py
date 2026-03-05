@@ -3,12 +3,13 @@
 # SPDX-FileCopyrightText: Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
-""" Tests DDS files processing.  """
 import platform
 import subprocess
 
 import numpy as np
 import pytest
+
+"""Tests DDS files processing."""
 
 
 pytestmark = pytest.mark.dds

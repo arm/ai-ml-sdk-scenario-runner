@@ -3,15 +3,14 @@
 # SPDX-FileCopyrightText: Copyright 2025-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
-""" Tests for shaders execution. """
 import io
-import itertools
 import os
-from pathlib import Path
 
 import numpy as np
 import pytest
 import vgfpy as vgf
+
+"""Tests for shaders execution."""
 
 DESCRIPTOR_TYPE_TENSOR_ARM = 1000460000
 VK_FORMAT_R8_SINT = 14

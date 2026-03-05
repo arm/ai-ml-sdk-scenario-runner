@@ -3,12 +3,10 @@
 # SPDX-FileCopyrightText: Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
-"""  Tests for memory aliasing. """
-import os
-
 import numpy as np
 import pytest
 
+"""Tests for memory aliasing."""
 
 pytestmark = pytest.mark.memory_aliasing
 

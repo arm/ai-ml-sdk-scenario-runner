@@ -3,8 +3,9 @@
 # SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Tests handling of unsupported image extensions."""
 import pytest
+
+"""Tests handling of unsupported image extensions."""
 
 
 def test_png_unsupported_extension_fails(sdk_tools, resources_helper):

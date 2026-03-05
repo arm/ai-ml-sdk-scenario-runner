@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 #
-# SPDX-FileCopyrightText: Copyright 2023-2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2023-2024, 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
-""" Validate the scenario against the json schema """
 import argparse
 import json
 import os
@@ -12,6 +11,8 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ErrorTree
 from referencing import Registry
 from referencing import Resource
+
+"""Validate the scenario against the json schema"""
 
 
 def validate_scenario(schema_filename, json_filename):

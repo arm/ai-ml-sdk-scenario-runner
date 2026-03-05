@@ -3,13 +3,14 @@
 # SPDX-FileCopyrightText: Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
-""" Validate the scenario against the json schema """
 import os
 import pathlib
 import sys
 
 import pytest
 from jsonschema.exceptions import best_match
+
+"""Validate the scenario against the json schema"""
 
 RUNNER_ROOT_DIR = pathlib.Path(os.path.abspath(os.path.dirname(__file__))) / ".." / ".."
 SCHEMA_FILE = RUNNER_ROOT_DIR / "schema" / "scenario.schema"
