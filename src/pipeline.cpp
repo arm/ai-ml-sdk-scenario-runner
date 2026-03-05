@@ -129,6 +129,11 @@ void Pipeline::computePipelineCommon(const Context &ctx, const ShaderInfo &shade
                                                                   *_pipelineLayout, {}, {}, pNext);
     _pipeline = vk::raii::Pipeline(ctx.device(), vkPipelineCache, computePipelineCreateInfo);
 
+    if (pipelineCache && pipelineCache->failOnCacheMiss() &&
+        _pipeline.getConstructorSuccessCode() == vk::Result::ePipelineCompileRequired) {
+        throw std::runtime_error("Pipeline cache miss for pipeline: " + shaderInfo.debugName);
+    }
+
     trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
 }
 
@@ -257,6 +262,11 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIn
                                                                 static_cast<uint32_t>(resourceInfos.size()),
                                                                 resourceInfos.data(), &pipelineShaderModuleCreateInfo);
     _pipeline = vk::raii::Pipeline(ctx.device(), deferredOperation, vkPipelineCache, pipelineCreateInfo);
+
+    if (pipelineCache && pipelineCache->failOnCacheMiss() &&
+        _pipeline.getConstructorSuccessCode() == vk::Result::ePipelineCompileRequired) {
+        throw std::runtime_error("Pipeline cache miss for pipeline: " + _debugName);
+    }
 
     trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
 
