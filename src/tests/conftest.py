@@ -15,7 +15,6 @@ import numpy as np
 import pytest
 from PIL import Image
 
-
 logger = logging.getLogger(__name__)
 
 

@@ -3,12 +3,14 @@
 # SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Tests for scenarios combining shaders and VGF graphs."""
 import io
 
 import numpy as np
 import pytest
 import vgfpy as vgf
+
+"""Tests for scenarios combining shaders and VGF graphs."""
+
 
 DESCRIPTOR_TYPE_TENSOR_ARM = 1000460000
 VK_FORMAT_R8_SINT = 14

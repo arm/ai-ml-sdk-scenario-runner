@@ -3,12 +3,12 @@
 # SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Tests PNG file processing."""
 import subprocess
 
 import numpy as np
 import pytest
 
+"""Tests PNG file processing."""
 
 pytestmark = pytest.mark.png
 

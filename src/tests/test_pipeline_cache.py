@@ -3,11 +3,13 @@
 # SPDX-FileCopyrightText: Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
-""" Tests for pipeline caching. """
 import os
 
 import numpy as np
 import pytest
+
+"""Tests for pipeline caching."""
+
 
 pytestmark = pytest.mark.pipeline_cache
 
