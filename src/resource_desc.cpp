@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -168,4 +168,19 @@ TensorBarrierDesc::TensorBarrierDesc(const std::string &guidStr, MemoryAccess sr
 TensorBarrierDesc::TensorBarrierDesc()
     : BaseBarrierDesc(ResourceType::TensorBarrier, Guid(), "<unnamed_tensor_barrier>") {}
 
+/**
+ * @brief Construct a new GraphConstantDesc object
+ *
+ * @param guid
+ * @param guidStr
+ * @param src
+ * @param dims
+ */
+GraphConstantDesc::GraphConstantDesc(Guid guid, const std::string &guidStr, std::string src, std::vector<int64_t> dims)
+    : ResourceDesc(ResourceType::GraphConstant, guid, guidStr), dims(std::move(dims)) {
+    setSrc(std::move(src));
+}
+
+GraphConstantDesc::GraphConstantDesc()
+    : ResourceDesc(ResourceType::GraphConstant, Guid(), "<unnamed_graph_constant>") {}
 } // namespace mlsdk::scenariorunner

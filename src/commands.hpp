@@ -13,7 +13,14 @@
 
 namespace mlsdk::scenariorunner {
 
-enum class CommandType { Unknown, DispatchCompute, DispatchDataGraph, DispatchBarrier, MarkBoundary };
+enum class CommandType {
+    Unknown,
+    DispatchCompute,
+    DispatchDataGraph,
+    DispatchSpirvGraph,
+    DispatchBarrier,
+    MarkBoundary
+};
 
 enum class DescriptorType { Unknown, Auto, StorageImage };
 
@@ -91,6 +98,21 @@ struct DispatchDataGraphDesc : CommandDesc {
     std::vector<PushConstantMap> pushConstants;
     std::vector<ShaderSubstitution> shaderSubstitutions;
     bool implicitBarrier{true};
+};
+
+/**
+ * @brief The DispatchSpirvGraph command dispatches a SPIR-V-only data graph to execute. DispatchSpirvGraphDesc
+ * describes a DispatchSpirvGraph.
+ */
+struct DispatchSpirvGraphDesc : CommandDesc {
+    DispatchSpirvGraphDesc();
+
+    Guid dataGraphRef;
+    std::string debugName;
+    std::vector<BindingDesc> bindings;
+    std::vector<Guid> graphConstants;
+    bool implicitBarrier{true};
+    std::string entry{"main"};
 };
 
 /**

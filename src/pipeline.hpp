@@ -35,6 +35,10 @@ class Pipeline {
     Pipeline(const CommonArguments &args, uint32_t segmentIndex, const VgfView &vgfView,
              const DataManager &dataManager);
 
+    // Create DataGraph pipeline directly from SPIR-V module + constants (no VGF)
+    Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, const DataManager &dataManager,
+             const std::vector<GraphConstantInfo> &constants);
+
     /// \brief Vulkan® pipeline accessor
     /// \return The underlying Vulkan® pipeline of the object
     const vk::Pipeline &pipeline() const { return *_pipeline; }
@@ -83,6 +87,18 @@ class Pipeline {
     void graphComputePipelineCommon(const Context &ctx, uint32_t segmentIndex, const VgfView &vgfView,
                                     std::shared_ptr<PipelineCache> pipelineCache,
                                     const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos);
+
+    // Helper to build a Datagraph pipeline that has been dispatched through SPIR-V
+    void graphComputePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
+                                    const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
+                                    const std::vector<vk::DataGraphPipelineConstantARM> &constantInfos,
+                                    std::shared_ptr<PipelineCache> pipelineCache);
+
+    // Helper to build a DataGraph pipeline once shader module, entry, resources and constants are prepared
+    void buildDataGraphPipeline(const Context &ctx, const std::string &entry,
+                                const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
+                                const std::vector<vk::DataGraphPipelineConstantARM> &constantInfos,
+                                std::shared_ptr<PipelineCache> pipelineCache);
 };
 
 template <typename T>

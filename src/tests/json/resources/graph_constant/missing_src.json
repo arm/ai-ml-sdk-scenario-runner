@@ -1,0 +1,12 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "graph_constant": {
+                "dims": [1, 16, 16, 16],
+                "uid": "graph_constant_0_ref",
+                "format": "VK_FORMAT_R8_SINT"
+            }
+        }
+    ]
+}

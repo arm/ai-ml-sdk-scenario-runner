@@ -148,6 +148,10 @@ void readJson(ScenarioSpec &scenarioSpec, std::istream *is) {
             BufferBarrierDesc bufferBarrier = item.at("buffer_barrier").get<BufferBarrierDesc>();
             scenarioSpec.addResource(std::make_unique<BufferBarrierDesc>(bufferBarrier));
         } break;
+        case (ResourceType::GraphConstant): {
+            GraphConstantDesc graphConstant = item.at("graph_constant").get<GraphConstantDesc>();
+            scenarioSpec.addResource(std::make_unique<GraphConstantDesc>(graphConstant));
+        } break;
         default:
             throw std::runtime_error("Unknown Resource type in resources");
         }
@@ -165,6 +169,10 @@ void readJson(ScenarioSpec &scenarioSpec, std::istream *is) {
         case (CommandType::DispatchDataGraph): {
             DispatchDataGraphDesc dispatchDataGraph = item.at("dispatch_graph").get<DispatchDataGraphDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchDataGraphDesc>(dispatchDataGraph));
+        } break;
+        case (CommandType::DispatchSpirvGraph): {
+            DispatchSpirvGraphDesc dispatchSpirvGraph = item.at("dispatch_spirv_graph").get<DispatchSpirvGraphDesc>();
+            scenarioSpec.addCommand(std::make_unique<DispatchSpirvGraphDesc>(dispatchSpirvGraph));
         } break;
         case (CommandType::DispatchBarrier): {
             DispatchBarrierDesc dispatchBarrier = item.at("dispatch_barrier").get<DispatchBarrierDesc>();
@@ -192,6 +200,8 @@ void from_json(const json &j, CommandDesc &command) {
         command.commandType = CommandType::DispatchCompute;
     } else if (j.find("dispatch_graph") != j.end()) {
         command.commandType = CommandType::DispatchDataGraph;
+    } else if (j.find("dispatch_spirv_graph") != j.end()) {
+        command.commandType = CommandType::DispatchSpirvGraph;
     } else if (j.find("dispatch_barrier") != j.end()) {
         command.commandType = CommandType::DispatchBarrier;
     } else if (j.find("mark_boundary") != j.end()) {
@@ -250,6 +260,26 @@ void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph) {
     }
     if (j.contains("implicit_barrier")) {
         dispatchDataGraph.implicitBarrier = j.at("implicit_barrier").get<bool>();
+    }
+}
+
+/**
+ * @brief De-serialize DispatchSpirvGraphDesc from JSON.
+ *
+ * @param j
+ * @param dispatchSpirvGraph
+ */
+void from_json(const json &j, DispatchSpirvGraphDesc &dispatchSpirvGraph) {
+    auto graphRef = j.at("graph_ref").get<std::string>();
+    dispatchSpirvGraph.dataGraphRef = graphRef;
+    dispatchSpirvGraph.debugName = graphRef;
+    dispatchSpirvGraph.bindings = j.at("bindings").get<std::vector<BindingDesc>>();
+    if (j.contains("graph_constants")) {
+        const auto graphConstants = j.at("graph_constants").get<std::vector<std::string>>();
+        dispatchSpirvGraph.graphConstants.assign(graphConstants.begin(), graphConstants.end());
+    }
+    if (j.contains("implicit_barrier")) {
+        dispatchSpirvGraph.implicitBarrier = j.at("implicit_barrier").get<bool>();
     }
 }
 
@@ -367,6 +397,8 @@ void from_json(const json &j, ResourceDesc &resource) {
         resource.resourceType = ResourceType::TensorBarrier;
     } else if (j.find("buffer_barrier") != j.end()) {
         resource.resourceType = ResourceType::BufferBarrier;
+    } else if (j.find("graph_constant") != j.end()) {
+        resource.resourceType = ResourceType::GraphConstant;
     } else {
         throw std::runtime_error("Unknown Resource type");
     }
@@ -511,6 +543,24 @@ void from_json(const json &j, RawDataDesc &raw_data) {
     raw_data.guidStr = j.at("uid").get<std::string>();
     raw_data.guid = raw_data.guidStr;
     raw_data.src = j.at("src").get<std::string>();
+}
+
+/**
+ * @brief De-serialize GraphConstantDesc from JSON.
+ *
+ * @param j
+ * @param graphConstant
+ */
+void from_json(const json &j, GraphConstantDesc &graphConstant) {
+    graphConstant.guidStr = j.at("uid").get<std::string>();
+    graphConstant.guid = graphConstant.guidStr;
+    const auto dims = j.at("dims").get<std::vector<int64_t>>();
+    if (dims.size() < 1 || dims.size() > 6) {
+        throw std::runtime_error("Invalid graph constant dimensions");
+    }
+    graphConstant.dims = dims;
+    graphConstant.src = j.at("src").get<std::string>();
+    graphConstant.format = j.at("format").get<std::string>();
 }
 
 /**

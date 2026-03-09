@@ -1,0 +1,41 @@
+{
+  "commands": [
+    {
+      "dispatch_spirv_graph": {
+        "graph_ref": "maxpool_graph",
+        "bindings": [
+          { "id": 0, "set": 0, "resource_ref": "maxpoolInput" },
+          { "id": 2, "set": 0, "resource_ref": "maxpoolOutput" }
+        ]
+
+      }
+    }
+  ],
+  "resources": [
+    {
+      "shader": {
+        "uid": "maxpool_graph",
+        "type": "SPIR-V",
+        "src": {SPV}
+      }
+    },
+    {
+      "tensor": {
+        "uid": "maxpoolInput",
+        "shader_access": "readonly",
+        "dims": [1, 16, 16, 16],
+        "format": "VK_FORMAT_R8_SINT",
+        "src": "maxpoolInput.npy"
+      }
+    },
+    {
+      "tensor": {
+        "uid": "maxpoolOutput",
+        "shader_access": "writeonly",
+        "dims": [1, 8, 8, 16],
+        "format": "VK_FORMAT_R8_SINT",
+        "dst": {OUT}
+      }
+    }
+  ]
+}

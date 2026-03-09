@@ -88,6 +88,31 @@ std::vector<std::vector<TypedBinding>> splitOutSets(const std::vector<TypedBindi
 
 } // namespace
 
+namespace {
+void makeResourceInfos(const std::vector<TypedBinding> &bindings, const DataManager &dataManager,
+                       std::vector<vk::TensorDescriptionARM> &tensorDescriptions,
+                       std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos) {
+    tensorDescriptions.reserve(tensorDescriptions.size() + bindings.size());
+    resourceInfos.reserve(resourceInfos.size() + bindings.size());
+
+    for (const auto &binding : bindings) {
+        if (!dataManager.hasTensor(binding.resourceRef)) {
+            throw std::runtime_error("Unsupported graph pipeline resource");
+        }
+
+        const auto &tensor = dataManager.getTensor(binding.resourceRef);
+        const auto &shape = tensor.shape();
+        const auto &stridesVec = tensor.dimStrides();
+        const auto *strides = stridesVec.empty() ? nullptr : stridesVec.data();
+
+        tensorDescriptions.emplace_back(tensor.tiling(), tensor.dataType(), static_cast<uint32_t>(shape.size()),
+                                        shape.data(), strides, vk::TensorUsageFlagBitsARM::eDataGraph);
+        resourceInfos.emplace_back(static_cast<uint32_t>(binding.set), static_cast<uint32_t>(binding.id), 0,
+                                   &tensorDescriptions.back());
+    }
+}
+} // namespace
+
 void Pipeline::createDescriptorSetLayouts(const Context &ctx, const std::vector<TypedBinding> &bindings) {
     for (const auto &setBindings : splitOutSets(bindings)) {
         _descriptorSetLayouts.push_back(createDescriptorSetLayout(ctx, setBindings));
@@ -156,6 +181,35 @@ Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, co
     computePipelineCommon(args.ctx, shaderInfo, args.pipelineCache);
 }
 
+// Create DataGraph pipeline directly from SPIR-V module + constants (no VGF)
+Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, const DataManager &dataManager,
+                   const std::vector<GraphConstantInfo> &constants)
+    : _type(PipelineType::GraphCompute), _debugName(args.debugName) {
+
+    // Descriptor sets and pipeline layout
+    createDescriptorSetLayouts(args.ctx, args.bindings);
+    _pipelineLayout = createPipelineLayout(args.ctx, _descriptorSetLayouts);
+
+    // Setup tensor resource infos (bound resources)
+    std::vector<vk::TensorDescriptionARM> tensorDescriptions;
+    std::vector<vk::DataGraphPipelineResourceInfoARM> resourceInfos;
+    makeResourceInfos(args.bindings, dataManager, tensorDescriptions, resourceInfos);
+
+    // Setup graph constant infos
+    std::vector<vk::TensorDescriptionARM> constantTensorDescriptions;
+    constantTensorDescriptions.reserve(constants.size());
+    std::vector<vk::DataGraphPipelineConstantARM> constantInfos;
+    constantInfos.reserve(constants.size());
+
+    for (const auto &constant : constants) {
+        constantTensorDescriptions.emplace_back(vk::TensorTilingARM::eLinear, constant.format,
+                                                static_cast<uint32_t>(constant.dims.size()), constant.dims.data(),
+                                                nullptr, vk::TensorUsageFlagBitsARM::eDataGraph);
+        constantInfos.emplace_back(constant.index, constant.data.data(), &constantTensorDescriptions.back());
+    }
+    graphComputePipelineCommon(args.ctx, shaderInfo, resourceInfos, constantInfos, args.pipelineCache);
+}
+
 Pipeline::Pipeline(const CommonArguments &args, const uint32_t segmentIndex, const VgfView &vgfView,
                    const DataManager &dataManager)
     : _type{PipelineType::GraphCompute}, _debugName(args.debugName) {
@@ -192,6 +246,19 @@ Pipeline::Pipeline(const CommonArguments &args, const uint32_t segmentIndex, con
     }
 
     graphComputePipelineCommon(args.ctx, segmentIndex, vgfView, args.pipelineCache, resourceInfos);
+}
+
+void Pipeline::graphComputePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
+                                          const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
+                                          const std::vector<vk::DataGraphPipelineConstantARM> &constantInfos,
+                                          std::shared_ptr<PipelineCache> pipelineCache) {
+    // Compile/load SPIR-V code
+    const auto spv = readShaderCode(shaderInfo);
+    _shader = createShaderModuleFromCode(ctx, spv.data(), spv.size());
+    validateShaderModule(spv.data(), spv.size());
+    trySetVkRaiiObjectDebugName(ctx, _shader, _debugName + " shader");
+
+    buildDataGraphPipeline(ctx, shaderInfo.entry, resourceInfos, constantInfos, pipelineCache);
 }
 
 void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIndex, const VgfView &vgfView,
@@ -322,6 +389,33 @@ void Pipeline::initSession(const Context &ctx) {
     if (!bindInfos.empty()) {
         ctx.device().bindDataGraphPipelineSessionMemoryARM(bindInfos);
     }
+}
+
+void Pipeline::buildDataGraphPipeline(const Context &ctx, const std::string &entry,
+                                      const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
+                                      const std::vector<vk::DataGraphPipelineConstantARM> &constantInfos,
+                                      std::shared_ptr<PipelineCache> pipelineCache) {
+    vk::DataGraphPipelineShaderModuleCreateInfoARM shaderModuleInfo(
+        *_shader, entry.c_str(), nullptr, static_cast<uint32_t>(constantInfos.size()), constantInfos.data(), nullptr);
+
+    const vk::raii::DeferredOperationKHR deferredOperation(nullptr);
+
+    vk::PipelineCreateFlags2KHR flags{};
+    const vk::raii::PipelineCache *vkPipelineCache{nullptr};
+    if (pipelineCache) {
+        if (pipelineCache->failOnCacheMiss()) {
+            flags |= vk::PipelineCreateFlagBits2KHR::eFailOnPipelineCompileRequired;
+        }
+        insertAfter(&shaderModuleInfo, pipelineCache->getCacheFeedbackCreateInfo());
+        vkPipelineCache = pipelineCache->get();
+    }
+
+    const vk::DataGraphPipelineCreateInfoARM pipelineCreateInfo(
+        flags, *_pipelineLayout, static_cast<uint32_t>(resourceInfos.size()), resourceInfos.data(), &shaderModuleInfo);
+    _pipeline = vk::raii::Pipeline(ctx.device(), deferredOperation, vkPipelineCache, pipelineCreateInfo);
+    trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
+
+    initSession(ctx);
 }
 
 const std::string &Pipeline::debugName() const { return _debugName; }

@@ -9,6 +9,9 @@
             "dispatch_graph": {
                 "$ref" : "urn:scenario:command:dispatch_graph"
             },
+            "dispatch_spirv_graph": {
+                "$ref" : "urn:scenario:command:dispatch_spirv_graph"
+            },
             "dispatch_compute": {
                 "$ref" : "urn:scenario:command:dispatch_compute"
             },

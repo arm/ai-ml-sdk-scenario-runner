@@ -1,0 +1,14 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "graph_constant": {
+                "dims": [1, 16, 16, 16],
+                "uid": "graph_constant_0_ref",
+                "src": "constant-0.npy",
+                "format": "VK_FORMAT_R8_SINT",
+                "this_is_an_invalid_property": "oops"
+            }
+        }
+    ]
+}

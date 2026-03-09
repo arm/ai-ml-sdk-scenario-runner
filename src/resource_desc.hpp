@@ -22,7 +22,8 @@ enum class ResourceType {
     ImageBarrier,
     MemoryBarrier,
     TensorBarrier,
-    BufferBarrier
+    BufferBarrier,
+    GraphConstant
 };
 
 struct MemoryGroup {
@@ -84,6 +85,7 @@ struct DataGraphDesc : ResourceDesc {
     std::vector<ShaderSubstitution> shaderSubstitutions;
     std::vector<SpecializationConstantMap> specializationConstantMaps;
     uint32_t pushConstantsSize{};
+    std::string entry{"main"};
 };
 
 /**
@@ -124,6 +126,18 @@ struct TensorDesc : ResourceDesc {
     std::string format;
     std::optional<Tiling> tiling;
     std::optional<MemoryGroup> memoryGroup;
+};
+
+/**
+ * @brief GraphConstantDesc describes a Graph Constant.
+ *
+ */
+struct GraphConstantDesc : ResourceDesc {
+    GraphConstantDesc();
+    GraphConstantDesc(Guid guid, const std::string &guidStr, std::string src, std::vector<int64_t> dims);
+
+    std::vector<int64_t> dims;
+    std::string format;
 };
 
 /**

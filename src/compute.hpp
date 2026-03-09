@@ -68,6 +68,10 @@ class Compute {
     void createPipeline(const PipelineCreateArguments &args, uint32_t segmentIndex, const VgfView &vgfView,
                         const DataManager &dataManager);
 
+    // Create a DataGraph pipeline through SPIR-V dispatch
+    void createPipeline(const PipelineCreateArguments &args, const ShaderInfo &shaderInfo,
+                        const DataManager &dataManager, const std::vector<GraphConstantInfo> &constants);
+
     /// \brief Register last created pipeline for execution with a fence synchronization
     /// in the end
     ///
