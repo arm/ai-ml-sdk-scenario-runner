@@ -128,22 +128,42 @@ ModuleType VgfView::getSegmentType(uint32_t segmentIndex) const {
 
 bool VgfView::hasSPVModule(uint32_t segmentIndex) const {
     uint32_t moduleIndex = sequenceTableDecoder->getSegmentModuleIndex(segmentIndex);
-    return moduleTableDecoder->hasSPIRV(moduleIndex);
+    return moduleTableDecoder->hasSPIRVCode(moduleIndex);
 }
 
-std::string VgfView::getSPVModuleName(uint32_t segmentIndex) const {
+bool VgfView::hasGLSLModule(uint32_t segmentIndex) const {
+    uint32_t moduleIndex = sequenceTableDecoder->getSegmentModuleIndex(segmentIndex);
+    return moduleTableDecoder->hasGLSLCode(moduleIndex);
+}
+
+bool VgfView::hasHLSLModule(uint32_t segmentIndex) const {
+    uint32_t moduleIndex = sequenceTableDecoder->getSegmentModuleIndex(segmentIndex);
+    return moduleTableDecoder->hasHLSLCode(moduleIndex);
+}
+
+std::string VgfView::getModuleName(uint32_t segmentIndex) const {
     uint32_t moduleIndex = sequenceTableDecoder->getSegmentModuleIndex(segmentIndex);
     return std::string(moduleTableDecoder->getModuleName(moduleIndex));
 }
 
-std::string VgfView::getSPVModuleEntryPoint(uint32_t segmentIndex) const {
+std::string VgfView::getModuleEntryPoint(uint32_t segmentIndex) const {
     uint32_t moduleIndex = sequenceTableDecoder->getSegmentModuleIndex(segmentIndex);
     return std::string(moduleTableDecoder->getModuleEntryPoint(moduleIndex));
 }
 
-vgflib::DataView<uint32_t> VgfView::getSPVModule(uint32_t segmentIndex) const {
+vgflib::DataView<uint32_t> VgfView::getSPVModuleCode(uint32_t segmentIndex) const {
     uint32_t moduleIndex = sequenceTableDecoder->getSegmentModuleIndex(segmentIndex);
-    return moduleTableDecoder->getModuleCode(moduleIndex);
+    return moduleTableDecoder->getSPIRVModuleCode(moduleIndex);
+}
+
+std::string VgfView::getGLSLModuleCode(uint32_t segmentIndex) const {
+    uint32_t moduleIndex = sequenceTableDecoder->getSegmentModuleIndex(segmentIndex);
+    return std::string(moduleTableDecoder->getGLSLModuleCode(moduleIndex));
+}
+
+std::string VgfView::getHLSLModuleCode(uint32_t segmentIndex) const {
+    uint32_t moduleIndex = sequenceTableDecoder->getSegmentModuleIndex(segmentIndex);
+    return std::string(moduleTableDecoder->getHLSLModuleCode(moduleIndex));
 }
 
 vgflib::DataView<uint32_t> VgfView::getDispatchShape(uint32_t segmentIndex) const {

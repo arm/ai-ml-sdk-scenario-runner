@@ -95,7 +95,7 @@ def test_conv2d_vgf(sdk_tools, resources_helper, numpy_helper):
     )
     assert moduleDecoder is not None
 
-    assert moduleDecoder.getModuleCode(module0.reference) == memoryview(conv2dCode)
+    assert moduleDecoder.getSPIRVModuleCode(module0.reference) == memoryview(conv2dCode)
 
     vgfStream.close()
 
@@ -195,7 +195,7 @@ def test_conv2d_vgf_mismatching_resource_type_or_resource_data_type_or_resource_
     )
     assert moduleDecoder is not None
 
-    assert moduleDecoder.getModuleCode(module0.reference) == memoryview(conv2dCode)
+    assert moduleDecoder.getSPIRVModuleCode(module0.reference) == memoryview(conv2dCode)
 
     vgfStream.close()
 
@@ -322,12 +322,14 @@ def test_maxpool_conv2d_parallel_vgf(sdk_tools, resources_helper, numpy_helper):
     assert moduleDecoder.size() == 2
     assert moduleDecoder.getModuleType(module0.reference) == vgf.ModuleType.Graph
     assert moduleDecoder.getModuleType(module1.reference) == vgf.ModuleType.Graph
-    assert moduleDecoder.hasSPIRV(module0.reference)
-    assert moduleDecoder.hasSPIRV(module1.reference)
+    assert moduleDecoder.isSPIRV(module0.reference)
+    assert moduleDecoder.isSPIRV(module1.reference)
     assert moduleDecoder.getModuleEntryPoint(module0.reference) == "main"
     assert moduleDecoder.getModuleEntryPoint(module1.reference) == "main"
-    assert moduleDecoder.getModuleCode(module0.reference) == memoryview(maxpoolCode)
-    assert moduleDecoder.getModuleCode(module1.reference) == memoryview(conv2dCode)
+    assert moduleDecoder.getSPIRVModuleCode(module0.reference) == memoryview(
+        maxpoolCode
+    )
+    assert moduleDecoder.getSPIRVModuleCode(module1.reference) == memoryview(conv2dCode)
 
     vgfStream.close()
 

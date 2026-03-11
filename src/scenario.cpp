@@ -5,6 +5,10 @@
 #include "scenario.hpp"
 #include "dds_reader.hpp"
 #include "frame_capturer.hpp"
+#include "glsl_compiler.hpp"
+#ifdef SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT
+#    include "hlsl_compiler.hpp"
+#endif
 #include "guid.hpp"
 #include "image_formats.hpp"
 #include "iresource.hpp"
@@ -1022,7 +1026,7 @@ void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchData
     vgfView.createIntermediateResources(creator);
     for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
         const auto &sequenceBindings = vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings);
-        auto moduleName = vgfView.getSPVModuleName(segmentIndex);
+        auto moduleName = vgfView.getModuleName(segmentIndex);
         PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + moduleName, "Pipeline Setup");
         createPipeline(segmentIndex, sequenceBindings, vgfView, dispatchDataGraph, nQueries);
     }
@@ -1084,29 +1088,52 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
         _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchDataGraph.implicitBarrier);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
-        mlsdk::logging::debug("Graph Pipeline: " + vgfView.getSPVModuleName(segmentIndex) + " created");
+        mlsdk::logging::debug("Graph Pipeline: " + vgfView.getModuleName(segmentIndex) + " created");
     } break;
     case ModuleType::SHADER: {
         bool hasSPVModule = vgfView.hasSPVModule(segmentIndex);
+        bool hasGLSLModule = vgfView.hasGLSLModule(segmentIndex);
+        bool hasHLSLModule = vgfView.hasHLSLModule(segmentIndex);
+
         if (!dispatchDataGraph.shaderSubstitutions.empty()) {
-            auto moduleName = vgfView.getSPVModuleName(segmentIndex);
+            auto moduleName = vgfView.getModuleName(segmentIndex);
             const auto shaderInfo =
                 convert(_scenarioSpec.getSubstitionShader(dispatchDataGraph.shaderSubstitutions, moduleName));
             _compute.createPipeline(args, shaderInfo);
-            if (hasSPVModule) {
+            if (hasSPVModule || hasGLSLModule || hasHLSLModule) {
                 mlsdk::logging::warning("Performing shader substitution despite shader module containing code");
             }
         } else {
-            if (!hasSPVModule) {
-                throw std::runtime_error("No SPIR-V module present and no shader substituion defined.");
-            }
-
             ShaderInfo shaderInfo;
-            shaderInfo.debugName = vgfView.getSPVModuleName(segmentIndex);
-            shaderInfo.entry = vgfView.getSPVModuleEntryPoint(segmentIndex);
+            shaderInfo.debugName = vgfView.getModuleName(segmentIndex);
+            shaderInfo.entry = vgfView.getModuleEntryPoint(segmentIndex);
             shaderInfo.shaderType = ShaderType::SPIR_V;
-            auto spv = vgfView.getSPVModule(segmentIndex);
-            _compute.createPipeline(args, shaderInfo, spv.begin(), spv.size());
+            shaderInfo.stage = ShaderStage::Compute;
+
+            if (hasSPVModule) {
+                auto spv = vgfView.getSPVModuleCode(segmentIndex);
+                _compute.createPipeline(args, shaderInfo, spv.begin(), spv.size());
+            } else if (hasGLSLModule) {
+                const auto spirv =
+                    GlslCompiler::get().compile(vgfView.getGLSLModuleCode(segmentIndex), shaderInfo.stage);
+                if (!spirv.first.empty()) {
+                    throw std::runtime_error("Compilation error\n" + spirv.first);
+                }
+                _compute.createPipeline(args, shaderInfo, spirv.second.data(), spirv.second.size());
+            } else if (hasHLSLModule) {
+#ifdef SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT
+                const auto spirv = HlslCompiler::get().compile(vgfView.getHLSLModuleCode(segmentIndex),
+                                                               shaderInfo.entry, shaderInfo.debugName);
+                if (!spirv.first.empty()) {
+                    throw std::runtime_error("Compilation error\n" + spirv.first);
+                }
+                _compute.createPipeline(args, shaderInfo, spirv.second.data(), spirv.second.size());
+#else
+                throw std::runtime_error("HLSL shaders are not supported on this platform.");
+#endif
+            } else {
+                throw std::runtime_error("No shader module present and no shader substituion defined.");
+            }
         }
 
         auto dispatchShape = vgfView.getDispatchShape(segmentIndex);
@@ -1114,7 +1141,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
         _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchDataGraph.implicitBarrier,
                                         {dispatchShape[0], dispatchShape[1], dispatchShape[2]});
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
-        mlsdk::logging::debug("Shader Pipeline: " + vgfView.getSPVModuleName(segmentIndex) + " created");
+        mlsdk::logging::debug("Shader Pipeline: " + vgfView.getModuleName(segmentIndex) + " created");
     } break;
     default:
         throw std::runtime_error("Unknown module type");

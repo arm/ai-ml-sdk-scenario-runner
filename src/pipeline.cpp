@@ -402,12 +402,12 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIn
     }
 
     // Compile SPIR-V code
-    auto spv = vgfView.getSPVModule(segmentIndex);
+    auto spv = vgfView.getSPVModuleCode(segmentIndex);
     validateShaderModule(spv.begin(), spv.size());
     _shader = createShaderModuleFromCode(ctx, spv.begin(), spv.size());
     trySetVkRaiiObjectDebugName(ctx, _shader, _debugName + " shader");
 
-    auto entryPoint = vgfView.getSPVModuleEntryPoint(segmentIndex);
+    auto entryPoint = vgfView.getModuleEntryPoint(segmentIndex);
 
     buildDataGraphPipeline(ctx, entryPoint, resourceInfos, constantInfos, pipelineCache);
 }

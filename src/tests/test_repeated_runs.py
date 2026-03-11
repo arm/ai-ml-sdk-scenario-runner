@@ -136,7 +136,7 @@ def test_conv2d_vgf_count(sdk_tools, resources_helper, numpy_helper):
     )
     assert moduleDecoder is not None
 
-    assert moduleDecoder.getModuleCode(module0.reference) == memoryview(conv2dCode)
+    assert moduleDecoder.getSPIRVModuleCode(module0.reference) == memoryview(conv2dCode)
 
     vgfStream.close()
 
