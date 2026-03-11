@@ -82,6 +82,7 @@ The build system must have:
 The following dependencies are also needed:
 
 - [Argument Parser for Modern C++](https://github.com/p-ranav/argparse).
+- [DirectXShaderCompiler](https://github.com/microsoft/DirectXShaderCompiler).
 - [glslang](https://github.com/KhronosGroup/glslang).
 - [JSON for Modern C++](https://github.com/nlohmann/json).
 - [SPIRV-Headers](https://github.com/KhronosGroup/SPIRV-Headers).
@@ -104,6 +105,7 @@ python3 ${SDK_PATH}/sw/scenario-runner/scripts/build.py -j $(nproc) \
     --json-path ${SDK_PATH}/dependencies/json \
     --vulkan-headers-path ${SDK_PATH}/dependencies/Vulkan-Headers \
     --glslang-path ${SDK_PATH}/dependencies/glslang \
+    --dxc-path ${SDK_PATH}/dependencies/DirectXShaderCompiler \
     --spirv-headers-path ${SDK_PATH}/dependencies/SPIRV-Headers \
     --spirv-tools-path ${SDK_PATH}/dependencies/SPIRV-Tools \
     --vgf-lib-path ${SDK_PATH}/sw/vgf-lib \
@@ -121,6 +123,7 @@ python "$env:SDK_PATH\sw\scenario-runner\scripts\build.py" -j $cores  `
     --json-path "$env:SDK_PATH\dependencies\json" `
     --vulkan-headers-path "$env:SDK_PATH\dependencies\Vulkan-Headers" `
     --glslang-path "$env:SDK_PATH\dependencies\glslang" `
+    --dxc-path "$env:SDK_PATH\dependencies\DirectXShaderCompiler" `
     --spirv-headers-path "$env:SDK_PATH\dependencies\SPIRV-Headers" `
     --spirv-tools-path "$env:SDK_PATH\dependencies\SPIRV-Tools" `
     --vgf-lib-path "$env:SDK_PATH\sw\vgf-lib" `
@@ -137,6 +140,7 @@ python3 $SDK_PATH/sw/scenario-runner/scripts/build.py -j $(nproc) \
     --json-path ${SDK_PATH}/dependencies/json \
     --vulkan-headers-path ${SDK_PATH}/dependencies/Vulkan-Headers \
     --glslang-path ${SDK_PATH}/dependencies/glslang \
+    --dxc-path ${SDK_PATH}/dependencies/DirectXShaderCompiler \
     --spirv-headers-path ${SDK_PATH}/dependencies/SPIRV-Headers \
     --spirv-tools-path ${SDK_PATH}/dependencies/SPIRV-Tools \
     --vgf-lib-path ${SDK_PATH}/sw/vgf-lib \
