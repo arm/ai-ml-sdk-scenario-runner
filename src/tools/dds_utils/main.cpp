@@ -79,6 +79,11 @@ DxgiFormat getDxgiFormat(const std::string &format) {
     if (format == "DXGI_FORMAT_B8G8R8A8_UNORM") {
         return DXGI_FORMAT_B8G8R8A8_UNORM;
     }
+
+    if (format == "DXGI_FORMAT_R16_UINT") {
+        return DXGI_FORMAT_R16_UINT;
+    }
+
 #ifdef SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT
     // These are image formats that haven't been fully tested yet.
     if (format == "DXGI_FORMAT_R32G32B32A32_UINT") {
@@ -200,9 +205,6 @@ DxgiFormat getDxgiFormat(const std::string &format) {
     }
     if (format == "DXGI_FORMAT_R16_UNORM") {
         return DXGI_FORMAT_R16_UNORM;
-    }
-    if (format == "DXGI_FORMAT_R16_UINT") {
-        return DXGI_FORMAT_R16_UINT;
     }
     if (format == "DXGI_FORMAT_R16_SNORM") {
         return DXGI_FORMAT_R16_SNORM;

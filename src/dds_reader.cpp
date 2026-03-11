@@ -96,6 +96,8 @@ vk::Format ddsFormatToVkFormat(const DDSHeaderInfo &header) {
         return vk::Format::eR32Sfloat;
     case DXGI_FORMAT_R16_FLOAT:
         return vk::Format::eR16Sfloat;
+    case DXGI_FORMAT_R16_UINT:
+        return vk::Format::eR16Uint;
     case DXGI_FORMAT_B8G8R8A8_UNORM:
         return vk::Format::eB8G8R8A8Unorm;
 #ifdef SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT
@@ -130,8 +132,6 @@ vk::Format ddsFormatToVkFormat(const DDSHeaderInfo &header) {
         return vk::Format::eR32Sint;
     case DXGI_FORMAT_R16_UNORM:
         return vk::Format::eR16Unorm;
-    case DXGI_FORMAT_R16_UINT:
-        return vk::Format::eR16Uint;
     case DXGI_FORMAT_R16_SNORM:
         return vk::Format::eR16Snorm;
     case DXGI_FORMAT_R16_SINT:
@@ -210,6 +210,8 @@ DxgiFormat vkFormatToDDSFormat(vk::Format vkFormat) {
         return DXGI_FORMAT_R8G8_UNORM;
     case vk::Format::eR16Sfloat:
         return DXGI_FORMAT_R16_FLOAT;
+    case vk::Format::eR16Uint:
+        return DXGI_FORMAT_R16_UINT;
     case vk::Format::eR8Unorm:
         return DXGI_FORMAT_R8_UNORM;
     case vk::Format::eR32Uint:
@@ -256,8 +258,6 @@ DxgiFormat vkFormatToDDSFormat(vk::Format vkFormat) {
         return DXGI_FORMAT_R32_SINT;
     case vk::Format::eR16Unorm:
         return DXGI_FORMAT_R16_UNORM;
-    case vk::Format::eR16Uint:
-        return DXGI_FORMAT_R16_UINT;
     case vk::Format::eR16Snorm:
         return DXGI_FORMAT_R16_SNORM;
     case vk::Format::eR16Sint:
