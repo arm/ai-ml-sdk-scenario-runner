@@ -59,24 +59,48 @@ vk::Format getVkFormatFromString(const std::string &format) {
         return vk::Format::eR16Uint;
     } else if (format == "VK_FORMAT_R16_SINT") {
         return vk::Format::eR16Sint;
+    } else if (format == "VK_FORMAT_R16_UNORM") {
+        return vk::Format::eR16Unorm;
+    } else if (format == "VK_FORMAT_R16_SNORM") {
+        return vk::Format::eR16Snorm;
     } else if (format == "VK_FORMAT_R8G8_SINT") {
         return vk::Format::eR8G8Sint;
+    } else if (format == "VK_FORMAT_R8G8_UINT") {
+        return vk::Format::eR8G8Uint;
     } else if (format == "VK_FORMAT_R8G8_UNORM") {
         return vk::Format::eR8G8Unorm;
+    } else if (format == "VK_FORMAT_R8G8_SNORM") {
+        return vk::Format::eR8G8Snorm;
     } else if (format == "VK_FORMAT_R8G8B8_SINT") {
         return vk::Format::eR8G8B8Sint;
+    } else if (format == "VK_FORMAT_R8G8B8_UINT") {
+        return vk::Format::eR8G8B8Uint;
     } else if (format == "VK_FORMAT_R8G8B8_UNORM") {
         return vk::Format::eR8G8B8Unorm;
+    } else if (format == "VK_FORMAT_R8G8B8_SRGB") {
+        return vk::Format::eR8G8B8Srgb;
     } else if (format == "VK_FORMAT_R32_SINT") {
         return vk::Format::eR32Sint;
     } else if (format == "VK_FORMAT_R16_SFLOAT") {
         return vk::Format::eR16Sfloat;
     } else if (format == "VK_FORMAT_R32_SFLOAT") {
         return vk::Format::eR32Sfloat;
+    } else if (format == "VK_FORMAT_R32G32_UINT") {
+        return vk::Format::eR32G32Uint;
+    } else if (format == "VK_FORMAT_R32G32_SINT") {
+        return vk::Format::eR32G32Sint;
+    } else if (format == "VK_FORMAT_R32G32_SFLOAT") {
+        return vk::Format::eR32G32Sfloat;
     } else if (format == "VK_FORMAT_B8G8R8A8_UNORM") {
         return vk::Format::eB8G8R8A8Unorm;
+    } else if (format == "VK_FORMAT_B8G8R8A8_SRGB") {
+        return vk::Format::eB8G8R8A8Srgb;
     } else if (format == "VK_FORMAT_R8G8B8A8_UNORM") {
         return vk::Format::eR8G8B8A8Unorm;
+    } else if (format == "VK_FORMAT_R8G8B8A8_UINT") {
+        return vk::Format::eR8G8B8A8Uint;
+    } else if (format == "VK_FORMAT_R8G8B8A8_SRGB") {
+        return vk::Format::eR8G8B8A8Srgb;
     } else if (format == "VK_FORMAT_R64_SINT") {
         return vk::Format::eR64Sint;
     } else if (format == "VK_FORMAT_R8G8B8A8_SNORM") {
@@ -85,22 +109,42 @@ vk::Format getVkFormatFromString(const std::string &format) {
         return vk::Format::eR8G8B8Snorm;
     } else if (format == "VK_FORMAT_B8G8R8_UNORM") {
         return vk::Format::eB8G8R8Unorm;
+    } else if (format == "VK_FORMAT_B8G8R8_SRGB") {
+        return vk::Format::eB8G8R8Srgb;
     } else if (format == "VK_FORMAT_R8G8B8A8_SINT") {
         return vk::Format::eR8G8B8A8Sint;
     } else if (format == "VK_FORMAT_R16G16B16A16_UNORM") {
         return vk::Format::eR16G16B16A16Unorm;
+    } else if (format == "VK_FORMAT_R16G16B16A16_UINT") {
+        return vk::Format::eR16G16B16A16Uint;
     } else if (format == "VK_FORMAT_R16G16B16A16_SNORM") {
         return vk::Format::eR16G16B16A16Snorm;
     } else if (format == "VK_FORMAT_R16G16B16A16_SFLOAT") {
         return vk::Format::eR16G16B16A16Sfloat;
     } else if (format == "VK_FORMAT_R16G16B16A16_SINT") {
         return vk::Format::eR16G16B16A16Sint;
+    } else if (format == "VK_FORMAT_R32G32B32A32_UINT") {
+        return vk::Format::eR32G32B32A32Uint;
+    } else if (format == "VK_FORMAT_R32G32B32A32_SINT") {
+        return vk::Format::eR32G32B32A32Sint;
     } else if (format == "VK_FORMAT_R32G32B32A32_SFLOAT") {
         return vk::Format::eR32G32B32A32Sfloat;
+    } else if (format == "VK_FORMAT_R16G16_UINT") {
+        return vk::Format::eR16G16Uint;
+    } else if (format == "VK_FORMAT_R16G16_SINT") {
+        return vk::Format::eR16G16Sint;
+    } else if (format == "VK_FORMAT_R16G16_UNORM") {
+        return vk::Format::eR16G16Unorm;
+    } else if (format == "VK_FORMAT_R16G16_SNORM") {
+        return vk::Format::eR16G16Snorm;
     } else if (format == "VK_FORMAT_R16G16_SFLOAT") {
         return vk::Format::eR16G16Sfloat;
     } else if (format == "VK_FORMAT_B10G11R11_UFLOAT_PACK32") {
         return vk::Format::eB10G11R11UfloatPack32;
+    } else if (format == "VK_FORMAT_D32_SFLOAT") {
+        return vk::Format::eD32Sfloat;
+    } else if (format == "VK_FORMAT_D24_UNORM_S8_UINT") {
+        return vk::Format::eD24UnormS8Uint;
     } else if (format == "VK_FORMAT_D32_SFLOAT_S8_UINT") {
         return vk::Format::eD32SfloatS8Uint;
     } else if (format == "VK_FORMAT_R8_UNORM") {
