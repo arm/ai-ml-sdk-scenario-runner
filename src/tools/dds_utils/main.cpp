@@ -80,6 +80,10 @@ DxgiFormat getDxgiFormat(const std::string &format) {
         return DXGI_FORMAT_B8G8R8A8_UNORM;
     }
 
+    if (format == "DXGI_FORMAT_R8G8B8A8_UNORM") {
+        return DXGI_FORMAT_R8G8B8A8_UNORM;
+    }
+
     if (format == "DXGI_FORMAT_R16_UINT") {
         return DXGI_FORMAT_R16_UINT;
     }
