@@ -114,6 +114,7 @@ graph_constant_path = resources_path / "graph_constant"
         # COMMANDS
         (RequiredProperty("commands"), "no_commands.json"),
         (UnexpectedProperty("not_a_real_command"), commands_path/"invalid_command.json"),
+        (InvalidMutuallyExclusive(), commands_path/"mutually_exclusive_commands.json"),
         # dispatch_compute
         (Ok(), dispatch_compute_path/"reference.json"),
         (UnexpectedProperty("this_is_an_invalid_property"), dispatch_compute_path/"invalid_property.json"),
@@ -161,6 +162,7 @@ graph_constant_path = resources_path / "graph_constant"
         # RESOURCES
         (RequiredProperty("resources"), "no_resources.json"),
         (UnexpectedProperty("not_a_real_resource"), resources_path/"invalid_resource.json"),
+        (InvalidMutuallyExclusive(), resources_path/"mutually_exclusive_resources.json"),
         # shader
         (Ok(), shader_path/"reference.json"),
         (Ok(), shader_path/"minimal.json"),

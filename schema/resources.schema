@@ -39,6 +39,41 @@
             "graph_constant": {
                 "$ref":  "urn:scenario:resource:graph_constant"
             }
-        }
+        },
+        "oneOf": [
+            {
+                "required": ["shader"]
+            },
+            {
+                "required": ["buffer"]
+            },
+            {
+                "required": ["raw_data"]
+            },
+            {
+                "required": ["graph"]
+            },
+            {
+                "required": ["tensor"]
+            },
+            {
+                "required": ["image"]
+            },
+            {
+                "required": ["memory_barrier"]
+            },
+            {
+                "required": ["buffer_barrier"]
+            },
+            {
+                "required": ["tensor_barrier"]
+            },
+            {
+                "required": ["image_barrier"]
+            },
+            {
+                "required": ["graph_constant"]
+            }
+        ]
     }
 }

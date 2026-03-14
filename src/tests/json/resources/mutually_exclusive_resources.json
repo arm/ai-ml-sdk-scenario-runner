@@ -1,0 +1,16 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "shader": {
+                "uid": "minimal_shader",
+                "src": "minimal_add.glsl"
+            },
+            "buffer": {
+                "uid": "buff1",
+                "size": 1024,
+                "shader_access": "readwrite"
+            }
+        }
+    ]
+}
