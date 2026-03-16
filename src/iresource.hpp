@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2025-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -19,6 +19,7 @@ class IResourceCreator {
     // Create buffer resource and setup and allocate memory in buffer
     virtual void createBuffer(Guid guid, const BufferInfo &info) = 0;
     virtual void createTensor(Guid guid, const TensorInfo &info) = 0;
+    virtual void createImage(Guid guid, const ImageInfo &info) = 0;
 };
 
 /// @brief Interface for accessing resources in an identifier agnostic way. Derived class handle the resource
@@ -37,7 +38,7 @@ class IResourceViewer {
 };
 
 /// @brief Base implementation for DataManager
-class DataManagerResourceViewer : public IResourceViewer {
+class DataManagerResourceViewer final : public IResourceViewer {
   public:
     DataManagerResourceViewer(const DataManager &dataManager, Guid resourceRef);
 

@@ -380,6 +380,13 @@ class Creator final : public IResourceCreator {
         tensor.allocateMemory(_ctx);
     }
 
+    void createImage(Guid guid, const ImageInfo &info) override {
+        _dataManager.createImage(guid, info);
+        auto &image = _dataManager.getImageMut(guid);
+        image.setup(_ctx);
+        image.allocateMemory(_ctx);
+    }
+
   private:
     const Context &_ctx;
     DataManager &_dataManager;
@@ -1058,12 +1065,20 @@ void Scenario::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSp
     // Validate the bindings
     const auto &sequenceBindings = dispatchSpirvGraph.bindings;
     for (const auto &binding : sequenceBindings) {
-        if (!(_dataManager.hasTensor(binding.resourceRef))) {
-            throw std::runtime_error("No resource with this guid found");
+        if (_dataManager.hasTensor(binding.resourceRef)) {
+            if (binding.vkDescriptorType != vk::DescriptorType::eTensorARM) {
+                throw std::runtime_error("DataGraph tensor binding must use a tensor descriptor");
+            }
+            continue;
         }
-        if (binding.vkDescriptorType != vk::DescriptorType::eTensorARM) {
-            throw std::runtime_error("DataGraph binding must be a tensor descriptor");
+        if (_dataManager.hasImage(binding.resourceRef)) {
+            if ((binding.vkDescriptorType != vk::DescriptorType::eStorageImage) &&
+                (binding.vkDescriptorType != vk::DescriptorType::eCombinedImageSampler)) {
+                throw std::runtime_error("DataGraph image binding must use an image descriptor");
+            }
+            continue;
         }
+        throw std::runtime_error("No resource with this guid found");
     }
 
     const auto graphConstants = collectGraphConstants(dispatchSpirvGraph.graphConstants, _scenarioSpec.resources);

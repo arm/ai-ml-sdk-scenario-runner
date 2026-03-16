@@ -94,26 +94,54 @@ std::vector<std::vector<TypedBinding>> splitOutSets(const std::vector<TypedBindi
 } // namespace
 
 namespace {
+
+vk::TensorTilingARM convertImageTiling(const vk::ImageTiling tiling) {
+    switch (tiling) {
+    case vk::ImageTiling::eLinear:
+        return vk::TensorTilingARM::eLinear;
+    case vk::ImageTiling::eOptimal:
+        return vk::TensorTilingARM::eOptimal;
+    default:
+        throw std::runtime_error("Unsupported image tiling for graph pipeline resource");
+    }
+}
+
 void makeResourceInfos(const std::vector<TypedBinding> &bindings, const DataManager &dataManager,
                        std::vector<vk::TensorDescriptionARM> &tensorDescriptions,
-                       std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos) {
+                       std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
+                       std::vector<vk::DataGraphPipelineResourceInfoImageLayoutARM> &imageLayouts) {
     tensorDescriptions.reserve(tensorDescriptions.size() + bindings.size());
     resourceInfos.reserve(resourceInfos.size() + bindings.size());
+    imageLayouts.reserve(imageLayouts.size() + bindings.size());
 
     for (const auto &binding : bindings) {
-        if (!dataManager.hasTensor(binding.resourceRef)) {
-            throw std::runtime_error("Unsupported graph pipeline resource");
+        if (dataManager.hasTensor(binding.resourceRef)) {
+            const auto &tensor = dataManager.getTensor(binding.resourceRef);
+            const auto &shape = tensor.shape();
+            const auto &stridesVec = tensor.dimStrides();
+            const auto *strides = stridesVec.empty() ? nullptr : stridesVec.data();
+
+            tensorDescriptions.emplace_back(tensor.tiling(), tensor.dataType(), static_cast<uint32_t>(shape.size()),
+                                            shape.data(), strides, vk::TensorUsageFlagBitsARM::eDataGraph);
+            resourceInfos.emplace_back(static_cast<uint32_t>(binding.set), static_cast<uint32_t>(binding.id), 0,
+                                       &tensorDescriptions.back());
+            continue;
         }
 
-        const auto &tensor = dataManager.getTensor(binding.resourceRef);
-        const auto &shape = tensor.shape();
-        const auto &stridesVec = tensor.dimStrides();
-        const auto *strides = stridesVec.empty() ? nullptr : stridesVec.data();
+        if (dataManager.hasImage(binding.resourceRef)) {
+            const auto &image = dataManager.getImage(binding.resourceRef);
+            const auto &shape = image.shape();
 
-        tensorDescriptions.emplace_back(tensor.tiling(), tensor.dataType(), static_cast<uint32_t>(shape.size()),
-                                        shape.data(), strides, vk::TensorUsageFlagBitsARM::eDataGraph);
-        resourceInfos.emplace_back(static_cast<uint32_t>(binding.set), static_cast<uint32_t>(binding.id), 0,
-                                   &tensorDescriptions.back());
+            tensorDescriptions.emplace_back(convertImageTiling(image.tiling()), image.dataType(),
+                                            static_cast<uint32_t>(shape.size()), shape.data(), nullptr,
+                                            vk::TensorUsageFlagBitsARM::eDataGraph);
+            imageLayouts.emplace_back(image.getImageLayout(), &tensorDescriptions.back());
+            resourceInfos.emplace_back(static_cast<uint32_t>(binding.set), static_cast<uint32_t>(binding.id), 0,
+                                       &imageLayouts.back());
+            continue;
+        }
+
+        throw std::runtime_error("Unsupported graph pipeline resource");
     }
 }
 } // namespace
@@ -302,8 +330,9 @@ Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, co
 
     // Setup tensor resource infos (bound resources)
     std::vector<vk::TensorDescriptionARM> tensorDescriptions;
+    std::vector<vk::DataGraphPipelineResourceInfoImageLayoutARM> imageLayouts;
     std::vector<vk::DataGraphPipelineResourceInfoARM> resourceInfos;
-    makeResourceInfos(args.bindings, dataManager, tensorDescriptions, resourceInfos);
+    makeResourceInfos(args.bindings, dataManager, tensorDescriptions, resourceInfos, imageLayouts);
 
     // Setup graph constant infos
     std::vector<vk::TensorDescriptionARM> constantTensorDescriptions;
@@ -342,8 +371,9 @@ Pipeline::Pipeline(const CommonArguments &args, const uint32_t segmentIndex, con
 
     // Setup tensor resource info
     std::vector<vk::TensorDescriptionARM> tensorDescriptions;
+    std::vector<vk::DataGraphPipelineResourceInfoImageLayoutARM> imageLayouts;
     std::vector<vk::DataGraphPipelineResourceInfoARM> resourceInfos;
-    makeResourceInfos(args.bindings, dataManager, tensorDescriptions, resourceInfos);
+    makeResourceInfos(args.bindings, dataManager, tensorDescriptions, resourceInfos, imageLayouts);
 
     graphComputePipelineCommon(args.ctx, segmentIndex, vgfView, args.pipelineCache, resourceInfos);
 }
