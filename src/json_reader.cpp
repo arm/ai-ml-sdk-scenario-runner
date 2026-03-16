@@ -41,7 +41,8 @@ void from_json(const json &j, SubresourceRange &subresourceRange);
 // Map ShaderType values to JSON as strings
 NLOHMANN_JSON_SERIALIZE_ENUM(ShaderType, {{ShaderType::Unknown, nullptr},
                                           {ShaderType::SPIR_V, "SPIR-V"},
-                                          {ShaderType::GLSL, "GLSL"}})
+                                          {ShaderType::GLSL, "GLSL"},
+                                          {ShaderType::HLSL, "HLSL"}})
 
 // Map ShaderAccessType values to JSON as strings
 NLOHMANN_JSON_SERIALIZE_ENUM(ShaderAccessType, {

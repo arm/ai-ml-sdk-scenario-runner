@@ -5,6 +5,9 @@
 
 #include "utils.hpp"
 #include "glsl_compiler.hpp"
+#ifdef SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT
+#    include "hlsl_compiler.hpp"
+#endif
 #include "logging.hpp"
 
 #include "vgf/vulkan_helpers.generated.hpp"
@@ -206,6 +209,24 @@ std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo) {
             throw std::runtime_error("Compilation error\n" + spirv.first);
         }
         return spirv.second;
+    }
+    case ShaderType::HLSL: {
+#ifdef SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT
+        std::ifstream shaderFile{shaderInfo.src};
+        if (!shaderFile.is_open()) {
+            throw std::runtime_error("Cannot open HLSL shader file.");
+        }
+        shaderFile.exceptions(std::ios::badbit);
+        std::string content((std::istreambuf_iterator<char>(shaderFile)), (std::istreambuf_iterator<char>()));
+        auto spirv = HlslCompiler::get().compile(content, shaderInfo.entry, shaderInfo.debugName, shaderInfo.buildOpts,
+                                                 shaderInfo.includeDirs);
+        if (!spirv.first.empty()) {
+            throw std::runtime_error("Compilation error\n" + spirv.first);
+        }
+        return spirv.second;
+#else
+        throw std::runtime_error("HLSL shaders are not supported on this platform.");
+#endif
     }
     default:
         throw std::runtime_error("Unknown shader type");

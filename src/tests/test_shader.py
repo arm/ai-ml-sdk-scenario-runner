@@ -15,23 +15,29 @@ pytestmark = pytest.mark.shaders
 
 
 @pytest.mark.parametrize(
-    "numpy_type, shader_type",
+    "shader, numpy_type, shader_type",
     [
-        (np.float32, "float"),
-        (np.int8, "int8_t"),
-        (np.int32, "uint"),
+        ("test_shader/add_shader.comp", np.float32, "float"),
+        ("test_shader/add_shader.comp", np.int8, "int8_t"),
+        ("test_shader/add_shader.comp", np.int32, "uint"),
+        ("test_shader/add_shader.hlsl", np.float32, "float"),
+        ("test_shader/add_shader.hlsl", np.int16, "int16_t"),
+        ("test_shader/add_shader.hlsl", np.int32, "uint"),
     ],
 )
 def test_single_shader_execution(
     sdk_tools,
     numpy_helper,
+    shader,
     numpy_type,
     shader_type,
 ):
+    if shader.endswith(".hlsl") and sdk_tools.hlsl_compiler.path is None:
+        pytest.skip("HLSL compiler not provided; skipping HLSL-dependent tests.")
     input1 = numpy_helper.generate([10], dtype=numpy_type, filename="inBufferA.npy")
     input2 = numpy_helper.generate([10], dtype=numpy_type, filename="inBufferB.npy")
 
-    sdk_tools.compile_shader("test_shader/add_shader.comp", {"TestType": shader_type})
+    sdk_tools.compile_shader(shader, {"TestType": shader_type})
     sdk_tools.run_scenario(
         "test_shader/add_shader.json", {"{DATA_SIZE}": str(input1.nbytes)}
     )
@@ -76,29 +82,56 @@ def test_single_shader_execution_with_given_entry(
     assert np.array_equal(result, input1 + input2)
 
 
-def test_chained_shaders_execution(sdk_tools, numpy_helper):
+@pytest.mark.parametrize(
+    "shader",
+    [
+        "test_shader/add_shader.comp",
+        "test_shader/add_shader.hlsl",
+    ],
+)
+def test_chained_shaders_execution(sdk_tools, numpy_helper, shader):
+    if shader.endswith(".hlsl") and sdk_tools.hlsl_compiler.path is None:
+        pytest.skip("HLSL compiler not provided; skipping HLSL-dependent tests.")
     input1 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferA.npy")
     input2 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferB.npy")
 
-    sdk_tools.compile_shader("test_shader/add_shader.comp", {"TestType": "float"})
+    sdk_tools.compile_shader(shader, {"TestType": "float"})
     sdk_tools.run_scenario("test_shader/chained_shaders.json")
 
     result = numpy_helper.load("outBufferAdd2.npy", np.float32)
     assert np.array_equal(result, input1 + input2 + input2)
 
 
-def test_shader_push_constants_execution(sdk_tools, numpy_helper):
+@pytest.mark.parametrize(
+    "shader",
+    [
+        "test_shader/add_shader_with_push_constants.comp",
+        "test_shader/add_shader_with_push_constants.hlsl",
+    ],
+)
+def test_shader_push_constants_execution(sdk_tools, numpy_helper, shader):
+    if shader.endswith(".hlsl") and sdk_tools.hlsl_compiler.path is None:
+        pytest.skip("HLSL compiler not provided; skipping HLSL-dependent tests.")
     input1 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferAA.npy")
     push_constants = numpy_helper.generate(10, dtype=np.float32, filename="data.npy")
 
-    sdk_tools.compile_shader("test_shader/add_shader_with_push_constants.comp")
+    sdk_tools.compile_shader(shader)
     sdk_tools.run_scenario("test_shader/shader_push_constants.json")
 
     result = numpy_helper.load("outBufferAddPush.npy", np.float32)
     assert np.array_equal(result, input1 + push_constants)
 
 
-def test_shader_unstructured_push_constants_execution(sdk_tools, numpy_helper):
+@pytest.mark.parametrize(
+    "shader",
+    [
+        "test_shader/add_shader_unstructured_push_constants.comp",
+        "test_shader/add_shader_unstructured_push_constants.hlsl",
+    ],
+)
+def test_shader_unstructured_push_constants_execution(sdk_tools, numpy_helper, shader):
+    if shader.endswith(".hlsl") and sdk_tools.hlsl_compiler.path is None:
+        pytest.skip("HLSL compiler not provided; skipping HLSL-dependent tests.")
     input1 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferAA.npy")
     data = [1.0, 2.0, 3.0, 4.0, 0.1, 2.0, 4.0]
     push_constants = numpy_helper.generate(
@@ -110,7 +143,7 @@ def test_shader_unstructured_push_constants_execution(sdk_tools, numpy_helper):
     expected *= push_constants[5]
     expected *= push_constants[6]
 
-    sdk_tools.compile_shader("test_shader/add_shader_unstructured_push_constants.comp")
+    sdk_tools.compile_shader(shader)
     sdk_tools.run_scenario("test_shader/shader_unstructured_push_constants.json")
 
     result = numpy_helper.load("outBufferUnstructuredPush.npy", np.float32)
@@ -143,10 +176,17 @@ def test_shader_with_tensor_execution(sdk_tools, numpy_helper):
     assert np.array_equal(result, input1 + 10)
 
 
-def test_glsl_preprocessor_options(sdk_tools):
+@pytest.mark.parametrize(
+    "shader",
+    [
+        "test_shader/tensor_shader_glsl_options.comp",
+        "test_shader/tensor_shader_hlsl_options.hlsl",
+    ],
+)
+def test_glsl_preprocessor_options(sdk_tools, shader):
+    if shader.endswith(".hlsl") and sdk_tools.hlsl_compiler.path is None:
+        pytest.skip("HLSL compiler not provided; skipping HLSL-dependent tests.")
     with pytest.raises(Exception):
-        sdk_tools.compile_shader("test_shader/tensor_shader_glsl_options.comp")
+        sdk_tools.compile_shader(shader)
 
-    sdk_tools.compile_shader(
-        "test_shader/tensor_shader_glsl_options.comp", compile_opts="-DTEST_OPTION"
-    )
+    sdk_tools.compile_shader(shader, compile_opts="-DTEST_OPTION")

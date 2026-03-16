@@ -58,6 +58,7 @@ class Builder:
         self.gtest_path = absolute(args.gtest_path)
         self.flatbuffers_path = absolute(args.flatbuffers_path)
         self.glslang_path = absolute(args.glslang_path)
+        self.dxc_path = absolute(args.dxc_path)
         self.spirv_tools_path = absolute(args.spirv_tools_path)
         self.spirv_headers_path = absolute(args.spirv_headers_path)
         self.argparse_path = absolute(args.argparse_path)
@@ -95,6 +96,7 @@ class Builder:
                 cmake_cmd.append(
                     f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_PATH / 'gcc.cmake'}"
                 )
+                cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
                 return True
             if system == "Darwin":
                 cmake_cmd.append(
@@ -109,6 +111,7 @@ class Builder:
                     f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_PATH / 'windows-msvc.cmake'}"
                 )
                 cmake_cmd.append("-DMSVC=ON")
+                cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
                 return True
 
             print(f"Unsupported host platform {system}", file=sys.stderr)
@@ -124,6 +127,7 @@ class Builder:
             cmake_cmd.append(
                 f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_PATH / 'clang.cmake'}"
             )
+            cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
             return True
         if self.target_platform == "aarch64":
             cmake_cmd.append(
@@ -204,6 +208,7 @@ class Builder:
             f"-DSPIRV_TOOLS_PATH={self.spirv_tools_path}",
             f"-DSPIRV_HEADERS_PATH={self.spirv_headers_path}",
             f"-DGLSLANG_PATH={self.glslang_path}",
+            f"-DDXC_PATH={self.dxc_path}",
             f"-DARGPARSE_PATH={self.argparse_path}",
             "-G",
             "Ninja",
@@ -382,6 +387,11 @@ class Builder:
                         "--spirv-val",
                         f"{self.install}/bin/spirv-val{exe_ext}",
                     ]
+                    if platform.system() in ["Linux", "Windows"]:
+                        pytest_cmd += [
+                            "--hlsl-compiler",
+                            f"{self.install}/bin/hlslc{exe_ext}",
+                        ]
                 else:
                     pytest_cmd += [
                         "--scenario-runner",
@@ -397,7 +407,11 @@ class Builder:
                         "--spirv-val",
                         f"{self.build_dir}/spirv-tools/tools/spirv-val{exe_ext}",
                     ]
-
+                    if platform.system() in ["Linux", "Windows"]:
+                        pytest_cmd += [
+                            "--hlsl-compiler",
+                            f"{self.build_dir}/src/tools/hlslc{exe_ext}",
+                        ]
                 if self.emulation_layer:
                     pytest_cmd.append("--emulation-layer")
                 if self.enable_sanitizers:
@@ -532,6 +546,11 @@ def parse_arguments():
         "--glslang-path",
         help="Path to the glslang repo. Default: %(default)s",
         default=f"{DEPENDENCY_DIR / 'glslang'}",
+    )
+    parser.add_argument(
+        "--dxc-path",
+        help="Path to the dxc (DirectXShaderCompiler) repo. Default: %(default)s",
+        default=f"{DEPENDENCY_DIR / 'DirectXShaderCompiler'}",
     )
     parser.add_argument(
         "--spirv-headers-path",

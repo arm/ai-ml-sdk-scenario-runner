@@ -3,6 +3,37 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
+    add_executable(hlslc
+        hlsl/main.cpp
+        ../hlsl_compiler.cpp)
+    target_include_directories(hlslc SYSTEM PRIVATE
+        ../
+        ${DXC_PATH}/include
+    )
+    target_link_libraries(hlslc
+        PUBLIC
+            dxcompiler
+            argparse::argparse
+    )
+    target_compile_options(hlslc PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
+
+    if(WIN32)
+        add_custom_command(TARGET hlslc POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:dxcompiler>"
+                "$<TARGET_FILE_DIR:hlslc>"
+        )
+        if(TARGET dxil)
+            add_custom_command(TARGET hlslc POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "$<TARGET_FILE:dxil>"
+                    "$<TARGET_FILE_DIR:hlslc>"
+            )
+        endif()
+    endif()
+endif()
+
 add_executable(glslc
     glslc/main.cpp
     ../glsl_compiler.cpp

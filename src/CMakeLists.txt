@@ -7,7 +7,7 @@
 # Add dependencies targets
 #############################################################################
 
-add_library(ScenarioRunnerLib
+set(SCENARIO_RUNNER_LIB_SOURCES
     barrier.cpp
     buffer.cpp
     commands.cpp
@@ -35,6 +35,10 @@ add_library(ScenarioRunnerLib
     image_formats.cpp
     png_reader.cpp
 )
+if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
+    list(APPEND SCENARIO_RUNNER_LIB_SOURCES hlsl_compiler.cpp)
+endif()
+add_library(ScenarioRunnerLib ${SCENARIO_RUNNER_LIB_SOURCES})
 target_link_libraries(ScenarioRunnerLib PUBLIC
     glslang::glslang
     glslang::glslang-default-resource-limits
@@ -47,9 +51,16 @@ target_link_libraries(ScenarioRunnerLib PUBLIC
     PRIVATE
         stb::stb
 )
-
+if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
+    target_link_libraries(ScenarioRunnerLib PUBLIC dxcompiler)
+    target_include_directories(ScenarioRunnerLib SYSTEM PRIVATE
+        ${DXC_PATH}/include
+    )
+    target_compile_definitions(ScenarioRunnerLib PRIVATE SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
+endif()
 if(SCENARIO_RUNNER_ENABLE_RDOC)
-    target_include_directories(ScenarioRunnerLib PRIVATE ${RenderDoc_INCLUDE_DIRS})
+    target_include_directories(ScenarioRunnerLib PRIVATE
+    ${RenderDoc_INCLUDE_DIRS})
     target_compile_definitions(ScenarioRunnerLib PRIVATE ML_SDK_ENABLE_RDOC)
 endif()
 
