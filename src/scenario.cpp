@@ -884,7 +884,7 @@ void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchData
     Creator creator{_ctx, _dataManager};
     vgfView.createIntermediateResources(creator);
     for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
-        const auto sequenceBindings = vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings);
+        const auto &sequenceBindings = vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings);
         auto moduleName = vgfView.getSPVModuleName(segmentIndex);
         _perfCounters.emplace_back("Create Pipeline: " + moduleName, "Pipeline Setup", true).start();
         createPipeline(segmentIndex, sequenceBindings, vgfView, dispatchDataGraph, nQueries);
@@ -916,7 +916,7 @@ void Scenario::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSp
     const auto shaderInfo = convert(shaderDesc);
 
     // Validate the bindings
-    const auto sequenceBindings = dispatchSpirvGraph.bindings;
+    const auto &sequenceBindings = dispatchSpirvGraph.bindings;
     for (const auto &binding : sequenceBindings) {
         if (!(_dataManager.hasTensor(binding.resourceRef))) {
             throw std::runtime_error("No resource with this guid found");
