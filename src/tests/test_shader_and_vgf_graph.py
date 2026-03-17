@@ -81,7 +81,7 @@ def test_compute_graph_compute_sandwich(sdk_tools, resources_helper, numpy_helpe
     buffer = memoryview(vgf_stream.read())
     assert buffer.nbytes >= vgf.HeaderSize()
 
-    header_decoder = vgf.CreateHeaderDecoder(buffer, buffer.nbytes)
+    header_decoder = vgf.CreateHeaderDecoder(buffer, vgf.HeaderSize(), buffer.nbytes)
     assert header_decoder is not None
 
     module_decoder = vgf.CreateModuleTableDecoder(
