@@ -19,11 +19,7 @@
             "items": {
                 "type": "string"
             }
-        },
-    "entry": {
-        "type": "string",
-        "default": "main"
-    }
+        }
     },
     "required": [
         "bindings",
