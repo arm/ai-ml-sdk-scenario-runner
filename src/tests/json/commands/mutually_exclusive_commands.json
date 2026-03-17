@@ -1,0 +1,28 @@
+{
+    "commands": [
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "resource_ref": "InBuffer1",
+                        "set": 0
+                    }
+                ],
+                "rangeND": [1, 1, 1],
+                "shader_ref": "add_shader"
+            },
+            "dispatch_graph": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "resource_ref": "InTensor1",
+                        "set": 0
+                    }
+                ],
+                "graph_ref": "simple_graph"
+            }
+        }
+    ],
+    "resources": []
+}

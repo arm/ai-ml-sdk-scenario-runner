@@ -3,29 +3,33 @@
     ],
     "resources": [
         {
-            "image":{
+            "image": {
                 "uid": "image0",
                 "format": "VK_FLOAT",
                 "shader_access": "readwrite",
-                "dims" : [1, 128, 256, 3],
+                "dims": [1, 128, 256, 3],
                 "memory_group": {
                     "id": "group0"
                 }
-            },
-            "tensor":{
+            }
+        },
+        {
+            "tensor": {
                 "uid": "tensor0",
-                "dims" : [1, 128, 256, 3],
+                "dims": [1, 128, 256, 3],
                 "format": "vk_float32",
-                "shader_access":"readwrite",
+                "shader_access": "readwrite",
                 "memory_group": {
                     "id": "group0"
                 }
-            },
-            "buffer":{
+            }
+        },
+        {
+            "buffer": {
                 "uid": "buffer0",
                 "size": 98304,
-                "shader_access":"readwrite",
-                "memory_group" : {
+                "shader_access": "readwrite",
+                "memory_group": {
                     "id": "group0"
                 }
             }

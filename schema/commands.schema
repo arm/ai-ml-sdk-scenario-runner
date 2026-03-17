@@ -21,6 +21,23 @@
             "mark_boundary": {
                 "$ref" : "urn:scenario:command:mark_boundary"
             }
-        }
+        },
+        "oneOf": [
+            {
+                "required": ["dispatch_graph"]
+            },
+            {
+                "required": ["dispatch_spirv_graph"]
+            },
+            {
+                "required": ["dispatch_compute"]
+            },
+            {
+                "required": ["dispatch_barrier"]
+            },
+            {
+                "required": ["mark_boundary"]
+            }
+        ]
     }
 }
