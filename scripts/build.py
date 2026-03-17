@@ -73,6 +73,7 @@ class Builder:
         self.experimental_image_format_support = (
             args.enable_experimental_image_format_support
         )
+        self.enable_hlsl_support = args.enable_hlsl_support
 
         self.package_dir = args.package_dir or self.build_dir
         self.package_tgz = "tgz" in args.package_type
@@ -96,7 +97,8 @@ class Builder:
                 cmake_cmd.append(
                     f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_PATH / 'gcc.cmake'}"
                 )
-                cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
+                if self.enable_hlsl_support:
+                    cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
                 return True
             if system == "Darwin":
                 cmake_cmd.append(
@@ -111,7 +113,8 @@ class Builder:
                     f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_PATH / 'windows-msvc.cmake'}"
                 )
                 cmake_cmd.append("-DMSVC=ON")
-                cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
+                if self.enable_hlsl_support:
+                    cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
                 return True
 
             print(f"Unsupported host platform {system}", file=sys.stderr)
@@ -127,7 +130,8 @@ class Builder:
             cmake_cmd.append(
                 f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_PATH / 'clang.cmake'}"
             )
-            cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
+            if self.enable_hlsl_support:
+                cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
             return True
         if self.target_platform == "aarch64":
             cmake_cmd.append(
@@ -387,7 +391,10 @@ class Builder:
                         "--spirv-val",
                         f"{self.install}/bin/spirv-val{exe_ext}",
                     ]
-                    if platform.system() in ["Linux", "Windows"]:
+                    if self.enable_hlsl_support and platform.system() in [
+                        "Linux",
+                        "Windows",
+                    ]:
                         pytest_cmd += [
                             "--hlsl-compiler",
                             f"{self.install}/bin/hlslc{exe_ext}",
@@ -407,7 +414,10 @@ class Builder:
                         "--spirv-val",
                         f"{self.build_dir}/spirv-tools/tools/spirv-val{exe_ext}",
                     ]
-                    if platform.system() in ["Linux", "Windows"]:
+                    if self.enable_hlsl_support and platform.system() in [
+                        "Linux",
+                        "Windows",
+                    ]:
                         pytest_cmd += [
                             "--hlsl-compiler",
                             f"{self.build_dir}/src/tools/hlslc{exe_ext}",
@@ -648,6 +658,12 @@ def parse_arguments():
     parser.add_argument(
         "--enable-experimental-image-format-support",
         help=("Enable experimental image format support in DDS reader"),
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--enable-hlsl-support",
+        help=("Enable HLSL to SPIRV compilation"),
         action="store_true",
         default=False,
     )
