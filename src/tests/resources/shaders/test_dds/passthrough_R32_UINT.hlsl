@@ -2,7 +2,7 @@
  * SPDX-FileCopyrightText: Copyright 2025-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
-Texture2D<uint> in01 : register(t0);
+RWTexture2D<uint> in01 : register(u0);
 RWTexture2D<uint> out1 : register(u1);
 
 [numthreads(1, 1, 1)]

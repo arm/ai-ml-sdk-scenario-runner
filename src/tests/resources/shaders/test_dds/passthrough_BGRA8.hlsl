@@ -2,7 +2,7 @@
  * SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
-Texture2D<float4>  in01  : register(t0);  // read-only view
+RWTexture2D<float4> in01  : register(u0);
 RWTexture2D<float4> out1 : register(u1);  // write-only storage
 
 [numthreads(1, 1, 1)]

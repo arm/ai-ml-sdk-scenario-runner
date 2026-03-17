@@ -168,6 +168,7 @@ std::pair<std::string, std::vector<uint32_t>> HlslCompiler::compile(const std::s
     std::vector<const wchar_t *> compileArgs;
     compileArgs.emplace_back(L"-spirv");
     compileArgs.emplace_back(L"-enable-16bit-types");
+    compileArgs.emplace_back(L"-Wno-conversion");
     for (const auto &dir : intermediateArgs) {
         compileArgs.emplace_back(dir.c_str());
     }

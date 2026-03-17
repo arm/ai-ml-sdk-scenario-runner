@@ -80,10 +80,16 @@ target_compile_options(png_utils PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTION
 
 
 if(NOT (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR) AND ML_SDK_GENERATE_CPACK)
+    if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
+        install(TARGETS hlslc EXPORT ai_ml_sdk_for_vulkanConfig)
+    endif()
     install(TARGETS glslc EXPORT ai_ml_sdk_for_vulkanConfig)
     install(TARGETS dds_utils EXPORT ai_ml_sdk_for_vulkanConfig)
     install(TARGETS png_utils EXPORT ai_ml_sdk_for_vulkanConfig)
 else()
+    if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
+        install(TARGETS hlslc EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
+    endif()
     install(TARGETS glslc EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
     install(TARGETS dds_utils EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
     install(TARGETS png_utils EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
