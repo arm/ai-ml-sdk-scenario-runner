@@ -86,7 +86,7 @@ def test_conv2d_vgf(sdk_tools, resources_helper, numpy_helper):
 
     assert buffer.nbytes >= vgf.HeaderSize()
 
-    headerDecoder = vgf.CreateHeaderDecoder(buffer, buffer.nbytes)
+    headerDecoder = vgf.CreateHeaderDecoder(buffer, vgf.HeaderSize(), buffer.nbytes)
     assert headerDecoder is not None
 
     moduleDecoder = vgf.CreateModuleTableDecoder(
@@ -186,7 +186,7 @@ def test_conv2d_vgf_mismatching_resource_type_or_resource_data_type_or_resource_
 
     assert buffer.nbytes >= vgf.HeaderSize()
 
-    headerDecoder = vgf.CreateHeaderDecoder(buffer, buffer.nbytes)
+    headerDecoder = vgf.CreateHeaderDecoder(buffer, vgf.HeaderSize(), buffer.nbytes)
     assert headerDecoder is not None
 
     moduleDecoder = vgf.CreateModuleTableDecoder(
@@ -310,7 +310,7 @@ def test_maxpool_conv2d_parallel_vgf(sdk_tools, resources_helper, numpy_helper):
 
     assert buffer.nbytes >= vgf.HeaderSize()
 
-    headerDecoder = vgf.CreateHeaderDecoder(buffer, buffer.nbytes)
+    headerDecoder = vgf.CreateHeaderDecoder(buffer, vgf.HeaderSize(), buffer.nbytes)
     assert headerDecoder is not None
 
     moduleDecoder = vgf.CreateModuleTableDecoder(

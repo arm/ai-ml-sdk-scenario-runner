@@ -72,7 +72,7 @@ VgfView::VgfView(std::unique_ptr<MemoryMap> mapped, std::unique_ptr<vgflib::Modu
 VgfView VgfView::createVgfView(const std::string &vgfFile) {
 
     auto mapped = std::make_unique<MemoryMap>(vgfFile);
-    auto headerDecoder = vgflib::CreateHeaderDecoder(mapped->ptr(), mapped->size());
+    auto headerDecoder = vgflib::CreateHeaderDecoder(mapped->ptr(), vgflib::HeaderSize(), mapped->size());
     if (!headerDecoder) {
         throw std::runtime_error("Invalid VGF header");
     }
