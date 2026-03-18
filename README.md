@@ -207,6 +207,7 @@ pip install ai-ml-sdk-scenario-runner
 ## Known Limitations
 
 - Resources created with `Optimal` tiling cannot be used with memory aliasing.
+- HLSL support is an experimental feature, DirextXShaderCompiler is linked dynamically. When HLSL support is enabled, Scenario Runner needs to be built from source or `libdxcompiler.so` or `dxcompiler.dll` with spir-v enabled needs to be bundled with the prebuild.
 
 ## License
 
