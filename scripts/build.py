@@ -79,6 +79,7 @@ class Builder:
         self.package_tgz = "tgz" in args.package_type
         self.package_zip = "zip" in args.package_type
         self.package_pip = "pip" in args.package_type
+        self.package_apk = "apk" in args.package_type
         self.package_version = args.package_version
         self.package_release_pip = "release-pip" in args.package_type
         self.package_source_tgz = "source-tgz" in args.package_type
@@ -89,6 +90,9 @@ class Builder:
 
         if not self.install and self.package_pip:
             self.install = "pip_install"
+
+        if not self.install and self.package_apk:
+            self.install = "apk_install"
 
     def setup_platform_build(self, cmake_cmd):
         system = platform.system()
@@ -471,6 +475,48 @@ class Builder:
                     print("ERROR: Failed to generate pip package")
                     return 1
 
+            if self.package_apk:
+                if self.target_platform != "android":
+                    print(
+                        "ERROR: Trying to create APK package without Android target platform",
+                        file=sys.stderr,
+                    )
+                    return 1
+
+                package_dir = pathlib.Path("apk_package")
+                os.makedirs(package_dir, exist_ok=True)
+
+                # Copy Android project files
+                shutil.copytree(
+                    SCENARIO_RUNNER_DIR / "android",
+                    package_dir,
+                    dirs_exist_ok=True,
+                )
+
+                jni_lib_dir = (
+                    package_dir / "app" / "src" / "main" / "jniLibs" / "arm64-v8a"
+                )
+                os.makedirs(jni_lib_dir, exist_ok=True)
+                shutil.copy(
+                    pathlib.Path(self.install) / "lib" / "libscenario_runner_jni.so",
+                    jni_lib_dir / "libscenario_runner_jni.so",
+                )
+
+                print(
+                    "INFO: Building the APK package requires Gradle 8.4 or later to be installed, "
+                    "ANDROID_HOME to be set, and the Android SDK under ANDROID_HOME to include "
+                    "build-tools;34.0.0 and platforms;android-34 or compatible versions."
+                )
+                gradle_cmd = ["gradle", "assembleDebug", "--stacktrace"]
+                result = subprocess.Popen(
+                    gradle_cmd,
+                    cwd=package_dir,
+                )
+                result.communicate()
+                if result.returncode != 0:
+                    print("ERROR: Failed to generate APK package")
+                    return 1
+
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
             print(f"ERROR: Build failed with error: {e}", file=sys.stderr)
             return 1
@@ -627,7 +673,7 @@ def parse_arguments():
     )
     parser.add_argument(
         "--package-type",
-        choices=["zip", "tgz", "pip", "source-zip", "source-tgz", "release-pip"],
+        choices=["zip", "tgz", "pip", "source-zip", "source-tgz", "release-pip", "apk"],
         action="append",
         help="Create a package of a certain type",
         default=[],
