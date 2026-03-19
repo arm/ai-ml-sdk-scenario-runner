@@ -65,8 +65,7 @@ vk::Format getVkFormatFromPNG(const std::string &filename) {
     return vk::Format::eR8G8B8A8Unorm;
 }
 
-void loadDataFromPNG(const std::string &filename, std::vector<uint8_t> &data, vk::Format &initialFormat,
-                     const ImageLoadOptions &options) {
+ImageLoadResult loadDataFromPNG(const std::string &filename, const ImageLoadOptions &options) {
     validatePNG(filename, options);
 
     int width = 0;
@@ -79,8 +78,9 @@ void loadDataFromPNG(const std::string &filename, std::vector<uint8_t> &data, vk
     }
 
     const size_t expectedSize = checkedSize(width, height);
-    data.assign(decoded.get(), decoded.get() + expectedSize);
-    initialFormat = vk::Format::eR8G8B8A8Unorm;
+    ImageLoadResult result(vk::Format::eR8G8B8A8Unorm);
+    result.data.assign(decoded.get(), decoded.get() + expectedSize);
+    return result;
 }
 
 void saveDataToPNG(const std::string &filename, const Image &image, const std::vector<char> &data,

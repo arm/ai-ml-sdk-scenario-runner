@@ -117,6 +117,29 @@ void loadDataFromNPY(const std::string &filename, vk::Format dataType, std::vect
     initialFormat = dataType;
 }
 
+uint64_t calculateMipDataSize(uint32_t width, uint32_t height, uint32_t depth, uint32_t elementSize) {
+    return uint64_t{width} * uint64_t{height} * uint64_t{depth} * uint64_t{elementSize};
+}
+
+uint32_t calculateMipDimension(uint32_t base, uint32_t level) {
+    uint32_t value = base;
+    for (uint32_t i = 0; i < level; ++i) {
+        value = std::max(value / 2u, 1u);
+    }
+    return value;
+}
+
+uint64_t calculateMipChainDataSize(uint32_t width, uint32_t height, uint32_t depth, uint32_t elementSize,
+                                   uint32_t mipLevels) {
+    uint64_t size = 0;
+    for (uint32_t mip = 0; mip < mipLevels; ++mip) {
+        size += calculateMipDataSize(width, height, depth, elementSize);
+        width = std::max(width / 2u, 1u);
+        height = std::max(height / 2u, 1u);
+    }
+    return size;
+}
+
 } // namespace
 
 Image::Image(const ImageInfo &imageInfo) : _imageInfo(imageInfo) {}
@@ -400,6 +423,7 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     std::vector<uint8_t> data;
     vk::Format fileFormat = vk::Format::eUndefined;
     const vk::ImageAspectFlags aspectMask = getImageAspectMaskForVkFormat(_dataType);
+    uint32_t mipmapsFromFile = 1;
 
     // Determine image data, from file or zeroed
     if (desc.src) {
@@ -407,7 +431,10 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
 
         const auto *handler = getImageFormatHandler(desc.src.value());
         if (handler) {
-            handler->loadData(desc.src.value(), data, fileFormat, ImageLoadOptions{desc.dims[2], desc.dims[1]});
+            auto result = handler->loadData(desc.src.value(), ImageLoadOptions{desc.dims[2], desc.dims[1]});
+            data = std::move(result.data);
+            fileFormat = result.initialFormat;
+            mipmapsFromFile = result.mipLevels;
         } else if (extension == ".npy") {
             loadDataFromNPY(desc.src.value(), _dataType, data, fileFormat, desc.dims[2], desc.dims[1]);
         } else {
@@ -442,9 +469,19 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
         data = std::move(bodge_data);
     }
 
-    if (data.size() != dataSize()) {
-        throw std::runtime_error("Expected DDS image input size is " + std::to_string(dataSize()) + ", but got " +
-                                 std::to_string(data.size()) + " instead");
+    const auto elementSize = elementSizeFromVkFormat(_dataType);
+    const auto baseWidth = static_cast<uint32_t>(_imageInfo.shape[1]);
+    const auto baseHeight = static_cast<uint32_t>(_imageInfo.shape[2]);
+    const auto depth = static_cast<uint32_t>(_imageInfo.shape[3]);
+    const auto copiedMipLevels = std::min(mipmapsFromFile, _imageInfo.mips);
+    const uint64_t requiredDataSize =
+        mipmapsFromFile > 1 ? calculateMipChainDataSize(baseWidth, baseHeight, depth, elementSize, copiedMipLevels)
+                            : dataSize();
+    const bool requireExactSize = mipmapsFromFile <= 1;
+    if (data.size() < requiredDataSize || (requireExactSize && data.size() != requiredDataSize)) {
+        throw std::runtime_error(
+            "Expected image input size " + std::string(requireExactSize ? "to be " : "to be at least ") +
+            std::to_string(requiredDataSize) + ", but got " + std::to_string(data.size()) + " instead");
     }
 
     // Create Image barrier
@@ -480,39 +517,37 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     const vk::CommandBufferBeginInfo CmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
     cmdBuffer.begin(CmdBufferBeginInfo);
 
-    vk::BufferImageCopy region{};
-    const vk::Extent3D extent(static_cast<uint32_t>(_imageInfo.shape[1]), static_cast<uint32_t>(_imageInfo.shape[2]),
-                              static_cast<uint32_t>(_imageInfo.shape[3]));
-    const vk::Offset3D offset(0, 0, 0);
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
-    region.imageSubresource.aspectMask = aspectMask;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-    region.imageOffset = offset;
-    region.imageExtent = extent;
-
     cmdBuffer.pipelineBarrier2(vk::DependencyInfo((vk::DependencyFlags)0, memoryBarrier, {}, imageBarrier));
-    cmdBuffer.copyBufferToImage(_memoryManager->getStagingBuffer(), _image, vk::ImageLayout::eTransferDstOptimal,
-                                region);
 
-    // Create blit command
-    vk::ImageBlit2 blit{};
-    blit.srcSubresource.baseArrayLayer = 0;
-    blit.srcSubresource.layerCount = 1;
-    blit.srcSubresource.aspectMask = aspectMask;
-    blit.dstSubresource.baseArrayLayer = 0;
-    blit.dstSubresource.layerCount = 1;
-    blit.dstSubresource.aspectMask = aspectMask;
+    if (mipmapsFromFile > 1) {
+        // All mip levels are present in the file data — copy each level directly from the buffer.
+        uint64_t bufferOffset = 0;
+        auto mipWidth = baseWidth;
+        auto mipHeight = baseHeight;
 
-    auto mipWidth = static_cast<int32_t>(_imageInfo.shape[1]);
-    auto mipHeight = static_cast<int32_t>(_imageInfo.shape[2]);
-    for (uint32_t i = 1; i < _imageInfo.mips; i++) {
-        // Create barrier before the first blit and between blits
-        imageBarrier.subresourceRange.baseMipLevel = i - 1;
-        imageBarrier.subresourceRange.levelCount = 1;
+        for (uint32_t mip = 0; mip < copiedMipLevels; ++mip) {
+            vk::BufferImageCopy mipRegion{};
+            mipRegion.bufferOffset = bufferOffset;
+            mipRegion.bufferRowLength = 0;
+            mipRegion.bufferImageHeight = 0;
+            mipRegion.imageSubresource.aspectMask = aspectMask;
+            mipRegion.imageSubresource.mipLevel = mip;
+            mipRegion.imageSubresource.baseArrayLayer = 0;
+            mipRegion.imageSubresource.layerCount = 1;
+            mipRegion.imageOffset = vk::Offset3D(0, 0, 0);
+            mipRegion.imageExtent = vk::Extent3D(mipWidth, mipHeight, depth);
+
+            cmdBuffer.copyBufferToImage(_memoryManager->getStagingBuffer(), _image,
+                                        vk::ImageLayout::eTransferDstOptimal, mipRegion);
+
+            bufferOffset += calculateMipDataSize(mipWidth, mipHeight, depth, elementSize);
+            mipWidth = std::max(mipWidth / 2u, 1u);
+            mipHeight = std::max(mipHeight / 2u, 1u);
+        }
+
+        // Transition all mip levels that came from file to eTransferSrcOptimal
+        imageBarrier.subresourceRange.baseMipLevel = 0;
+        imageBarrier.subresourceRange.levelCount = copiedMipLevels;
         imageBarrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
         imageBarrier.newLayout = vk::ImageLayout::eTransferSrcOptimal;
         imageBarrier.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
@@ -520,31 +555,108 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
         imageBarrier.srcStageMask = vk::PipelineStageFlagBits2::eAllTransfer;
         cmdBuffer.pipelineBarrier2(vk::DependencyInfo((vk::DependencyFlags)0, memoryBarrier, {}, imageBarrier));
 
-        blit.srcOffsets[0] = vk::Offset3D(0, 0, 0);
-        blit.srcOffsets[1] = vk::Offset3D(mipWidth, mipHeight, 1);
-        blit.srcSubresource.mipLevel = i - 1;
-        blit.dstOffsets[0] = vk::Offset3D(0, 0, 0);
-        blit.dstOffsets[1] = vk::Offset3D(std::max(mipWidth / 2, 1), std::max(mipHeight / 2, 1), 1);
-        blit.dstSubresource.mipLevel = i;
-        cmdBuffer.blitImage2(vk::BlitImageInfo2(_image, vk::ImageLayout::eTransferSrcOptimal, _image,
-                                                vk::ImageLayout::eTransferDstOptimal, blit, vk::Filter::eLinear));
+        if (copiedMipLevels < _imageInfo.mips) {
+            // Some mip levels are missing in the file data. Generate remaining levels by blitting.
+            vk::ImageBlit2 blit{};
+            blit.srcSubresource.baseArrayLayer = 0;
+            blit.srcSubresource.layerCount = 1;
+            blit.srcSubresource.aspectMask = aspectMask;
+            blit.dstSubresource.baseArrayLayer = 0;
+            blit.dstSubresource.layerCount = 1;
+            blit.dstSubresource.aspectMask = aspectMask;
 
-        // Update mip dimensions
-        mipHeight = mipHeight / 2;
-        mipWidth = mipWidth / 2;
+            for (uint32_t i = copiedMipLevels; i < _imageInfo.mips; ++i) {
+                const auto srcMipWidth = static_cast<int32_t>(calculateMipDimension(baseWidth, i - 1));
+                const auto srcMipHeight = static_cast<int32_t>(calculateMipDimension(baseHeight, i - 1));
+                const auto dstMipWidth = static_cast<int32_t>(calculateMipDimension(baseWidth, i));
+                const auto dstMipHeight = static_cast<int32_t>(calculateMipDimension(baseHeight, i));
+
+                blit.srcOffsets[0] = vk::Offset3D(0, 0, 0);
+                blit.srcOffsets[1] = vk::Offset3D(srcMipWidth, srcMipHeight, 1);
+                blit.srcSubresource.mipLevel = i - 1;
+                blit.dstOffsets[0] = vk::Offset3D(0, 0, 0);
+                blit.dstOffsets[1] = vk::Offset3D(dstMipWidth, dstMipHeight, 1);
+                blit.dstSubresource.mipLevel = i;
+                cmdBuffer.blitImage2(vk::BlitImageInfo2(_image, vk::ImageLayout::eTransferSrcOptimal, _image,
+                                                        vk::ImageLayout::eTransferDstOptimal, blit,
+                                                        vk::Filter::eLinear));
+
+                imageBarrier.subresourceRange.baseMipLevel = i;
+                imageBarrier.subresourceRange.levelCount = 1;
+                imageBarrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+                imageBarrier.newLayout = vk::ImageLayout::eTransferSrcOptimal;
+                imageBarrier.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
+                imageBarrier.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
+                imageBarrier.srcStageMask = vk::PipelineStageFlagBits2::eAllTransfer;
+                cmdBuffer.pipelineBarrier2(vk::DependencyInfo((vk::DependencyFlags)0, memoryBarrier, {}, imageBarrier));
+            }
+        }
+    } else {
+        // No mips in file — copy base level then generate remaining mips via blit.
+        vk::BufferImageCopy region{};
+        const vk::Extent3D extent(static_cast<uint32_t>(_imageInfo.shape[1]),
+                                  static_cast<uint32_t>(_imageInfo.shape[2]),
+                                  static_cast<uint32_t>(_imageInfo.shape[3]));
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = aspectMask;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = vk::Offset3D(0, 0, 0);
+        region.imageExtent = extent;
+
+        cmdBuffer.copyBufferToImage(_memoryManager->getStagingBuffer(), _image, vk::ImageLayout::eTransferDstOptimal,
+                                    region);
+
+        // Create blit command
+        vk::ImageBlit2 blit{};
+        blit.srcSubresource.baseArrayLayer = 0;
+        blit.srcSubresource.layerCount = 1;
+        blit.srcSubresource.aspectMask = aspectMask;
+        blit.dstSubresource.baseArrayLayer = 0;
+        blit.dstSubresource.layerCount = 1;
+        blit.dstSubresource.aspectMask = aspectMask;
+
+        auto mipWidth = static_cast<int32_t>(_imageInfo.shape[1]);
+        auto mipHeight = static_cast<int32_t>(_imageInfo.shape[2]);
+        for (uint32_t i = 1; i < _imageInfo.mips; i++) {
+            // Barrier before each blit: transition previous level from dst to src
+            imageBarrier.subresourceRange.baseMipLevel = i - 1;
+            imageBarrier.subresourceRange.levelCount = 1;
+            imageBarrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+            imageBarrier.newLayout = vk::ImageLayout::eTransferSrcOptimal;
+            imageBarrier.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
+            imageBarrier.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
+            imageBarrier.srcStageMask = vk::PipelineStageFlagBits2::eAllTransfer;
+            cmdBuffer.pipelineBarrier2(vk::DependencyInfo((vk::DependencyFlags)0, memoryBarrier, {}, imageBarrier));
+
+            blit.srcOffsets[0] = vk::Offset3D(0, 0, 0);
+            blit.srcOffsets[1] = vk::Offset3D(mipWidth, mipHeight, 1);
+            blit.srcSubresource.mipLevel = i - 1;
+            blit.dstOffsets[0] = vk::Offset3D(0, 0, 0);
+            blit.dstOffsets[1] = vk::Offset3D(std::max(mipWidth / 2, 1), std::max(mipHeight / 2, 1), 1);
+            blit.dstSubresource.mipLevel = i;
+            cmdBuffer.blitImage2(vk::BlitImageInfo2(_image, vk::ImageLayout::eTransferSrcOptimal, _image,
+                                                    vk::ImageLayout::eTransferDstOptimal, blit, vk::Filter::eLinear));
+
+            mipHeight = mipHeight / 2;
+            mipWidth = mipWidth / 2;
+        }
+
+        // Restore the last miplevel to transfer source
+        imageBarrier.subresourceRange.baseMipLevel = _imageInfo.mips - 1;
+        imageBarrier.subresourceRange.levelCount = 1;
+        imageBarrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+        imageBarrier.newLayout = vk::ImageLayout::eTransferSrcOptimal;
+        imageBarrier.srcStageMask = vk::PipelineStageFlagBits2::eAllTransfer;
+        imageBarrier.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
+        imageBarrier.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
+        cmdBuffer.pipelineBarrier2(vk::DependencyInfo((vk::DependencyFlags)0, memoryBarrier, {}, imageBarrier));
     }
 
-    // Restore the last miplevel back to transfer source
-    imageBarrier.subresourceRange.baseMipLevel = _imageInfo.mips - 1;
-    imageBarrier.subresourceRange.levelCount = 1;
-    imageBarrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
-    imageBarrier.newLayout = vk::ImageLayout::eTransferSrcOptimal;
-    imageBarrier.srcStageMask = vk::PipelineStageFlagBits2::eAllTransfer;
-    imageBarrier.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
-    imageBarrier.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
-    cmdBuffer.pipelineBarrier2(vk::DependencyInfo((vk::DependencyFlags)0, memoryBarrier, {}, imageBarrier));
-
-    // Transition into target image format
+    // Transition all mip levels into the target image layout
     imageBarrier.subresourceRange.baseMipLevel = 0;
     imageBarrier.subresourceRange.levelCount = _imageInfo.mips;
     imageBarrier.oldLayout = vk::ImageLayout::eTransferSrcOptimal;

@@ -19,11 +19,9 @@ namespace mlsdk::scenariorunner {
 /// \brief Load data from a PNG file
 ///
 /// \param filename PNG file to load
-/// \param data pixel data from file
-/// \param initialFormat vk::Format of PNG file
 /// \param options load options
-void loadDataFromPNG(const std::string &filename, std::vector<uint8_t> &data, vk::Format &initialFormat,
-                     const ImageLoadOptions &options);
+/// \return struct containing loaded data and metadata about it
+ImageLoadResult loadDataFromPNG(const std::string &filename, const ImageLoadOptions &options);
 
 /// \brief Get vk::Format from a PNG file
 ///

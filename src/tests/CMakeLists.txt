@@ -6,18 +6,22 @@ if(NOT ANDROID)
   include(CTest)
 
   add_executable(ScenarioRunnerTests
+    dds_reader_tests.cpp
     guid_tests.cpp
     group_manager_tests.cpp
+    image_formats_tests.cpp
     iresource_tests.cpp
     json_parser_tests.cpp
-    vulkan_startup_tests.cpp
     logging_tests.cpp
-    image_formats_tests.cpp
+    png_reader_tests.cpp
+    vulkan_startup_tests.cpp
   )
   target_link_libraries(ScenarioRunnerTests PRIVATE
     GTest::gtest_main
     ScenarioRunnerLib
     ${CMAKE_DL_LIBS}
+    PRIVATE
+        stb::stb
   )
   target_include_directories(ScenarioRunnerTests PRIVATE
     ${PROJECT_SOURCE_DIR}/src
