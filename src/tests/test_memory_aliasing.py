@@ -169,7 +169,7 @@ def test_generic_resources_no_compute(
             "buffer",
             "buffer",
             "buffer",
-            256,
+            512,
             1,
             1,
             np.int8,

@@ -29,6 +29,10 @@ void Buffer::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> me
     trySetVkRaiiObjectDebugName(ctx, _buffer, _debugName);
 
     const vk::MemoryRequirements memReqs = _buffer.getMemoryRequirements();
+    if (memReqs.alignment != 0 && (_memoryOffset % memReqs.alignment) != 0) {
+        throw std::runtime_error("Buffer memory offset for '" + _debugName + "' must be aligned to " +
+                                 std::to_string(memReqs.alignment) + " bytes, got " + std::to_string(_memoryOffset));
+    }
     _memoryManager->updateMemSize(memReqs.size + _memoryOffset);
     _memoryManager->updateMemType(memReqs.memoryTypeBits);
 }
