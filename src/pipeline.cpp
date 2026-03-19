@@ -286,35 +286,6 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIn
 
     auto entryPoint = vgfView.getSPVModuleEntryPoint(segmentIndex);
 
-    vk::DataGraphPipelineShaderModuleCreateInfoARM pipelineShaderModuleCreateInfo(
-        *_shader, entryPoint.c_str(), nullptr, static_cast<uint32_t>(constantInfos.size()), constantInfos.data(),
-        nullptr);
-
-    const vk::raii::DeferredOperationKHR deferredOperation(nullptr);
-
-    vk::PipelineCreateFlags2KHR flags{};
-    const vk::raii::PipelineCache *vkPipelineCache{nullptr};
-    if (pipelineCache) {
-        if (pipelineCache->failOnCacheMiss()) {
-            flags |= vk::PipelineCreateFlagBits2KHR::eFailOnPipelineCompileRequired;
-        }
-        insertAfter(&pipelineShaderModuleCreateInfo, pipelineCache->getCacheFeedbackCreateInfo());
-        vkPipelineCache = pipelineCache->get();
-    }
-
-    const vk::DataGraphPipelineCreateInfoARM pipelineCreateInfo(flags, *_pipelineLayout,
-                                                                static_cast<uint32_t>(resourceInfos.size()),
-                                                                resourceInfos.data(), &pipelineShaderModuleCreateInfo);
-    _pipeline = vk::raii::Pipeline(ctx.device(), deferredOperation, vkPipelineCache, pipelineCreateInfo);
-
-    if (pipelineCache && pipelineCache->failOnCacheMiss() &&
-        _pipeline.getConstructorSuccessCode() == vk::Result::ePipelineCompileRequired) {
-        throw std::runtime_error("Pipeline cache miss for pipeline: " + _debugName);
-    }
-
-    trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
-
-    initSession(ctx);
     buildDataGraphPipeline(ctx, entryPoint, resourceInfos, constantInfos, pipelineCache);
 }
 
