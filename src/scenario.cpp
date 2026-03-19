@@ -13,6 +13,8 @@
 #include "utils.hpp"
 
 #include "vgf-utils/numpy.hpp"
+
+#include <algorithm>
 #include <unordered_set>
 
 namespace mlsdk::scenariorunner {
@@ -22,6 +24,22 @@ struct DispatchComputeData {
     std::vector<TypedBinding> bindings;
     ComputeDispatch computeDispatch{};
     Guid shaderRef;
+    bool implicitBarrier{true};
+    std::optional<Guid> pushDataRef;
+};
+
+/// \brief Fragment (graphics) data with typed bindings
+struct DispatchFragmentData {
+    std::string debugName;
+    std::vector<TypedBinding> bindings;
+    Guid vertexShaderRef;
+    Guid fragmentShaderRef;
+    struct Attachment {
+        Guid resourceRef;
+        std::optional<uint32_t> lod;
+    };
+    std::vector<Attachment> colorAttachments;
+    std::optional<vk::Extent2D> renderExtent;
     bool implicitBarrier{true};
     std::optional<Guid> pushDataRef;
 };
@@ -224,6 +242,7 @@ struct ResourceInfoFactory {
         }
 
         info.isAliased = _groupManager.isAliased(image.guid);
+        info.isColorAttachment = image.colorAttachment;
         return info;
     }
 
@@ -374,6 +393,26 @@ struct CommandDataFactory {
         return data;
     }
 
+    DispatchFragmentData createData(const DispatchFragmentDesc &dispatchFragment) {
+        DispatchFragmentData data;
+        data.debugName = dispatchFragment.debugName;
+        data.bindings = convertBindings(_dataManager, dispatchFragment.bindings);
+        data.vertexShaderRef = dispatchFragment.vertexShaderRef;
+        data.fragmentShaderRef = dispatchFragment.fragmentShaderRef;
+        data.colorAttachments.reserve(dispatchFragment.colorAttachments.size());
+        for (const auto &attachmentDesc : dispatchFragment.colorAttachments) {
+            data.colorAttachments.push_back(
+                DispatchFragmentData::Attachment{attachmentDesc.resourceRef, attachmentDesc.lod});
+        }
+        if (dispatchFragment.renderExtent) {
+            const auto &extent = dispatchFragment.renderExtent.value();
+            data.renderExtent = vk::Extent2D(extent[0], extent[1]);
+        }
+        data.implicitBarrier = dispatchFragment.implicitBarrier;
+        data.pushDataRef = dispatchFragment.pushDataRef;
+        return data;
+    }
+
     DispatchBarrierData createData(const DispatchBarrierDesc &dispatchBarrier) {
         DispatchBarrierData data;
         for (const auto &ref : dispatchBarrier.bufferBarriersRef) {
@@ -454,12 +493,16 @@ ShaderInfo convert(const ShaderDesc &shaderDesc) {
                     shaderDesc.specializationConstants,
                     shaderDesc.src.value_or(std::string{}),
                     shaderDesc.shaderType,
+                    shaderDesc.stage,
                     shaderDesc.buildOpts,
                     shaderDesc.includeDirs};
     return info;
 }
 
 auto getFamilyQueue(const ScenarioSpec &spec) {
+    if (spec.requiresGraphicsFamilyQueue) {
+        return FamilyQueue::Graphics;
+    }
     if (spec.useComputeFamilyQueue) {
         return FamilyQueue::Compute;
     }
@@ -713,6 +756,11 @@ void Scenario::setupCommands() {
             const auto data = factory.createData(dispatchSpirvGraph);
             createSpirvGraphPipeline(data, nQueries);
         } break;
+        case (CommandType::DispatchFragment): {
+            const auto &dispatchFragment = reinterpret_cast<DispatchFragmentDesc &>(*command);
+            const auto data = factory.createData(dispatchFragment);
+            createFragmentPipeline(data, nQueries);
+        } break;
         case (CommandType::MarkBoundary): {
             const auto &markBoundary = reinterpret_cast<MarkBoundaryDesc &>(*command);
             const auto data = factory.createData(markBoundary);
@@ -877,6 +925,9 @@ std::pair<const char *, size_t> getPushConstantData(const std::optional<Guid> &p
 void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries) {
     // Create Compute shader pipeline
     const auto shaderInfo = convert(_scenarioSpec.getShaderResource(dispatchCompute.shaderRef));
+    if (!(shaderInfo.stage == ShaderStage::Compute || shaderInfo.stage == ShaderStage::Unknown)) {
+        throw std::runtime_error("DispatchCompute requires a compute shader stage");
+    }
     const Compute::PipelineCreateArguments args{dispatchCompute.debugName, dispatchCompute.bindings, _pipelineCache};
 
     PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + shaderInfo.debugName, "Pipeline Setup");
@@ -887,6 +938,78 @@ void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute,
                                     dispatchCompute.implicitBarrier, dispatchCompute.computeDispatch);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
     mlsdk::logging::debug("Shader Pipeline: " + shaderInfo.debugName + " created");
+}
+
+void Scenario::createFragmentPipeline(const DispatchFragmentData &dispatchFragment, uint32_t &nQueries) {
+    const auto vertexShaderInfo = convert(_scenarioSpec.getShaderResource(dispatchFragment.vertexShaderRef));
+    const auto fragmentShaderInfo = convert(_scenarioSpec.getShaderResource(dispatchFragment.fragmentShaderRef));
+    if (vertexShaderInfo.stage != ShaderStage::Vertex) {
+        throw std::runtime_error("dispatch_fragment vertex_shader_ref must reference a vertex shader");
+    }
+    if (fragmentShaderInfo.stage != ShaderStage::Fragment) {
+        throw std::runtime_error("dispatch_fragment fragment_shader_ref must reference a fragment shader");
+    }
+
+    const Compute::PipelineCreateArguments args{dispatchFragment.debugName, dispatchFragment.bindings, _pipelineCache};
+    PerfCounterGuard guard(_perfCounters, "Create Graphics Pipeline: " + fragmentShaderInfo.debugName,
+                           "Pipeline Setup");
+
+    std::vector<vk::Format> colorAttachmentFormats;
+    std::vector<GraphicsDispatchAttachment> attachmentInfos;
+    colorAttachmentFormats.reserve(dispatchFragment.colorAttachments.size());
+    attachmentInfos.reserve(dispatchFragment.colorAttachments.size());
+
+    std::optional<vk::Extent2D> targetExtent = dispatchFragment.renderExtent;
+    for (const auto &attachmentSpec : dispatchFragment.colorAttachments) {
+        const auto &colorImage = _dataManager.getImage(attachmentSpec.resourceRef);
+        const auto &imageInfo = colorImage.getInfo();
+        const auto &shape = colorImage.shape();
+        if (shape.size() < 3) {
+            throw std::runtime_error("Color attachment image does not have enough dimensions for rendering");
+        }
+        auto attachmentWidth = static_cast<uint32_t>(shape[1]);
+        auto attachmentHeight = static_cast<uint32_t>(shape[2]);
+        if (attachmentSpec.lod.has_value()) {
+            const uint32_t lod = attachmentSpec.lod.value();
+            if (lod >= imageInfo.mips) {
+                throw std::runtime_error("Color attachment mip level exceeds available mips");
+            }
+            const uint32_t divisor = 1u << lod;
+            attachmentWidth = std::max(1u, attachmentWidth / divisor);
+            attachmentHeight = std::max(1u, attachmentHeight / divisor);
+        }
+        const vk::Extent2D extent(attachmentWidth, attachmentHeight);
+        if (!targetExtent.has_value()) {
+            targetExtent = extent;
+        } else if (targetExtent.value() != extent) {
+            throw std::runtime_error("All color attachments must share the same extent");
+        }
+
+        colorAttachmentFormats.push_back(imageInfo.targetFormat);
+        GraphicsDispatchAttachment attachment{};
+        attachment.view =
+            attachmentSpec.lod.has_value() ? colorImage.imageView(attachmentSpec.lod.value()) : colorImage.imageView();
+        attachment.image = colorImage.image();
+        attachment.layout = colorImage.getImageLayout();
+        attachmentInfos.push_back(attachment);
+    }
+
+    if (!targetExtent.has_value()) {
+        throw std::runtime_error("dispatch_fragment requires render_extent when no color attachments are provided");
+    }
+
+    _compute.createPipeline(args, vertexShaderInfo, fragmentShaderInfo, colorAttachmentFormats);
+    _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eColorAttachmentOutput);
+    const auto [pushConstantData, pushConstantSize] = getPushConstantData(dispatchFragment.pushDataRef, _dataManager);
+
+    GraphicsDispatchInfo dispatchInfo{};
+    dispatchInfo.colorAttachments = std::move(attachmentInfos);
+    dispatchInfo.extent = targetExtent.value();
+
+    _compute.registerPipelineFenced(_dataManager, dispatchFragment.bindings, pushConstantData, pushConstantSize,
+                                    dispatchFragment.implicitBarrier, dispatchInfo);
+    _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eColorAttachmentOutput);
+    mlsdk::logging::debug("Graphics Pipeline: " + fragmentShaderInfo.debugName + " created");
 }
 
 void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries) {

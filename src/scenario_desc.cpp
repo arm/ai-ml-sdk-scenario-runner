@@ -40,6 +40,9 @@ void ScenarioSpec::addCommand(std::unique_ptr<CommandDesc> command) {
     if (command && command->commandType == CommandType::DispatchCompute) {
         useComputeFamilyQueue = true;
     }
+    if (command && command->commandType == CommandType::DispatchFragment) {
+        requiresGraphicsFamilyQueue = true;
+    }
     commands.emplace_back(std::move(command));
 }
 

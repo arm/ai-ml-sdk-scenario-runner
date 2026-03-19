@@ -15,6 +15,9 @@
             "dispatch_compute": {
                 "$ref" : "urn:scenario:command:dispatch_compute"
             },
+            "dispatch_fragment": {
+                "$ref" : "urn:scenario:command:dispatch_fragment"
+            },
             "dispatch_barrier": {
                 "$ref": "urn:scenario:command:dispatch_barrier"
             },
@@ -31,6 +34,9 @@
             },
             {
                 "required": ["dispatch_compute"]
+            },
+            {
+                "required": ["dispatch_fragment"]
             },
             {
                 "required": ["dispatch_barrier"]

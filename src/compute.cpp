@@ -7,6 +7,7 @@
 #include "logging.hpp"
 #include "utils.hpp"
 
+#include <algorithm>
 #include <fstream>
 #include <iomanip>
 
@@ -215,6 +216,13 @@ void Compute::createPipeline(const PipelineCreateArguments &args, const ShaderIn
     (void)_pipelines.emplace_back(commonArgs, shaderInfo, dataManager, constants);
 }
 
+void Compute::createPipeline(const PipelineCreateArguments &args, const ShaderInfo &vertexShaderInfo,
+                             const ShaderInfo &fragmentShaderInfo,
+                             const std::vector<vk::Format> &colorAttachmentFormats) {
+    const Pipeline::CommonArguments commonArgs{_ctx, args.debugName, args.bindings, args.pipelineCache};
+    (void)_pipelines.emplace_back(commonArgs, vertexShaderInfo, fragmentShaderInfo, colorAttachmentFormats);
+}
+
 void Compute::_registerPipelineFencedCommon(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
                                             const char *pushConstantData, size_t pushConstantSize) {
     const auto &pipeline = _pipelines.back();
@@ -251,8 +259,24 @@ void Compute::registerPipelineFenced(const DataManager &dataManager, const std::
     }
 }
 
+void Compute::registerPipelineFenced(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
+                                     const char *pushConstantData, size_t pushConstantSize, bool implicitBarriers,
+                                     const GraphicsDispatchInfo &graphicsDispatch) {
+    _registerPipelineFencedCommon(dataManager, bindings, pushConstantData, pushConstantSize);
+    _addGraphicsDispatch(graphicsDispatch);
+
+    if (implicitBarriers) {
+        _addImplicitBarriers();
+    }
+}
+
 void Compute::_addBinds(const Pipeline &pipeline, const uint32_t maxSet, const uint32_t baseDescriptorSetIdxGlobal) {
-    const auto bindPoint = pipeline.isDataGraphPipeline() ? BindPoint::DataGraph : BindPoint::Compute;
+    auto bindPoint = BindPoint::Compute;
+    if (pipeline.isDataGraphPipeline()) {
+        bindPoint = BindPoint::DataGraph;
+    } else if (pipeline.isGraphicsPipeline()) {
+        bindPoint = BindPoint::Graphics;
+    }
 
     _commands.emplace_back(BindPipeline{pipeline.pipeline(), bindPoint});
 
@@ -263,9 +287,9 @@ void Compute::_addBinds(const Pipeline &pipeline, const uint32_t maxSet, const u
 }
 
 void Compute::_addPushConstants(const char *pushConstantData, const Pipeline &pipeline, const size_t pushConstantSize) {
-    if (pushConstantData != nullptr) {
-        _commands.emplace_back(
-            PushConstants{pipeline.pipelineLayout(), pushConstantData, static_cast<uint32_t>(pushConstantSize)});
+    if (pushConstantData != nullptr && pushConstantSize > 0 && pipeline.pushConstantStages()) {
+        _commands.emplace_back(PushConstants{pipeline.pipelineLayout(), pushConstantData,
+                                             static_cast<uint32_t>(pushConstantSize), pipeline.pushConstantStages()});
     }
 }
 
@@ -276,6 +300,10 @@ void Compute::_addDispatch(const ComputeDispatch &computeDispatch) {
     } else {
         _commands.emplace_back(computeDispatch);
     }
+}
+
+void Compute::_addGraphicsDispatch(const GraphicsDispatchInfo &graphicsDispatch) {
+    _commands.emplace_back(GraphicsDispatch{graphicsDispatch});
 }
 
 void Compute::_addImplicitBarriers() {
@@ -408,6 +436,9 @@ vk::PipelineBindPoint Compute::_getBindPoint(BindPoint bindPoint) {
     case BindPoint::DataGraph:
         vkBindPoint = vk::PipelineBindPoint::eDataGraphARM;
         break;
+    case BindPoint::Graphics:
+        vkBindPoint = vk::PipelineBindPoint::eGraphics;
+        break;
     default:
         vkBindPoint = vk::PipelineBindPoint::eCompute;
         break;
@@ -463,6 +494,39 @@ void Compute::_createCmdBuffer() {
             mlsdk::logging::info("Dispatch graph");
             auto &typedCmd = std::get<DataGraphDispatch>(cmd);
             _cmdBufferArray.back().dispatchDataGraphARM(typedCmd.session);
+        } else if (std::holds_alternative<GraphicsDispatch>(cmd)) {
+            mlsdk::logging::info("Dispatch graphics");
+            auto &typedCmd = std::get<GraphicsDispatch>(cmd);
+
+            std::vector<vk::RenderingAttachmentInfo> colorAttachmentInfos;
+            colorAttachmentInfos.reserve(typedCmd.info.colorAttachments.size());
+            for (const auto &attachment : typedCmd.info.colorAttachments) {
+                vk::RenderingAttachmentInfo attachmentInfo{};
+                attachmentInfo.setImageView(attachment.view);
+                attachmentInfo.setImageLayout(attachment.layout);
+                attachmentInfo.setLoadOp(vk::AttachmentLoadOp::eDontCare);
+                attachmentInfo.setStoreOp(vk::AttachmentStoreOp::eStore);
+                colorAttachmentInfos.push_back(attachmentInfo);
+            }
+
+            vk::RenderingInfo renderingInfo{};
+            renderingInfo.setRenderArea(vk::Rect2D({0, 0}, typedCmd.info.extent));
+            renderingInfo.setLayerCount(1);
+            renderingInfo.setColorAttachmentCount(static_cast<uint32_t>(colorAttachmentInfos.size()));
+            if (colorAttachmentInfos.empty()) {
+                renderingInfo.setPColorAttachments(nullptr);
+            } else {
+                renderingInfo.setPColorAttachments(colorAttachmentInfos.data());
+            }
+
+            _cmdBufferArray.back().beginRendering(renderingInfo);
+            vk::Viewport viewport(0.0f, 0.0f, static_cast<float>(typedCmd.info.extent.width),
+                                  static_cast<float>(typedCmd.info.extent.height), 0.0f, 1.0f);
+            vk::Rect2D scissor({0, 0}, typedCmd.info.extent);
+            _cmdBufferArray.back().setViewport(0, viewport);
+            _cmdBufferArray.back().setScissor(0, scissor);
+            _cmdBufferArray.back().draw(3, 1, 0, 0);
+            _cmdBufferArray.back().endRendering();
         } else if (std::holds_alternative<MemoryBarrier>(cmd)) {
             auto &typedCmd = std::get<MemoryBarrier>(cmd);
             auto &memoryBarriers = _memoryBarriers[typedCmd.memoryBarrierIdx];
@@ -481,7 +545,7 @@ void Compute::_createCmdBuffer() {
                 (vk::DependencyFlags)0, memoryBarriers, bufferBarriers, imageBarriers, dependencyInfoExt));
         } else if (std::holds_alternative<PushConstants>(cmd)) {
             auto &typedCmd = std::get<PushConstants>(cmd);
-            _cmdBufferArray.back().pushConstants<char>(typedCmd.pipelineLayout, vk::ShaderStageFlagBits::eCompute, 0,
+            _cmdBufferArray.back().pushConstants<char>(typedCmd.pipelineLayout, typedCmd.stages, 0,
                                                        vk::ArrayProxy(typedCmd.size, typedCmd.pushConstantData));
         } else if (std::holds_alternative<WriteTimestamp>(cmd)) {
             if (*_queryPool) {
@@ -571,6 +635,8 @@ void Compute::writeProfilingFile(const std::filesystem::path &profilingPath, int
             profiledCommands.push_back("ComputeDispatch");
         } else if (std::holds_alternative<DataGraphDispatch>(command)) {
             profiledCommands.push_back("DataGraphDispatch");
+        } else if (std::holds_alternative<GraphicsDispatch>(command)) {
+            profiledCommands.push_back("GraphicsDispatch");
         }
     }
     std::vector<uint64_t> memoryUsages;

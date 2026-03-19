@@ -10,6 +10,8 @@
 #include "spirv-tools/libspirv.hpp"
 #include "vulkan_debug_utils.hpp"
 
+#include <array>
+
 namespace mlsdk::scenariorunner {
 
 namespace {
@@ -49,12 +51,13 @@ rawLayouts(const std::vector<vk::raii::DescriptorSetLayout> &descriptorSetLayout
     return layouts;
 }
 
-vk::raii::PipelineLayout createPipelineLayout(const Context &ctx,
-                                              const std::vector<vk::raii::DescriptorSetLayout> &descriptorSetLayouts,
-                                              uint32_t pushConstantsSize = 0) {
+vk::raii::PipelineLayout
+createPipelineLayout(const Context &ctx, const std::vector<vk::raii::DescriptorSetLayout> &descriptorSetLayouts,
+                     uint32_t pushConstantsSize = 0,
+                     vk::ShaderStageFlags pushConstantStages = vk::ShaderStageFlagBits::eCompute) {
     auto layouts = rawLayouts(descriptorSetLayouts);
     if (pushConstantsSize > 0) {
-        const vk::PushConstantRange pushConstantRange(vk::ShaderStageFlagBits::eCompute, 0, pushConstantsSize);
+        const vk::PushConstantRange pushConstantRange(pushConstantStages, 0, pushConstantsSize);
         const vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo({}, layouts, pushConstantRange);
         return vk::raii::PipelineLayout(ctx.device(), pipelineLayoutCreateInfo);
     }
@@ -123,7 +126,11 @@ void Pipeline::createDescriptorSetLayouts(const Context &ctx, const std::vector<
 
 void Pipeline::computePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
                                      std::shared_ptr<PipelineCache> pipelineCache) {
-    _pipelineLayout = createPipelineLayout(ctx, _descriptorSetLayouts, shaderInfo.pushConstantsSize);
+    _pipelineLayout = createPipelineLayout(ctx, _descriptorSetLayouts, shaderInfo.pushConstantsSize,
+                                           vk::ShaderStageFlagBits::eCompute);
+    _pushConstantStages = shaderInfo.pushConstantsSize > 0
+                              ? static_cast<vk::ShaderStageFlags>(vk::ShaderStageFlagBits::eCompute)
+                              : vk::ShaderStageFlags{};
 
     std::vector<vk::SpecializationMapEntry> specMapEntries(shaderInfo.specializationConstants.size());
     std::vector<SpecConstantValue> specConstValues(shaderInfo.specializationConstants.size());
@@ -160,6 +167,108 @@ void Pipeline::computePipelineCommon(const Context &ctx, const ShaderInfo &shade
         throw std::runtime_error("Pipeline cache miss for pipeline: " + shaderInfo.debugName);
     }
 
+    trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
+}
+
+void Pipeline::graphicsPipelineCommon(const Context &ctx, const ShaderInfo &vertexShaderInfo,
+                                      const ShaderInfo &fragmentShaderInfo,
+                                      const std::vector<vk::Format> &colorAttachmentFormats,
+                                      std::shared_ptr<PipelineCache> pipelineCache) {
+    const uint32_t pushConstantsSize =
+        std::max(vertexShaderInfo.pushConstantsSize, fragmentShaderInfo.pushConstantsSize);
+    const vk::ShaderStageFlags graphicsStages =
+        pushConstantsSize > 0
+            ? static_cast<vk::ShaderStageFlags>(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment)
+            : vk::ShaderStageFlags{};
+    _pipelineLayout = createPipelineLayout(ctx, _descriptorSetLayouts, pushConstantsSize, graphicsStages);
+    _pushConstantStages = graphicsStages;
+
+    auto buildSpecInfo = [](const ShaderInfo &shaderInfo, std::vector<vk::SpecializationMapEntry> &entries,
+                            std::vector<SpecConstantValue> &values,
+                            vk::SpecializationInfo &info) -> const vk::SpecializationInfo * {
+        if (shaderInfo.specializationConstants.empty()) {
+            return nullptr;
+        }
+        entries.resize(shaderInfo.specializationConstants.size());
+        values.resize(shaderInfo.specializationConstants.size());
+        for (uint32_t i = 0, offset = 0; i < static_cast<uint32_t>(shaderInfo.specializationConstants.size());
+             ++i, offset += specConstValueSize) {
+            const auto &specConst = shaderInfo.specializationConstants[i];
+            entries[i] = vk::SpecializationMapEntry(static_cast<uint32_t>(specConst.id), offset, specConstValueSize);
+            values[i] = specConst.value;
+        }
+        info = vk::SpecializationInfo(static_cast<uint32_t>(entries.size()), entries.data(),
+                                      values.size() * specConstValueSize, values.data());
+        return &info;
+    };
+
+    std::vector<vk::SpecializationMapEntry> vertexSpecEntries;
+    std::vector<SpecConstantValue> vertexSpecValues;
+    vk::SpecializationInfo vertexSpecInfo;
+    const vk::SpecializationInfo *vertexSpecPtr =
+        buildSpecInfo(vertexShaderInfo, vertexSpecEntries, vertexSpecValues, vertexSpecInfo);
+
+    std::vector<vk::SpecializationMapEntry> fragmentSpecEntries;
+    std::vector<SpecConstantValue> fragmentSpecValues;
+    vk::SpecializationInfo fragmentSpecInfo;
+    const vk::SpecializationInfo *fragmentSpecPtr =
+        buildSpecInfo(fragmentShaderInfo, fragmentSpecEntries, fragmentSpecValues, fragmentSpecInfo);
+
+    vk::PipelineShaderStageCreateInfo vertexStageInfo({}, vk::ShaderStageFlagBits::eVertex, *_shader,
+                                                      vertexShaderInfo.entry.c_str(), vertexSpecPtr);
+    vk::PipelineShaderStageCreateInfo fragmentStageInfo({}, vk::ShaderStageFlagBits::eFragment, *_fragmentShader,
+                                                        fragmentShaderInfo.entry.c_str(), fragmentSpecPtr);
+    std::array shaderStages{vertexStageInfo, fragmentStageInfo};
+
+    vk::PipelineVertexInputStateCreateInfo vertexInputState{};
+    vk::PipelineInputAssemblyStateCreateInfo inputAssembly({}, vk::PrimitiveTopology::eTriangleList, VK_FALSE);
+    vk::PipelineViewportStateCreateInfo viewportState({}, 1, nullptr, 1, nullptr);
+    vk::PipelineRasterizationStateCreateInfo rasterizationState({}, VK_FALSE, VK_FALSE, vk::PolygonMode::eFill,
+                                                                vk::CullModeFlagBits::eNone, vk::FrontFace::eClockwise,
+                                                                VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f);
+    vk::PipelineMultisampleStateCreateInfo multisampleState({}, vk::SampleCountFlagBits::e1, VK_FALSE);
+
+    vk::PipelineColorBlendAttachmentState colorBlendAttachment(VK_FALSE);
+    colorBlendAttachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                                          vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+    vk::PipelineColorBlendStateCreateInfo colorBlendState{};
+    colorBlendState.setLogicOpEnable(VK_FALSE);
+    colorBlendState.setLogicOp(vk::LogicOp::eCopy);
+    std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments;
+    if (!colorAttachmentFormats.empty()) {
+        colorBlendAttachments.assign(colorAttachmentFormats.size(), colorBlendAttachment);
+        colorBlendState.setAttachmentCount(static_cast<uint32_t>(colorBlendAttachments.size()));
+        colorBlendState.setPAttachments(colorBlendAttachments.data());
+    } else {
+        colorBlendState.setAttachmentCount(0);
+        colorBlendState.setPAttachments(nullptr);
+    }
+
+    std::array dynamicStates{vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+    vk::PipelineDynamicStateCreateInfo dynamicState({}, dynamicStates);
+
+    vk::PipelineRenderingCreateInfo renderingInfo{};
+    renderingInfo.setColorAttachmentCount(static_cast<uint32_t>(colorAttachmentFormats.size()));
+    renderingInfo.setPColorAttachmentFormats(colorAttachmentFormats.empty() ? nullptr : colorAttachmentFormats.data());
+
+    vk::GraphicsPipelineCreateInfo graphicsPipelineCreateInfo(
+        {}, static_cast<uint32_t>(shaderStages.size()), shaderStages.data(), &vertexInputState, &inputAssembly, nullptr,
+        &viewportState, &rasterizationState, &multisampleState, nullptr, &colorBlendState, &dynamicState,
+        *_pipelineLayout);
+    graphicsPipelineCreateInfo.setPNext(&renderingInfo);
+
+    vk::PipelineCreateFlags flags{};
+    const vk::raii::PipelineCache *vkPipelineCache{nullptr};
+    if (pipelineCache) {
+        if (pipelineCache->failOnCacheMiss()) {
+            flags |= vk::PipelineCreateFlagBits::eFailOnPipelineCompileRequired;
+        }
+        insertAfter(&renderingInfo, pipelineCache->getCacheFeedbackCreateInfo());
+        vkPipelineCache = pipelineCache->get();
+    }
+    graphicsPipelineCreateInfo.flags = flags;
+
+    _pipeline = vk::raii::Pipeline(ctx.device(), vkPipelineCache, graphicsPipelineCreateInfo);
     trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
 }
 
@@ -209,6 +318,19 @@ Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, co
         constantInfos.emplace_back(constant.index, constant.data.data(), &constantTensorDescriptions.back());
     }
     graphComputePipelineCommon(args.ctx, shaderInfo, resourceInfos, constantInfos, args.pipelineCache);
+}
+
+Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &vertexShaderInfo,
+                   const ShaderInfo &fragmentShaderInfo, const std::vector<vk::Format> &colorAttachmentFormats)
+    : _type{PipelineType::Graphics}, _shader{createShaderModule(args.ctx, vertexShaderInfo)},
+      _debugName(args.debugName) {
+    trySetVkRaiiObjectDebugName(args.ctx, _shader, vertexShaderInfo.debugName);
+
+    _fragmentShader = createShaderModule(args.ctx, fragmentShaderInfo);
+    trySetVkRaiiObjectDebugName(args.ctx, _fragmentShader, fragmentShaderInfo.debugName);
+
+    createDescriptorSetLayouts(args.ctx, args.bindings);
+    graphicsPipelineCommon(args.ctx, vertexShaderInfo, fragmentShaderInfo, colorAttachmentFormats, args.pipelineCache);
 }
 
 Pipeline::Pipeline(const CommonArguments &args, const uint32_t segmentIndex, const VgfView &vgfView,

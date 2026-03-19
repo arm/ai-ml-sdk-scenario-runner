@@ -7,6 +7,7 @@
 
 #include "guid.hpp"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -18,6 +19,7 @@ enum class CommandType {
     DispatchCompute,
     DispatchDataGraph,
     DispatchSpirvGraph,
+    DispatchFragment,
     DispatchBarrier,
     MarkBoundary
 };
@@ -60,6 +62,29 @@ struct DispatchComputeDesc : CommandDesc {
     std::vector<BindingDesc> bindings;
     std::vector<uint32_t> rangeND;
     Guid shaderRef;
+    bool implicitBarrier{true};
+    std::optional<Guid> pushDataRef;
+};
+
+/**
+ * @brief The DispatchFragment command dispatches a fragment shader to execute. DispatchFragmentDesc describes a
+ * DispatchFragment Command.
+ *
+ */
+struct FragmentAttachmentDesc {
+    Guid resourceRef;
+    std::optional<uint32_t> lod;
+};
+
+struct DispatchFragmentDesc : CommandDesc {
+    DispatchFragmentDesc();
+
+    std::string debugName;
+    std::vector<BindingDesc> bindings;
+    Guid vertexShaderRef;
+    Guid fragmentShaderRef;
+    std::vector<FragmentAttachmentDesc> colorAttachments;
+    std::optional<std::array<uint32_t, 2>> renderExtent;
     bool implicitBarrier{true};
     std::optional<Guid> pushDataRef;
 };

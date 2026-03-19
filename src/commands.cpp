@@ -32,6 +32,12 @@ DispatchDataGraphDesc::DispatchDataGraphDesc() : CommandDesc(CommandType::Dispat
 DispatchSpirvGraphDesc::DispatchSpirvGraphDesc() : CommandDesc(CommandType::DispatchSpirvGraph) {}
 
 /**
+ * @brief Construct a new Dispatch Fragment object
+ *
+ */
+DispatchFragmentDesc::DispatchFragmentDesc() : CommandDesc(CommandType::DispatchFragment) {}
+
+/**
  * @brief Construct a new Dispatch Barrier object
  *
  */

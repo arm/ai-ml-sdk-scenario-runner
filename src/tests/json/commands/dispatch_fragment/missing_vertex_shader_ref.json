@@ -1,0 +1,21 @@
+{
+    "commands": [
+        {
+            "dispatch_fragment": {
+                "fragment_shader_ref": "fs_main",
+                "render_extent": [
+                    8,
+                    8
+                ],
+                "bindings": [
+                    {
+                        "set": 0,
+                        "id": 0,
+                        "resource_ref": "input_texture"
+                    }
+                ]
+            }
+        }
+    ],
+    "resources": []
+}

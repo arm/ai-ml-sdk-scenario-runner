@@ -33,6 +33,7 @@ struct ScenarioOptions {
 struct DispatchComputeData;
 struct DispatchDataGraphData;
 struct DispatchSpirvGraphData;
+struct DispatchFragmentData;
 
 class Scenario {
   public:
@@ -46,6 +47,7 @@ class Scenario {
     void createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries);
     void createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries);
     void createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSpirvGraph, uint32_t &nQueries);
+    void createFragmentPipeline(const DispatchFragmentData &dispatchFragment, uint32_t &nQueries);
 
     void createPipeline(uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
                         const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries);

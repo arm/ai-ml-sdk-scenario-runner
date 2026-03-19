@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "glsl_compiler.hpp"
@@ -48,11 +48,24 @@ GlslCompiler &GlslCompiler::get() {
     return glslCompiler;
 }
 
-std::pair<std::string, std::vector<uint32_t>> GlslCompiler::compile(const std::string &source,
+std::pair<std::string, std::vector<uint32_t>> GlslCompiler::compile(const std::string &source, ShaderStage stage,
                                                                     const std::string &preprocessorOptions,
                                                                     const std::vector<std::string> &shaderDirs) {
     std::string log;
-    const EShLanguage language = EShLanguage::EShLangCompute;
+    EShLanguage language = EShLanguage::EShLangCompute;
+    switch (stage) {
+    case ShaderStage::Compute:
+        language = EShLangCompute;
+        break;
+    case ShaderStage::Vertex:
+        language = EShLangVertex;
+        break;
+    case ShaderStage::Fragment:
+        language = EShLangFragment;
+        break;
+    default:
+        return {"Unknown shader stage for GLSL compilation", {}};
+    }
     const auto messages = static_cast<EShMessages>(EShMsgDefault | EShMsgVulkanRules | EShMsgSpvRules);
 
     glslang::TShader shader(language);

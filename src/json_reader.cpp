@@ -41,6 +41,11 @@ NLOHMANN_JSON_SERIALIZE_ENUM(ShaderType, {{ShaderType::Unknown, nullptr},
                                           {ShaderType::GLSL, "GLSL"},
                                           {ShaderType::HLSL, "HLSL"}})
 
+NLOHMANN_JSON_SERIALIZE_ENUM(ShaderStage, {{ShaderStage::Unknown, nullptr},
+                                           {ShaderStage::Compute, "compute"},
+                                           {ShaderStage::Vertex, "vertex"},
+                                           {ShaderStage::Fragment, "fragment"}})
+
 // Map ShaderAccessType values to JSON as strings
 NLOHMANN_JSON_SERIALIZE_ENUM(ShaderAccessType, {
                                                    {ShaderAccessType::Unknown, nullptr},
@@ -61,6 +66,7 @@ NLOHMANN_JSON_SERIALIZE_ENUM(MemoryAccess, {{MemoryAccess::Unknown, nullptr},
 NLOHMANN_JSON_SERIALIZE_ENUM(PipelineStage, {{PipelineStage::Unknown, nullptr},
                                              {PipelineStage::Graph, "graph"},
                                              {PipelineStage::Compute, "compute"},
+                                             {PipelineStage::Graphics, "graphics"},
                                              {PipelineStage::All, "all"}})
 
 // Map ImageLayout values to JSON as strings
@@ -172,6 +178,10 @@ void readJson(ScenarioSpec &scenarioSpec, std::istream *is) {
             DispatchSpirvGraphDesc dispatchSpirvGraph = item.at("dispatch_spirv_graph").get<DispatchSpirvGraphDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchSpirvGraphDesc>(dispatchSpirvGraph));
         } break;
+        case (CommandType::DispatchFragment): {
+            DispatchFragmentDesc dispatchFragment = item.at("dispatch_fragment").get<DispatchFragmentDesc>();
+            scenarioSpec.addCommand(std::make_unique<DispatchFragmentDesc>(dispatchFragment));
+        } break;
         case (CommandType::DispatchBarrier): {
             DispatchBarrierDesc dispatchBarrier = item.at("dispatch_barrier").get<DispatchBarrierDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchBarrierDesc>(dispatchBarrier));
@@ -198,6 +208,8 @@ void from_json(const json &j, CommandDesc &command) {
         command.commandType = CommandType::DispatchCompute;
     } else if (j.find("dispatch_graph") != j.end()) {
         command.commandType = CommandType::DispatchDataGraph;
+    } else if (j.find("dispatch_fragment") != j.end()) {
+        command.commandType = CommandType::DispatchFragment;
     } else if (j.find("dispatch_spirv_graph") != j.end()) {
         command.commandType = CommandType::DispatchSpirvGraph;
     } else if (j.find("dispatch_barrier") != j.end()) {
@@ -235,6 +247,46 @@ void from_json(const json &j, DispatchComputeDesc &dispatchCompute) {
     }
     if (j.contains("implicit_barrier")) {
         dispatchCompute.implicitBarrier = j.at("implicit_barrier").get<bool>();
+    }
+}
+
+void from_json(const json &j, FragmentAttachmentDesc &fragmentAttachment) {
+    if (j.is_string()) {
+        fragmentAttachment.resourceRef = j.get<std::string>();
+    } else if (j.is_object()) {
+        fragmentAttachment.resourceRef = j.at("resource_ref").get<std::string>();
+        if (j.contains("lod")) {
+            fragmentAttachment.lod = j.at("lod").get<uint32_t>();
+        }
+    } else {
+        throw std::runtime_error("color_attachment_refs entries must be strings or objects");
+    }
+}
+
+void from_json(const json &j, DispatchFragmentDesc &dispatchFragment) {
+    dispatchFragment.bindings = j.at("bindings").get<std::vector<BindingDesc>>();
+
+    dispatchFragment.vertexShaderRef = j.at("vertex_shader_ref").get<std::string>();
+    const auto fragmentShaderRef = j.at("fragment_shader_ref").get<std::string>();
+    dispatchFragment.fragmentShaderRef = fragmentShaderRef;
+    dispatchFragment.debugName = fragmentShaderRef;
+    if (j.contains("debug_name")) {
+        dispatchFragment.debugName = j.at("debug_name").get<std::string>();
+    }
+    if (j.contains("color_attachment_refs")) {
+        dispatchFragment.colorAttachments = j.at("color_attachment_refs").get<std::vector<FragmentAttachmentDesc>>();
+    }
+    if (j.contains("render_extent")) {
+        dispatchFragment.renderExtent = j.at("render_extent").get<std::array<uint32_t, 2>>();
+    }
+    if (dispatchFragment.colorAttachments.empty() && !dispatchFragment.renderExtent.has_value()) {
+        throw std::runtime_error("dispatch_fragment requires color_attachment_refs or render_extent");
+    }
+    if (j.contains("push_data_ref")) {
+        dispatchFragment.pushDataRef = j.at("push_data_ref").get<std::string>();
+    }
+    if (j.contains("implicit_barrier")) {
+        dispatchFragment.implicitBarrier = j.at("implicit_barrier").get<bool>();
     }
 }
 
@@ -508,15 +560,19 @@ void from_json(const json &j, ShaderDesc &shader) {
     if (shader.shaderType == ShaderType::Unknown) {
         throw std::runtime_error("Unknown shader type value");
     }
-
+    shader.stage = ShaderStage::Compute;
+    if (j.contains("stage")) {
+        shader.stage = j.at("stage").get<ShaderStage>();
+        if (shader.stage == ShaderStage::Unknown) {
+            throw std::runtime_error("Unknown shader stage value");
+        }
+    }
     if (j.contains("entry")) {
         shader.entry = j.at("entry").get<std::string>();
     }
-
     if (shader.shaderType == ShaderType::GLSL && shader.entry != "main") {
         throw std::runtime_error("GLSL is required to have an entrypoint of 'main'");
     }
-
     if (j.contains("push_constants_size")) {
         shader.pushConstantsSize = j.at("push_constants_size").get<uint32_t>();
     }
@@ -627,6 +683,9 @@ void from_json(const json &j, ImageDesc &image) {
     }
     if (j.contains("dst")) {
         image.dst = j.at("dst").get<std::string>();
+    }
+    if (j.contains("color_attachment")) {
+        image.colorAttachment = j.at("color_attachment").get<bool>();
     }
     if (j.contains("min_filter")) {
         image.minFilter = j.at("min_filter").get<FilterMode>();

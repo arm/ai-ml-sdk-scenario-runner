@@ -301,7 +301,8 @@ std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo) {
         }
         shaderFile.exceptions(std::ios::badbit);
         std::string content((std::istreambuf_iterator<char>(shaderFile)), (std::istreambuf_iterator<char>()));
-        auto spirv = GlslCompiler::get().compile(content, shaderInfo.buildOpts, shaderInfo.includeDirs);
+        auto spirv =
+            GlslCompiler::get().compile(content, shaderInfo.stage, shaderInfo.buildOpts, shaderInfo.includeDirs);
         if (!spirv.first.empty()) {
             throw std::runtime_error("Compilation error\n" + spirv.first);
         }

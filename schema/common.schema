@@ -31,7 +31,7 @@
         },
         "pipeline_stage": {
             "type": "string",
-            "enum": ["graph", "compute", "all"]
+            "enum": ["graph", "compute", "graphics", "all"]
         },
         "image_layout": {
             "type": "string",

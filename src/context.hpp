@@ -27,6 +27,7 @@ struct OptionalExtensions {
 enum class FamilyQueue {
     Compute,
     DataGraph,
+    Graphics,
 };
 
 /// \brief Context that contains device related information

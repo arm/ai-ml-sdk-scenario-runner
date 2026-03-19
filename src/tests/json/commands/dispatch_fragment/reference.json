@@ -1,0 +1,28 @@
+{
+    "commands": [
+        {
+            "dispatch_fragment": {
+                "debug_name": "frag_ref",
+                "vertex_shader_ref": "vs_main",
+                "fragment_shader_ref": "fs_main",
+                "color_attachment_refs": [
+                    "color_a",
+                    "color_b"
+                ],
+                "bindings": [
+                    {
+                        "set": 0,
+                        "id": 0,
+                        "resource_ref": "input_texture"
+                    },
+                    {
+                        "set": 1,
+                        "id": 0,
+                        "resource_ref": "color_a"
+                    }
+                ]
+            }
+        }
+    ],
+    "resources": []
+}
