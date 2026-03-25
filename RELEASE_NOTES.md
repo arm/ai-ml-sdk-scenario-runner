@@ -2,6 +2,27 @@
 
 ---
 
+## Version 0.9.0 – *Datatype, Dispatch & DXC Support*
+
+### Highlights
+
+- Added BF16 and FP8 (`fp8e4m3`, `fp8e5m2`) datatype support.
+- Added SPIR-V™ only data graph dispatch support for shader-only workloads.
+- Added DXC API integration and HLSL shader support. Note: This feature is
+  experimental there is no tensorARM support in HLSL shaders and
+  DirectXShaderCompiler is linked dynamically as it does not support static
+  linking.
+- Updated profiling/runtime behavior with data graph memory tracking,
+  pipeline-cache miss enforcement, and fixes for `--repeat` memory leaks.
+- Added `implicit_barrier` control for data graph dispatch and updated default
+  log-level behavior.
+
+### Platform & Compliance
+
+- Expanded DXGI coverage, including core format placement and additional format
+  support for Windows® parity.
+- Added PNG load/save support and broader image/texture format coverage.
+
 ## Version 0.8.0 – *Format Coverage & Tooling Upgrades*
 
 ### Execution & Scenario Control
