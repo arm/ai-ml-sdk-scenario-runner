@@ -65,8 +65,8 @@ include(spirv-headers)
 include(spirv-tools)
 include(glslang)
 include(dxc)
-include(version)
 include(stb)
+include(version)
 
 if(SCENARIO_RUNNER_ENABLE_RDOC)
     find_package(RenderDoc REQUIRED)
@@ -109,38 +109,7 @@ endif()
 
 
 if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
-    if(WIN32)
-        add_dependencies(scenario-runner dxc)
-        add_custom_command(TARGET scenario-runner POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "$<TARGET_FILE:dxcompiler>"
-                "$<TARGET_FILE_DIR:scenario-runner>"
-        )
-        if(TARGET dxil)
-            add_custom_command(TARGET scenario-runner POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    "$<TARGET_FILE:dxil>"
-                    "$<TARGET_FILE_DIR:scenario-runner>"
-            )
-        endif()
-    else()
-        if(TARGET dxcompiler)
-            add_custom_command(TARGET scenario-runner POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    "$<TARGET_FILE:dxcompiler>"
-                    "$<TARGET_FILE_DIR:scenario-runner>"
-            )
-            install(FILES "$<TARGET_FILE:dxcompiler>" DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-        endif()
-        if(TARGET dxil)
-            add_custom_command(TARGET scenario-runner POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    "$<TARGET_FILE:dxil>"
-                    "$<TARGET_FILE_DIR:scenario-runner>"
-            )
-            install(FILES "$<TARGET_FILE:dxil>" DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-        endif()
-    endif()
+    add_dependencies(scenario-runner dxc)
 endif()
 
 set(SCENARIO_RUNNER_VERSION_DEPS

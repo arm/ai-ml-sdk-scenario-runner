@@ -6,6 +6,12 @@
 
 #include <cstring>
 #include <fstream>
+#include <mutex>
+#include <stdexcept>
+
+#include <dxc/Support/Global.h>
+#include <dxc/Support/HLSLOptions.h>
+#include <llvm/Support/FileSystem.h>
 
 #if defined(_WIN32)
 #    include <atlbase.h>
@@ -13,6 +19,18 @@
 #endif
 
 #include <dxc/dxcapi.h>
+
+#if defined(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT) && !defined(_WIN32)
+namespace hlsl {
+HRESULT SetupRegistryPassForHLSL();
+HRESULT SetupRegistryPassForPIX();
+namespace options {
+std::error_code initHlslOptTable();
+} // namespace options
+} // namespace hlsl
+
+HRESULT DxilLibInitialize();
+#endif
 
 namespace mlsdk::scenariorunner {
 namespace {
@@ -99,6 +117,64 @@ std::vector<DxcDefine> parsePreprocessorOptions(const std::string &options, std:
 
 } // namespace
 
+#if defined(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT) && !defined(_WIN32)
+namespace {
+void ensureStaticDxcInitialized() {
+    static std::once_flag initFlag;
+    static HRESULT initResult = S_OK;
+
+    std::call_once(initFlag, []() {
+        bool fsSetup = false;
+
+        initResult = DxcInitThreadMalloc();
+        if (FAILED(initResult)) {
+            return;
+        }
+
+        DxcSetThreadMallocToDefault();
+        if (::llvm::sys::fs::SetupPerThreadFileSystem()) {
+            initResult = E_FAIL;
+            goto cleanup;
+        }
+        fsSetup = true;
+
+        initResult = ::hlsl::SetupRegistryPassForHLSL();
+        if (FAILED(initResult)) {
+            goto cleanup;
+        }
+
+        initResult = ::hlsl::SetupRegistryPassForPIX();
+        if (FAILED(initResult)) {
+            goto cleanup;
+        }
+
+        initResult = ::DxilLibInitialize();
+        if (FAILED(initResult)) {
+            goto cleanup;
+        }
+
+        if (::hlsl::options::initHlslOptTable()) {
+            initResult = E_FAIL;
+            goto cleanup;
+        }
+
+    cleanup:
+        DxcClearThreadMalloc();
+        if (FAILED(initResult)) {
+            if (fsSetup) {
+                ::llvm::sys::fs::CleanupPerThreadFileSystem();
+            }
+            DxcCleanupThreadMalloc();
+        }
+    });
+
+    if (FAILED(initResult)) {
+        throw std::runtime_error("Failed to initialize statically linked DXC runtime.");
+    }
+}
+} // namespace
+#endif
+
 HlslCompiler &HlslCompiler::get() {
     static HlslCompiler hlslCompiler;
     return hlslCompiler;
@@ -108,6 +184,10 @@ std::pair<std::string, std::vector<uint32_t>> HlslCompiler::compile(const std::s
                                                                     const std::string &debugName,
                                                                     const std::string &preprocessorOptions,
                                                                     const std::vector<std::string> &shaderDirs) {
+#if defined(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT) && !defined(_WIN32)
+    ensureStaticDxcInitialized();
+#endif
+
     // Create DXC instances for the IDxcUtils and IDxcCompiler interfaces
     CComPtr<IDxcUtils> utils;
     CComPtr<IDxcCompiler3> compiler;

@@ -9,29 +9,15 @@ if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
         ../hlsl_compiler.cpp)
     target_include_directories(hlslc SYSTEM PRIVATE
         ../
-        ${DXC_PATH}/include
     )
     target_link_libraries(hlslc
         PUBLIC
-            dxcompiler
+            scenario_runner_dxc
             argparse::argparse
     )
     target_compile_options(hlslc PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
-
-    if(WIN32)
-        add_custom_command(TARGET hlslc POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "$<TARGET_FILE:dxcompiler>"
-                "$<TARGET_FILE_DIR:hlslc>"
-        )
-        if(TARGET dxil)
-            add_custom_command(TARGET hlslc POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    "$<TARGET_FILE:dxil>"
-                    "$<TARGET_FILE_DIR:hlslc>"
-            )
-        endif()
-    endif()
+    target_compile_definitions(hlslc PRIVATE SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
+    add_dependencies(hlslc dxc)
 endif()
 
 add_executable(glslc

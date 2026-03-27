@@ -151,6 +151,10 @@ class Builder:
             cmake_cmd.append("-DBUILD_WSI_WAYLAND_SUPPORT=OFF")
             cmake_cmd.append("-DBUILD_WSI_XLIB_SUPPORT=OFF")
             cmake_cmd.append("-DBUILD_WSI_XCB_SUPPORT=OFF")
+            if self.enable_hlsl_support:
+                print(
+                    "WARNING: Ignoring 'enable hlsl support' option not available for the selected platform."
+                )
             return True
 
         if self.target_platform == "android":
@@ -174,6 +178,11 @@ class Builder:
             cmake_cmd.append("-DANDROID_PIE=ON")
             if self.force_no_debug_symbols_android_build:
                 cmake_cmd.append("-DCMAKE_CXX_FLAGS_RELEASE=-g0")
+
+            if self.enable_hlsl_support:
+                print(
+                    "WARNING: Ignoring 'enable hlsl support' option not available for the selected platform."
+                )
             return True
 
         print(

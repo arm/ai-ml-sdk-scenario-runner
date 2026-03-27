@@ -9,92 +9,87 @@ if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
     set(DXC_PATH "DXC-NOTFOUND" CACHE PATH "Path to DXC (DirectXShaderCompiler)")
     set(dxc_VERSION "unknown")
 
-    if(EXISTS ${DXC_PATH}/CMakeLists.txt)
-        include(ExternalProject)
-
-        set(DXC_BUILD_DIR "${CMAKE_BINARY_DIR}/_deps/dxc-build")
-        set(DXC_INSTALL_DIR "${CMAKE_BINARY_DIR}/_deps/dxc-install")
-
-        if(WIN32)
-            set(DXC_DXCOMPILER_IMPORTED_LOCATION "${DXC_BUILD_DIR}/bin/dxcompiler.dll")
-            set(DXC_DXCOMPILER_IMPLIB "${DXC_BUILD_DIR}/lib/dxcompiler.lib")
-            set(DXC_DXIL_IMPORTED_LOCATION "${DXC_BUILD_DIR}/bin/dxil.dll")
-            set(DXC_DXIL_IMPLIB "${DXC_BUILD_DIR}/lib/dxil.lib")
-            set(DXC_BYPRODUCTS
-                "${DXC_DXCOMPILER_IMPORTED_LOCATION}"
-                "${DXC_DXCOMPILER_IMPLIB}"
-            )
-        else()
-            if(DEFINED DXC_BUILD_DIR)
-                list(APPEND CMAKE_BUILD_RPATH "${DXC_BUILD_DIR}/lib;${DXC_INSTALL_DIR}/lib")
-                list(APPEND CMAKE_INSTALL_RPATH "${DXC_BUILD_DIR}/lib;;${DXC_INSTALL_DIR}/lib")
-
-            endif()
-            set(DXC_DXCOMPILER_IMPORTED_LOCATION "${DXC_BUILD_DIR}/lib/libdxcompiler.so")
-            set(DXC_DXIL_IMPORTED_LOCATION "${DXC_BUILD_DIR}/lib/libdxil.so")
-            set(DXC_BYPRODUCTS
-                "${DXC_DXCOMPILER_IMPORTED_LOCATION}"
-                "${DXC_DXIL_IMPORTED_LOCATION}"
-            )
-        endif()
-
-        ExternalProject_Add(dxc_ep
-            SOURCE_DIR "${DXC_PATH}"
-            BINARY_DIR "${DXC_BUILD_DIR}"
-            CMAKE_ARGS
-                -C${DXC_PATH}/cmake/caches/PredefinedParams.cmake
-                -DCMAKE_INSTALL_PREFIX=${DXC_INSTALL_DIR}
-                -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                -DLLVM_INCLUDE_TESTS=OFF
-                -DLLVM_BUILD_TESTS=OFF
-                -DCLANG_INCLUDE_TESTS=OFF
-                -DCLANG_BUILD_TESTS=OFF
-                -DHLSL_INCLUDE_TESTS=OFF
-                -DHLSL_DISABLE_SOURCE_GENERATION=ON
-                $<$<BOOL:${MSVC}>:-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded>
-            INSTALL_COMMAND ""
-            BUILD_BYPRODUCTS
-                ${DXC_BYPRODUCTS}
+    if(NOT EXISTS "${DXC_PATH}/CMakeLists.txt")
+        message(FATAL_ERROR
+            "SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT requires DXC_PATH to point to a DirectXShaderCompiler source tree"
         )
-
-        if(WIN32)
-            add_library(dxcompiler SHARED IMPORTED GLOBAL)
-            set_target_properties(dxcompiler PROPERTIES
-                IMPORTED_LOCATION             "${DXC_DXCOMPILER_IMPORTED_LOCATION}"
-                IMPORTED_IMPLIB               "${DXC_DXCOMPILER_IMPLIB}"
-                INTERFACE_INCLUDE_DIRECTORIES "${DXC_PATH}/include"
-            )
-
-            add_library(dxil SHARED IMPORTED GLOBAL)
-            set_target_properties(dxil PROPERTIES
-                IMPORTED_LOCATION             "${DXC_DXIL_IMPORTED_LOCATION}"
-                IMPORTED_IMPLIB               "${DXC_DXIL_IMPLIB}"
-            )
-        else()
-            add_library(dxcompiler SHARED IMPORTED GLOBAL)
-            set_target_properties(dxcompiler PROPERTIES
-                IMPORTED_LOCATION             "${DXC_DXCOMPILER_IMPORTED_LOCATION}"
-                INTERFACE_INCLUDE_DIRECTORIES "${DXC_PATH}/include"
-            )
-
-            add_library(dxil SHARED IMPORTED GLOBAL)
-            set_target_properties(dxil PROPERTIES
-                IMPORTED_LOCATION             "${DXC_DXIL_IMPORTED_LOCATION}"
-            )
-        endif()
-
-        add_dependencies(dxcompiler dxc_ep)
-        add_dependencies(dxil dxc_ep)
-
-        if(NOT TARGET dxc)
-            add_custom_target(dxc)
-            add_dependencies(dxc dxc_ep)
-        endif()
-
-        mlsdk_get_git_revision(${DXC_PATH} dxc_VERSION)
-    else()
-        find_package(dxc REQUIRED CONFIG)
     endif()
+
+    find_package(Git REQUIRED)
+
+    set(DXC_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/dxc-src")
+    set(DXC_BUILD_DIR "${CMAKE_BINARY_DIR}/_deps/dxc-build")
+    set(DXC_PATCHES
+        "${CMAKE_CURRENT_LIST_DIR}/../patches/dxc-static-link.patch"
+    )
+
+    execute_process(
+        COMMAND
+            "${CMAKE_COMMAND}"
+            -DDXC_SOURCE_DIR=${DXC_PATH}
+            -DDXC_STAGE_DIR=${DXC_SOURCE_DIR}
+            -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
+            -DDXC_PATCHES=${DXC_PATCHES}
+            -P "${CMAKE_CURRENT_LIST_DIR}/prepare_dxc_source.cmake"
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+
+    include("${DXC_SOURCE_DIR}/cmake/caches/PredefinedParams.cmake")
+
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "" FORCE)
+    set(LLVM_APPEND_VC_REV ON CACHE BOOL "" FORCE)
+    set(LLVM_DEFAULT_TARGET_TRIPLE "dxil-ms-dx" CACHE STRING "" FORCE)
+    set(LLVM_ENABLE_EH ON CACHE BOOL "" FORCE)
+    set(LLVM_ENABLE_RTTI ON CACHE BOOL "" FORCE)
+    set(LLVM_INCLUDE_DOCS OFF CACHE BOOL "" FORCE)
+    set(LLVM_INCLUDE_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(LLVM_OPTIMIZED_TABLEGEN OFF CACHE BOOL "" FORCE)
+    set(LLVM_TARGETS_TO_BUILD "None" CACHE STRING "" FORCE)
+    set(LIBCLANG_BUILD_STATIC ON CACHE BOOL "" FORCE)
+    set(CLANG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(CLANG_CL OFF CACHE BOOL "" FORCE)
+    set(CLANG_ENABLE_ARCMT OFF CACHE BOOL "" FORCE)
+    set(CLANG_ENABLE_STATIC_ANALYZER OFF CACHE BOOL "" FORCE)
+    set(ENABLE_SPIRV_CODEGEN ON CACHE BOOL "" FORCE)
+    set(SPIRV_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(LLVM_ENABLE_TERMINFO OFF CACHE BOOL "" FORCE)
+
+    set(LLVM_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
+    set(LLVM_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(CLANG_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
+    set(CLANG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(HLSL_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
+    set(HLSL_DISABLE_SOURCE_GENERATION ON CACHE BOOL "" FORCE)
+    if(MSVC)
+        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded CACHE STRING "" FORCE)
+    endif()
+
+    add_subdirectory("${DXC_SOURCE_DIR}" "${DXC_BUILD_DIR}" EXCLUDE_FROM_ALL)
+
+    add_library(scenario_runner_dxc INTERFACE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_link_libraries(scenario_runner_dxc INTERFACE
+            "-Wl,--start-group"
+            dxcompiler_static
+            LLVMHLSL
+            LLVMScalarOpts
+            LLVMPassPrinters
+            LLVMipo
+            "-Wl,--end-group"
+        )
+    else()
+        target_link_libraries(scenario_runner_dxc INTERFACE dxcompiler_static)
+    endif()
+    target_include_directories(scenario_runner_dxc SYSTEM INTERFACE
+        "${DXC_SOURCE_DIR}/include"
+        "${DXC_BUILD_DIR}/include"
+    )
+
+    if(NOT TARGET dxc)
+        add_custom_target(dxc DEPENDS dxcompiler_static)
+    endif()
+
+    mlsdk_get_git_revision(${DXC_PATH} dxc_VERSION)
 else()
     message(WARNING "DirectXShaderCompiler is not supported on the current platform")
 endif()
