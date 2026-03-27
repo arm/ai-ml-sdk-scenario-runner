@@ -102,6 +102,12 @@ vk::Format ddsFormatToVkFormat(const DDSHeaderInfo &header) {
         return vk::Format::eB8G8R8A8Unorm;
 #ifdef SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT
     // These are image formats that haven't been fully tested yet.
+    case DXGI_FORMAT_R32G32_FLOAT:
+        return vk::Format::eR32G32Sfloat;
+    case DXGI_FORMAT_R32G32_UINT:
+        return vk::Format::eR32G32Uint;
+    case DXGI_FORMAT_R32G32_SINT:
+        return vk::Format::eR32G32Sint;
     case DXGI_FORMAT_R32G32B32A32_UINT:
         return vk::Format::eR32G32B32A32Uint;
     case DXGI_FORMAT_R32G32B32A32_SINT:
@@ -228,6 +234,12 @@ DxgiFormat vkFormatToDDSFormat(vk::Format vkFormat) {
         return DXGI_FORMAT_R8G8_SINT;
 #ifdef SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT
     // These are image formats that haven't been fully tested yet.
+    case vk::Format::eR32G32Sfloat:
+        return DXGI_FORMAT_R32G32_FLOAT;
+    case vk::Format::eR32G32Uint:
+        return DXGI_FORMAT_R32G32_UINT;
+    case vk::Format::eR32G32Sint:
+        return DXGI_FORMAT_R32G32_SINT;
     case vk::Format::eR32G32B32A32Uint:
         return DXGI_FORMAT_R32G32B32A32_UINT;
     case vk::Format::eR32G32B32A32Sint:
