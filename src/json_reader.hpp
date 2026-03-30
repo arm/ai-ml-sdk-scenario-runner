@@ -51,13 +51,13 @@ void from_json(const json &j, ShaderDesc &shader);
 void from_json(const json &j, MemoryBarrierDesc &memoryBarrier);
 
 // Function to de-serialize TensorBarrierDesc from JSON
-void from_json(const json &j, TensorBarrierDesc &memoryBarrier);
+void from_json(const json &j, TensorBarrierDesc &tensorBarrier);
 
 // Function to de-serialize ImageBarrierDesc from JSON
 void from_json(const json &j, ImageBarrierDesc &imageBarrier);
 
 // Function to de-serialize BufferBarrierDesc from JSON
-void from_json(const json &j, BufferBarrierDesc &imageBarrier);
+void from_json(const json &j, BufferBarrierDesc &bufferBarrier);
 
 // Function to de-serialize RawDataDesc from JSON
 void from_json(const json &j, RawDataDesc &raw_data);

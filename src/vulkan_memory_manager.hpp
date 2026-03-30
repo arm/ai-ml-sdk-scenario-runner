@@ -135,7 +135,7 @@ class ResourceMemoryManager {
         auto queue = ctx.device().getQueue(ctx.familyQueueIdx(), 0);
         auto fence = ctx.device().createFence({});
         queue.submit(submitInfo, *fence);
-        const uint64_t timeout = static_cast<uint64_t>(-1);
+        const auto timeout = WAIT_FOR_FENCE_TIMEOUT;
         auto res = ctx.device().waitForFences({*fence}, true, timeout);
         if (res != vk::Result::eSuccess) {
             throw std::runtime_error("Error while waiting for fence.");
@@ -173,7 +173,7 @@ class ResourceMemoryManager {
         auto queue = ctx.device().getQueue(ctx.familyQueueIdx(), 0);
         auto fence = ctx.device().createFence({});
         queue.submit(submitInfo, *fence);
-        const uint64_t timeout = static_cast<uint64_t>(-1);
+        const auto timeout = WAIT_FOR_FENCE_TIMEOUT;
         auto res = ctx.device().waitForFences({*fence}, true, timeout);
         if (res != vk::Result::eSuccess) {
             throw std::runtime_error("Error while waiting for fence.");

@@ -76,8 +76,9 @@ void writePerfCounters(std::vector<PerformanceCounter> &perfCounters, std::files
 
     // Write aggregated stats for categories
     for (const auto &stat : map) {
-        if (!stat.first.empty())
+        if (!stat.first.empty()) {
             outJson[stat.first] = stat.second;
+        }
     }
 
     // Unaggregated stats not part of a category

@@ -16,7 +16,7 @@ extern const TBuiltInResource *GetDefaultResources();
 namespace mlsdk::scenariorunner {
 namespace {
 std::string parsePreprocessorOptions(const std::string &options) {
-    std::string preamble = "";
+    std::string preamble;
     const std::string delimiter = " ";
     size_t start = 0;
     while (start < options.size()) {
@@ -27,7 +27,7 @@ std::string parsePreprocessorOptions(const std::string &options) {
         }
         std::string op = options.substr(start + 2, end - (start + 2)); // +2 skips the -D
         // Turn the first "=" into a space
-        const size_t equal = op.find_first_of("=");
+        const size_t equal = op.find_first_of('=');
         if (equal != std::string::npos) {
             op[equal] = ' ';
         }
@@ -53,7 +53,7 @@ std::pair<std::string, std::vector<uint32_t>> GlslCompiler::compile(const std::s
                                                                     const std::vector<std::string> &shaderDirs) {
     std::string log;
     const EShLanguage language = EShLanguage::EShLangCompute;
-    const EShMessages messages = static_cast<EShMessages>(EShMsgDefault | EShMsgVulkanRules | EShMsgSpvRules);
+    const auto messages = static_cast<EShMessages>(EShMsgDefault | EShMsgVulkanRules | EShMsgSpvRules);
 
     glslang::TShader shader(language);
     shader.setEnvInput(glslang::EShSourceGlsl, language, glslang::EShClientVulkan, 110);

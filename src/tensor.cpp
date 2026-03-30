@@ -43,7 +43,7 @@ void Tensor::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> me
         vk::TensorUsageFlagBitsARM::eShader | vk::TensorUsageFlagBitsARM::eTransferSrc |
         vk::TensorUsageFlagBitsARM::eTransferDst | vk::TensorUsageFlagBitsARM::eDataGraph;
 
-    uint32_t rank = static_cast<uint32_t>(_shape.size());
+    auto rank = static_cast<uint32_t>(_shape.size());
 
     if (_isAliasedWithImage && _tiling != vk::TensorTilingARM::eOptimal) {
         /*

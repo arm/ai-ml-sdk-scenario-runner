@@ -16,9 +16,6 @@ namespace mlsdk::scenariorunner {
 // Function to de-serialize CommandDesc from JSON
 void from_json(const json &j, CommandDesc &command);
 
-// Function to de-serialize a PushConstantMap from JSON
-void from_json(const json &j, PushConstantMap &pushConstantMap);
-
 //==============
 // Resource details
 // Function to de-serialize a ResourceDesc from JSON
@@ -28,7 +25,7 @@ void from_json(const json &j, ResourceDesc &resource);
 void from_json(const json &j, SpecializationConstant &specializationConstant);
 
 // Function to de-serialize a SpecializationConstantMap from JSON
-void from_json(const json &j, SpecializationConstantMap &pushConstantMap);
+void from_json(const json &j, SpecializationConstantMap &specializationConstantMap);
 
 // Function to de-serialize a ShaderSubstitution from JSON
 void from_json(const json &j, ShaderSubstitution &shaderSubstitution);
@@ -438,7 +435,7 @@ void from_json(const json &j, BufferDesc &buffer) {
  */
 void from_json(const json &j, SpecializationConstant &specializationConstant) {
     specializationConstant.id = j.at("id").get<int>();
-    auto &val = j.at("value");
+    const auto &val = j.at("value");
     if (val.is_boolean()) {
         specializationConstant.value.ui = val.get<bool>() ? 1u : 0u;
     } else if (val.is_number_unsigned()) {
@@ -556,7 +553,7 @@ void from_json(const json &j, GraphConstantDesc &graphConstant) {
     graphConstant.guidStr = j.at("uid").get<std::string>();
     graphConstant.guid = graphConstant.guidStr;
     const auto dims = j.at("dims").get<std::vector<int64_t>>();
-    if (dims.size() < 1 || dims.size() > 6) {
+    if (dims.empty() || dims.size() > 6) {
         throw std::runtime_error("Invalid graph constant dimensions");
     }
     graphConstant.dims = dims;

@@ -208,7 +208,7 @@ class Compute {
     bool _isRecording{false};
 #endif
 
-    void _addDescriptorSets(const uint32_t baseDescriptorSetIdxGlobal, uint32_t set,
+    void _addDescriptorSets(uint32_t baseDescriptorSetIdxGlobal, uint32_t set,
                             const std::vector<vk::DescriptorPoolSize> &poolSizes, const Pipeline &pipeline);
 
     void _updateDescriptorSets(const vk::DescriptorSet &descSet, const TypedBinding &binding,

@@ -45,7 +45,7 @@ class PerformanceCounter {
 
 struct AggregateStat {
     AggregateStat() = default;
-    explicit AggregateStat(const std::string &name) : name(name), aggregateTime(0) {}
+    explicit AggregateStat(const std::string &name) : name(name) {}
 
     std::string name;
     int64_t aggregateTime = 0;

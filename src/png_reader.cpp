@@ -46,8 +46,8 @@ void validatePNG(const std::string &filename, const ImageLoadOptions &options) {
         throw std::runtime_error("PNG dimensions do not match expected size for file: " + filename);
     }
 
-    const uint32_t uWidth = static_cast<uint32_t>(width);
-    const uint32_t uHeight = static_cast<uint32_t>(height);
+    const auto uWidth = static_cast<uint32_t>(width);
+    const auto uHeight = static_cast<uint32_t>(height);
     if ((options.maxWidth != 0 && uWidth > options.maxWidth) ||
         (options.maxHeight != 0 && uHeight > options.maxHeight)) {
         throw std::runtime_error("PNG dimensions exceed allowed limits for file: " + filename);
@@ -104,7 +104,7 @@ void saveDataToPNG(const std::string &filename, const Image &image, const std::v
 
     const int width = static_cast<int>(width64);
     const int height = static_cast<int>(height64);
-    const unsigned char *raw = reinterpret_cast<const unsigned char *>(data.data());
+    const auto *raw = reinterpret_cast<const unsigned char *>(data.data());
     if (stbi_write_png(filename.c_str(), width, height, 4, raw, width * 4) == 0) {
         throw std::runtime_error("Failed to write PNG: " + filename);
     }

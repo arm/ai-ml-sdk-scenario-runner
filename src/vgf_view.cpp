@@ -191,7 +191,7 @@ std::pair<std::vector<TypedBinding>, VgfView::MrtIndexes> VgfView::getBindings(u
     MrtIndexes mrtIndexes;
     // For each segment descriptor set:
     for (uint32_t set = 0; set < descSetSize; ++set) {
-        auto handle = sequenceTableDecoder->getDescriptorBindingSlotsHandle(segmentIndex, set);
+        const auto *handle = sequenceTableDecoder->getDescriptorBindingSlotsHandle(segmentIndex, set);
         // For each descriptor set binding:
         for (uint32_t slot = 0; slot < sequenceTableDecoder->getBindingsSize(handle); ++slot) {
             auto mrtIndex = sequenceTableDecoder->getBindingSlotMrtIndex(handle, slot);
