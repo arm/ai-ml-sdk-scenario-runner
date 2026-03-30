@@ -125,7 +125,7 @@ if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
     endif()
 endif()
 
-set(SCENARIO_RUNNER_VERISON_DEPS
+set(SCENARIO_RUNNER_VERSION_DEPS
         argparse
         glslang
         nlohmann_json
