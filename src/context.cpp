@@ -184,6 +184,7 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
 
     vk::PhysicalDeviceDataGraphFeaturesARM dataGraphFeat;
     dataGraphFeat.dataGraph = true;
+    dataGraphFeat.dataGraphShaderModule = true;
     dataGraphFeat.pNext =
         _optionals.shader_float8 ? static_cast<void *>(&float8Feat) : static_cast<void *>(&tensorFeat);
 
