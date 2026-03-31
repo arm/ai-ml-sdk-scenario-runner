@@ -12,6 +12,12 @@
 
 #include <filesystem>
 #include <iostream>
+#include <vector>
+
+#if defined(__ANDROID__)
+#    include <android/log.h>
+#    include <jni.h>
+#endif
 
 using namespace mlsdk::scenariorunner;
 using namespace mlsdk::logging;
@@ -81,9 +87,7 @@ void configureLogging() {
     mlsdk::vgflib::logging::EnableLogging(vgfLoggingHandler);
 }
 
-int main(int argc, const char **argv) {
-    configureLogging();
-
+int runScenarioRunner(int argc, const char **argv) {
     int retval = 0;
     bool pause_on_exit = false;
     try {
@@ -265,3 +269,86 @@ int main(int argc, const char **argv) {
     // cppcheck-suppress-end knownConditionTrueFalse
     return retval;
 }
+
+int main(int argc, const char **argv) {
+    configureLogging();
+    return runScenarioRunner(argc, argv);
+}
+
+#if defined(__ANDROID__)
+#    define LOG_TAG "ScenarioRunner"
+#    define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+#    define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#    define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
+#    define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+
+void androidLoggingHandler(const std::string &logger, LogLevel logLevel, const std::string &message) {
+    switch (logLevel) {
+    case LogLevel::Debug:
+        LOGD("[%s] DEBUG: %s", logger.c_str(), message.c_str());
+        break;
+    case LogLevel::Info:
+        LOGI("[%s] INFO: %s", logger.c_str(), message.c_str());
+        break;
+    case LogLevel::Warning:
+        LOGW("[%s] WARNING: %s", logger.c_str(), message.c_str());
+        break;
+    case LogLevel::Error:
+        LOGE("[%s] ERROR: %s", logger.c_str(), message.c_str());
+        break;
+    }
+}
+
+void configureAndroidLogging() {
+    setDefaultLoggerName("Scenario-Runner");
+    setDefaultLogLevel(LogLevel::Info);
+    setDefaultHandler(androidLoggingHandler);
+    mlsdk::vgflib::logging::EnableLogging(vgfLoggingHandler);
+}
+
+namespace {
+jint runScenarioRunnerFromJni(JNIEnv *env, jobjectArray args) {
+    configureAndroidLogging();
+    std::vector<std::string> argvStorage = {"scenario-runner"};
+
+    if (args != nullptr) {
+        const jsize numArgs = env->GetArrayLength(args);
+        argvStorage.reserve(static_cast<size_t>(numArgs) + 1U);
+        for (jsize idx = 0; idx < numArgs; ++idx) {
+            auto *javaArg = static_cast<jstring>(env->GetObjectArrayElement(args, idx));
+            if (javaArg == nullptr) {
+                argvStorage.emplace_back();
+                continue;
+            }
+
+            const char *utfArg = env->GetStringUTFChars(javaArg, nullptr);
+            if (utfArg == nullptr) {
+                env->DeleteLocalRef(javaArg);
+                return -1;
+            }
+
+            argvStorage.emplace_back(utfArg);
+            env->ReleaseStringUTFChars(javaArg, utfArg);
+            env->DeleteLocalRef(javaArg);
+        }
+    }
+
+    std::vector<const char *> argv;
+    argv.reserve(argvStorage.size());
+    for (const auto &arg : argvStorage) {
+        argv.push_back(arg.c_str());
+    }
+    for (size_t i = 0; i < argv.size(); ++i) {
+        LOGD("Argument %zu: %s", i, argv[i]);
+    }
+    LOGI("Starting Scenario Runner with %zu arguments", argv.size() - 1);
+
+    return static_cast<jint>(runScenarioRunner(static_cast<int>(argv.size()), argv.data()));
+}
+} // namespace
+
+extern "C" JNIEXPORT jint JNICALL Java_com_arm_aiml_scenariorunner_Main_runScenarioRunner(JNIEnv *env, jobject /*thiz*/,
+                                                                                          jobjectArray args) {
+    return runScenarioRunnerFromJni(env, args);
+}
+#endif

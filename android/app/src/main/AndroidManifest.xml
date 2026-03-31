@@ -1,0 +1,24 @@
+<!--
+ SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ SPDX-License-Identifier: Apache-2.0
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <queries>
+        <package android:name="com.arm.ai_ml_emulation_layer_for_vulkan" />
+    </queries>
+
+    <application android:label="ML SDK Scenario Runner">
+        <meta-data
+            android:name="com.android.graphics.injectLayers.enable"
+            android:value="true" />
+
+        <service
+            android:name=".Main"
+            android:exported="true"
+            android:foregroundServiceType="dataSync" />
+    </application>
+</manifest>

@@ -148,6 +148,32 @@ python3 $SDK_PATH/sw/scenario-runner/scripts/build.py -j $(nproc) \
     --target-platform aarch64
 ```
 
+(Experimental) To cross compile for Android™, and build an APK package, you must target Android™, provide the Android™
+CMake toolchain, and request the `apk` package type.
+
+```bash
+SDK_PATH="path/to/sdk"
+ANDROID_NDK_HOME="path/to/android-ndk"
+python3 ${SDK_PATH}/sw/scenario-runner/scripts/build.py -j $(nproc) \
+    --target-platform android \
+    --cmake-toolchain-for-android ${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake \
+    --flatbuffers-path ${SDK_PATH}/dependencies/flatbuffers \
+    --argparse-path ${SDK_PATH}/dependencies/argparse \
+    --json-path ${SDK_PATH}/dependencies/json \
+    --vulkan-headers-path ${SDK_PATH}/dependencies/Vulkan-Headers \
+    --glslang-path ${SDK_PATH}/dependencies/glslang \
+    --dxc-path ${SDK_PATH}/dependencies/DirectXShaderCompiler \
+    --spirv-headers-path ${SDK_PATH}/dependencies/SPIRV-Headers \
+    --spirv-tools-path ${SDK_PATH}/dependencies/SPIRV-Tools \
+    --vgf-lib-path ${SDK_PATH}/sw/vgf-lib \
+    --package-type apk
+```
+
+The APK build uses the `gradle` command, so Gradle 8.4 or later must be
+available on your `PATH`. The Android™ SDK installation pointed to by
+`ANDROID_HOME` should include `build-tools;34.0.0` and
+`platforms;android-34`, or other compatible versions.
+
 To enable and run tests, use the `--test` flag. To lint the tests, use the
 `--lint` flag. To enable tests and documentation building python dependencies
 must be installed:
@@ -164,7 +190,7 @@ You can install the build artifacts for this project into a specified location.
 To install the build artifacts, pass the `--install` option with the required
 path.
 
-To create an archive with the build artifacts, you must add `--package`. The
+To create an archive with the build artifacts, you must add `--package-type`. The
 archive is stored in the provided location.
 
 For more command line options, consult the program help:
@@ -192,6 +218,17 @@ For more details, see the help output:
 
 ```bash
 ./scenario-runner --help
+```
+
+For the Android APK package, install the generated APK and start the foreground
+service with `adb`:
+
+```bash
+adb install -r build/scenario-runner-debug.apk
+
+adb shell am start-foreground-service \
+    -n com.arm.ai_ml_sdk_scenario_runner/.Main \
+    --esa args --scenario,/data/user/0/com.arm.ai_ml_sdk_scenario_runner/scenario.json
 ```
 
 ## PyPI

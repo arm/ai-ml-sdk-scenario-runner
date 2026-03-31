@@ -83,10 +83,28 @@ target_link_libraries(scenario-runner PRIVATE
     ${CMAKE_DL_LIBS}
 )
 target_compile_options(scenario-runner PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
+
+if(ANDROID)
+    target_link_libraries(scenario-runner PRIVATE log)
+    add_library(scenario_runner_jni SHARED
+        src/main.cpp
+    )
+    target_link_libraries(scenario_runner_jni PRIVATE
+        ScenarioRunnerLib
+        argparse::argparse
+        ${CMAKE_DL_LIBS}
+        log
+    )
+    target_compile_options(scenario_runner_jni PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
+endif()
+
 # Link stdc++fs for GCC versions < 9, since std::filesystem requires
 # explicit -lstdc++fs linking prior to GCC 9.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
     target_link_libraries(scenario-runner PRIVATE stdc++fs)
+    if(ANDROID)
+        target_link_libraries(scenario_runner_jni PRIVATE stdc++fs)
+    endif()
 endif()
 
 
@@ -140,18 +158,26 @@ if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
     list(APPEND SCENARIO_RUNNER_VERSION_DEPS dxc)
 endif()
 
-
+set(SCENARIO_RUNNER_VERSION_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/version.hpp")
 mlsdk_generate_version_header(
     TARGET scenario-runner
     SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/version.hpp.in"
-    DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/generated/version.hpp"
+    DESTINATION "${SCENARIO_RUNNER_VERSION_HEADER}"
     DEPENDENCIES
         ${SCENARIO_RUNNER_VERSION_DEPS}
 )
 
+if(ANDROID)
+    get_filename_component(SCENARIO_RUNNER_VERSION_HEADER_DIR "${SCENARIO_RUNNER_VERSION_HEADER}" DIRECTORY)
+    target_include_directories(scenario_runner_jni PRIVATE "${SCENARIO_RUNNER_VERSION_HEADER_DIR}")
+endif()
+
 add_executable(${SCENARIO_RUNNER_NAMESPACE}::scenario-runner ALIAS scenario-runner)
 
 install(TARGETS scenario-runner EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
+if(ANDROID)
+    install(TARGETS scenario_runner_jni EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
+endif()
 
 if(ML_SDK_BUILD_DOCS OR SCENARIO_RUNNER_BUILD_DOCS)
     include(docs/docs.cmake)
