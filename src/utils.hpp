@@ -11,9 +11,12 @@
 #include "spirv-tools/libspirv.hpp"
 #include "vgf-utils/numpy.hpp"
 #include "vulkan/vulkan_raii.hpp"
+#include <limits>
 #include <string>
 
 namespace mlsdk::scenariorunner {
+
+inline constexpr uint64_t WAIT_FOR_FENCE_TIMEOUT = std::numeric_limits<uint64_t>::max();
 
 /** Data format components (channels) count.
  *
@@ -58,7 +61,7 @@ vk::ImageAspectFlags getImageAspectMaskForVkFormat(vk::Format format);
  *  @return NumPy dtype
  *
  */
-const vgfutils::numpy::DType getDTypeFromVkFormat(vk::Format format);
+vgfutils::numpy::DType getDTypeFromVkFormat(vk::Format format);
 
 /** Calculates the total number of elements of a vector that represents a shape.
  *

@@ -5,6 +5,7 @@
 #include "compute.hpp"
 #include "json_writer.hpp"
 #include "logging.hpp"
+#include "utils.hpp"
 
 #include <fstream>
 #include <iomanip>
@@ -23,9 +24,8 @@ struct PipelineBarrierDebugNameBuilder {
     std::string buildDebugName() const {
         if (!_value.empty()) {
             return "barriers (" + _value.substr(0, _value.size() - 1) + ")";
-        } else {
-            return "";
         }
+        return {};
     }
 
   private:
@@ -128,7 +128,7 @@ vk::raii::CommandBuffer &Compute::getCommandBuffer() {
 
 void Compute::_waitForFence() {
     mlsdk::logging::info("Wait for fence");
-    const auto timeout = static_cast<uint64_t>(-1);
+    const auto timeout = WAIT_FOR_FENCE_TIMEOUT;
     auto res = _ctx.device().waitForFences({*_fence}, true, timeout);
     if (res != vk::Result::eSuccess) {
         throw std::runtime_error("Error while waiting for fence.");
@@ -352,7 +352,7 @@ vk::FrameBoundaryEXT Compute::_createFrameBoundary() {
     frameBoundaryTensor.tensorCount = static_cast<uint32_t>(_tensorArray.back().size());
     frameBoundaryTensor.pNext = nullptr;
     _markBoundaryTensorArray.emplace_back(std::make_unique<vk::FrameBoundaryTensorsARM>(frameBoundaryTensor));
-    if (_tensorArray.back().size() > 0) {
+    if (!_tensorArray.back().empty()) {
         frameBoundary.pNext = &(*_markBoundaryTensorArray.back());
     } else {
         frameBoundary.pNext = nullptr;
@@ -367,7 +367,7 @@ void Compute::registerMarkBoundary(const MarkBoundaryData &markBoundaryData, con
     imageHandles.reserve(markBoundaryData.images.size());
     for (const auto &resourceRef : markBoundaryData.images) {
         auto image = dataManager.getImage(resourceRef).image();
-        imageHandles.emplace_back(std::move(image));
+        imageHandles.emplace_back(image);
     }
     _imageArray.emplace_back(std::move(imageHandles));
 
@@ -375,7 +375,7 @@ void Compute::registerMarkBoundary(const MarkBoundaryData &markBoundaryData, con
     bufferHandles.reserve(markBoundaryData.buffers.size());
     for (const auto &resourceRef : markBoundaryData.buffers) {
         auto buffer = dataManager.getBuffer(resourceRef).buffer();
-        bufferHandles.emplace_back(std::move(buffer));
+        bufferHandles.emplace_back(buffer);
     }
     _bufferArray.emplace_back(std::move(bufferHandles));
 
@@ -383,7 +383,7 @@ void Compute::registerMarkBoundary(const MarkBoundaryData &markBoundaryData, con
     tensorHandles.reserve(markBoundaryData.tensors.size());
     for (const auto &resourceRef : markBoundaryData.tensors) {
         auto tensor = dataManager.getTensor(resourceRef).tensor();
-        tensorHandles.emplace_back(std::move(tensor));
+        tensorHandles.emplace_back(tensor);
     }
     _tensorArray.emplace_back(std::move(tensorHandles));
 
@@ -533,9 +533,8 @@ std::vector<uint64_t> Compute::_queryTimestamps() const {
                                                               static_cast<vk::DeviceSize>(sizeof(uint64_t)),
                                                               vk::QueryResultFlagBits::e64);
         return queryPair;
-    } else {
-        throw std::runtime_error("Failed to retrieve timestamps, since the query pool is empty");
     }
+    throw std::runtime_error("Failed to retrieve timestamps, since the query pool is empty");
 }
 
 void Compute::writeProfilingFile(const std::filesystem::path &profilingPath, int iteration, int repeatCount) const {

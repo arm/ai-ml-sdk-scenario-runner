@@ -91,22 +91,22 @@ int main(int argc, const char **argv) {
         parser.add_argument("--output").help("Path to the output file");
 
         parser.parse_args(argc, argv);
-        std::string action = parser.get<std::string>("--action");
+        auto action = parser.get<std::string>("--action");
 
         if (action == "generate") {
-            uint32_t height = parser.get<uint32_t>("--height");
-            uint32_t width = parser.get<uint32_t>("--width");
-            std::string output = parser.get<std::string>("--output");
+            auto height = parser.get<uint32_t>("--height");
+            auto width = parser.get<uint32_t>("--width");
+            auto output = parser.get<std::string>("--output");
 
             generatePNGFile(height, width, output);
         } else if (action == "to_npy") {
-            std::string input = parser.get<std::string>("--input");
-            std::string output = parser.get<std::string>("--output");
+            auto input = parser.get<std::string>("--input");
+            auto output = parser.get<std::string>("--output");
 
             convertPNGToNpy(input, output);
         } else if (action == "compare") {
-            std::string input = parser.get<std::string>("--input");
-            std::string output = parser.get<std::string>("--output");
+            auto input = parser.get<std::string>("--input");
+            auto output = parser.get<std::string>("--output");
 
             bool same = compare(input, output);
             return same ? 0 : 1;

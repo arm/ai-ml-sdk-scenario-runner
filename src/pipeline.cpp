@@ -41,7 +41,7 @@ std::vector<vk::DescriptorSetLayout>
 rawLayouts(const std::vector<vk::raii::DescriptorSetLayout> &descriptorSetLayouts) {
     std::vector<vk::DescriptorSetLayout> layouts;
     layouts.reserve(descriptorSetLayouts.size());
-    for (auto &raiiLayout : descriptorSetLayouts) {
+    for (const auto &raiiLayout : descriptorSetLayouts) {
         layouts.push_back(*raiiLayout);
     }
     return layouts;

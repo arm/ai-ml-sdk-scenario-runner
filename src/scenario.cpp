@@ -90,7 +90,7 @@ std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<Guid> &co
         // Validate that the NumPy payload size matches the declared format and shape
         const uint64_t expectedDataSize =
             static_cast<uint64_t>(elementSizeFromVkFormat(spec.format)) * totalElementsFromShape(spec.dims);
-        const uint64_t actualDataSize = static_cast<uint64_t>(constantData.size());
+        const auto actualDataSize = static_cast<uint64_t>(constantData.size());
         if (actualDataSize != expectedDataSize) {
             throw std::runtime_error("Graph constant size does not match format and dims for: " + gc->guidStr +
                                      "; expected " + std::to_string(expectedDataSize) + " vs " +
@@ -793,8 +793,9 @@ void Scenario::handleAliasedLayoutTransitions() {
 
     //  Transition pass: for used tensors/images that alias each other
     for (const auto &resource : _scenarioSpec.resources) {
-        if (!usedResources.count(resource->guid))
+        if (!usedResources.count(resource->guid)) {
             continue;
+        }
 
         //  Tensor → requires image to be in eTensorAliasingARM
         if (resource->resourceType == ResourceType::Tensor) {
@@ -802,21 +803,25 @@ void Scenario::handleAliasedLayoutTransitions() {
             if (_groupManager.getAliasCount(tensorDesc.guid) != 2) {
                 continue;
             }
-            if (!tensorDesc.tiling.has_value())
+            if (!tensorDesc.tiling.has_value()) {
                 continue;
-            if (tensorDesc.tiling.value() != Tiling::Optimal)
+            }
+            if (tensorDesc.tiling.value() != Tiling::Optimal) {
                 continue;
+            }
 
             for (const auto &imageResource : _scenarioSpec.resources) {
-                if (imageResource->resourceType != ResourceType::Image)
+                if (imageResource->resourceType != ResourceType::Image) {
                     continue;
+                }
                 const auto &imageDesc = static_cast<const ImageDesc &>(*imageResource);
 
                 if (_groupManager.getAliasCount(imageDesc.guid) != 2) {
                     continue;
                 }
-                if (!imageDesc.tiling.has_value())
+                if (!imageDesc.tiling.has_value()) {
                     continue;
+                }
 
                 auto &image = _dataManager.getImageMut(imageDesc.guid);
                 if (image.getImageLayout() != vk::ImageLayout::eTensorAliasingARM) {
@@ -827,21 +832,25 @@ void Scenario::handleAliasedLayoutTransitions() {
             //  Image → transition back from alias layout
         } else if (resource->resourceType == ResourceType::Image) {
             const auto &imageDesc = static_cast<const ImageDesc &>(*resource);
-            if (!imageDesc.tiling.has_value() || imageDesc.tiling.value() != Tiling::Optimal)
+            if (!imageDesc.tiling.has_value() || imageDesc.tiling.value() != Tiling::Optimal) {
                 continue;
+            }
 
             for (const auto &tensorResource : _scenarioSpec.resources) {
-                if (tensorResource->resourceType != ResourceType::Tensor)
+                if (tensorResource->resourceType != ResourceType::Tensor) {
                     continue;
+                }
                 const auto &tensorDesc = static_cast<const TensorDesc &>(*tensorResource);
 
                 if (_groupManager.getAliasCount(tensorDesc.guid) != 2) {
                     continue;
                 }
-                if (!tensorDesc.tiling.has_value())
+                if (!tensorDesc.tiling.has_value()) {
                     continue;
-                if (!usedResources.count(imageDesc.guid))
+                }
+                if (!usedResources.count(imageDesc.guid)) {
                     continue;
+                }
 
                 auto &image = _dataManager.getImageMut(imageDesc.guid);
                 vk::ImageLayout targetLayout = vk::ImageLayout::eGeneral;

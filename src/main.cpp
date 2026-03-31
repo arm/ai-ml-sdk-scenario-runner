@@ -54,17 +54,21 @@ void vgfLoggingHandler(mlsdk::vgflib::logging::LogLevel vgfLogLevel, const std::
 }
 
 LogLevel parseLogLevel(const std::string &logLevel) {
-    if (logLevel == "debug")
+    if (logLevel == "debug") {
         return LogLevel::Debug;
+    }
 
-    if (logLevel == "info")
+    if (logLevel == "info") {
         return LogLevel::Info;
+    }
 
-    if (logLevel == "warning")
+    if (logLevel == "warning") {
         return LogLevel::Warning;
+    }
 
-    if (logLevel == "error")
+    if (logLevel == "error") {
         return LogLevel::Error;
+    }
 
     throw std::runtime_error("Unknown log level " + logLevel);
 }

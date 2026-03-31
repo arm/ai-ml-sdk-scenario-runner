@@ -1403,7 +1403,7 @@ TEST(JsonParser, ImageResource) {
         ASSERT_TRUE(desc.format == "VK_FORMAT_R8G8B8A8_SRGB");
         ASSERT_TRUE(desc.shaderAccess == ShaderAccessType::ReadWrite);
         ASSERT_TRUE(desc.dst.has_value());
-        ASSERT_TRUE(desc.dst.value() == "");
+        ASSERT_TRUE(desc.dst.value().empty());
         ASSERT_TRUE(desc.src.has_value());
         ASSERT_TRUE(desc.src.value() == "./color.dds");
 

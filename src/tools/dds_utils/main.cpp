@@ -29,7 +29,7 @@ std::vector<uint16_t> createRandomFloat16Data(uint32_t size) {
         vec[i] = static_cast<uint16_t>(static_cast<uint8_t>(distribution(mtGenerator) % 255) << 8);
 
         // Randomly choose an exponent bit to ensure no NaN values generated
-        uint8_t x = static_cast<uint8_t>(0b01000000 >> (distribution(mtGenerator) % 5));
+        auto x = static_cast<uint8_t>(0b01000000 >> (distribution(mtGenerator) % 5));
         vec[i] = vec[i] | static_cast<uint16_t>(static_cast<uint8_t>(distribution(mtGenerator) % 255) & ~x);
     }
     return vec;
@@ -506,28 +506,28 @@ int main(int argc, const char **argv) {
         parser.add_argument("--output").help("Path to the output file");
 
         parser.parse_args(argc, argv);
-        std::string action = parser.get<std::string>("--action");
+        auto action = parser.get<std::string>("--action");
 
         if (action == "generate") {
-            uint32_t height = parser.get<uint32_t>("--height");
-            uint32_t width = parser.get<uint32_t>("--width");
-            uint32_t elementSize = parser.get<uint32_t>("--element-size");
-            std::string elementDtype = parser.get<std::string>("--element-dtype");
-            std::string dxgiFormat = parser.get<std::string>("--format");
-            std::string output = parser.get<std::string>("--output");
+            auto height = parser.get<uint32_t>("--height");
+            auto width = parser.get<uint32_t>("--width");
+            auto elementSize = parser.get<uint32_t>("--element-size");
+            auto elementDtype = parser.get<std::string>("--element-dtype");
+            auto dxgiFormat = parser.get<std::string>("--format");
+            auto output = parser.get<std::string>("--output");
             bool headerOnly = parser.get<bool>("--header-only");
 
             generateDDSFile(height, width, elementDtype, elementSize, dxgiFormat, output, headerOnly);
         } else if (action == "to_npy") {
-            std::string input = parser.get<std::string>("--input");
-            std::string output = parser.get<std::string>("--output");
-            uint32_t elementSize = parser.get<uint32_t>("--element-size");
+            auto input = parser.get<std::string>("--input");
+            auto output = parser.get<std::string>("--output");
+            auto elementSize = parser.get<uint32_t>("--element-size");
 
             convertDDSToNpy(input, output, elementSize);
         } else if (action == "compare") {
-            std::string input = parser.get<std::string>("--input");
-            std::string output = parser.get<std::string>("--output");
-            std::string elementDtype = parser.get<std::string>("--element-dtype");
+            auto input = parser.get<std::string>("--input");
+            auto output = parser.get<std::string>("--output");
+            auto elementDtype = parser.get<std::string>("--element-dtype");
 
             bool same = compare(input, output, elementDtype);
             return same ? 0 : 1;

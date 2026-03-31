@@ -173,7 +173,8 @@ void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> mem
         if (_tiling == vk::ImageTiling::eOptimal) {
             if ((featProps.optimalTilingFeatures & requiredFormatFlags) != requiredFormatFlags) {
                 throw std::runtime_error("Tiling type: OPTIMAL is not supported for this formatType");
-            } else if (_imageInfo.isAliased) {
+            }
+            if (_imageInfo.isAliased) {
                 mlsdk::logging::info("Allowing OPTIMAL tiling with aliasing for image");
             }
         }
@@ -297,8 +298,9 @@ const std::vector<int64_t> &Image::shape() const { return _imageInfo.shape; }
 vk::ImageTiling Image::tiling() const { return _tiling; }
 
 void Image::addTransitionLayoutCommand(vk::raii::CommandBuffer &cmdBuf, vk::ImageLayout expectedLayout) {
-    if (_targetLayout == expectedLayout)
+    if (_targetLayout == expectedLayout) {
         return; // No transition needed
+    }
 
     vk::PipelineStageFlagBits2 srcStage = vk::PipelineStageFlagBits2::eComputeShader;
     vk::AccessFlagBits2 srcAccess = vk::AccessFlagBits2::eShaderWrite;
@@ -344,7 +346,7 @@ void Image::transitionLayout(const Context &ctx, vk::ImageLayout expectedLayout)
     auto queue = ctx.device().getQueue(ctx.familyQueueIdx(), 0);
     auto fence = ctx.device().createFence({});
     queue.submit(submitInfo, *fence);
-    const uint64_t timeout = static_cast<uint64_t>(-1);
+    const auto timeout = WAIT_FOR_FENCE_TIMEOUT;
     auto res = ctx.device().waitForFences({*fence}, true, timeout);
     if (res != vk::Result::eSuccess) {
         throw std::runtime_error("Error while waiting for fence.");
@@ -505,8 +507,8 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     blit.dstSubresource.layerCount = 1;
     blit.dstSubresource.aspectMask = aspectMask;
 
-    int32_t mipWidth = static_cast<int32_t>(_imageInfo.shape[1]);
-    int32_t mipHeight = static_cast<int32_t>(_imageInfo.shape[2]);
+    auto mipWidth = static_cast<int32_t>(_imageInfo.shape[1]);
+    auto mipHeight = static_cast<int32_t>(_imageInfo.shape[2]);
     for (uint32_t i = 1; i < _imageInfo.mips; i++) {
         // Create barrier before the first blit and between blits
         imageBarrier.subresourceRange.baseMipLevel = i - 1;
@@ -557,7 +559,7 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     auto queue = ctx.device().getQueue(ctx.familyQueueIdx(), 0);
     auto fence = ctx.device().createFence({});
     queue.submit(submitInfo, *fence);
-    const uint64_t timeout = static_cast<uint64_t>(-1);
+    const auto timeout = WAIT_FOR_FENCE_TIMEOUT;
     auto res = ctx.device().waitForFences({*fence}, true, timeout);
     if (res != vk::Result::eSuccess) {
         throw std::runtime_error("Error while waiting for fence.");
@@ -594,7 +596,7 @@ std::vector<char> Image::getImageData(const Context &ctx) {
     auto queue = ctx.device().getQueue(ctx.familyQueueIdx(), 0);
     auto fence = ctx.device().createFence({});
     queue.submit(submitInfo, *fence);
-    const uint64_t timeout = static_cast<uint64_t>(-1);
+    const auto timeout = WAIT_FOR_FENCE_TIMEOUT;
     auto res = ctx.device().waitForFences({*fence}, true, timeout);
     if (res != vk::Result::eSuccess) {
         throw std::runtime_error("Error while waiting for fence.");
