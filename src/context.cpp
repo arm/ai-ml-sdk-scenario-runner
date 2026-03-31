@@ -15,9 +15,18 @@
 
 namespace mlsdk::scenariorunner {
 namespace {
+constexpr auto getFlagsForQueueFamily(FamilyQueue familyQueue) {
+    switch (familyQueue) {
+    case FamilyQueue::Compute:
+        return vk::QueueFlagBits::eCompute;
+    case FamilyQueue::DataGraph:
+    default:
+        return vk::QueueFlagBits::eDataGraphARM;
+    }
+}
+
 uint32_t findQueue(const std::vector<vk::QueueFamilyProperties> &queueProps, FamilyQueue familyQueue) {
-    const auto flag =
-        familyQueue == FamilyQueue::Compute ? vk::QueueFlagBits::eCompute : vk::QueueFlagBits::eDataGraphARM;
+    const auto flag = getFlagsForQueueFamily(familyQueue);
     for (uint32_t i = 0; i < queueProps.size(); ++i) {
         const vk::QueueFamilyProperties &prop = queueProps[i];
         if (prop.queueFlags & flag) {

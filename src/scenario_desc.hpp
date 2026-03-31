@@ -23,7 +23,6 @@ struct ScenarioSpec {
     void addResource(std::unique_ptr<ResourceDesc> resource);
 
     void addCommand(std::unique_ptr<CommandDesc> command);
-    void addCommand(std::unique_ptr<DispatchComputeDesc> command);
 
     /// Assumes existence of guid.
     const ShaderDesc &getShaderResource(const Guid &guid) const;

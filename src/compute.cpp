@@ -215,9 +215,8 @@ void Compute::createPipeline(const PipelineCreateArguments &args, const ShaderIn
     (void)_pipelines.emplace_back(commonArgs, shaderInfo, dataManager, constants);
 }
 
-void Compute::registerPipelineFenced(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
-                                     const char *pushConstantData, size_t pushConstantSize, bool implicitBarriers,
-                                     ComputeDispatch computeDispatch) {
+void Compute::_registerPipelineFencedCommon(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
+                                            const char *pushConstantData, size_t pushConstantSize) {
     const auto &pipeline = _pipelines.back();
     DebugMarker dbgMrk0(this, "dispatch (" + pipeline.debugName() + ")");
 
@@ -239,7 +238,13 @@ void Compute::registerPipelineFenced(const DataManager &dataManager, const std::
 
     _addBinds(pipeline, maxSet, baseDescriptorSetIdxGlobal);
     _addPushConstants(pushConstantData, pipeline, pushConstantSize);
-    _addDispatch(pipeline, computeDispatch);
+}
+
+void Compute::registerPipelineFenced(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
+                                     const char *pushConstantData, size_t pushConstantSize, bool implicitBarriers,
+                                     ComputeDispatch computeDispatch) {
+    _registerPipelineFencedCommon(dataManager, bindings, pushConstantData, pushConstantSize);
+    _addDispatch(computeDispatch);
 
     if (implicitBarriers) {
         _addImplicitBarriers();
@@ -264,7 +269,8 @@ void Compute::_addPushConstants(const char *pushConstantData, const Pipeline &pi
     }
 }
 
-void Compute::_addDispatch(const Pipeline &pipeline, const ComputeDispatch &computeDispatch) {
+void Compute::_addDispatch(const ComputeDispatch &computeDispatch) {
+    const auto &pipeline = _pipelines.back();
     if (pipeline.isDataGraphPipeline()) {
         _commands.emplace_back(DataGraphDispatch{pipeline.session()});
     } else {
@@ -396,6 +402,20 @@ void Compute::submitAndWaitOnFence() {
     submitAndWaitOnFence(perfCounters, 0);
 }
 
+vk::PipelineBindPoint Compute::_getBindPoint(BindPoint bindPoint) {
+    vk::PipelineBindPoint vkBindPoint;
+    switch (bindPoint) {
+    case BindPoint::DataGraph:
+        vkBindPoint = vk::PipelineBindPoint::eDataGraphARM;
+        break;
+    default:
+        vkBindPoint = vk::PipelineBindPoint::eCompute;
+        break;
+    }
+
+    return vkBindPoint;
+}
+
 void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters, int iteration) {
     // Reset query pool
     perfCounters.emplace_back("Reset Query Pool. Iteration: " + std::to_string(iteration + 1), "Run Scenario").start();
@@ -436,20 +456,13 @@ void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters
             auto &typedCmd = std::get<BindDescriptorSet>(cmd);
             const vk::DescriptorSet &descSet = *_descriptorSets[typedCmd.descriptorSetIdxGlobal];
 
-            vk::PipelineBindPoint bindPoint = (typedCmd.bindPoint == BindPoint::DataGraph)
-                                                  ? vk::PipelineBindPoint::eDataGraphARM
-                                                  : vk::PipelineBindPoint::eCompute;
-
+            auto bindPoint = _getBindPoint(typedCmd.bindPoint);
             _cmdBufferArray.back().bindDescriptorSets(bindPoint, typedCmd.pipelineLayout, typedCmd.descriptorSetId,
                                                       vk::ArrayProxy<vk::DescriptorSet>(descSet),
                                                       vk::ArrayProxy<uint32_t>());
         } else if (std::holds_alternative<BindPipeline>(cmd)) {
             auto &typedCmd = std::get<BindPipeline>(cmd);
-
-            vk::PipelineBindPoint bindPoint = (typedCmd.bindPoint == BindPoint::DataGraph)
-                                                  ? vk::PipelineBindPoint::eDataGraphARM
-                                                  : vk::PipelineBindPoint::eCompute;
-
+            auto bindPoint = _getBindPoint(typedCmd.bindPoint);
             _cmdBufferArray.back().bindPipeline(bindPoint, typedCmd.pipeline);
         } else if (std::holds_alternative<ComputeDispatch>(cmd)) {
             mlsdk::logging::info("Dispatch compute");
