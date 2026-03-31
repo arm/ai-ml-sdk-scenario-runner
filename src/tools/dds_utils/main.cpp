@@ -427,11 +427,9 @@ DDSContent load(const std::string &ddsPath) {
     if (size < 0) {
         throw std::runtime_error("Failed to get DDS file size " + ddsPath);
     }
-    std::vector<uint8_t> ddsData(static_cast<size_t>(size));
-    vk::Format format;
-    loadDataFromDDS(ddsPath, ddsData, format, {});
+    auto result = loadDataFromDDS(ddsPath, {});
 
-    return {ddsHeader, ddsData};
+    return {ddsHeader, std::move(result.data)};
 }
 
 void convertDDSToNpy(const std::string &input, const std::string &output, uint32_t elementSize) {

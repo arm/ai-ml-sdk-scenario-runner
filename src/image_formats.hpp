@@ -34,12 +34,21 @@ struct ImageLoadOptions {
 
 struct ImageSaveOptions {};
 
+struct ImageLoadResult {
+    explicit ImageLoadResult(vk::Format vkFormat) : initialFormat(vkFormat) {}
+
+    /// vk::Format of image file
+    vk::Format initialFormat{vk::Format::eUndefined};
+    /// Pixel data from file
+    std::vector<uint8_t> data;
+    /// Number of mip levels (only populated if relevant for data format)
+    uint32_t mipLevels{1};
+};
+
 struct ImageFormatHandler {
     std::set<std::string> extensions; // lower-case extensions including the dot
     std::function<vk::Format(const std::string &filename)> getFormat;
-    std::function<void(const std::string &filename, std::vector<uint8_t> &data, vk::Format &initialFormat,
-                       const ImageLoadOptions &options)>
-        loadData;
+    std::function<ImageLoadResult(const std::string &filename, const ImageLoadOptions &options)> loadData;
     std::function<void(const std::string &filename, const Image &image, const std::vector<char> &data,
                        const ImageSaveOptions &options)>
         saveData;

@@ -32,9 +32,6 @@ void validateDDSHeader(const DDSHeaderInfo &header) {
     if ((header.header.flags & REQUIRED_FLAGS) != REQUIRED_FLAGS) {
         throw std::runtime_error("Required DDS header height/width flags not set");
     }
-    if (header.header.mipMapCount > 1) {
-        throw std::runtime_error("Mipmaps are not supported");
-    }
     if (header.header.pixelFormat.size != 32) {
         throw std::runtime_error("Invalid DDS pixel format header size (Must be 32)");
     }
@@ -346,8 +343,7 @@ DDSHeaderInfo readDDSHeader(std::ifstream &file) {
     return info;
 }
 
-void loadDataFromDDS(const std::string &filename, std::vector<uint8_t> &data, vk::Format &initialFormat,
-                     const ImageLoadOptions &options) {
+ImageLoadResult loadDataFromDDS(const std::string &filename, const ImageLoadOptions &options) {
     std::ifstream file(filename, std::ifstream::binary);
     file.exceptions(std::ios::badbit | std::ios::failbit);
     if (!file.is_open()) {
@@ -372,10 +368,12 @@ void loadDataFromDDS(const std::string &filename, std::vector<uint8_t> &data, vk
         throw std::runtime_error("Failed to get DDS file size: " + filename);
     }
 
-    data.resize(static_cast<size_t>(fileSize));
+    ImageLoadResult result(ddsFormatToVkFormat(header));
+    result.data.resize(static_cast<size_t>(fileSize));
     file.seekg(dataPos);
-    file.read(reinterpret_cast<char *>(data.data()), fileSize);
-    initialFormat = ddsFormatToVkFormat(header);
+    file.read(reinterpret_cast<char *>(result.data.data()), fileSize);
+    result.mipLevels = std::max(header.header.mipMapCount, 1u);
+    return result;
 }
 
 vk::Format getVkFormatFromDDS(const std::string &filename) {

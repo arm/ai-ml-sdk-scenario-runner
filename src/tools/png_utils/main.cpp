@@ -41,10 +41,8 @@ struct PNG {
 };
 
 PNG load(const std::string &input) {
-    std::vector<uint8_t> data;
-    vk::Format fmt = vk::Format::eUndefined;
-    loadDataFromPNG(input, data, fmt, {});
-    if (fmt != vk::Format::eR8G8B8A8Unorm) {
+    auto result = loadDataFromPNG(input, {});
+    if (result.initialFormat != vk::Format::eR8G8B8A8Unorm) {
         throw std::runtime_error("Unsupported decoded PNG format");
     }
 
@@ -54,7 +52,7 @@ PNG load(const std::string &input) {
     if (!stbi_info(input.c_str(), &width, &height, &channels)) {
         throw std::runtime_error("Failed to inspect PNG: " + input);
     }
-    return {width, height, std::move(data)};
+    return {width, height, std::move(result.data)};
 }
 
 void convertPNGToNpy(const std::string &input, const std::string &output) {
