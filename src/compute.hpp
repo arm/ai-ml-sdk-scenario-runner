@@ -230,5 +230,7 @@ class Compute {
     void _addMarkBoundary();
 
     vk::PipelineBindPoint _getBindPoint(BindPoint bindPoint);
+
+    void _createCmdBuffer();
 };
 } // namespace mlsdk::scenariorunner
