@@ -36,11 +36,11 @@ void ScenarioSpec::addResource(std::unique_ptr<ResourceDesc> resource) {
     resources.emplace_back(std::move(resource));
 }
 
-void ScenarioSpec::addCommand(std::unique_ptr<CommandDesc> command) { commands.emplace_back(std::move(command)); }
-
-void ScenarioSpec::addCommand(std::unique_ptr<DispatchComputeDesc> command) {
+void ScenarioSpec::addCommand(std::unique_ptr<CommandDesc> command) {
+    if (command && command->commandType == CommandType::DispatchCompute) {
+        useComputeFamilyQueue = true;
+    }
     commands.emplace_back(std::move(command));
-    useComputeFamilyQueue = true;
 }
 
 const ShaderDesc &ScenarioSpec::getShaderResource(const Guid &guid) const {

@@ -13,6 +13,8 @@
 namespace mlsdk::scenariorunner {
 
 namespace {
+using SpecConstantValue = decltype(SpecializationConstant::value);
+constexpr auto specConstValueSize = sizeof(SpecConstantValue);
 
 template <typename T, typename U> inline void insertAfter(T *current, U *next) {
     next->pNext = current->pNext;
@@ -124,17 +126,16 @@ void Pipeline::computePipelineCommon(const Context &ctx, const ShaderInfo &shade
     _pipelineLayout = createPipelineLayout(ctx, _descriptorSetLayouts, shaderInfo.pushConstantsSize);
 
     std::vector<vk::SpecializationMapEntry> specMapEntries(shaderInfo.specializationConstants.size());
-    std::vector<decltype(SpecializationConstant::value)> specConstValues(shaderInfo.specializationConstants.size());
-    const auto specConstSize = sizeof(SpecializationConstant::value);
+    std::vector<SpecConstantValue> specConstValues(shaderInfo.specializationConstants.size());
     for (uint32_t i = 0, offset = 0; i < static_cast<uint32_t>(shaderInfo.specializationConstants.size());
-         ++i, offset += specConstSize) {
+         ++i, offset += specConstValueSize) {
         const auto &specConst = shaderInfo.specializationConstants[i];
-        specMapEntries[i] = vk::SpecializationMapEntry(static_cast<uint32_t>(specConst.id), offset, specConstSize);
+        specMapEntries[i] = vk::SpecializationMapEntry(static_cast<uint32_t>(specConst.id), offset, specConstValueSize);
         specConstValues[i] = specConst.value;
     }
 
     const vk::SpecializationInfo specInfo(static_cast<uint32_t>(specMapEntries.size()), specMapEntries.data(),
-                                          specConstValues.size() * specConstSize, specConstValues.data());
+                                          specConstValues.size() * specConstValueSize, specConstValues.data());
 
     const vk::PipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(
         {}, vk::ShaderStageFlagBits::eCompute, *_shader, shaderInfo.entry.c_str(), &specInfo);

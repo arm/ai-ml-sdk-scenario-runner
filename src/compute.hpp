@@ -214,16 +214,21 @@ class Compute {
     void _updateDescriptorSets(const vk::DescriptorSet &descSet, const TypedBinding &binding,
                                const IResourceViewer &resourceViewer);
 
+    void _registerPipelineFencedCommon(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
+                                       const char *pushConstantData, size_t pushConstantSize);
+
     void _addBinds(const Pipeline &pipeline, uint32_t maxSet, uint32_t baseDescriptorSetIdxGlobal);
 
     void _addPushConstants(const char *pushConstantData, const Pipeline &pipeline, size_t pushConstantSize);
 
-    void _addDispatch(const Pipeline &pipeline, const ComputeDispatch &computeDispatch);
+    void _addDispatch(const ComputeDispatch &computeDispatch);
 
     void _addImplicitBarriers();
 
     vk::FrameBoundaryEXT _createFrameBoundary();
 
     void _addMarkBoundary();
+
+    vk::PipelineBindPoint _getBindPoint(BindPoint bindPoint);
 };
 } // namespace mlsdk::scenariorunner
