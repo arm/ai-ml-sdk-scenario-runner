@@ -13,6 +13,7 @@ if(NOT ANDROID)
     iresource_tests.cpp
     json_parser_tests.cpp
     logging_tests.cpp
+    perf_counter_tests.cpp
     png_reader_tests.cpp
     vulkan_startup_tests.cpp
   )

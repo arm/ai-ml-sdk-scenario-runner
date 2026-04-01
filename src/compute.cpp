@@ -416,16 +416,7 @@ vk::PipelineBindPoint Compute::_getBindPoint(BindPoint bindPoint) {
     return vkBindPoint;
 }
 
-void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters, int iteration) {
-    // Reset query pool
-    perfCounters.emplace_back("Reset Query Pool. Iteration: " + std::to_string(iteration + 1), "Run Scenario").start();
-    if (*_queryPool) {
-        _queryPool.reset(0, _nQueries);
-    }
-    perfCounters.back().stop();
-    // Create command buffer vector
-    perfCounters.emplace_back("Creating Command Buffer. Iteration: " + std::to_string(iteration + 1), "Run Scenario")
-        .start();
+void Compute::_createCmdBuffer() {
     _resetFence();
     _setNextCommandBuffer();
     _beginCommandBuffer();
@@ -519,18 +510,38 @@ void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters
         }
     }
     _cmdBufferArray.back().end();
-    perfCounters.back().stop();
+}
+
+void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters, int iteration) {
+    auto iterationStr = std::to_string(iteration + 1);
+    // Reset query pool
+    {
+        PerfCounterGuard guard(perfCounters, "Reset Query Pool. Iteration: " + iterationStr, "Run Scenario", false);
+        if (*_queryPool) {
+            _queryPool.reset(0, _nQueries);
+        }
+    }
+
+    // Create command buffer vector
+    {
+        PerfCounterGuard guard(perfCounters, "Creating Command Buffer. Iteration: " + iterationStr, "Run Scenario",
+                               false);
+        _createCmdBuffer();
+    }
+
     // Run commands
-    perfCounters.emplace_back("Submit Commands. Iteration: " + std::to_string(iteration + 1), "Run Scenario").start();
-    vk::SubmitInfo submitInfo({}, {}, *_cmdBufferArray.back());
-    _queue.submit(submitInfo, *_fence);
-    perfCounters.back().stop();
+    {
+        vk::SubmitInfo submitInfo({}, {}, *_cmdBufferArray.back());
+        PerfCounterGuard guard(perfCounters, "Submit Commands. Iteration: " + iterationStr, "Run Scenario", false);
+        _queue.submit(submitInfo, *_fence);
+    }
 
     // Wait to finish
-    perfCounters.emplace_back("Wait for Fence. Iteration: " + std::to_string(iteration + 1), "Run Scenario").start();
-    _waitForFence();
-    _cmdBufferArray.clear();
-    perfCounters.back().stop();
+    {
+        PerfCounterGuard guard(perfCounters, "Wait for Fence. Iteration: " + iterationStr, "Run Scenario", false);
+        _waitForFence();
+        _cmdBufferArray.clear();
+    }
 }
 
 void Compute::setupQueryPool(uint32_t nQueries) {

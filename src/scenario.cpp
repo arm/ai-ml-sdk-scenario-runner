@@ -45,8 +45,7 @@ struct DispatchSpirvGraphData {
     bool implicitBarrier{true};
 };
 
-namespace // unnamed namespace
-{
+namespace {
 std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<Guid> &constantUids,
                                                      const std::vector<std::unique_ptr<ResourceDesc>> &resources) {
     std::vector<GraphConstantInfo> constants;
@@ -460,11 +459,16 @@ ShaderInfo convert(const ShaderDesc &shaderDesc) {
     return info;
 }
 
+auto getFamilyQueue(const ScenarioSpec &spec) {
+    if (spec.useComputeFamilyQueue) {
+        return FamilyQueue::Compute;
+    }
+    return FamilyQueue::DataGraph;
+}
 } // namespace
 
 Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
-    : _opts{opts}, _ctx{opts, scenarioSpec.useComputeFamilyQueue ? FamilyQueue::Compute : FamilyQueue::DataGraph},
-      _scenarioSpec(scenarioSpec), _compute(_ctx) {
+    : _opts{opts}, _ctx{opts, getFamilyQueue(scenarioSpec)}, _scenarioSpec(scenarioSpec), _compute(_ctx) {
     setupResources();
 }
 
@@ -565,9 +569,8 @@ void Scenario::setupResources() {
         } break;
         case (ResourceType::DataGraph): {
             const auto &dataGraph = reinterpret_cast<const std::unique_ptr<DataGraphDesc> &>(resource);
-            _perfCounters.emplace_back("Parse VGF: " + dataGraph->guidStr, "Scenario Setup", true).start();
+            PerfCounterGuard guard(_perfCounters, "Parse VGF: " + dataGraph->guidStr, "Scenario Setup");
             _dataManager.createVgfView(resource->guid, dataGraph->src.value());
-            _perfCounters.back().stop();
         } break;
         case (ResourceType::Tensor): {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
@@ -643,33 +646,30 @@ void Scenario::setupResources() {
             const auto &tensor = reinterpret_cast<std::unique_ptr<TensorDesc> &>(resource);
             auto &tensorRec = _dataManager.getTensorMut(tensor->guid);
             tensorRec.allocateMemory(_ctx);
-            _perfCounters.emplace_back("Load Tensor: " + tensor->guidStr, "Scenario Setup").start();
+            PerfCounterGuard guard(_perfCounters, "Load Tensor: " + tensor->guidStr, "Scenario Setup");
             if (tensor->src || !_groupManager.isAliased(tensor->guid)) {
                 tensorRec.fillFromDescription(_ctx, *tensor);
             }
-            _perfCounters.back().stop();
         } break;
         case (ResourceType::Image): {
             const auto &image = reinterpret_cast<std::unique_ptr<ImageDesc> &>(resource);
             auto &imageRec = _dataManager.getImageMut(image->guid);
             imageRec.allocateMemory(_ctx);
-            _perfCounters.emplace_back("Load Image: " + image->guidStr, "Scenario Setup").start();
+            PerfCounterGuard guard(_perfCounters, "Load Image: " + image->guidStr, "Scenario Setup");
             if (image->src || !_groupManager.isAliased(image->guid)) {
                 imageRec.fillFromDescription(_ctx, *image);
             } else {
                 imageRec.transitionLayout(_ctx, vk::ImageLayout::eGeneral);
             }
-            _perfCounters.back().stop();
         } break;
         case (ResourceType::Buffer): {
             const auto &buffer = reinterpret_cast<std::unique_ptr<BufferDesc> &>(resource);
             auto &bufferRec = _dataManager.getBufferMut(buffer->guid);
             bufferRec.allocateMemory(_ctx);
-            _perfCounters.emplace_back("Load Buffer: " + buffer->guidStr, "Scenario Setup").start();
+            PerfCounterGuard guard(_perfCounters, "Load Buffer: " + buffer->guidStr, "Scenario Setup");
             if (buffer->src || !_groupManager.isAliased(buffer->guid)) {
                 bufferRec.fillFromDescription(_ctx, *buffer);
             }
-            _perfCounters.back().stop();
         } break;
         default:
             // Skip the other types of resources
@@ -682,10 +682,9 @@ void Scenario::setupResources() {
 void Scenario::setupCommands() {
     if (_opts.enablePipelineCaching) {
         mlsdk::logging::info("Load Pipeline Cache");
-        _perfCounters.emplace_back("Load Pipeline Cache.", "Load Pipeline Cache", true).start();
+        PerfCounterGuard guard(_perfCounters, "Load Pipeline Cache.", "Load Pipeline Cache");
         _pipelineCache = std::make_shared<PipelineCache>(_ctx, _opts.pipelineCachePath, _opts.clearPipelineCache,
                                                          _opts.failOnPipelineCacheMiss);
-        _perfCounters.back().stop();
     }
     // Setup commands
     mlsdk::logging::info("Setup commands");
@@ -866,25 +865,27 @@ void Scenario::handleAliasedLayoutTransitions() {
     }
 }
 
+std::pair<const char *, size_t> getPushConstantData(const std::optional<Guid> &pushDataRef,
+                                                    const DataManager &dataManager) {
+    if (pushDataRef) {
+        const auto &rawData = dataManager.getRawData(pushDataRef.value());
+        return std::make_pair(rawData.data(), rawData.size());
+    }
+    return std::make_pair(nullptr, 0U);
+}
+
 void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries) {
     // Create Compute shader pipeline
     const auto shaderInfo = convert(_scenarioSpec.getShaderResource(dispatchCompute.shaderRef));
     const Compute::PipelineCreateArguments args{dispatchCompute.debugName, dispatchCompute.bindings, _pipelineCache};
 
-    _perfCounters.emplace_back("Create Pipeline: " + shaderInfo.debugName, "Pipeline Setup", true).start();
+    PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + shaderInfo.debugName, "Pipeline Setup");
     _compute.createPipeline(args, shaderInfo);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
-    const char *pushConstantData = nullptr;
-    size_t pushConstantSize = 0;
-    if (dispatchCompute.pushDataRef) {
-        const auto &rawData = _dataManager.getRawData(dispatchCompute.pushDataRef.value());
-        pushConstantData = rawData.data();
-        pushConstantSize = rawData.size();
-    }
+    const auto [pushConstantData, pushConstantSize] = getPushConstantData(dispatchCompute.pushDataRef, _dataManager);
     _compute.registerPipelineFenced(_dataManager, dispatchCompute.bindings, pushConstantData, pushConstantSize,
                                     dispatchCompute.implicitBarrier, dispatchCompute.computeDispatch);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
-    _perfCounters.back().stop();
     mlsdk::logging::debug("Shader Pipeline: " + shaderInfo.debugName + " created");
 }
 
@@ -895,9 +896,8 @@ void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchData
     for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
         const auto &sequenceBindings = vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings);
         auto moduleName = vgfView.getSPVModuleName(segmentIndex);
-        _perfCounters.emplace_back("Create Pipeline: " + moduleName, "Pipeline Setup", true).start();
+        PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + moduleName, "Pipeline Setup");
         createPipeline(segmentIndex, sequenceBindings, vgfView, dispatchDataGraph, nQueries);
-        _perfCounters.back().stop();
     }
 }
 
@@ -938,13 +938,12 @@ void Scenario::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSp
     const auto graphConstants = collectGraphConstants(dispatchSpirvGraph.graphConstants, _scenarioSpec.resources);
 
     // Create pipeline and record DataGraph dispatch
-    _perfCounters.emplace_back("Create Pipeline: " + shaderInfo.debugName, "Pipeline Setup", true).start();
+    PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + shaderInfo.debugName, "Pipeline Setup");
     const Compute::PipelineCreateArguments args{dispatchSpirvGraph.debugName, sequenceBindings, _pipelineCache};
     _compute.createPipeline(args, shaderInfo, _dataManager, graphConstants);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
     _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchSpirvGraph.implicitBarrier);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
-    _perfCounters.back().stop();
     mlsdk::logging::debug("Graph Pipeline: " + shaderInfo.debugName + " created");
 }
 
@@ -1005,9 +1004,8 @@ void Scenario::saveProfilingData(int iteration, int repeatCount) {
 
 void Scenario::saveResults(bool dryRun) {
     if (_pipelineCache) {
-        _perfCounters.emplace_back("Save Pipeline Cache", "Save Pipeline Cache").start();
+        PerfCounterGuard guard(_perfCounters, "Save Pipeline Cache", "Save Pipeline Cache", false);
         _pipelineCache->save();
-        _perfCounters.back().stop();
     }
 
     // Performance counters should be stored also for dry runs
@@ -1024,28 +1022,29 @@ void Scenario::saveResults(bool dryRun) {
     }
 
     // Save resources that have an output destination
-    _perfCounters.emplace_back("Save Resources", "Save Results").start();
-    for (const auto &resourceDesc : _scenarioSpec.resources) {
-        const auto &dst = resourceDesc->getDestination();
-        if (dst.has_value()) {
-            const auto &guid = resourceDesc->guid;
-            switch (resourceDesc->resourceType) {
-            case ResourceType::Buffer:
-                _dataManager.getBuffer(guid).store(_ctx, dst.value());
-                break;
-            case ResourceType::Tensor:
-                _dataManager.getTensor(guid).store(_ctx, dst.value());
-                break;
-            case ResourceType::Image:
-                _dataManager.getImageMut(guid).store(_ctx, dst.value());
-                break;
-            default:
-                throw std::runtime_error("Resource not found");
+    {
+        PerfCounterGuard guard(_perfCounters, "Save Resources", "Save Results", false);
+        for (const auto &resourceDesc : _scenarioSpec.resources) {
+            const auto &dst = resourceDesc->getDestination();
+            if (dst.has_value()) {
+                const auto &guid = resourceDesc->guid;
+                switch (resourceDesc->resourceType) {
+                case ResourceType::Buffer:
+                    _dataManager.getBuffer(guid).store(_ctx, dst.value());
+                    break;
+                case ResourceType::Tensor:
+                    _dataManager.getTensor(guid).store(_ctx, dst.value());
+                    break;
+                case ResourceType::Image:
+                    _dataManager.getImageMut(guid).store(_ctx, dst.value());
+                    break;
+                default:
+                    throw std::runtime_error("Resource not found");
+                }
+                mlsdk::logging::debug(resourceType(resourceDesc) + " " + resourceDesc->guidStr + " output stored");
             }
-            mlsdk::logging::debug(resourceType(resourceDesc) + " " + resourceDesc->guidStr + " output stored");
         }
     }
-    _perfCounters.back().stop();
     mlsdk::logging::info("Results stored");
 
     // Hexdump the session ram for debugging

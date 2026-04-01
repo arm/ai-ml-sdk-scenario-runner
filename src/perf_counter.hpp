@@ -12,10 +12,9 @@ namespace mlsdk::scenariorunner {
 
 class PerformanceCounter {
   public:
-    explicit PerformanceCounter(const std::string &name, const std::string &category = "",
-                                bool isPartOfTimeToInference = false)
-        : _startTimePoint(std::chrono::time_point<Clock>::min()), _elapsedTime(0), _name(name), _category(category),
-          _isPartOfTimeToInference(isPartOfTimeToInference) {}
+    explicit PerformanceCounter(std::string name, std::string category, bool isPartOfTimeToInference)
+        : _startTimePoint(std::chrono::time_point<Clock>::min()), _elapsedTime(0), _name(std::move(name)),
+          _category(std::move(category)), _isPartOfTimeToInference(isPartOfTimeToInference) {}
 
     void start() { _startTimePoint = Clock::now(); }
 
@@ -41,6 +40,26 @@ class PerformanceCounter {
     std::string _name;
     std::string _category;
     bool _isPartOfTimeToInference;
+};
+
+/// Automatically starts the counter on construction and stops it on destruction
+class PerfCounterGuard {
+  public:
+    PerfCounterGuard(std::vector<PerformanceCounter> &counters, std::string name, std::string category,
+                     bool isPartOfTimeToInference = true)
+        : counter_(counters.emplace_back(std::move(name), std::move(category), isPartOfTimeToInference)) {
+        counter_.start();
+    }
+
+    ~PerfCounterGuard() { counter_.stop(); }
+
+    PerfCounterGuard(const PerfCounterGuard &) = delete;
+    PerfCounterGuard &operator=(const PerfCounterGuard &) = delete;
+    PerfCounterGuard(PerfCounterGuard &&) = delete;
+    PerfCounterGuard &operator=(PerfCounterGuard &&) = delete;
+
+  private:
+    PerformanceCounter &counter_;
 };
 
 struct AggregateStat {
