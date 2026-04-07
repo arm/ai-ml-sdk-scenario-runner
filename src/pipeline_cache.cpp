@@ -11,12 +11,12 @@
 
 namespace mlsdk::scenariorunner {
 
-bool PipelineCache::isValidPipelineCache(const std::vector<unsigned char> &cacheData, uint32_t expectedVendorID,
+bool PipelineCache::isValidPipelineCache(const void *cacheDataPtr, size_t cacheDataSize, uint32_t expectedVendorID,
                                          uint32_t expectedDeviceID) {
-    if (cacheData.size() < sizeof(VkPipelineCacheHeaderVersionOne)) {
+    if (cacheDataSize < sizeof(VkPipelineCacheHeaderVersionOne)) {
         return false;
     }
-    const auto &header = *reinterpret_cast<const VkPipelineCacheHeaderVersionOne *>(cacheData.data());
+    const auto &header = *reinterpret_cast<const VkPipelineCacheHeaderVersionOne *>(cacheDataPtr);
     if (header.headerSize != sizeof(VkPipelineCacheHeaderVersionOne)) {
         mlsdk::logging::warning("Pipeline validation: Incorrect pipeline cache header size");
         return false;
@@ -50,32 +50,18 @@ PipelineCache::PipelineCache(const Context &ctx, const std::filesystem::path &pi
         mlsdk::logging::info("Pipeline Cache cleared");
     } else if (std::filesystem::exists(pipelineCachePath)) {
         // Use cache file, if existing
-        std::ifstream cacheFile(pipelineCachePath.string(), std::ifstream::binary);
-        if (!cacheFile.is_open()) {
-            throw std::runtime_error("Could not read from Pipeline Cache file: " + _pipelineCachePath.string());
-        }
-        cacheFile.exceptions(std::ios::badbit | std::ios::failbit);
+        auto cacheData = std::make_unique<MemoryMap>(pipelineCachePath.string());
 
-        const auto dataPos = cacheFile.tellg();
-        cacheFile.seekg(0, std::ios::end);
-        const auto size = cacheFile.tellg() - dataPos;
-        if (size <= 0) {
+        if (cacheData->size() == 0) {
             mlsdk::logging::warning("Pipeline Cache skipped: size invalid");
         } else {
-            _cacheData.resize(size_t(size));
-            cacheFile.seekg(dataPos);
-            if (!cacheFile.read(reinterpret_cast<char *>(_cacheData.data()), size)) {
-                throw std::runtime_error("Failed to read pipeline cache data.");
-            }
-            cacheFile.close();
-
             auto props = ctx.physicalDevice().getProperties();
-            if (!isValidPipelineCache(_cacheData, props.vendorID, props.deviceID)) {
+            if (!isValidPipelineCache(cacheData->ptr(), cacheData->size(), props.vendorID, props.deviceID)) {
                 mlsdk::logging::warning("Pipeline Cache skipped: failed to validate.");
-                _cacheData.clear(); // Fallback to empty
             } else {
-                cacheCreateInfo.initialDataSize = _cacheData.size();
-                cacheCreateInfo.pInitialData = _cacheData.data();
+                _cacheData = std::move(cacheData);
+                cacheCreateInfo.initialDataSize = _cacheData->size();
+                cacheCreateInfo.pInitialData = _cacheData->ptr();
                 mlsdk::logging::info("Pipeline Cache loaded and validated.");
             }
         }
@@ -93,6 +79,10 @@ void PipelineCache::save() {
         mlsdk::logging::info("Pipeline Cache not stored");
         return;
     }
+
+    // Release read-only mapping before truncating the file.
+    _cacheData.reset();
+
     // Save updated cache to disk
     std::ofstream fstream(_pipelineCachePath.string(), std::ofstream::binary | std::ofstream::trunc);
     if (!fstream.is_open()) {
