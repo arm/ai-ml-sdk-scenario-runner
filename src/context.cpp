@@ -189,22 +189,26 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     tensorFeat.tensors = true;
     tensorFeat.pNext = &physicalDev3Feat;
 
+    void *featureChain = &tensorFeat;
+
     vk::PhysicalDeviceShaderFloat8FeaturesEXT float8Feat{};
     if (_optionals.shader_float8) {
         float8Feat.shaderFloat8 = availableFloat8.shaderFloat8;
-        float8Feat.pNext = &tensorFeat;
+        float8Feat.pNext = featureChain;
+        featureChain = &float8Feat;
     }
 
-    vk::PhysicalDeviceDataGraphFeaturesARM dataGraphFeat;
+    vk::PhysicalDeviceDataGraphFeaturesARM dataGraphFeat{};
     dataGraphFeat.dataGraph = true;
     dataGraphFeat.dataGraphShaderModule = true;
-    dataGraphFeat.pNext =
-        _optionals.shader_float8 ? static_cast<void *>(&float8Feat) : static_cast<void *>(&tensorFeat);
+    dataGraphFeat.pNext = featureChain;
+    featureChain = &dataGraphFeat;
 
     vk::PhysicalDeviceShaderBfloat16FeaturesKHR bfloat16Feat{};
     if (_optionals.shader_bfloat16) {
         bfloat16Feat.shaderBFloat16Type = availableBfloat16.shaderBFloat16Type;
-        bfloat16Feat.pNext = &dataGraphFeat;
+        bfloat16Feat.pNext = featureChain;
+        featureChain = &bfloat16Feat;
     }
 
     vk::PhysicalDeviceFeatures deviceFeat;
@@ -251,9 +255,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         nullptr,
         static_cast<uint32_t>(vulkanDeviceExtensions.size()), // enabledExtensionsCount
         vulkanDeviceExtensions.data(),
-        &deviceFeat, // pEnabledFeatures
-        _optionals.shader_bfloat16 ? static_cast<const void *>(&bfloat16Feat)
-                                   : static_cast<const void *>(&dataGraphFeat), // pNext
+        &deviceFeat,  // pEnabledFeatures
+        featureChain, // pNext
     };
     _dev = vk::raii::Device(_physicalDev, deviceCreateInfo);
 } // namespace scenario-runner

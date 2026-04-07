@@ -163,31 +163,31 @@ void readJson(ScenarioSpec &scenarioSpec, std::istream *is) {
 
     const json &commandsJson = j.at("commands");
     for (const auto &commandJson : commandsJson) {
-        const json &item = commandJson;
-        CommandDesc command = item.get<CommandDesc>();
+        CommandDesc command = commandJson.get<CommandDesc>();
         switch (command.commandType) {
         case (CommandType::DispatchCompute): {
-            DispatchComputeDesc dispatchCompute = item.at("dispatch_compute").get<DispatchComputeDesc>();
+            DispatchComputeDesc dispatchCompute = commandJson.at("dispatch_compute").get<DispatchComputeDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchComputeDesc>(dispatchCompute));
         } break;
         case (CommandType::DispatchDataGraph): {
-            DispatchDataGraphDesc dispatchDataGraph = item.at("dispatch_graph").get<DispatchDataGraphDesc>();
+            DispatchDataGraphDesc dispatchDataGraph = commandJson.at("dispatch_graph").get<DispatchDataGraphDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchDataGraphDesc>(dispatchDataGraph));
         } break;
         case (CommandType::DispatchSpirvGraph): {
-            DispatchSpirvGraphDesc dispatchSpirvGraph = item.at("dispatch_spirv_graph").get<DispatchSpirvGraphDesc>();
+            DispatchSpirvGraphDesc dispatchSpirvGraph =
+                commandJson.at("dispatch_spirv_graph").get<DispatchSpirvGraphDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchSpirvGraphDesc>(dispatchSpirvGraph));
         } break;
         case (CommandType::DispatchFragment): {
-            DispatchFragmentDesc dispatchFragment = item.at("dispatch_fragment").get<DispatchFragmentDesc>();
+            DispatchFragmentDesc dispatchFragment = commandJson.at("dispatch_fragment").get<DispatchFragmentDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchFragmentDesc>(dispatchFragment));
         } break;
         case (CommandType::DispatchBarrier): {
-            DispatchBarrierDesc dispatchBarrier = item.at("dispatch_barrier").get<DispatchBarrierDesc>();
+            DispatchBarrierDesc dispatchBarrier = commandJson.at("dispatch_barrier").get<DispatchBarrierDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchBarrierDesc>(dispatchBarrier));
         } break;
         case (CommandType::MarkBoundary): {
-            MarkBoundaryDesc markBoundary = item.at("mark_boundary").get<MarkBoundaryDesc>();
+            MarkBoundaryDesc markBoundary = commandJson.at("mark_boundary").get<MarkBoundaryDesc>();
             scenarioSpec.addCommand(std::make_unique<MarkBoundaryDesc>(markBoundary));
         } break;
         default:

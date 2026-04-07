@@ -414,7 +414,8 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIn
 
 void Pipeline::initSession(const Context &ctx) {
     // Create session for the pipeline
-    vk::DataGraphPipelineSessionCreateInfoARM sessionCreateInfo{/*flags=*/{}, *_pipeline};
+    vk::DataGraphPipelineSessionCreateFlagsARM sessionFlags{};
+    vk::DataGraphPipelineSessionCreateInfoARM sessionCreateInfo{sessionFlags, *_pipeline};
 
     _session = vk::raii::DataGraphPipelineSessionARM{ctx.device(), sessionCreateInfo};
 
