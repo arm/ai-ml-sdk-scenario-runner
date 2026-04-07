@@ -372,6 +372,12 @@ class SDKTools:
             extra_opts.extend(["--build-opts", compile_opts])
 
         compiler = self.hlsl_compiler if suffix == ".hlsl" else self.glsl_compiler
+
+        # The GLSL wrapper defaults to compute stage, so pass explicit stage for graphics shaders.
+        if suffix in [".vert", ".frag"]:
+            stage = "vertex" if suffix == ".vert" else "fragment"
+            extra_opts.extend(["--stage", stage])
+
         compiler.run("--input", shader, "--output", compiled_shader_path, *extra_opts)
 
         return compiled_shader_path

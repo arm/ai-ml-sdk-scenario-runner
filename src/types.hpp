@@ -5,6 +5,7 @@
 #pragma once
 
 #include "guid.hpp"
+#include "shader_stage.hpp"
 
 #include "vulkan/vulkan_raii.hpp"
 
@@ -40,7 +41,7 @@ enum class MemoryAccess {
     ComputeShaderRead,
     Unknown
 };
-enum class PipelineStage { Graph, Compute, All, Unknown };
+enum class PipelineStage { Graph, Compute, Graphics, All, Unknown };
 enum class ImageLayout { General, TensorAliasing, Undefined, Unknown };
 struct SubresourceRange {
     uint32_t baseMipLevel{0};
@@ -105,6 +106,7 @@ struct ImageInfo {
     uint32_t mips;
     bool isSampled{false};
     bool isStorage{false};
+    bool isColorAttachment{false};
     std::optional<Tiling> tiling;
     uint64_t memoryOffset{};
 };
@@ -160,6 +162,7 @@ struct ShaderInfo {
     std::vector<SpecializationConstant> specializationConstants;
     std::string src;
     ShaderType shaderType{ShaderType::Unknown};
+    ShaderStage stage{ShaderStage::Unknown};
     std::string buildOpts;
     std::vector<std::string> includeDirs;
 };

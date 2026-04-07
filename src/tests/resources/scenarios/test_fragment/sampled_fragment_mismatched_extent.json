@@ -1,0 +1,85 @@
+{
+    "commands": [
+        {
+            "dispatch_fragment": {
+                "vertex_shader_ref": "fullscreen_vs",
+                "fragment_shader_ref": "sampled_copy_fs",
+                "color_attachment_refs": [
+                    "output_color_a",
+                    "output_color_b"
+                ],
+                "bindings": [
+                    {
+                        "set": 0,
+                        "id": 0,
+                        "resource_ref": "input_image"
+                    }
+                ]
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "uid": "fullscreen_vs",
+                "src": "fullscreen_triangle.spv",
+                "type": "SPIR-V",
+                "stage": "vertex",
+                "entry": "main"
+            }
+        },
+        {
+            "shader": {
+                "uid": "sampled_copy_fs",
+                "src": "sampled_copy.spv",
+                "type": "SPIR-V",
+                "stage": "fragment",
+                "entry": "main"
+            }
+        },
+        {
+            "image": {
+                "uid": "input_image",
+                "src": "input.png",
+                "dims": [
+                    1,
+                    64,
+                    64,
+                    1
+                ],
+                "format": "VK_FORMAT_R8G8B8A8_UNORM",
+                "shader_access": "readonly"
+            }
+        },
+        {
+            "image": {
+                "uid": "output_color_a",
+                "dst": "output_a.png",
+                "dims": [
+                    1,
+                    64,
+                    64,
+                    1
+                ],
+                "format": "VK_FORMAT_R8G8B8A8_UNORM",
+                "shader_access": "writeonly",
+                "color_attachment": true
+            }
+        },
+        {
+            "image": {
+                "uid": "output_color_b",
+                "dst": "output_b.png",
+                "dims": [
+                    1,
+                    32,
+                    32,
+                    1
+                ],
+                "format": "VK_FORMAT_R8G8B8A8_UNORM",
+                "shader_access": "writeonly",
+                "color_attachment": true
+            }
+        }
+    ]
+}

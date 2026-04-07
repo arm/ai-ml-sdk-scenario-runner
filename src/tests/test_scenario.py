@@ -70,6 +70,14 @@ def InvalidType(type_name):
     return f"is not of type '{type_name}'"
 
 
+def InvalidAnyOf():
+    return "is not valid under any of the given schemas"
+
+
+def ShouldBeNonEmpty():
+    return "should be non-empty"
+
+
 def check_scenario(schema_filename, expected_msg, json_filename):
     json_filename = TEST_BASE / json_filename
 
@@ -88,6 +96,7 @@ dispatch_compute_path = commands_path / "dispatch_compute"
 dispatch_graph_path = commands_path / "dispatch_graph"
 dispatch_spirv_graph_path = commands_path / "dispatch_spirv_graph"
 dispatch_barrier_path = commands_path / "dispatch_barrier"
+dispatch_fragment_path = commands_path / "dispatch_fragment"
 mark_boundary_path = commands_path / "mark_boundary"
 resources_path = pathlib.Path("resources")
 shader_path = resources_path / "shader"
@@ -129,6 +138,16 @@ graph_constant_path = resources_path / "graph_constant"
         (RequiredProperty("resource_ref"), dispatch_compute_path/"binding_missing_resource_ref.json"),
         (RequiredMin(0), dispatch_compute_path/"binding_negative_id.json"),
         (RequiredMin(0), dispatch_compute_path/"binding_negative_set.json"),
+        # dispatch_fragment
+        (Ok(), dispatch_fragment_path/"reference.json"),
+        (Ok(), dispatch_fragment_path/"reference_render_extent.json"),
+        (RequiredProperty("vertex_shader_ref"), dispatch_fragment_path/"missing_vertex_shader_ref.json"),
+        (RequiredProperty("fragment_shader_ref"), dispatch_fragment_path/"missing_fragment_shader_ref.json"),
+        (RequiredProperty("bindings"), dispatch_fragment_path/"missing_bindings.json"),
+        (InvalidAnyOf(), dispatch_fragment_path/"missing_render_extent_and_color.json"),
+        (ShouldBeNonEmpty(), dispatch_fragment_path/"invalid_color_attachment_refs.json"),
+        (TooShort(), dispatch_fragment_path/"invalid_render_extent.json"),
+        (RequiredMin(1), dispatch_fragment_path/"invalid_render_extent_value.json"),
         # dispatch_graph
         (Ok(), dispatch_graph_path/"reference.json"),
         (UnexpectedProperty("this_is_an_invalid_property"), dispatch_graph_path/"invalid_property.json"),
@@ -258,6 +277,7 @@ graph_constant_path = resources_path / "graph_constant"
         (RequiredProperty("buffer_resource"), buffer_barrier_path/"missing_buffer_resource.json"),
         (UnexpectedProperty("this_is_an_invalid_property"), buffer_barrier_path/"invalid_property.json"),
         (RequiredMin(0), buffer_barrier_path/"invalid_offset.json"),
+        (Ok(), buffer_barrier_path/"graphics_stage.json"),
         # image barrier
         (Ok(), image_barrier_path/"reference.json"),
         (InvalidEnum(), image_barrier_path/"invalid_dst_access.json"),

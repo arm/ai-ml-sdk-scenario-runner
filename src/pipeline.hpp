@@ -39,6 +39,9 @@ class Pipeline {
     Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, const DataManager &dataManager,
              const std::vector<GraphConstantInfo> &constants);
 
+    Pipeline(const CommonArguments &args, const ShaderInfo &vertexShaderInfo, const ShaderInfo &fragmentShaderInfo,
+             const std::vector<vk::Format> &colorAttachmentFormats);
+
     /// \brief Vulkan® pipeline accessor
     /// \return The underlying Vulkan® pipeline of the object
     const vk::Pipeline &pipeline() const { return *_pipeline; }
@@ -57,6 +60,10 @@ class Pipeline {
 
     bool isDataGraphPipeline() const { return _type == PipelineType::GraphCompute; };
 
+    bool isGraphicsPipeline() const { return _type == PipelineType::Graphics; };
+
+    vk::ShaderStageFlags pushConstantStages() const { return _pushConstantStages; }
+
     template <typename T>
     std::vector<T> getGraphPipelinePropertyData(const vk::raii::Device &device,
                                                 vk::DataGraphPipelinePropertyARM property) const;
@@ -64,7 +71,7 @@ class Pipeline {
     const std::string &debugName() const;
 
   private:
-    enum class PipelineType { Unknown, Compute, GraphCompute };
+    enum class PipelineType { Unknown, Compute, GraphCompute, Graphics };
 
     PipelineType _type{PipelineType::Unknown};
     std::vector<vk::raii::DescriptorSetLayout> _descriptorSetLayouts;
@@ -74,8 +81,10 @@ class Pipeline {
     std::vector<vk::raii::DeviceMemory> _sessionMemory;
     std::vector<vk::DeviceSize> _sessionMemoryDataSizes;
     vk::raii::ShaderModule _shader{nullptr};
+    vk::raii::ShaderModule _fragmentShader{nullptr};
     std::string _debugName{};
     uint64_t _dataGraphPipelineMemoryRequirement{};
+    vk::ShaderStageFlags _pushConstantStages{};
 
     void initSession(const Context &ctx);
 
@@ -83,6 +92,11 @@ class Pipeline {
 
     void computePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
                                std::shared_ptr<PipelineCache> pipelineCache);
+
+    void graphicsPipelineCommon(const Context &ctx, const ShaderInfo &vertexShaderInfo,
+                                const ShaderInfo &fragmentShaderInfo,
+                                const std::vector<vk::Format> &colorAttachmentFormats,
+                                std::shared_ptr<PipelineCache> pipelineCache);
 
     void graphComputePipelineCommon(const Context &ctx, uint32_t segmentIndex, const VgfView &vgfView,
                                     std::shared_ptr<PipelineCache> pipelineCache,

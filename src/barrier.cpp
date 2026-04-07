@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -29,12 +29,14 @@ vk::AccessFlags2 convertAccessFlags(MemoryAccess access) {
     }
 }
 
-vk::PipelineStageFlagBits2 convertStageFlag(PipelineStage stage) {
+vk::PipelineStageFlags2 convertStageFlag(PipelineStage stage) {
     switch (stage) {
     case (PipelineStage::Graph):
         return vk::PipelineStageFlagBits2::eDataGraphARM;
     case (PipelineStage::Compute):
         return vk::PipelineStageFlagBits2::eComputeShader;
+    case (PipelineStage::Graphics):
+        return vk::PipelineStageFlagBits2::eFragmentShader | vk::PipelineStageFlagBits2::eColorAttachmentOutput;
     case (PipelineStage::All):
         return vk::PipelineStageFlagBits2::eAllCommands;
     default: {

@@ -47,7 +47,7 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
     // Compile compute shader to SPIR-V
 
     std::string addShaderSPIRV = tempFolder.relative("add_shader.spv").string();
-    auto spirv = GlslCompiler::get().compile(add_shader);
+    auto spirv = GlslCompiler::get().compile(add_shader, ShaderStage::Compute);
     EXPECT_TRUE(spirv.first.empty());
     GlslCompiler::get().save(spirv.second, addShaderSPIRV);
 

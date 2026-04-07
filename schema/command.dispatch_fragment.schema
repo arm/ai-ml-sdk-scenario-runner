@@ -1,0 +1,83 @@
+{
+    "$id": "urn:scenario:command:dispatch_fragment",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "bindings": {
+            "$ref": "urn:scenario:common#/definitions/bindings"
+        },
+        "debug_name": {
+            "type": "string"
+        },
+        "vertex_shader_ref": {
+            "type": "string"
+        },
+        "fragment_shader_ref": {
+            "type": "string"
+        },
+        "color_attachment_refs": {
+            "type": "array",
+            "items": {
+                "oneOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "resource_ref": {
+                                "type": "string"
+                            },
+                            "lod": {
+                                "type": "integer",
+                                "minimum": 0
+                            }
+                        },
+                        "required": [
+                            "resource_ref"
+                        ]
+                    }
+                ]
+            },
+            "minItems": 1
+        },
+        "render_extent": {
+            "type": "array",
+            "items": {
+                "type": "integer",
+                "minimum": 1
+            },
+            "minItems": 2,
+            "maxItems": 2
+        },
+        "push_data_ref": {
+            "type": "string"
+        },
+        "implicit_barrier": {
+            "type": "boolean"
+        }
+    },
+    "required": [
+        "bindings",
+        "vertex_shader_ref",
+        "fragment_shader_ref"
+    ],
+    "allOf": [
+        {
+            "anyOf": [
+                {
+                    "required": [
+                        "color_attachment_refs"
+                    ]
+                },
+                {
+                    "required": [
+                        "render_extent"
+                    ]
+                }
+            ]
+        }
+    ]
+}

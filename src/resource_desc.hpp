@@ -98,6 +98,7 @@ struct ShaderDesc : ResourceDesc {
 
     std::string entry{"main"};
     ShaderType shaderType{ShaderType::Unknown};
+    ShaderStage stage{ShaderStage::Compute};
     uint32_t pushConstantsSize{};
     std::vector<SpecializationConstant> specializationConstants;
     std::string buildOpts;
@@ -153,6 +154,7 @@ struct ImageDesc : ResourceDesc {
     uint32_t mips{1};
     std::string format;
     ShaderAccessType shaderAccess = ShaderAccessType::Unknown;
+    bool colorAttachment{false};
 
     std::optional<FilterMode> minFilter;
     std::optional<FilterMode> magFilter;

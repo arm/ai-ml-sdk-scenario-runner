@@ -1,0 +1,20 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "buffer_barrier": {
+                "uid": "graphics_stage_buffer_barrier",
+                "src_access": "compute_shader_write",
+                "dst_access": "graph_read",
+                "src_stage": [
+                    "graphics"
+                ],
+                "dst_stage": [
+                    "graph"
+                ],
+                "buffer_resource": "tensor_buffer",
+                "size": 4096
+            }
+        }
+    ]
+}

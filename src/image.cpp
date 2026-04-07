@@ -173,9 +173,13 @@ void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> mem
         usageFlags |= vk::ImageUsageFlagBits::eSampled;
         requiredFormatFlags |= vk::FormatFeatureFlagBits::eSampledImage;
     }
-    if (_imageInfo.isStorage) {
+    if (_imageInfo.isStorage && !_imageInfo.isColorAttachment) {
         usageFlags |= vk::ImageUsageFlagBits::eStorage;
         requiredFormatFlags |= vk::FormatFeatureFlagBits::eStorageImage | vk::FormatFeatureFlagBits::eTransferSrc;
+    }
+    if (_imageInfo.isColorAttachment) {
+        usageFlags |= vk::ImageUsageFlagBits::eColorAttachment;
+        requiredFormatFlags |= vk::FormatFeatureFlagBits::eColorAttachment;
     }
     if (_imageInfo.mips > 1) {
         requiredFormatFlags |= vk::FormatFeatureFlagBits::eBlitSrc | vk::FormatFeatureFlagBits::eBlitDst;

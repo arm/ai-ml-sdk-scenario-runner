@@ -1,11 +1,13 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <argparse/argparse.hpp>
 
 #include "glsl_compiler.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <iostream>
 
 using namespace mlsdk::scenariorunner;
@@ -19,6 +21,9 @@ int main(int argc, const char **argv) {
         parser.add_argument("--output").help("the SPIR-V output file").required();
         parser.add_argument("--build-opts").help("list of preprocessor defines to be used for compilation");
         parser.add_argument("--include").help("list of shader include directories");
+        parser.add_argument("--stage")
+            .help("shader stage to compile (compute, vertex, fragment)")
+            .default_value(std::string("compute"));
 
         parser.parse_args(argc, argv);
         std::string input = parser.get("--input");
@@ -35,7 +40,22 @@ int main(int argc, const char **argv) {
             return -1;
         }
 
-        auto spirv = GlslCompiler::get().compile(glsl, opts, includes);
+        auto stageStr = parser.get<std::string>("--stage");
+        std::transform(stageStr.begin(), stageStr.end(), stageStr.begin(), ::tolower);
+        auto toStage = [](std::string_view stage) -> ShaderStage {
+            if (stage == "compute") {
+                return ShaderStage::Compute;
+            }
+            if (stage == "vertex") {
+                return ShaderStage::Vertex;
+            }
+            if (stage == "fragment") {
+                return ShaderStage::Fragment;
+            }
+            throw std::runtime_error("Unsupported shader stage: " + std::string(stage));
+        };
+
+        auto spirv = GlslCompiler::get().compile(glsl, toStage(stageStr), opts, includes);
         if (!spirv.first.empty()) {
             std::cerr << "Failed to compiled GLSL input to SPIR-V:\n" << spirv.first << std::endl;
             return -1;

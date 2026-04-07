@@ -19,6 +19,8 @@ constexpr auto getFlagsForQueueFamily(FamilyQueue familyQueue) {
     switch (familyQueue) {
     case FamilyQueue::Compute:
         return vk::QueueFlagBits::eCompute;
+    case FamilyQueue::Graphics:
+        return vk::QueueFlagBits::eGraphics;
     case FamilyQueue::DataGraph:
     default:
         return vk::QueueFlagBits::eDataGraphARM;
@@ -152,6 +154,7 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
                                   vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR,
                                   vk::PhysicalDeviceShaderFloat8FeaturesEXT>();
 
+    const auto &availableCoreFeatures = availableFeatures.template get<vk::PhysicalDeviceFeatures2>().features;
     const auto &[available11Features, available12Features, availableBfloat16, availableFloat8] =
         availableFeatures
             .template get<vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features,
@@ -177,6 +180,7 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     physicalDev3Feat.synchronization2 = true;
     physicalDev3Feat.maintenance4 = true;
     physicalDev3Feat.pipelineCreationCacheControl = true;
+    physicalDev3Feat.dynamicRendering = true;
     physicalDev3Feat.pNext = &physicalDev2Feat;
 
     vk::PhysicalDeviceTensorFeaturesARM tensorFeat;
@@ -206,6 +210,7 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     vk::PhysicalDeviceFeatures deviceFeat;
     deviceFeat.shaderInt16 = true;
     deviceFeat.shaderInt64 = true;
+    deviceFeat.fragmentStoresAndAtomics = availableCoreFeatures.fragmentStoresAndAtomics;
 
     std::vector<const char *> vulkanDeviceExtensions = {VK_ARM_DATA_GRAPH_EXTENSION_NAME,
                                                         VK_ARM_TENSORS_EXTENSION_NAME};

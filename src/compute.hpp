@@ -31,6 +31,17 @@ struct MarkBoundaryData {
     std::vector<Guid> tensors;
 };
 
+struct GraphicsDispatchAttachment {
+    vk::ImageView view;
+    vk::Image image;
+    vk::ImageLayout layout;
+};
+
+struct GraphicsDispatchInfo {
+    std::vector<GraphicsDispatchAttachment> colorAttachments;
+    vk::Extent2D extent;
+};
+
 /// @brief Compute command orchestrator
 ///
 /// @note At the moment each compute handles a single shader
@@ -68,7 +79,11 @@ class Compute {
     void createPipeline(const PipelineCreateArguments &args, uint32_t segmentIndex, const VgfView &vgfView,
                         const DataManager &dataManager);
 
-    // Create a DataGraph pipeline through SPIR-V dispatch
+    /// \brief Create a graphics pipeline
+    void createPipeline(const PipelineCreateArguments &args, const ShaderInfo &vertexShaderInfo,
+                        const ShaderInfo &fragmentShaderInfo, const std::vector<vk::Format> &colorAttachmentFormats);
+
+    /// \brief Create a DataGraph pipeline through SPIR-V dispatch
     void createPipeline(const PipelineCreateArguments &args, const ShaderInfo &shaderInfo,
                         const DataManager &dataManager, const std::vector<GraphConstantInfo> &constants);
 
@@ -84,6 +99,9 @@ class Compute {
     void registerPipelineFenced(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
                                 const char *pushConstantData, size_t pushConstantSize, bool implicitBarriers,
                                 ComputeDispatch computeDispatch = {});
+    void registerPipelineFenced(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
+                                const char *pushConstantData, size_t pushConstantSize, bool implicitBarriers,
+                                const GraphicsDispatchInfo &graphicsDispatch);
 
     /// \brief Register a timestamp query
     /// \param query Index of the query
@@ -120,6 +138,7 @@ class Compute {
     enum class BindPoint {
         Compute,
         DataGraph,
+        Graphics,
     };
 
     struct BindDescriptorSet {
@@ -149,6 +168,7 @@ class Compute {
         vk::PipelineLayout pipelineLayout{nullptr};
         const char *pushConstantData;
         uint32_t size;
+        vk::ShaderStageFlags stages;
     };
 
     struct WriteTimestamp {
@@ -166,8 +186,13 @@ class Compute {
 
     struct PopDebugMarker {};
 
-    using Command = std::variant<BindDescriptorSet, BindPipeline, ComputeDispatch, DataGraphDispatch, MemoryBarrier,
-                                 PushConstants, WriteTimestamp, MarkBoundary, PushDebugMarker, PopDebugMarker>;
+    struct GraphicsDispatch {
+        GraphicsDispatchInfo info;
+    };
+
+    using Command =
+        std::variant<BindDescriptorSet, BindPipeline, ComputeDispatch, DataGraphDispatch, GraphicsDispatch,
+                     MemoryBarrier, PushConstants, WriteTimestamp, MarkBoundary, PushDebugMarker, PopDebugMarker>;
 
     struct DebugMarker;
 
@@ -222,6 +247,8 @@ class Compute {
     void _addPushConstants(const char *pushConstantData, const Pipeline &pipeline, size_t pushConstantSize);
 
     void _addDispatch(const ComputeDispatch &computeDispatch);
+
+    void _addGraphicsDispatch(const GraphicsDispatchInfo &graphicsDispatch);
 
     void _addImplicitBarriers();
 

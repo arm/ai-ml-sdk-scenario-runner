@@ -1,0 +1,15 @@
+{
+    "commands": [
+        {
+            "dispatch_fragment": {
+                "vertex_shader_ref": "vs_main",
+                "fragment_shader_ref": "fs_main",
+                "render_extent": [
+                    8,
+                    8
+                ]
+            }
+        }
+    ],
+    "resources": []
+}

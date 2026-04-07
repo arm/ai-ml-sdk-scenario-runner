@@ -1,7 +1,9 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
+#include "shader_stage.hpp"
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -21,12 +23,13 @@ class GlslCompiler {
     /// \brief Compile a GLSL source given in textual form
     ///
     /// \param source Source GLSL program to compile
+    /// \param stage Shader stage to compile for
     /// \param preprocessorOptions Pre-processor options for the GLSL program to compile
     /// \param shaderDirs List of directories where to find shader headers to include
     ///
     /// \return A pair containing the compilation log and the SPIR-V code if
     /// successful else empty
-    std::pair<std::string, std::vector<uint32_t>> compile(const std::string &source,
+    std::pair<std::string, std::vector<uint32_t>> compile(const std::string &source, ShaderStage stage,
                                                           const std::string &preprocessorOptions = "",
                                                           const std::vector<std::string> &shaderDirs = {});
 

@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import argparse
+import importlib.util
 import os
 import pathlib
 import platform
@@ -370,13 +371,19 @@ class Builder:
                     sys.executable,
                     "-m",
                     "pytest",
-                    "-n",
-                    str(self.threads),
                     "--tb=short",
                     f"{SCENARIO_RUNNER_DIR / 'src' / 'tests'}",
                     "--vgf-pylib-dir",
                     f"{self.build_dir}/vgf-lib/src",
                 ]
+
+                # Run tests in parallel only when pytest-xdist is available.
+                if importlib.util.find_spec("xdist") is not None:
+                    pytest_cmd[3:3] = ["-n", str(self.threads)]
+                else:
+                    print(
+                        "WARNING: pytest-xdist is not installed, running pytest in serial mode"
+                    )
 
                 exe_ext = ".exe" if platform.system() == "Windows" else ""
 
