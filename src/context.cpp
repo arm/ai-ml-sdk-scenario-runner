@@ -150,15 +150,21 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     }
 
     const auto availableFeatures =
-        _physicalDev.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features,
-                                  vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR,
-                                  vk::PhysicalDeviceShaderFloat8FeaturesEXT>();
+        _physicalDev
+            .getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features,
+                          vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features,
+                          vk::PhysicalDeviceShaderBfloat16FeaturesKHR, vk::PhysicalDeviceShaderFloat8FeaturesEXT>();
 
     const auto &availableCoreFeatures = availableFeatures.template get<vk::PhysicalDeviceFeatures2>().features;
-    const auto &[available11Features, available12Features, availableBfloat16, availableFloat8] =
-        availableFeatures
-            .template get<vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features,
-                          vk::PhysicalDeviceShaderBfloat16FeaturesKHR, vk::PhysicalDeviceShaderFloat8FeaturesEXT>();
+    const auto &[available11Features, available12Features, available13Features, availableBfloat16, availableFloat8] =
+        availableFeatures.template get<vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features,
+                                       vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR,
+                                       vk::PhysicalDeviceShaderFloat8FeaturesEXT>();
+
+    const bool requiresDynamicRendering = familyQueue == FamilyQueue::Graphics;
+    if (requiresDynamicRendering && !available13Features.dynamicRendering) {
+        throw std::runtime_error("Graphics scenarios require Vulkan dynamicRendering support");
+    }
 
     vk::PhysicalDeviceVulkan11Features physicalDev11Feat;
     physicalDev11Feat.storageBuffer16BitAccess = available11Features.storageBuffer16BitAccess;
@@ -180,7 +186,7 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     physicalDev3Feat.synchronization2 = true;
     physicalDev3Feat.maintenance4 = true;
     physicalDev3Feat.pipelineCreationCacheControl = true;
-    physicalDev3Feat.dynamicRendering = true;
+    physicalDev3Feat.dynamicRendering = requiresDynamicRendering;
     physicalDev3Feat.pNext = &physicalDev2Feat;
 
     vk::PhysicalDeviceTensorFeaturesARM tensorFeat;
