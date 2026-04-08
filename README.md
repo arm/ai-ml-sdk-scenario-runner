@@ -174,6 +174,10 @@ available on your `PATH`. The Android™ SDK installation pointed to by
 `ANDROID_HOME` should include `build-tools;34.0.0` and
 `platforms;android-34`, or other compatible versions.
 
+To build with RenderDoc support, add `--enable-rdoc`. If RenderDoc is
+installed outside the default search locations, also pass
+`--renderdoc-path <renderdoc-install-root>`.
+
 To enable and run tests, use the `--test` flag. To lint the tests, use the
 `--lint` flag. To enable tests and documentation building python dependencies
 must be installed:
