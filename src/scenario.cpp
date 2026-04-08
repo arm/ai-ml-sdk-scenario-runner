@@ -341,15 +341,19 @@ vk::DescriptorType getResourceDescriptorType(const DataManager &dataManager, con
     throw std::runtime_error("Invalid resource descriptor type");
 }
 
+TypedBinding convertBinding(const DataManager &dataManager, const BindingDesc &binding) {
+    const auto vkType = binding.descriptorType == DescriptorType::Auto
+                            ? getResourceDescriptorType(dataManager, binding.resourceRef)
+                            : convertDescriptorType(binding.descriptorType);
+    return {binding.set, binding.id, binding.resourceRef, binding.lod, vkType};
+}
+
 std::vector<TypedBinding> convertBindings(const DataManager &dataManager,
                                           const std::vector<BindingDesc> &bindingDescs) {
     std::vector<TypedBinding> bindings;
     bindings.reserve(bindingDescs.size());
     for (const auto &binding : bindingDescs) {
-        const auto vkType = binding.descriptorType == DescriptorType::Auto
-                                ? getResourceDescriptorType(dataManager, binding.resourceRef)
-                                : convertDescriptorType(binding.descriptorType);
-        bindings.push_back({binding.set, binding.id, binding.resourceRef, binding.lod, vkType});
+        bindings.push_back(convertBinding(dataManager, binding));
     }
     return bindings;
 }
