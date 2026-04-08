@@ -1,0 +1,71 @@
+diff --git a/include/dxc/dxcapi.h b/include/dxc/dxcapi.h
+index 95cc56a..c96b5e7 100644
+--- a/include/dxc/dxcapi.h
++++ b/include/dxc/dxcapi.h
+@@ -13,6 +13,11 @@
+ #ifndef __DXC_API__
+ #define __DXC_API__
+
++#ifdef DXC_STATIC_LINK
++#ifndef DXC_API_IMPORT
++#define DXC_API_IMPORT
++#endif
++#else
+ #ifdef _WIN32
+ #ifndef DXC_API_IMPORT
+ #define DXC_API_IMPORT __declspec(dllimport)
+@@ -22,6 +27,7 @@
+ #define DXC_API_IMPORT __attribute__((visibility("default")))
+ #endif
+ #endif
++#endif
+
+ #ifdef _WIN32
+
+diff --git a/tools/clang/tools/dxcompiler/CMakeLists.txt b/tools/clang/tools/dxcompiler/CMakeLists.txt
+index c69e276..d896721 100644
+--- a/tools/clang/tools/dxcompiler/CMakeLists.txt
++++ b/tools/clang/tools/dxcompiler/CMakeLists.txt
+@@ -151,20 +151,42 @@ set_target_properties(dxcompiler
+   PROPERTIES
+   OUTPUT_NAME "dxcompiler"
+   VERSION ${LIBCLANG_LIBRARY_VERSION}
+   DEFINE_SYMBOL _CINDEX_LIB_)
+
+ if (WIN32)
+   set(install_dest RUNTIME DESTINATION bin)
+ else()
+   set(install_dest LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX})
+ endif()
+
+ install(TARGETS dxcompiler
+   ${install_dest}
+   COMPONENT dxcompiler)
+
+ add_custom_target(install-dxcompiler
+   DEPENDS dxcompiler
+   COMMAND "${CMAKE_COMMAND}"
+           -DCMAKE_INSTALL_COMPONENT=dxcompiler
+           -P "${CMAKE_BINARY_DIR}/cmake_install.cmake")
++
++
++set(DXCOMPILER_STATIC_SOURCES ${SOURCES})
++if (WIN32)
++  list(REMOVE_ITEM DXCOMPILER_STATIC_SOURCES DXCompiler.rc DXCompiler.def)
++endif()
++
++add_clang_library(dxcompiler_static STATIC ${DXCOMPILER_STATIC_SOURCES})
++add_dependencies(dxcompiler_static TablegenHLSLOptions)
++if (MSVC)
++  add_dependencies(dxcompiler_static DxcEtw)
++endif()
++target_link_libraries(dxcompiler_static PUBLIC ${LIBRARIES})
++
++# Some LLVM archives used by DxcOptimizer have cyclic static-link
++# dependencies, so repeat them after libLLVMHLSL.a appears on the final
++# consumer link line.
++target_link_libraries(dxcompiler_static PUBLIC LLVMScalarOpts LLVMPassPrinters LLVMipo)
++if (ENABLE_SPIRV_CODEGEN)
++  target_link_libraries(dxcompiler_static PUBLIC clangSPIRV)
++endif (ENABLE_SPIRV_CODEGEN)
++target_compile_definitions(dxcompiler_static PUBLIC DXC_STATIC_LINK)

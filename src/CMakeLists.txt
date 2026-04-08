@@ -52,10 +52,7 @@ target_link_libraries(ScenarioRunnerLib PUBLIC
         stb::stb
 )
 if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
-    target_link_libraries(ScenarioRunnerLib PUBLIC dxcompiler)
-    target_include_directories(ScenarioRunnerLib SYSTEM PRIVATE
-        ${DXC_PATH}/include
-    )
+    target_link_libraries(ScenarioRunnerLib PUBLIC scenario_runner_dxc)
     target_compile_definitions(ScenarioRunnerLib PRIVATE SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
 endif()
 if(SCENARIO_RUNNER_ENABLE_RDOC)
