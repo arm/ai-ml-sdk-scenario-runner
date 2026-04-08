@@ -5,6 +5,7 @@
 
 #include "context.hpp"
 #include "types.hpp"
+#include "vgf-utils/memory_map.hpp"
 
 #include "vulkan/vulkan_raii.hpp"
 
@@ -20,13 +21,13 @@ class PipelineCache {
 
     const vk::raii::PipelineCache *get() const { return &_pipelineCache; }
     vk::PipelineCreationFeedbackCreateInfo *getCacheFeedbackCreateInfo() { return &_feedbackCreateInfo; }
-    bool failOnCacheMiss() const { return _failOnMiss && !_cacheData.empty(); }
+    bool failOnCacheMiss() const { return _failOnMiss && _cacheData; }
 
   private:
-    bool isValidPipelineCache(const std::vector<unsigned char> &cacheData, uint32_t expectedVendorID,
+    bool isValidPipelineCache(const void *cacheDataPtr, size_t cacheDataSize, uint32_t expectedVendorID,
                               uint32_t expectedDeviceID);
     std::filesystem::path _pipelineCachePath{};
-    std::vector<uint8_t> _cacheData{};
+    std::unique_ptr<MemoryMap> _cacheData{};
     vk::raii::PipelineCache _pipelineCache{nullptr};
     vk::PipelineCreationFeedbackCreateInfo _feedbackCreateInfo{};
     vk::PipelineCreationFeedback _feedback{};
