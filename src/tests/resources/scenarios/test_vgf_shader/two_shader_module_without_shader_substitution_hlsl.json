@@ -1,0 +1,18 @@
+{
+    "commands": [
+        {
+            "dispatch_graph": {
+                "bindings": [
+                    {"id": 0, "set": 0, "resource_ref": "input"},
+                    {"id": 2, "set": 0, "resource_ref": "output"}
+                ],
+                "graph_ref": "vgfGraph"
+            }
+        }
+    ],
+    "resources": [
+        {"graph": {"uid": "vgfGraph", "src": "two_shader_modules.vgf"}},
+        {"buffer": {"uid": "input", "shader_access": "readonly", "size": 1024, "src": "input.npy"}},
+        {"buffer": {"uid": "output", "shader_access": "writeonly", "size": 1024, "dst": "output.npy"}}
+    ]
+}

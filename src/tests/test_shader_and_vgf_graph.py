@@ -91,7 +91,9 @@ def test_compute_graph_compute_sandwich(sdk_tools, resources_helper, numpy_helpe
     assert module_decoder is not None
     assert module_decoder.size() == 1
     assert module_decoder.getModuleType(module0.reference) == vgf.ModuleType.Graph
-    assert module_decoder.getModuleCode(module0.reference) == memoryview(maxpoolCode)
+    assert module_decoder.getSPIRVModuleCode(module0.reference) == memoryview(
+        maxpoolCode
+    )
     assert module_decoder.getModuleEntryPoint(module0.reference) == "main"
 
     vgf_stream.close()

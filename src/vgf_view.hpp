@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -25,9 +25,13 @@ class VgfView {
     ModuleType getSegmentType(uint32_t segmentIndex) const;
 
     bool hasSPVModule(uint32_t segmentIndex) const;
-    std::string getSPVModuleName(uint32_t segmentIndex) const;
-    std::string getSPVModuleEntryPoint(uint32_t segmentIndex) const;
-    vgflib::DataView<uint32_t> getSPVModule(uint32_t segmentIndex) const;
+    bool hasGLSLModule(uint32_t segmentIndex) const;
+    bool hasHLSLModule(uint32_t segmentIndex) const;
+    std::string getModuleName(uint32_t segmentIndex) const;
+    std::string getModuleEntryPoint(uint32_t segmentIndex) const;
+    vgflib::DataView<uint32_t> getSPVModuleCode(uint32_t segmentIndex) const;
+    std::string getGLSLModuleCode(uint32_t segmentIndex) const;
+    std::string getHLSLModuleCode(uint32_t segmentIndex) const;
     vgflib::DataView<uint32_t> getDispatchShape(uint32_t segmentIndex) const;
 
     vgflib::DataView<uint32_t> getSegmentConstantIndexes(uint32_t segmentIndex) const;
