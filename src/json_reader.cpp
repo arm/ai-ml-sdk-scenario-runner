@@ -76,6 +76,28 @@ void parseOptionalPipelineStages(const json &j, std::string_view fieldName, std:
     }
 }
 
+void parseResourceDescGuid(const json &j, ResourceDesc &resource) {
+    resource.guidStr = j.at("uid").get<std::string>();
+    resource.guid = resource.guidStr;
+}
+
+MemoryAccess parseRequiredMemoryAccess(const json &j, std::string_view fieldName) {
+    const MemoryAccess access = j.at(fieldName).get<MemoryAccess>();
+    if (access == MemoryAccess::Unknown) {
+        throw std::runtime_error(std::string("Unknown ") + std::string(fieldName) + " value");
+    }
+
+    return access;
+}
+
+void parseBaseBarrierDesc(const json &j, BaseBarrierDesc &barrier) {
+    parseResourceDescGuid(j, barrier);
+    barrier.srcAccess = parseRequiredMemoryAccess(j, "src_access");
+    barrier.dstAccess = parseRequiredMemoryAccess(j, "dst_access");
+    parseOptionalPipelineStages(j, "src_stage", barrier.srcStages);
+    parseOptionalPipelineStages(j, "dst_stage", barrier.dstStages);
+}
+
 } // namespace
 
 //==============
@@ -464,8 +486,7 @@ void from_json(const json &j, MemoryGroup &group) {
  * @param buffer
  */
 void from_json(const json &j, BufferDesc &buffer) {
-    buffer.guidStr = j.at("uid").get<std::string>();
-    buffer.guid = buffer.guidStr;
+    parseResourceDescGuid(j, buffer);
     buffer.size = j.at("size").get<uint32_t>();
     buffer.shaderAccess = j.at("shader_access").get<ShaderAccessType>();
     if (buffer.shaderAccess == ShaderAccessType::Unknown) {
@@ -534,8 +555,7 @@ void from_json(const json &j, ShaderSubstitution &shaderSubstitution) {
  * @param dataGraph
  */
 void from_json(const json &j, DataGraphDesc &dataGraph) {
-    dataGraph.guidStr = j.at("uid").get<std::string>();
-    dataGraph.guid = dataGraph.guidStr;
+    parseResourceDescGuid(j, dataGraph);
     dataGraph.src = j.at("src").get<std::string>();
     if (j.contains("shader_substitutions")) {
         dataGraph.shaderSubstitutions = j.at("shader_substitutions").get<std::vector<ShaderSubstitution>>();
@@ -556,8 +576,7 @@ void from_json(const json &j, DataGraphDesc &dataGraph) {
  * @param shader
  */
 void from_json(const json &j, ShaderDesc &shader) {
-    shader.guidStr = j.at("uid").get<std::string>();
-    shader.guid = shader.guidStr;
+    parseResourceDescGuid(j, shader);
     shader.src = j.at("src").get<std::string>();
     shader.shaderType = j.at("type").get<ShaderType>();
     if (shader.shaderType == ShaderType::Unknown) {
@@ -594,12 +613,11 @@ void from_json(const json &j, ShaderDesc &shader) {
  * @brief De-serialize RawDataDesc from JSON.
  *
  * @param j
- * @param raw_data
+ * @param rawData
  */
-void from_json(const json &j, RawDataDesc &raw_data) {
-    raw_data.guidStr = j.at("uid").get<std::string>();
-    raw_data.guid = raw_data.guidStr;
-    raw_data.src = j.at("src").get<std::string>();
+void from_json(const json &j, RawDataDesc &rawData) {
+    parseResourceDescGuid(j, rawData);
+    rawData.src = j.at("src").get<std::string>();
 }
 
 /**
@@ -609,8 +627,7 @@ void from_json(const json &j, RawDataDesc &raw_data) {
  * @param graphConstant
  */
 void from_json(const json &j, GraphConstantDesc &graphConstant) {
-    graphConstant.guidStr = j.at("uid").get<std::string>();
-    graphConstant.guid = graphConstant.guidStr;
+    parseResourceDescGuid(j, graphConstant);
     const auto dims = j.at("dims").get<std::vector<int64_t>>();
     if (dims.empty() || dims.size() > 6) {
         throw std::runtime_error("Invalid graph constant dimensions");
@@ -627,8 +644,7 @@ void from_json(const json &j, GraphConstantDesc &graphConstant) {
  * @param tensor
  */
 void from_json(const json &j, TensorDesc &tensor) {
-    tensor.guidStr = j.at("uid").get<std::string>();
-    tensor.guid = tensor.guidStr;
+    parseResourceDescGuid(j, tensor);
     tensor.dims = j.at("dims").get<std::vector<int64_t>>();
     tensor.format = j.at("format").get<std::string>();
     tensor.shaderAccess = j.at("shader_access").get<ShaderAccessType>();
@@ -663,8 +679,7 @@ void from_json(const json &j, TensorDesc &tensor) {
  * @param image
  */
 void from_json(const json &j, ImageDesc &image) {
-    image.guidStr = j.at("uid").get<std::string>();
-    image.guid = image.guidStr;
+    parseResourceDescGuid(j, image);
     image.dims = j.at("dims").get<std::vector<uint32_t>>();
     // for compatibility with the old json configs that had this field set as "false"
     if (!j.contains("mips")) {
@@ -749,21 +764,7 @@ void from_json(const json &j, ImageDesc &image) {
  * @param j
  * @param memoryBarrier
  */
-void from_json(const json &j, MemoryBarrierDesc &memoryBarrier) {
-    memoryBarrier.guidStr = j.at("uid").get<std::string>();
-    memoryBarrier.guid = memoryBarrier.guidStr;
-    memoryBarrier.srcAccess = j.at("src_access").get<MemoryAccess>();
-    if (memoryBarrier.srcAccess == MemoryAccess::Unknown) {
-        throw std::runtime_error("Unknown src_access value");
-    }
-    memoryBarrier.dstAccess = j.at("dst_access").get<MemoryAccess>();
-    if (memoryBarrier.dstAccess == MemoryAccess::Unknown) {
-        throw std::runtime_error("Unknown dst_access value");
-    }
-
-    parseOptionalPipelineStages(j, "src_stage", memoryBarrier.srcStages);
-    parseOptionalPipelineStages(j, "dst_stage", memoryBarrier.dstStages);
-}
+void from_json(const json &j, MemoryBarrierDesc &memoryBarrier) { parseBaseBarrierDesc(j, memoryBarrier); }
 
 /**
  * @brief De-serialize Tensor Barrier from JSON.
@@ -772,19 +773,7 @@ void from_json(const json &j, MemoryBarrierDesc &memoryBarrier) {
  * @param tensorBarrier tensor barrier description struct
  */
 void from_json(const json &j, TensorBarrierDesc &tensorBarrier) {
-    tensorBarrier.guidStr = j.at("uid").get<std::string>();
-    tensorBarrier.guid = tensorBarrier.guidStr;
-    tensorBarrier.srcAccess = j.at("src_access").get<MemoryAccess>();
-    if (tensorBarrier.srcAccess == MemoryAccess::Unknown) {
-        throw std::runtime_error("Unknown src_access value");
-    }
-    tensorBarrier.dstAccess = j.at("dst_access").get<MemoryAccess>();
-    if (tensorBarrier.dstAccess == MemoryAccess::Unknown) {
-        throw std::runtime_error("Unknown dst_access value");
-    }
-
-    parseOptionalPipelineStages(j, "src_stage", tensorBarrier.srcStages);
-    parseOptionalPipelineStages(j, "dst_stage", tensorBarrier.dstStages);
+    parseBaseBarrierDesc(j, tensorBarrier);
 
     tensorBarrier.tensorResource = j.at("tensor_resource").get<std::string>();
 }
@@ -796,16 +785,7 @@ void from_json(const json &j, TensorBarrierDesc &tensorBarrier) {
  * @param imageBarrier
  */
 void from_json(const json &j, ImageBarrierDesc &imageBarrier) {
-    imageBarrier.guidStr = j.at("uid").get<std::string>();
-    imageBarrier.guid = imageBarrier.guidStr;
-    imageBarrier.srcAccess = j.at("src_access").get<MemoryAccess>();
-    if (imageBarrier.srcAccess == MemoryAccess::Unknown) {
-        throw std::runtime_error("Unknown src_access value");
-    }
-    imageBarrier.dstAccess = j.at("dst_access").get<MemoryAccess>();
-    if (imageBarrier.dstAccess == MemoryAccess::Unknown) {
-        throw std::runtime_error("Unknown dst_access value");
-    }
+    parseBaseBarrierDesc(j, imageBarrier);
     imageBarrier.oldLayout = j.at("old_layout").get<ImageLayout>();
     if (imageBarrier.oldLayout == ImageLayout::Unknown) {
         throw std::runtime_error("Unknown old_layout value");
@@ -818,9 +798,6 @@ void from_json(const json &j, ImageBarrierDesc &imageBarrier) {
     if (j.contains("subresource_range")) {
         imageBarrier.imageRange = j.at("subresource_range").get<SubresourceRange>();
     }
-
-    parseOptionalPipelineStages(j, "src_stage", imageBarrier.srcStages);
-    parseOptionalPipelineStages(j, "dst_stage", imageBarrier.dstStages);
 }
 
 /**
@@ -830,22 +807,9 @@ void from_json(const json &j, ImageBarrierDesc &imageBarrier) {
  * @param bufferBarrier
  */
 void from_json(const json &j, BufferBarrierDesc &bufferBarrier) {
-    bufferBarrier.guidStr = j.at("uid").get<std::string>();
-    bufferBarrier.guid = bufferBarrier.guidStr;
-    bufferBarrier.srcAccess = j.at("src_access").get<MemoryAccess>();
-    if (bufferBarrier.srcAccess == MemoryAccess::Unknown) {
-        throw std::runtime_error("Unknown src_access value");
-    }
-    bufferBarrier.dstAccess = j.at("dst_access").get<MemoryAccess>();
-    if (bufferBarrier.dstAccess == MemoryAccess::Unknown) {
-        throw std::runtime_error("Unknown dst_access value");
-    }
+    parseBaseBarrierDesc(j, bufferBarrier);
     bufferBarrier.size = j.at("size").get<uint64_t>();
     bufferBarrier.offset = j.at("offset").get<uint64_t>();
-
-    parseOptionalPipelineStages(j, "src_stage", bufferBarrier.srcStages);
-    parseOptionalPipelineStages(j, "dst_stage", bufferBarrier.dstStages);
-
     bufferBarrier.bufferResource = j.at("buffer_resource").get<std::string>();
 }
 

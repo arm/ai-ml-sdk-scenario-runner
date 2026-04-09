@@ -60,7 +60,7 @@ void from_json(const json &j, ImageBarrierDesc &imageBarrier);
 void from_json(const json &j, BufferBarrierDesc &bufferBarrier);
 
 // Function to de-serialize RawDataDesc from JSON
-void from_json(const json &j, RawDataDesc &raw_data);
+void from_json(const json &j, RawDataDesc &rawData);
 
 // Function to de-serialize GraphConstantDesc from JSON
 void from_json(const json &j, GraphConstantDesc &graphConstant);
