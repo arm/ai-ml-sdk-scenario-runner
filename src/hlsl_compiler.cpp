@@ -7,6 +7,7 @@
 #include <cstring>
 #include <fstream>
 #include <mutex>
+#include <new>
 #include <stdexcept>
 
 #include <dxc/Support/Global.h>
@@ -20,16 +21,29 @@
 
 #include <dxc/dxcapi.h>
 
-#if defined(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT) && !defined(_WIN32)
+#if defined(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
 namespace hlsl {
 HRESULT SetupRegistryPassForHLSL();
 HRESULT SetupRegistryPassForPIX();
-namespace options {
-std::error_code initHlslOptTable();
-} // namespace options
 } // namespace hlsl
 
 HRESULT DxilLibInitialize();
+#endif
+
+#if defined(_WIN32) && defined(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT) && !defined(DXC_DISABLE_ALLOCATOR_OVERRIDES)
+void *__CRTDECL operator new(std::size_t size) noexcept(false) {
+    void *ptr = DxcNew(size);
+    if (ptr == nullptr) {
+        throw std::bad_alloc();
+    }
+    return ptr;
+}
+
+void *__CRTDECL operator new(std::size_t size, const std::nothrow_t &) throw() { return DxcNew(size); }
+
+void __CRTDECL operator delete(void *ptr) throw() { DxcDelete(ptr); }
+
+void __CRTDECL operator delete(void *ptr, const std::nothrow_t &) throw() { DxcDelete(ptr); }
 #endif
 
 namespace mlsdk::scenariorunner {
@@ -56,7 +70,7 @@ std::wstring stringToWstring(const std::string &inputString) {
 
     for (size_t i = 0; i < inputString.size();) {
         int cp = 0;
-        unsigned char c = static_cast<unsigned char>(inputString[i]);
+        auto c = static_cast<unsigned char>(inputString[i]);
 
         if (c < 0x80) {
             cp = c;
@@ -93,7 +107,7 @@ std::vector<DxcDefine> parsePreprocessorOptions(const std::string &options, std:
         }
         std::string op = options.substr(start + 2, end - (start + 2)); // +2 skips the -D
         // split the name and the value and create a DxcDefine object
-        const size_t equal = op.find_first_of("=");
+        const size_t equal = op.find_first_of('=');
         DxcDefine defineStruct{};
         // name and value have to also be stored in a separate vector to avoid dangling pointers
         if (equal == std::string::npos) {
@@ -117,7 +131,7 @@ std::vector<DxcDefine> parsePreprocessorOptions(const std::string &options, std:
 
 } // namespace
 
-#if defined(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT) && !defined(_WIN32)
+#if defined(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
 namespace {
 void ensureStaticDxcInitialized() {
     static std::once_flag initFlag;
@@ -184,15 +198,21 @@ std::pair<std::string, std::vector<uint32_t>> HlslCompiler::compile(const std::s
                                                                     const std::string &debugName,
                                                                     const std::string &preprocessorOptions,
                                                                     const std::vector<std::string> &shaderDirs) {
-#if defined(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT) && !defined(_WIN32)
+#if defined(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
     ensureStaticDxcInitialized();
 #endif
 
     // Create DXC instances for the IDxcUtils and IDxcCompiler interfaces
     CComPtr<IDxcUtils> utils;
     CComPtr<IDxcCompiler3> compiler;
-    DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&utils));
-    DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&compiler));
+    HRESULT hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&utils));
+    if (FAILED(hr) || !utils) {
+        throw std::runtime_error("Failed to create IDxcUtils instance.");
+    }
+    hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&compiler));
+    if (FAILED(hr) || !compiler) {
+        throw std::runtime_error("Failed to create IDxcCompiler3 instance.");
+    }
 
     DxcBuffer buffer;
     buffer.Ptr = source.data();

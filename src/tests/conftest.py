@@ -357,11 +357,17 @@ class SDKTools:
     ) -> Path:
         """Compile the shader and return path to the SPIR-V module."""
         suffix = Path(shader).suffix
-        shader = self.resources_helper.prepare_shader(shader, replacements, output)
+        staged_shader_name = None
+        if output:
+            staged_shader_name = Path(output).with_suffix(suffix).name
+
+        shader = self.resources_helper.prepare_shader(
+            shader, replacements, staged_shader_name
+        )
         logger.debug("Shader code:\n%s", shader.read_text())
 
         compiled_shader_path = self.resources_helper.get_testenv_path(
-            shader.stem + ".spv"
+            output or (shader.stem + ".spv")
         )
 
         extra_opts = []
