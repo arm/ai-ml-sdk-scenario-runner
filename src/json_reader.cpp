@@ -8,19 +8,84 @@
 #include "logging.hpp"
 #include "scenario_desc.hpp"
 
-#include <iostream>
+#include <string_view>
+#include <unordered_map>
 
 namespace mlsdk::scenariorunner {
+namespace {
+
+const std::unordered_map<std::string_view, CommandType> &getCommandTypeByKey() {
+    static const std::unordered_map<std::string_view, CommandType> commandTypeByKey = {
+        {"dispatch_compute", CommandType::DispatchCompute},   {"dispatch_graph", CommandType::DispatchDataGraph},
+        {"dispatch_fragment", CommandType::DispatchFragment}, {"dispatch_spirv_graph", CommandType::DispatchSpirvGraph},
+        {"dispatch_barrier", CommandType::DispatchBarrier},   {"mark_boundary", CommandType::MarkBoundary},
+    };
+
+    return commandTypeByKey;
+}
+
+const std::unordered_map<std::string_view, ResourceType> &getResourceTypeByKey() {
+    static const std::unordered_map<std::string_view, ResourceType> resourceTypeByKey = {
+        {"shader", ResourceType::Shader},
+        {"buffer", ResourceType::Buffer},
+        {"graph", ResourceType::DataGraph},
+        {"raw_data", ResourceType::RawData},
+        {"tensor", ResourceType::Tensor},
+        {"image", ResourceType::Image},
+        {"image_barrier", ResourceType::ImageBarrier},
+        {"memory_barrier", ResourceType::MemoryBarrier},
+        {"tensor_barrier", ResourceType::TensorBarrier},
+        {"buffer_barrier", ResourceType::BufferBarrier},
+        {"graph_constant", ResourceType::GraphConstant},
+    };
+
+    return resourceTypeByKey;
+}
+
+template <typename EnumType>
+EnumType parseSingleKeyObjectType(const json &j, const std::unordered_map<std::string_view, EnumType> &typeByKey,
+                                  std::string_view entryName) {
+    if (!j.is_object()) {
+        throw std::runtime_error(std::string(entryName) + " entry must be a JSON object");
+    }
+
+    if (j.size() != 1) {
+        throw std::runtime_error(std::string(entryName) + " entry must contain exactly one top-level key");
+    }
+
+    const auto key = std::string_view(j.begin().key());
+    const auto it = typeByKey.find(key);
+    if (it == typeByKey.end()) {
+        throw std::runtime_error(std::string("Unknown ") + std::string(entryName) + " type");
+    }
+
+    return it->second;
+}
+
+void parseOptionalPipelineStages(const json &j, std::string_view fieldName, std::vector<PipelineStage> &stages) {
+    const auto stagesIter = j.find(fieldName);
+    if (stagesIter == j.end()) {
+        return;
+    }
+
+    stages = stagesIter.value().get<std::vector<PipelineStage>>();
+    for (const PipelineStage stage : stages) {
+        if (stage == PipelineStage::Unknown) {
+            throw std::runtime_error(std::string("Unknown ") + std::string(fieldName) + " value");
+        }
+    }
+}
+
+} // namespace
+
 //==============
 // Command details
-// Function to de-serialize CommandDesc from JSON
-void from_json(const json &j, CommandDesc &command);
+void from_json(const json &j, DispatchFragmentDesc &dispatchFragment);
+void from_json(const json &j, DispatchBarrierDesc &dispatchBarrier);
+void from_json(const json &j, MarkBoundaryDesc &markBoundaryDesc);
 
 //==============
 // Resource details
-// Function to de-serialize a ResourceDesc from JSON
-void from_json(const json &j, ResourceDesc &resource);
-
 // Function to de-serialize a SpecializationConstant from JSON
 void from_json(const json &j, SpecializationConstant &specializationConstant);
 
@@ -109,52 +174,51 @@ void readJson(ScenarioSpec &scenarioSpec, std::istream *is) {
 
     const json &resourcesJson = j.at("resources");
     for (const auto &resourceJson : resourcesJson) {
-        const json &item = resourceJson;
-        ResourceDesc resource = item.get<ResourceDesc>();
-        switch (resource.resourceType) {
+        const auto resourceType = parseSingleKeyObjectType(resourceJson, getResourceTypeByKey(), "Resource");
+        switch (resourceType) {
         case (ResourceType::Shader): {
-            ShaderDesc shader = item.at("shader").get<ShaderDesc>();
-            scenarioSpec.addResource(std::make_unique<ShaderDesc>(shader));
+            auto shader = resourceJson.at("shader").get<ShaderDesc>();
+            scenarioSpec.addResource(std::make_unique<ShaderDesc>(std::move(shader)));
         } break;
         case (ResourceType::Buffer): {
-            BufferDesc buffer = item.at("buffer").get<BufferDesc>();
-            scenarioSpec.addResource(std::make_unique<BufferDesc>(buffer));
+            auto buffer = resourceJson.at("buffer").get<BufferDesc>();
+            scenarioSpec.addResource(std::make_unique<BufferDesc>(std::move(buffer)));
         } break;
         case (ResourceType::RawData): {
-            RawDataDesc raw_data = item.at("raw_data").get<RawDataDesc>();
-            scenarioSpec.addResource(std::make_unique<RawDataDesc>(raw_data));
+            auto rawData = resourceJson.at("raw_data").get<RawDataDesc>();
+            scenarioSpec.addResource(std::make_unique<RawDataDesc>(std::move(rawData)));
         } break;
         case (ResourceType::DataGraph): {
-            DataGraphDesc dataGraph = item.at("graph").get<DataGraphDesc>();
-            scenarioSpec.addResource(std::make_unique<DataGraphDesc>(dataGraph));
+            auto dataGraph = resourceJson.at("graph").get<DataGraphDesc>();
+            scenarioSpec.addResource(std::make_unique<DataGraphDesc>(std::move(dataGraph)));
         } break;
         case (ResourceType::Tensor): {
-            TensorDesc tensor = item.at("tensor").get<TensorDesc>();
-            scenarioSpec.addResource(std::make_unique<TensorDesc>(tensor));
+            auto tensor = resourceJson.at("tensor").get<TensorDesc>();
+            scenarioSpec.addResource(std::make_unique<TensorDesc>(std::move(tensor)));
         } break;
         case (ResourceType::Image): {
-            ImageDesc image = item.at("image").get<ImageDesc>();
-            scenarioSpec.addResource(std::make_unique<ImageDesc>(image));
+            auto image = resourceJson.at("image").get<ImageDesc>();
+            scenarioSpec.addResource(std::make_unique<ImageDesc>(std::move(image)));
         } break;
         case (ResourceType::ImageBarrier): {
-            ImageBarrierDesc imageBarrier = item.at("image_barrier").get<ImageBarrierDesc>();
-            scenarioSpec.addResource(std::make_unique<ImageBarrierDesc>(imageBarrier));
+            auto imageBarrier = resourceJson.at("image_barrier").get<ImageBarrierDesc>();
+            scenarioSpec.addResource(std::make_unique<ImageBarrierDesc>(std::move(imageBarrier)));
         } break;
         case (ResourceType::TensorBarrier): {
-            TensorBarrierDesc tensorBarrier = item.at("tensor_barrier").get<TensorBarrierDesc>();
-            scenarioSpec.addResource(std::make_unique<TensorBarrierDesc>(tensorBarrier));
+            auto tensorBarrier = resourceJson.at("tensor_barrier").get<TensorBarrierDesc>();
+            scenarioSpec.addResource(std::make_unique<TensorBarrierDesc>(std::move(tensorBarrier)));
         } break;
         case (ResourceType::MemoryBarrier): {
-            MemoryBarrierDesc memoryBarrier = item.at("memory_barrier").get<MemoryBarrierDesc>();
-            scenarioSpec.addResource(std::make_unique<MemoryBarrierDesc>(memoryBarrier));
+            auto memoryBarrier = resourceJson.at("memory_barrier").get<MemoryBarrierDesc>();
+            scenarioSpec.addResource(std::make_unique<MemoryBarrierDesc>(std::move(memoryBarrier)));
         } break;
         case (ResourceType::BufferBarrier): {
-            BufferBarrierDesc bufferBarrier = item.at("buffer_barrier").get<BufferBarrierDesc>();
-            scenarioSpec.addResource(std::make_unique<BufferBarrierDesc>(bufferBarrier));
+            auto bufferBarrier = resourceJson.at("buffer_barrier").get<BufferBarrierDesc>();
+            scenarioSpec.addResource(std::make_unique<BufferBarrierDesc>(std::move(bufferBarrier)));
         } break;
         case (ResourceType::GraphConstant): {
-            GraphConstantDesc graphConstant = item.at("graph_constant").get<GraphConstantDesc>();
-            scenarioSpec.addResource(std::make_unique<GraphConstantDesc>(graphConstant));
+            auto graphConstant = resourceJson.at("graph_constant").get<GraphConstantDesc>();
+            scenarioSpec.addResource(std::make_unique<GraphConstantDesc>(std::move(graphConstant)));
         } break;
         default:
             throw std::runtime_error("Unknown Resource type in resources");
@@ -163,61 +227,35 @@ void readJson(ScenarioSpec &scenarioSpec, std::istream *is) {
 
     const json &commandsJson = j.at("commands");
     for (const auto &commandJson : commandsJson) {
-        CommandDesc command = commandJson.get<CommandDesc>();
-        switch (command.commandType) {
+        const auto commandType = parseSingleKeyObjectType(commandJson, getCommandTypeByKey(), "Command");
+        switch (commandType) {
         case (CommandType::DispatchCompute): {
-            DispatchComputeDesc dispatchCompute = commandJson.at("dispatch_compute").get<DispatchComputeDesc>();
-            scenarioSpec.addCommand(std::make_unique<DispatchComputeDesc>(dispatchCompute));
+            auto dispatchCompute = commandJson.at("dispatch_compute").get<DispatchComputeDesc>();
+            scenarioSpec.addCommand(std::make_unique<DispatchComputeDesc>(std::move(dispatchCompute)));
         } break;
         case (CommandType::DispatchDataGraph): {
-            DispatchDataGraphDesc dispatchDataGraph = commandJson.at("dispatch_graph").get<DispatchDataGraphDesc>();
-            scenarioSpec.addCommand(std::make_unique<DispatchDataGraphDesc>(dispatchDataGraph));
+            auto dispatchDataGraph = commandJson.at("dispatch_graph").get<DispatchDataGraphDesc>();
+            scenarioSpec.addCommand(std::make_unique<DispatchDataGraphDesc>(std::move(dispatchDataGraph)));
         } break;
         case (CommandType::DispatchSpirvGraph): {
-            DispatchSpirvGraphDesc dispatchSpirvGraph =
-                commandJson.at("dispatch_spirv_graph").get<DispatchSpirvGraphDesc>();
-            scenarioSpec.addCommand(std::make_unique<DispatchSpirvGraphDesc>(dispatchSpirvGraph));
+            auto dispatchSpirvGraph = commandJson.at("dispatch_spirv_graph").get<DispatchSpirvGraphDesc>();
+            scenarioSpec.addCommand(std::make_unique<DispatchSpirvGraphDesc>(std::move(dispatchSpirvGraph)));
         } break;
         case (CommandType::DispatchFragment): {
-            DispatchFragmentDesc dispatchFragment = commandJson.at("dispatch_fragment").get<DispatchFragmentDesc>();
-            scenarioSpec.addCommand(std::make_unique<DispatchFragmentDesc>(dispatchFragment));
+            auto dispatchFragment = commandJson.at("dispatch_fragment").get<DispatchFragmentDesc>();
+            scenarioSpec.addCommand(std::make_unique<DispatchFragmentDesc>(std::move(dispatchFragment)));
         } break;
         case (CommandType::DispatchBarrier): {
-            DispatchBarrierDesc dispatchBarrier = commandJson.at("dispatch_barrier").get<DispatchBarrierDesc>();
-            scenarioSpec.addCommand(std::make_unique<DispatchBarrierDesc>(dispatchBarrier));
+            auto dispatchBarrier = commandJson.at("dispatch_barrier").get<DispatchBarrierDesc>();
+            scenarioSpec.addCommand(std::make_unique<DispatchBarrierDesc>(std::move(dispatchBarrier)));
         } break;
         case (CommandType::MarkBoundary): {
-            MarkBoundaryDesc markBoundary = commandJson.at("mark_boundary").get<MarkBoundaryDesc>();
-            scenarioSpec.addCommand(std::make_unique<MarkBoundaryDesc>(markBoundary));
+            auto markBoundary = commandJson.at("mark_boundary").get<MarkBoundaryDesc>();
+            scenarioSpec.addCommand(std::make_unique<MarkBoundaryDesc>(std::move(markBoundary)));
         } break;
         default:
             throw std::runtime_error("Unknown Command type in commands");
         }
-    }
-}
-
-/**
- * @brief De-serialize CommandDesc from JSON.
- *
- * @param j
- * @param command
- */
-void from_json(const json &j, CommandDesc &command) {
-    command.commandType = CommandType::Unknown;
-    if (j.find("dispatch_compute") != j.end()) {
-        command.commandType = CommandType::DispatchCompute;
-    } else if (j.find("dispatch_graph") != j.end()) {
-        command.commandType = CommandType::DispatchDataGraph;
-    } else if (j.find("dispatch_fragment") != j.end()) {
-        command.commandType = CommandType::DispatchFragment;
-    } else if (j.find("dispatch_spirv_graph") != j.end()) {
-        command.commandType = CommandType::DispatchSpirvGraph;
-    } else if (j.find("dispatch_barrier") != j.end()) {
-        command.commandType = CommandType::DispatchBarrier;
-    } else if (j.find("mark_boundary") != j.end()) {
-        command.commandType = CommandType::MarkBoundary;
-    } else {
-        throw std::runtime_error("Unknown Command type");
     }
 }
 
@@ -418,41 +456,6 @@ void from_json(const json &j, MemoryGroup &group) {
 //====================
 // Resources
 //====================
-
-/**
- * @brief De-serialize ResourceDesc from JSON.
- *
- * @param j
- * @param resource
- */
-void from_json(const json &j, ResourceDesc &resource) {
-    resource.resourceType = ResourceType::Unknown;
-    if (j.find("shader") != j.end()) {
-        resource.resourceType = ResourceType::Shader;
-    } else if (j.find("buffer") != j.end()) {
-        resource.resourceType = ResourceType::Buffer;
-    } else if (j.find("graph") != j.end()) {
-        resource.resourceType = ResourceType::DataGraph;
-    } else if (j.find("raw_data") != j.end()) {
-        resource.resourceType = ResourceType::RawData;
-    } else if (j.find("tensor") != j.end()) {
-        resource.resourceType = ResourceType::Tensor;
-    } else if (j.find("image") != j.end()) {
-        resource.resourceType = ResourceType::Image;
-    } else if (j.find("image_barrier") != j.end()) {
-        resource.resourceType = ResourceType::ImageBarrier;
-    } else if (j.find("memory_barrier") != j.end()) {
-        resource.resourceType = ResourceType::MemoryBarrier;
-    } else if (j.find("tensor_barrier") != j.end()) {
-        resource.resourceType = ResourceType::TensorBarrier;
-    } else if (j.find("buffer_barrier") != j.end()) {
-        resource.resourceType = ResourceType::BufferBarrier;
-    } else if (j.find("graph_constant") != j.end()) {
-        resource.resourceType = ResourceType::GraphConstant;
-    } else {
-        throw std::runtime_error("Unknown Resource type");
-    }
-}
 
 /**
  * @brief De-serialize BufferDesc from JSON.
@@ -718,6 +721,10 @@ void from_json(const json &j, ImageDesc &image) {
         }
     }
     if (j.contains("custom_border_color")) {
+        if (!image.borderColor.has_value()) {
+            throw std::runtime_error("custom_border_color requires border_color");
+        }
+
         const json &customColorJson = j.at("custom_border_color");
         if (image.borderColor.value() == BorderColor::FloatCustomEXT) {
             image.customBorderColor = customColorJson.get<std::array<float, 4>>();
@@ -754,27 +761,8 @@ void from_json(const json &j, MemoryBarrierDesc &memoryBarrier) {
         throw std::runtime_error("Unknown dst_access value");
     }
 
-    auto srcStagesIter = j.find("src_stage");
-    if (srcStagesIter != j.end()) {
-        const json &srcStagesJson = srcStagesIter.value();
-        memoryBarrier.srcStages = srcStagesJson.get<std::vector<PipelineStage>>();
-        for (PipelineStage it : memoryBarrier.srcStages) {
-            if (it == PipelineStage::Unknown) {
-                throw std::runtime_error("Unknown src_stage value");
-            }
-        }
-    }
-
-    auto dstStagesIter = j.find("dst_stage");
-    if (dstStagesIter != j.end()) {
-        const json &dstStagesJson = dstStagesIter.value();
-        memoryBarrier.dstStages = dstStagesJson.get<std::vector<PipelineStage>>();
-        for (PipelineStage it : memoryBarrier.dstStages) {
-            if (it == PipelineStage::Unknown) {
-                throw std::runtime_error("Unknown dst_stage value");
-            }
-        }
-    }
+    parseOptionalPipelineStages(j, "src_stage", memoryBarrier.srcStages);
+    parseOptionalPipelineStages(j, "dst_stage", memoryBarrier.dstStages);
 }
 
 /**
@@ -795,27 +783,8 @@ void from_json(const json &j, TensorBarrierDesc &tensorBarrier) {
         throw std::runtime_error("Unknown dst_access value");
     }
 
-    auto srcStagesIter = j.find("src_stage");
-    if (srcStagesIter != j.end()) {
-        const json &srcStagesJson = srcStagesIter.value();
-        tensorBarrier.srcStages = srcStagesJson.get<std::vector<PipelineStage>>();
-        for (PipelineStage it : tensorBarrier.srcStages) {
-            if (it == PipelineStage::Unknown) {
-                throw std::runtime_error("Unknown src_stage value");
-            }
-        }
-    }
-
-    auto dstStagesIter = j.find("dst_stage");
-    if (dstStagesIter != j.end()) {
-        const json &dstStagesJson = dstStagesIter.value();
-        tensorBarrier.dstStages = dstStagesJson.get<std::vector<PipelineStage>>();
-        for (PipelineStage it : tensorBarrier.dstStages) {
-            if (it == PipelineStage::Unknown) {
-                throw std::runtime_error("Unknown dst_stage value");
-            }
-        }
-    }
+    parseOptionalPipelineStages(j, "src_stage", tensorBarrier.srcStages);
+    parseOptionalPipelineStages(j, "dst_stage", tensorBarrier.dstStages);
 
     tensorBarrier.tensorResource = j.at("tensor_resource").get<std::string>();
 }
@@ -850,27 +819,8 @@ void from_json(const json &j, ImageBarrierDesc &imageBarrier) {
         imageBarrier.imageRange = j.at("subresource_range").get<SubresourceRange>();
     }
 
-    auto srcStagesIter = j.find("src_stage");
-    if (srcStagesIter != j.end()) {
-        const json &srcStagesJson = srcStagesIter.value();
-        imageBarrier.srcStages = srcStagesJson.get<std::vector<PipelineStage>>();
-        for (PipelineStage it : imageBarrier.srcStages) {
-            if (it == PipelineStage::Unknown) {
-                throw std::runtime_error("Unknown src_stage value");
-            }
-        }
-    }
-
-    auto dstStagesIter = j.find("dst_stage");
-    if (dstStagesIter != j.end()) {
-        const json &dstStagesJson = dstStagesIter.value();
-        imageBarrier.dstStages = dstStagesJson.get<std::vector<PipelineStage>>();
-        for (PipelineStage it : imageBarrier.dstStages) {
-            if (it == PipelineStage::Unknown) {
-                throw std::runtime_error("Unknown dst_stage value");
-            }
-        }
-    }
+    parseOptionalPipelineStages(j, "src_stage", imageBarrier.srcStages);
+    parseOptionalPipelineStages(j, "dst_stage", imageBarrier.dstStages);
 }
 
 /**
@@ -893,27 +843,8 @@ void from_json(const json &j, BufferBarrierDesc &bufferBarrier) {
     bufferBarrier.size = j.at("size").get<uint64_t>();
     bufferBarrier.offset = j.at("offset").get<uint64_t>();
 
-    auto srcStagesIter = j.find("src_stage");
-    if (srcStagesIter != j.end()) {
-        const json &srcStagesJson = srcStagesIter.value();
-        bufferBarrier.srcStages = srcStagesJson.get<std::vector<PipelineStage>>();
-        for (PipelineStage it : bufferBarrier.srcStages) {
-            if (it == PipelineStage::Unknown) {
-                throw std::runtime_error("Unknown src_stage value");
-            }
-        }
-    }
-
-    auto dstStagesIter = j.find("dst_stage");
-    if (dstStagesIter != j.end()) {
-        const json &dstStagesJson = dstStagesIter.value();
-        bufferBarrier.dstStages = dstStagesJson.get<std::vector<PipelineStage>>();
-        for (PipelineStage it : bufferBarrier.dstStages) {
-            if (it == PipelineStage::Unknown) {
-                throw std::runtime_error("Unknown dst_stage value");
-            }
-        }
-    }
+    parseOptionalPipelineStages(j, "src_stage", bufferBarrier.srcStages);
+    parseOptionalPipelineStages(j, "dst_stage", bufferBarrier.dstStages);
 
     bufferBarrier.bufferResource = j.at("buffer_resource").get<std::string>();
 }
