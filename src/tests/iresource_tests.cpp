@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2025-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -33,6 +33,18 @@ TEST(DataManagerResourceViewer, HasResources) {
         ASSERT_FALSE(viewer.hasTensor());
         ASSERT_NO_THROW(viewer.getBuffer());
         ASSERT_THROW(viewer.getImage(), std::runtime_error);
+        ASSERT_THROW(viewer.getTensor(), std::runtime_error);
+    }
+
+    {
+        const Guid image("image");
+        dm.createImage(image, ImageInfo{});
+        DataManagerResourceViewer viewer(dm, image);
+        ASSERT_FALSE(viewer.hasBuffer());
+        ASSERT_TRUE(viewer.hasImage());
+        ASSERT_FALSE(viewer.hasTensor());
+        ASSERT_THROW(viewer.getBuffer(), std::runtime_error);
+        ASSERT_NO_THROW(viewer.getImage());
         ASSERT_THROW(viewer.getTensor(), std::runtime_error);
     }
 }
