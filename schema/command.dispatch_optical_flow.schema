@@ -1,0 +1,111 @@
+{
+    "$id": "urn:scenario:command:dispatch_optical_flow",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "width": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "height": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "grid_size": {
+            "type": "string",
+            "enum": ["1x1", "2x2", "4x4", "8x8"],
+            "description": "Corresponding to VkDataGraphOpticalFlowGridSizeFlagBitsARM."
+        },
+        "performance_level": {
+            "type": "string",
+            "enum": ["unknown", "slow", "medium", "fast"],
+            "default": "medium",
+            "description": "Corresponding to VkDataGraphOpticalFlowPerformanceLevelARM."
+        },
+        "execution_flags": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "disable_temporal_hints",
+                    "input_unchanged",
+                    "reference_unchanged",
+                    "input_is_previous_reference",
+                    "reference_is_previous_input"
+                ]
+            },
+            "uniqueItems": true,
+            "default": [],
+            "description": "Optional set of VkDataGraphOpticalFlowExecuteFlagsARM values."
+        },
+        "mean_flow_l1_norm_hint": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Corresponding to VkDataGraphPipelineOpticalFlowDispatchInfoARM::meanFlowL1NormHint. This is a mean-flow hint (not a direct block-match limit control). 0 means no hint."
+        },
+        "implicit_barrier": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether to include an implicit memory barrier (defaults to true)."
+        },
+
+        "bindings": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "search_image": { "$ref": "#/$defs/image_binding" },
+                "template_image": {
+                    "$ref": "#/$defs/image_binding",
+                    "description": "Binding for optical-flow reference input image."
+                },
+                "output_image": { "$ref": "#/$defs/image_binding" },
+                "hint_motion_vectors": {
+                    "$ref": "#/$defs/image_binding",
+                    "description": "Optional."
+                },
+                "output_cost": {
+                    "$ref": "#/$defs/image_binding",
+                    "description": "Optional."
+                }
+            },
+            "required": [
+                "search_image",
+                "template_image",
+                "output_image"
+            ]
+        }
+    },
+    "required": [
+        "width",
+        "height",
+        "grid_size",
+        "bindings"
+    ],
+    "$defs": {
+        "image_binding": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "set": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "resource_ref": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            },
+            "required": [
+                "id",
+                "set",
+                "resource_ref"
+            ]
+        }
+    }
+}

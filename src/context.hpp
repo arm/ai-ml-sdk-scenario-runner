@@ -21,6 +21,7 @@ struct OptionalExtensions {
     bool replicated_composites = false;
     bool shader_bfloat16 = false;
     bool shader_float8 = false;
+    bool optical_flow = false;
 };
 
 /// \brief Type of family queue to use

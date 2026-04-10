@@ -323,6 +323,161 @@ TEST(JsonParser, DataGraphInvalidSpecializationConstantsMapType) {
     ASSERT_THROW(MakeFromJSON<DataGraphDesc>(jsonInput), nlohmann::json::type_error);
 }
 
+TEST(JsonParser, DispatchOpticalFlowMeanFlowHintAcceptsLessThanMaxDimension) {
+    const std::string jsonInput =
+        R""(
+    {
+        "width": 8,
+        "height": 8,
+        "grid_size": "4x4",
+        "mean_flow_l1_norm_hint": 7,
+        "bindings": {
+            "search_image": {
+                "id": 0,
+                "set": 0,
+                "resource_ref": "input_search"
+            },
+            "template_image": {
+                "id": 1,
+                "set": 0,
+                "resource_ref": "input_template"
+            },
+            "output_image": {
+                "id": 2,
+                "set": 0,
+                "resource_ref": "output_flow"
+            }
+        }
+    }
+    )"";
+
+    const auto cmd = MakeFromJSON<DispatchOpticalFlowDesc>(jsonInput);
+    ASSERT_EQ(cmd.meanFlowL1NormHint, 7u);
+}
+
+TEST(JsonParser, DispatchOpticalFlowMeanFlowHintRejectsMaxDimension) {
+    const std::string jsonInput =
+        R""(
+    {
+        "width": 8,
+        "height": 8,
+        "grid_size": "4x4",
+        "mean_flow_l1_norm_hint": 8,
+        "bindings": {
+            "search_image": {
+                "id": 0,
+                "set": 0,
+                "resource_ref": "input_search"
+            },
+            "template_image": {
+                "id": 1,
+                "set": 0,
+                "resource_ref": "input_template"
+            },
+            "output_image": {
+                "id": 2,
+                "set": 0,
+                "resource_ref": "output_flow"
+            }
+        }
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<DispatchOpticalFlowDesc>(jsonInput), std::runtime_error);
+}
+
+TEST(JsonParser, DispatchOpticalFlowRejectsIntegerGridSize) {
+    const std::string jsonInput =
+        R""(
+    {
+        "width": 8,
+        "height": 8,
+        "grid_size": 2,
+        "bindings": {
+            "search_image": {
+                "id": 0,
+                "set": 0,
+                "resource_ref": "input_search"
+            },
+            "template_image": {
+                "id": 1,
+                "set": 0,
+                "resource_ref": "input_template"
+            },
+            "output_image": {
+                "id": 2,
+                "set": 0,
+                "resource_ref": "output_flow"
+            }
+        }
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<DispatchOpticalFlowDesc>(jsonInput), std::runtime_error);
+}
+
+TEST(JsonParser, DispatchOpticalFlowRejectsIntegerPerformanceLevel) {
+    const std::string jsonInput =
+        R""(
+    {
+        "width": 8,
+        "height": 8,
+        "grid_size": "4x4",
+        "performance_level": 2,
+        "bindings": {
+            "search_image": {
+                "id": 0,
+                "set": 0,
+                "resource_ref": "input_search"
+            },
+            "template_image": {
+                "id": 1,
+                "set": 0,
+                "resource_ref": "input_template"
+            },
+            "output_image": {
+                "id": 2,
+                "set": 0,
+                "resource_ref": "output_flow"
+            }
+        }
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<DispatchOpticalFlowDesc>(jsonInput), std::runtime_error);
+}
+
+TEST(JsonParser, DispatchOpticalFlowRejectsIntegerExecutionFlag) {
+    const std::string jsonInput =
+        R""(
+    {
+        "width": 8,
+        "height": 8,
+        "grid_size": "4x4",
+        "execution_flags": [2],
+        "bindings": {
+            "search_image": {
+                "id": 0,
+                "set": 0,
+                "resource_ref": "input_search"
+            },
+            "template_image": {
+                "id": 1,
+                "set": 0,
+                "resource_ref": "input_template"
+            },
+            "output_image": {
+                "id": 2,
+                "set": 0,
+                "resource_ref": "output_flow"
+            }
+        }
+    }
+    )"";
+
+    ASSERT_THROW(MakeFromJSON<DispatchOpticalFlowDesc>(jsonInput), std::runtime_error);
+}
+
 // Test the JSON parser:
 // 1. Deserialize a JSON test case
 // 2. Validate the number of commands and resources

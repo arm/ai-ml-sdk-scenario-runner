@@ -10,6 +10,7 @@
 #include "pipeline.hpp"
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -87,6 +88,25 @@ class Compute {
     void createPipeline(const PipelineCreateArguments &args, const ShaderInfo &shaderInfo,
                         const DataManager &dataManager, const std::vector<GraphConstantInfo> &constants);
 
+    /// \brief Create an optical flow data graph pipeline.
+    ///
+    /// This builds a VkDataGraphPipelineOpticalFlow using image resources from the DataManager
+    /// and the provided bindings. The bindings are interpreted as:
+    ///  - sampled images for inputs (search/template/hint)
+    ///  - storage images for outputs (flow/cost)
+    void createPipeline(const PipelineCreateArguments &args, const DataManager &dataManager,
+                        const TypedBinding &inputSearch, const TypedBinding &inputTemplate,
+                        const TypedBinding &outputFlow, const std::optional<TypedBinding> &inputHintMV,
+                        const std::optional<TypedBinding> &outputCost,
+                        vk::DataGraphOpticalFlowPerformanceLevelARM performanceLevel,
+                        vk::DataGraphOpticalFlowGridSizeFlagsARM gridSize, uint32_t inputWidth, uint32_t inputHeight);
+
+    /// \brief Optional dispatch info for data graph pipelines.
+    struct OpticalFlowDispatchInfo {
+        vk::DataGraphOpticalFlowExecuteFlagsARM opticalFlowFlags{};
+        uint32_t meanFlowL1NormHint{0};
+    };
+
     /// \brief Register last created pipeline for execution with a fence synchronization
     /// in the end
     ///
@@ -96,9 +116,11 @@ class Compute {
     /// \param pushConstantSize Size of push constants data in bytes
     /// \param implicitBarriers True to enable implicit barriers
     /// \param computeDispatch (Optional) Workgroup count across dimension X, Y and Z. Defaults to: 1, 1 and 1.
+    /// \param opticalFlowDispatchInfo (Optional) Optical flow dispatch info (optical flow flags, mean flow hint).
     void registerPipelineFenced(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
                                 const char *pushConstantData, size_t pushConstantSize, bool implicitBarriers,
-                                ComputeDispatch computeDispatch = {});
+                                ComputeDispatch computeDispatch = {},
+                                std::optional<OpticalFlowDispatchInfo> opticalFlowDispatchInfo = std::nullopt);
     void registerPipelineFenced(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
                                 const char *pushConstantData, size_t pushConstantSize, bool implicitBarriers,
                                 const GraphicsDispatchInfo &graphicsDispatch);
@@ -155,6 +177,7 @@ class Compute {
 
     struct DataGraphDispatch {
         vk::DataGraphPipelineSessionARM session{nullptr};
+        std::optional<OpticalFlowDispatchInfo> dispatchInfo{};
     };
 
     struct MemoryBarrier {
@@ -246,7 +269,8 @@ class Compute {
 
     void _addPushConstants(const char *pushConstantData, const Pipeline &pipeline, size_t pushConstantSize);
 
-    void _addDispatch(const ComputeDispatch &computeDispatch);
+    void _addDispatch(const ComputeDispatch &computeDispatch,
+                      const std::optional<OpticalFlowDispatchInfo> &dispatchInfo);
 
     void _addGraphicsDispatch(const GraphicsDispatchInfo &graphicsDispatch);
 

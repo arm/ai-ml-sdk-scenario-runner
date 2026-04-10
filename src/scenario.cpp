@@ -67,6 +67,25 @@ struct DispatchSpirvGraphData {
     bool implicitBarrier{true};
 };
 
+/// \brief Optical flow data graph with typed bindings
+struct DispatchOpticalFlowData {
+    std::string debugName;
+    TypedBinding searchImage;
+    TypedBinding templateImage;
+    TypedBinding outputImage;
+    std::optional<TypedBinding> hintMotionVectors;
+    std::optional<TypedBinding> outputCost;
+
+    uint32_t width{0};
+    uint32_t height{0};
+    OpticalFlowPerformanceLevel performanceLevel{OpticalFlowPerformanceLevel::Medium};
+    uint32_t executionFlags{0};
+    OpticalFlowGridSize gridSize{OpticalFlowGridSize::e1x1};
+    uint32_t meanFlowL1NormHint{0};
+
+    bool implicitBarrier{true};
+};
+
 namespace {
 std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<Guid> &constantUids,
                                                      const std::vector<std::unique_ptr<ResourceDesc>> &resources) {
@@ -482,6 +501,31 @@ struct CommandDataFactory {
         return data;
     }
 
+    DispatchOpticalFlowData createData(const DispatchOpticalFlowDesc &dispatchOpticalFlow) {
+        DispatchOpticalFlowData data;
+        data.debugName = dispatchOpticalFlow.debugName;
+
+        data.searchImage = convertBinding(_dataManager, dispatchOpticalFlow.searchImage);
+        data.templateImage = convertBinding(_dataManager, dispatchOpticalFlow.templateImage);
+        data.outputImage = convertBinding(_dataManager, dispatchOpticalFlow.outputImage);
+        if (dispatchOpticalFlow.hintMotionVectors.has_value()) {
+            data.hintMotionVectors = convertBinding(_dataManager, dispatchOpticalFlow.hintMotionVectors.value());
+        }
+        if (dispatchOpticalFlow.outputCost.has_value()) {
+            data.outputCost = convertBinding(_dataManager, dispatchOpticalFlow.outputCost.value());
+        }
+
+        data.width = dispatchOpticalFlow.width;
+        data.height = dispatchOpticalFlow.height;
+        data.performanceLevel = dispatchOpticalFlow.performanceLevel;
+        data.executionFlags = dispatchOpticalFlow.executionFlags;
+        data.gridSize = dispatchOpticalFlow.gridSize;
+        data.meanFlowL1NormHint = dispatchOpticalFlow.meanFlowL1NormHint;
+
+        data.implicitBarrier = dispatchOpticalFlow.implicitBarrier;
+        return data;
+    }
+
     MarkBoundaryData createData(const MarkBoundaryDesc &markBoundary) {
         MarkBoundaryData data;
 
@@ -523,6 +567,39 @@ auto getFamilyQueue(const ScenarioSpec &spec) {
     }
     return FamilyQueue::DataGraph;
 }
+
+// Map performance level to Vulkan enum
+auto getOpticalFlowPerformanceLevel(OpticalFlowPerformanceLevel performanceLevel) {
+    switch (performanceLevel) {
+    case OpticalFlowPerformanceLevel::Unknown:
+        return vk::DataGraphOpticalFlowPerformanceLevelARM::eUnknown;
+    case OpticalFlowPerformanceLevel::Slow:
+        return vk::DataGraphOpticalFlowPerformanceLevelARM::eSlow;
+    case OpticalFlowPerformanceLevel::Medium:
+        return vk::DataGraphOpticalFlowPerformanceLevelARM::eMedium;
+    case OpticalFlowPerformanceLevel::Fast:
+        return vk::DataGraphOpticalFlowPerformanceLevelARM::eFast;
+    default:
+        throw std::runtime_error("Unrecognised performance level, expected unknown, slow, medium, or fast.");
+    }
+}
+
+// Map grid size to Vulkan enums
+auto getOpticalFlowGridSize(OpticalFlowGridSize gridSize) {
+    switch (gridSize) {
+    case OpticalFlowGridSize::e1x1:
+        return vk::DataGraphOpticalFlowGridSizeFlagBitsARM::e1X1;
+    case OpticalFlowGridSize::e2x2:
+        return vk::DataGraphOpticalFlowGridSizeFlagBitsARM::e2X2;
+    case OpticalFlowGridSize::e4x4:
+        return vk::DataGraphOpticalFlowGridSizeFlagBitsARM::e4X4;
+    case OpticalFlowGridSize::e8x8:
+        return vk::DataGraphOpticalFlowGridSizeFlagBitsARM::e8X8;
+    default:
+        throw std::runtime_error("Unrecognised grid size, expected 1x1, 2x2, 4x4, or 8x8.");
+    }
+}
+
 } // namespace
 
 Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
@@ -775,6 +852,11 @@ void Scenario::setupCommands() {
             const auto &dispatchFragment = reinterpret_cast<DispatchFragmentDesc &>(*command);
             const auto data = factory.createData(dispatchFragment);
             createFragmentPipeline(data, nQueries);
+        } break;
+        case (CommandType::DispatchOpticalFlow): {
+            const auto &dispatchOpticalFlow = reinterpret_cast<DispatchOpticalFlowDesc &>(*command);
+            const auto data = factory.createData(dispatchOpticalFlow);
+            createOpticalFlowPipeline(data, nQueries);
         } break;
         case (CommandType::MarkBoundary): {
             const auto &markBoundary = reinterpret_cast<MarkBoundaryDesc &>(*command);
@@ -1091,6 +1173,47 @@ void Scenario::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSp
     _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchSpirvGraph.implicitBarrier);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
     mlsdk::logging::debug("Graph Pipeline: " + shaderInfo.debugName + " created");
+}
+
+void Scenario::createOpticalFlowPipeline(const DispatchOpticalFlowData &dispatchOpticalFlow, uint32_t &nQueries) {
+    const std::vector<TypedBinding> emptyBindings{};
+    const Compute::PipelineCreateArguments args{dispatchOpticalFlow.debugName, emptyBindings, _pipelineCache};
+
+    const auto perfLevel = getOpticalFlowPerformanceLevel(dispatchOpticalFlow.performanceLevel);
+    const auto gridSize = getOpticalFlowGridSize(dispatchOpticalFlow.gridSize);
+
+    PerfCounterGuard guard(_perfCounters, "Create Optical Flow Pipeline: " + dispatchOpticalFlow.debugName,
+                           "Pipeline Setup");
+
+    std::vector<TypedBinding> bindings;
+    bindings.reserve(5);
+    bindings.emplace_back(dispatchOpticalFlow.searchImage);
+    bindings.emplace_back(dispatchOpticalFlow.templateImage);
+    bindings.emplace_back(dispatchOpticalFlow.outputImage);
+    if (dispatchOpticalFlow.hintMotionVectors.has_value()) {
+        bindings.emplace_back(dispatchOpticalFlow.hintMotionVectors.value());
+    }
+    if (dispatchOpticalFlow.outputCost.has_value()) {
+        bindings.emplace_back(dispatchOpticalFlow.outputCost.value());
+    }
+    _compute.createPipeline(args, _dataManager, dispatchOpticalFlow.searchImage, dispatchOpticalFlow.templateImage,
+                            dispatchOpticalFlow.outputImage, dispatchOpticalFlow.hintMotionVectors,
+                            dispatchOpticalFlow.outputCost, perfLevel, gridSize, dispatchOpticalFlow.width,
+                            dispatchOpticalFlow.height);
+
+    // Optical flow is a data graph pipeline; profile it as such.
+    _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
+
+    Compute::OpticalFlowDispatchInfo dispatchInfo{};
+    dispatchInfo.opticalFlowFlags = vk::DataGraphOpticalFlowExecuteFlagsARM{dispatchOpticalFlow.executionFlags};
+    dispatchInfo.meanFlowL1NormHint = dispatchOpticalFlow.meanFlowL1NormHint;
+
+    _compute.registerPipelineFenced(_dataManager, bindings, nullptr, 0, dispatchOpticalFlow.implicitBarrier, {},
+                                    dispatchInfo);
+
+    _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
+
+    mlsdk::logging::debug("Optical Flow Pipeline: " + dispatchOpticalFlow.debugName + " created");
 }
 
 void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,

@@ -378,6 +378,123 @@ Pipeline::Pipeline(const CommonArguments &args, const uint32_t segmentIndex, con
     graphComputePipelineCommon(args.ctx, segmentIndex, vgfView, args.pipelineCache, resourceInfos);
 }
 
+Pipeline::Pipeline(const CommonArguments &args, const DataManager &dataManager, const TypedBinding &inputSearch,
+                   const TypedBinding &inputTemplate, const TypedBinding &outputFlow,
+                   const std::optional<TypedBinding> &inputHintMV, const std::optional<TypedBinding> &outputCost,
+                   vk::DataGraphOpticalFlowPerformanceLevelARM performanceLevel,
+                   vk::DataGraphOpticalFlowGridSizeFlagsARM gridSize, uint32_t inputWidth, uint32_t inputHeight)
+    : _type{PipelineType::GraphCompute}, _debugName(args.debugName), _opticalFlowSession(true) {
+
+    // Create descriptor set layouts from bindings
+    std::vector<TypedBinding> bindings;
+    bindings.reserve(5);
+    bindings.emplace_back(inputSearch);
+    bindings.emplace_back(inputTemplate);
+    bindings.emplace_back(outputFlow);
+    if (inputHintMV.has_value()) {
+        bindings.emplace_back(inputHintMV.value());
+    }
+    if (outputCost.has_value()) {
+        bindings.emplace_back(outputCost.value());
+    }
+    createDescriptorSetLayouts(args.ctx, bindings);
+    _pipelineLayout = createPipelineLayout(args.ctx, _descriptorSetLayouts);
+
+    const auto inputFormat = dataManager.getImage(inputSearch.resourceRef).dataType();
+    const auto flowFormat = dataManager.getImage(outputFlow.resourceRef).dataType();
+    vk::Format costFormat{};
+
+    // We expect all bindings to be images (sampled or storage)
+    vk::DataGraphOpticalFlowCreateFlagsARM flags{};
+    std::vector<vk::DataGraphPipelineResourceInfoARM> resourceInfos;
+    resourceInfos.reserve(bindings.size());
+
+    std::vector<vk::DataGraphPipelineResourceInfoImageLayoutARM> resourceImageInfos;
+    resourceImageInfos.reserve(bindings.size());
+
+    std::vector<vk::DataGraphPipelineSingleNodeConnectionARM> connections;
+    connections.reserve(bindings.size());
+
+    auto addConnection = [&](const TypedBinding &binding, vk::DataGraphPipelineNodeConnectionTypeARM connection) {
+        if (!dataManager.hasImage(binding.resourceRef)) {
+            throw std::runtime_error("Optical flow pipeline expects image resources for all bindings");
+        }
+        const auto layout = dataManager.getImage(binding.resourceRef).getImageLayout();
+
+        vk::DataGraphPipelineSingleNodeConnectionARM conn{};
+        conn.setSet(static_cast<uint32_t>(binding.set));
+        conn.setBinding(static_cast<uint32_t>(binding.id));
+        conn.setConnection(connection);
+        connections.emplace_back(conn);
+
+        vk::DataGraphPipelineResourceInfoImageLayoutARM imgInfo{};
+        imgInfo.setLayout(layout);
+        resourceImageInfos.emplace_back(imgInfo);
+
+        vk::DataGraphPipelineResourceInfoARM resInfo{};
+        resInfo.setDescriptorSet(static_cast<uint32_t>(binding.set));
+        resInfo.setBinding(static_cast<uint32_t>(binding.id));
+        resInfo.setArrayElement(0);
+        resInfo.setPNext(&resourceImageInfos.back());
+        resourceInfos.emplace_back(resInfo);
+    };
+
+    addConnection(inputSearch, vk::DataGraphPipelineNodeConnectionTypeARM::eOpticalFlowInput);
+    addConnection(inputTemplate, vk::DataGraphPipelineNodeConnectionTypeARM::eOpticalFlowReference);
+    addConnection(outputFlow, vk::DataGraphPipelineNodeConnectionTypeARM::eOpticalFlowFlowVector);
+    if (inputHintMV.has_value()) {
+        addConnection(inputHintMV.value(), vk::DataGraphPipelineNodeConnectionTypeARM::eOpticalFlowHint);
+        flags |= vk::DataGraphOpticalFlowCreateFlagBitsARM::eEnableHint;
+    }
+    if (outputCost.has_value()) {
+        addConnection(outputCost.value(), vk::DataGraphPipelineNodeConnectionTypeARM::eOpticalFlowCost);
+        flags |= vk::DataGraphOpticalFlowCreateFlagBitsARM::eEnableCost;
+        costFormat = dataManager.getImage(outputCost.value().resourceRef).dataType();
+    }
+
+    vk::DataGraphPipelineSingleNodeCreateInfoARM singleNodeInfo{};
+    singleNodeInfo.setNodeType(vk::DataGraphPipelineNodeTypeARM::eOpticalFlow);
+    singleNodeInfo.setConnectionCount(static_cast<uint32_t>(connections.size()));
+    singleNodeInfo.setPConnections(connections.data());
+
+    vk::DataGraphPipelineOpticalFlowCreateInfoARM opticalFlowCreateInfo{};
+    opticalFlowCreateInfo.setWidth(inputWidth);
+    opticalFlowCreateInfo.setHeight(inputHeight);
+    opticalFlowCreateInfo.setImageFormat(inputFormat);
+    opticalFlowCreateInfo.setFlowVectorFormat(flowFormat);
+    opticalFlowCreateInfo.setCostFormat(costFormat);
+    opticalFlowCreateInfo.setOutputGridSize(gridSize);
+    opticalFlowCreateInfo.setHintGridSize(gridSize);
+    opticalFlowCreateInfo.setPerformanceLevel(performanceLevel);
+    opticalFlowCreateInfo.setFlags(flags);
+    singleNodeInfo.setPNext(&opticalFlowCreateInfo);
+
+    const vk::raii::DeferredOperationKHR deferredOperation(nullptr);
+
+    vk::PipelineCreateFlags2KHR flags2{};
+    const vk::raii::PipelineCache *vkPipelineCache{nullptr};
+    if (args.pipelineCache) {
+        if (args.pipelineCache->failOnCacheMiss()) {
+            flags2 |= vk::PipelineCreateFlagBits2KHR::eFailOnPipelineCompileRequired;
+        }
+        insertAfter(&opticalFlowCreateInfo, args.pipelineCache->getCacheFeedbackCreateInfo());
+        vkPipelineCache = args.pipelineCache->get();
+    }
+
+    vk::DataGraphPipelineCreateInfoARM pipelineCreateInfo{};
+    pipelineCreateInfo.setFlags(flags2);
+    pipelineCreateInfo.setLayout(*_pipelineLayout);
+    pipelineCreateInfo.setResourceInfoCount(static_cast<uint32_t>(resourceInfos.size()));
+    pipelineCreateInfo.setPResourceInfos(resourceInfos.data());
+    pipelineCreateInfo.setPNext(&singleNodeInfo);
+
+    _pipeline = vk::raii::Pipeline(args.ctx.device(), deferredOperation, vkPipelineCache, pipelineCreateInfo);
+
+    trySetVkRaiiObjectDebugName(args.ctx, _pipeline, _debugName);
+
+    initSession(args.ctx);
+}
+
 void Pipeline::graphComputePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
                                           const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
                                           const std::vector<vk::DataGraphPipelineConstantARM> &constantInfos,
@@ -445,6 +562,9 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIn
 void Pipeline::initSession(const Context &ctx) {
     // Create session for the pipeline
     vk::DataGraphPipelineSessionCreateFlagsARM sessionFlags{};
+    if (_opticalFlowSession) {
+        sessionFlags |= vk::DataGraphPipelineSessionCreateFlagBitsARM::eOpticalFlowCache;
+    }
     vk::DataGraphPipelineSessionCreateInfoARM sessionCreateInfo{sessionFlags, *_pipeline};
 
     _session = vk::raii::DataGraphPipelineSessionARM{ctx.device(), sessionCreateInfo};
