@@ -347,8 +347,9 @@ jint runScenarioRunnerFromJni(JNIEnv *env, jobjectArray args) {
 }
 } // namespace
 
-extern "C" JNIEXPORT jint JNICALL Java_com_arm_aiml_scenariorunner_Main_runScenarioRunner(JNIEnv *env, jobject /*thiz*/,
-                                                                                          jobjectArray args) {
+extern "C" JNIEXPORT jint JNICALL Java_com_arm_ai_1ml_1sdk_1scenario_1runner_Main_runScenarioRunner(JNIEnv *env,
+                                                                                                    jobject /*thiz*/,
+                                                                                                    jobjectArray args) {
     return runScenarioRunnerFromJni(env, args);
 }
 #endif
