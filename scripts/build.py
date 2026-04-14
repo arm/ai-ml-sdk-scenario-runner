@@ -74,7 +74,6 @@ class Builder:
         self.experimental_image_format_support = (
             args.enable_experimental_image_format_support
         )
-        self.enable_hlsl_support = args.enable_hlsl_support
 
         self.package_dir = args.package_dir or self.build_dir
         self.package_tgz = "tgz" in args.package_type
@@ -102,15 +101,14 @@ class Builder:
                 cmake_cmd.append(
                     f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_PATH / 'gcc.cmake'}"
                 )
-                if self.enable_hlsl_support:
-                    cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
+                cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
                 return True
+
             if system == "Darwin":
                 cmake_cmd.append(
                     f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_PATH / 'clang.cmake'}"
                 )
                 cmake_cmd.append("-DMOLTEN_VK_SUPPORT=ON")
-
                 return True
 
             if system == "Windows":
@@ -118,8 +116,7 @@ class Builder:
                     f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_PATH / 'windows-msvc.cmake'}"
                 )
                 cmake_cmd.append("-DMSVC=ON")
-                if self.enable_hlsl_support:
-                    cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
+                cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
                 return True
 
             print(f"Unsupported host platform {system}", file=sys.stderr)
@@ -135,9 +132,9 @@ class Builder:
             cmake_cmd.append(
                 f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_PATH / 'clang.cmake'}"
             )
-            if self.enable_hlsl_support:
-                cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
+            cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
             return True
+
         if self.target_platform == "aarch64":
             cmake_cmd.append(
                 f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_PATH / 'linux-aarch64-gcc.cmake'}"
@@ -151,10 +148,6 @@ class Builder:
             cmake_cmd.append("-DBUILD_WSI_WAYLAND_SUPPORT=OFF")
             cmake_cmd.append("-DBUILD_WSI_XLIB_SUPPORT=OFF")
             cmake_cmd.append("-DBUILD_WSI_XCB_SUPPORT=OFF")
-            if self.enable_hlsl_support:
-                print(
-                    "WARNING: Ignoring 'enable hlsl support' option not available for the selected platform."
-                )
             return True
 
         if self.target_platform == "android":
@@ -178,11 +171,6 @@ class Builder:
             cmake_cmd.append("-DANDROID_PIE=ON")
             if self.force_no_debug_symbols_android_build:
                 cmake_cmd.append("-DCMAKE_CXX_FLAGS_RELEASE=-g0")
-
-            if self.enable_hlsl_support:
-                print(
-                    "WARNING: Ignoring 'enable hlsl support' option not available for the selected platform."
-                )
             return True
 
         print(
@@ -411,7 +399,7 @@ class Builder:
                         "--spirv-val",
                         f"{self.install}/bin/spirv-val{exe_ext}",
                     ]
-                    if self.enable_hlsl_support and platform.system() in [
+                    if platform.system() in [
                         "Linux",
                         "Windows",
                     ]:
@@ -434,7 +422,7 @@ class Builder:
                         "--spirv-val",
                         f"{self.build_dir}/spirv-tools/tools/spirv-val{exe_ext}",
                     ]
-                    if self.enable_hlsl_support and platform.system() in [
+                    if platform.system() in [
                         "Linux",
                         "Windows",
                     ]:
@@ -720,12 +708,6 @@ def parse_arguments():
     parser.add_argument(
         "--enable-experimental-image-format-support",
         help=("Enable experimental image format support in DDS reader"),
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
-        "--enable-hlsl-support",
-        help=("Enable HLSL to SPIRV compilation"),
         action="store_true",
         default=False,
     )

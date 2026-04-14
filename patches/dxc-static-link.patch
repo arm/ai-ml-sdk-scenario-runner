@@ -5,7 +5,7 @@ index 95cc56a..c96b5e7 100644
 @@ -13,6 +13,11 @@
  #ifndef __DXC_API__
  #define __DXC_API__
-
+ 
 +#ifdef DXC_STATIC_LINK
 +#ifndef DXC_API_IMPORT
 +#define DXC_API_IMPORT
@@ -19,9 +19,9 @@ index 95cc56a..c96b5e7 100644
  #endif
  #endif
 +#endif
-
+ 
  #ifdef _WIN32
-
+ 
 diff --git a/tools/clang/tools/dxcompiler/CMakeLists.txt b/tools/clang/tools/dxcompiler/CMakeLists.txt
 index c69e276..d896721 100644
 --- a/tools/clang/tools/dxcompiler/CMakeLists.txt
@@ -31,17 +31,17 @@ index c69e276..d896721 100644
    OUTPUT_NAME "dxcompiler"
    VERSION ${LIBCLANG_LIBRARY_VERSION}
    DEFINE_SYMBOL _CINDEX_LIB_)
-
+ 
  if (WIN32)
    set(install_dest RUNTIME DESTINATION bin)
  else()
    set(install_dest LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX})
  endif()
-
+ 
  install(TARGETS dxcompiler
    ${install_dest}
    COMPONENT dxcompiler)
-
+ 
  add_custom_target(install-dxcompiler
    DEPENDS dxcompiler
    COMMAND "${CMAKE_COMMAND}"

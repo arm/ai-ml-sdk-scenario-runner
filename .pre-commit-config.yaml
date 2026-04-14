@@ -16,6 +16,7 @@ repos:
         exclude: \.cp?p?$
       - id: trailing-whitespace
         stages: [pre-commit]
+        exclude: '\.patch$'
       - id: mixed-line-ending
         args: ['--fix=lf']
         description: Forces to replace line ending by the UNIX 'lf' character.
