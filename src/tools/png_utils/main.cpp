@@ -81,7 +81,10 @@ int main(int argc, const char **argv) {
     try {
         argparse::ArgumentParser parser(argv[0]);
 
-        parser.add_argument("--action").choices("generate", "to_npy", "compare").help("Required action").required();
+        parser.add_argument("--action")
+            .choices("generate", "to_npy", "compare")
+            .help("Required action: generate, to_npy, or compare")
+            .required();
 
         parser.add_argument("--height").scan<'i', uint32_t>().help("Image height");
         parser.add_argument("--width").scan<'i', uint32_t>().help("Image width");

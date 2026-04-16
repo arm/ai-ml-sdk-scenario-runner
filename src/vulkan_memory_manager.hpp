@@ -125,8 +125,8 @@ class ResourceMemoryManager {
         auto cmdPool = ctx.device().createCommandPool(cmdPoolCreateInfo);
         const vk::CommandBufferAllocateInfo cmdBufferAllocInfo(*cmdPool, vk::CommandBufferLevel::ePrimary, 1);
         vk::raii::CommandBuffer cmdBuffer = std::move(ctx.device().allocateCommandBuffers(cmdBufferAllocInfo).front());
-        const vk::CommandBufferBeginInfo CmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-        cmdBuffer.begin(CmdBufferBeginInfo);
+        const vk::CommandBufferBeginInfo cmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+        cmdBuffer.begin(cmdBufferBeginInfo);
         vk::BufferCopy copyRegion{0, 0, size};
         cmdBuffer.copyBuffer(stagingBuffer, deviceBuffer, copyRegion);
         cmdBuffer.end();
@@ -163,8 +163,8 @@ class ResourceMemoryManager {
         auto cmdPool = ctx.device().createCommandPool(cmdPoolCreateInfo);
         const vk::CommandBufferAllocateInfo cmdBufferAllocInfo(*cmdPool, vk::CommandBufferLevel::ePrimary, 1);
         vk::raii::CommandBuffer cmdBuffer = std::move(ctx.device().allocateCommandBuffers(cmdBufferAllocInfo).front());
-        const vk::CommandBufferBeginInfo CmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-        cmdBuffer.begin(CmdBufferBeginInfo);
+        const vk::CommandBufferBeginInfo cmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+        cmdBuffer.begin(cmdBufferBeginInfo);
         vk::BufferCopy copyRegion{0, 0, size};
         cmdBuffer.copyBuffer(deviceBuffer, stagingBuffer, copyRegion);
         cmdBuffer.end();

@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#pragma once
+
 #include "context.hpp"
 #include "types.hpp"
 #include "vgf-utils/memory_map.hpp"

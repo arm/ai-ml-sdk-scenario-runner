@@ -77,11 +77,11 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     _instance = vk::raii::Instance(_ctx, instanceInfo);
 
     // Create physical device
-    auto _physicalDevices = vk::raii::PhysicalDevices(_instance);
+    auto physicalDevices = vk::raii::PhysicalDevices(_instance);
 
     // Sort physical devices prioritizing discrete GPUs
     _physicalDev =
-        *std::max_element(_physicalDevices.begin(), _physicalDevices.end(), [](const auto &left, const auto &right) {
+        *std::max_element(physicalDevices.begin(), physicalDevices.end(), [](const auto &left, const auto &right) {
             // Select discrete GPU
             std::map<vk::PhysicalDeviceType, int> priorityOrder = {
                 {vk::PhysicalDeviceType::eDiscreteGpu, 5},   //
