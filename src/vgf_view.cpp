@@ -215,7 +215,7 @@ std::pair<std::vector<TypedBinding>, VgfView::MrtIndexes> VgfView::getBindings(u
             const auto expectedType = resourceTableDecoder->getDescriptorType(mrtIndex);
             const auto vkDescriptorType = getVkDescriptorType(expectedType.value_or(DESCRIPTOR_TYPE_UNKNOWN));
             auto bindingId = sequenceTableDecoder->getBindingSlotBinding(handle, slot);
-            auto guidStr = createResourceGuidStr(bindingId, resourceTableDecoder->getCategory(mrtIndex));
+            auto guidStr = createResourceGuidStr(mrtIndex, resourceTableDecoder->getCategory(mrtIndex));
             TypedBinding binding;
             binding.set = set;
             binding.id = bindingId;
