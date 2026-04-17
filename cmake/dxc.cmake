@@ -60,6 +60,11 @@ if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
     set(CLANG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(HLSL_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
     set(HLSL_DISABLE_SOURCE_GENERATION ON CACHE BOOL "" FORCE)
+    if(MSVC AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+        # DXC disables checked iterators by default on MSVC. Keep the
+        # embedded DXC/LLVM build aligned with the rest of the Debug link.
+        set(HLSL_ENABLE_DEBUG_ITERATORS ON CACHE BOOL "" FORCE)
+    endif()
     if(MSVC)
         set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded CACHE STRING "" FORCE)
     endif()
