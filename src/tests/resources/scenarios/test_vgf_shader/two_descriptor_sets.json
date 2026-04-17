@@ -1,0 +1,71 @@
+{
+    "commands": [
+        {
+            "dispatch_graph": {
+                "bindings": [
+                    {
+                        "id": 4,
+                        "set": 0,
+                        "resource_ref": "input"
+                    },
+                    {
+                        "id": 9,
+                        "set": 0,
+                        "resource_ref": "input2"
+                    },
+                    {
+                        "id": 17,
+                        "set": 1,
+                        "resource_ref": "output"
+                    }
+                ],
+                "shader_substitutions": [
+                    {
+                        "shader_ref": "add_shader",
+                        "target": "add_one"
+                    }
+                ],
+                "graph_ref": "vgfGraph"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "src": "add_shader.spv",
+                "type": "SPIR-V",
+                "uid": "add_shader"
+            }
+        },
+        {
+            "graph": {
+                "uid": "vgfGraph",
+                "src": "{VGF_FILE}"
+            }
+        },
+        {
+            "buffer": {
+                "uid": "input",
+                "shader_access": "readonly",
+                "size": 10,
+                "src": "input.npy"
+            }
+        },
+        {
+            "buffer": {
+                "uid": "input2",
+                "shader_access": "readonly",
+                "size": 10,
+                "src": "input2.npy"
+            }
+        },
+        {
+            "buffer": {
+                "uid": "output",
+                "shader_access": "writeonly",
+                "size": 10,
+                "dst": "output.npy"
+            }
+        }
+    ]
+}
