@@ -9,63 +9,9 @@
 #include "scenario_desc.hpp"
 
 #include <string_view>
-#include <unordered_map>
 
 namespace mlsdk::scenariorunner {
 namespace {
-
-const std::unordered_map<std::string_view, CommandType> &getCommandTypeByKey() {
-    static const std::unordered_map<std::string_view, CommandType> commandTypeByKey = {
-        {"dispatch_compute", CommandType::DispatchCompute},
-        {"dispatch_graph", CommandType::DispatchDataGraph},
-        {"dispatch_fragment", CommandType::DispatchFragment},
-        {"dispatch_spirv_graph", CommandType::DispatchSpirvGraph},
-        {"dispatch_barrier", CommandType::DispatchBarrier},
-        {"mark_boundary", CommandType::MarkBoundary},
-        {"dispatch_optical_flow", CommandType::DispatchOpticalFlow},
-    };
-
-    return commandTypeByKey;
-}
-
-const std::unordered_map<std::string_view, ResourceType> &getResourceTypeByKey() {
-    static const std::unordered_map<std::string_view, ResourceType> resourceTypeByKey = {
-        {"shader", ResourceType::Shader},
-        {"buffer", ResourceType::Buffer},
-        {"graph", ResourceType::DataGraph},
-        {"raw_data", ResourceType::RawData},
-        {"tensor", ResourceType::Tensor},
-        {"image", ResourceType::Image},
-        {"image_barrier", ResourceType::ImageBarrier},
-        {"memory_barrier", ResourceType::MemoryBarrier},
-        {"tensor_barrier", ResourceType::TensorBarrier},
-        {"buffer_barrier", ResourceType::BufferBarrier},
-        {"graph_constant", ResourceType::GraphConstant},
-    };
-
-    return resourceTypeByKey;
-}
-
-template <typename EnumType>
-EnumType parseSingleKeyObjectType(const json &j, const std::unordered_map<std::string_view, EnumType> &typeByKey,
-                                  std::string_view entryName) {
-    if (!j.is_object()) {
-        throw std::runtime_error(std::string(entryName) + " entry must be a JSON object");
-    }
-
-    if (j.size() != 1) {
-        throw std::runtime_error(std::string(entryName) + " entry must contain exactly one top-level key");
-    }
-
-    const auto key = std::string_view(j.begin().key());
-    const auto it = typeByKey.find(key);
-    if (it == typeByKey.end()) {
-        throw std::runtime_error(std::string("Unknown ") + std::string(entryName) + " type");
-    }
-
-    return it->second;
-}
-
 void parseOptionalPipelineStages(const json &j, std::string_view fieldName, std::vector<PipelineStage> &stages) {
     const auto stagesIter = j.find(fieldName);
     if (stagesIter == j.end()) {
@@ -126,6 +72,28 @@ void from_json(const json &j, SubresourceRange &subresourceRange);
 
 //==============
 // Enums
+NLOHMANN_JSON_SERIALIZE_ENUM(ResourceType, {{ResourceType::Unknown, nullptr},
+                                            {ResourceType::Shader, "shader"},
+                                            {ResourceType::Buffer, "buffer"},
+                                            {ResourceType::DataGraph, "graph"},
+                                            {ResourceType::RawData, "raw_data"},
+                                            {ResourceType::Tensor, "tensor"},
+                                            {ResourceType::Image, "image"},
+                                            {ResourceType::ImageBarrier, "image_barrier"},
+                                            {ResourceType::MemoryBarrier, "memory_barrier"},
+                                            {ResourceType::TensorBarrier, "tensor_barrier"},
+                                            {ResourceType::BufferBarrier, "buffer_barrier"},
+                                            {ResourceType::GraphConstant, "graph_constant"}})
+
+NLOHMANN_JSON_SERIALIZE_ENUM(CommandType, {{CommandType::Unknown, nullptr},
+                                           {CommandType::DispatchCompute, "dispatch_compute"},
+                                           {CommandType::DispatchDataGraph, "dispatch_graph"},
+                                           {CommandType::DispatchSpirvGraph, "dispatch_spirv_graph"},
+                                           {CommandType::DispatchFragment, "dispatch_fragment"},
+                                           {CommandType::DispatchBarrier, "dispatch_barrier"},
+                                           {CommandType::DispatchOpticalFlow, "dispatch_optical_flow"},
+                                           {CommandType::MarkBoundary, "mark_boundary"}})
+
 // Map ShaderType values to JSON as strings
 NLOHMANN_JSON_SERIALIZE_ENUM(ShaderType, {{ShaderType::Unknown, nullptr},
                                           {ShaderType::SPIR_V, "SPIR-V"},
@@ -214,13 +182,22 @@ NLOHMANN_JSON_SERIALIZE_ENUM(OpticalFlowExecutionFlag,
                               {OpticalFlowExecutionFlag::InputIsPreviousReference, "input_is_previous_reference"},
                               {OpticalFlowExecutionFlag::ReferenceIsPreviousInput, "reference_is_previous_input"}})
 
-void readJson(ScenarioSpec &scenarioSpec, std::istream *is) {
-    json j;
-    *is >> j;
+void readJsonImpl(ScenarioSpec &scenarioSpec, const json &j);
 
+void readJson(ScenarioSpec &scenarioSpec, std::istream &is) {
+    const auto j = json::parse(is);
+    readJsonImpl(scenarioSpec, j);
+}
+
+void readJson(ScenarioSpec &scenarioSpec, const std::string &jsonStr) {
+    const auto j = json::parse(jsonStr);
+    readJsonImpl(scenarioSpec, j);
+}
+
+void readJsonImpl(ScenarioSpec &scenarioSpec, const json &j) {
     const json &resourcesJson = j.at("resources");
     for (const auto &resourceJson : resourcesJson) {
-        const auto resourceType = parseSingleKeyObjectType(resourceJson, getResourceTypeByKey(), "Resource");
+        const auto resourceType = json(resourceJson.begin().key()).get<ResourceType>();
         switch (resourceType) {
         case (ResourceType::Shader): {
             auto shader = resourceJson.at("shader").get<ShaderDesc>();
@@ -273,7 +250,7 @@ void readJson(ScenarioSpec &scenarioSpec, std::istream *is) {
 
     const json &commandsJson = j.at("commands");
     for (const auto &commandJson : commandsJson) {
-        const auto commandType = parseSingleKeyObjectType(commandJson, getCommandTypeByKey(), "Command");
+        const auto commandType = json(commandJson.begin().key()).get<CommandType>();
         switch (commandType) {
         case (CommandType::DispatchCompute): {
             auto dispatchCompute = commandJson.at("dispatch_compute").get<DispatchComputeDesc>();

@@ -17,7 +17,8 @@ struct ScenarioSpec;
 
 using json = nlohmann::json;
 
-void readJson(ScenarioSpec &scenarioSpec, std::istream *is);
+void readJson(ScenarioSpec &scenarioSpec, std::istream &is);
+void readJson(ScenarioSpec &scenarioSpec, const std::string &jsonStr);
 
 //==============
 // Commands

@@ -11,6 +11,7 @@
 #include "version.hpp"
 
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <vector>
 
@@ -164,13 +165,9 @@ int runScenarioRunner(int argc, const char **argv) {
             setDefaultLogLevel(logLevel);
         }
 
-        auto scenarioFile = parser.get("--scenario");
-        std::filesystem::path workDir = std::filesystem::path(scenarioFile).remove_filename();
-        std::ifstream fstream(scenarioFile);
-        if (!fstream) {
-            throw std::runtime_error("Error while opening scenario file " + scenarioFile);
-        }
-
+        const auto scenarioArg = parser.get("--scenario");
+        const auto scenarioFile = std::filesystem::path(scenarioArg);
+        std::filesystem::path workDir = scenarioFile.parent_path();
         std::filesystem::path outputDir = workDir;
         if (parser.is_used("--output")) {
             outputDir = std::filesystem::path(parser.get("--output"));
@@ -188,8 +185,7 @@ int runScenarioRunner(int argc, const char **argv) {
             if (!std::filesystem::is_directory(cacheDir)) {
                 throw std::runtime_error("Invalid cache directory: " + cacheDir.string());
             }
-            scenarioOptions.pipelineCachePath =
-                cacheDir / std::filesystem::path(scenarioFile).filename().replace_extension("cache");
+            scenarioOptions.pipelineCachePath = cacheDir / scenarioFile.filename().replace_extension("cache");
         }
 
         scenarioOptions.enableGPUDebugMarkers = parser.get<bool>("--enable-gpu-debug-markers");
@@ -250,7 +246,7 @@ int runScenarioRunner(int argc, const char **argv) {
 
         pauseOnExit = parser.get<bool>("--pause-on-exit");
 
-        ScenarioSpec scenarioSpec(&fstream, workDir, outputDir);
+        ScenarioSpec scenarioSpec(scenarioFile, workDir, outputDir);
         mlsdk::logging::info("Scenario file parsed");
         Scenario scenario(scenarioOptions, scenarioSpec);
         if (parser.get<bool>("--wait-for-key-stroke-before-run")) {

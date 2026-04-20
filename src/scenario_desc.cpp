@@ -5,14 +5,26 @@
 
 #include "scenario_desc.hpp"
 #include "json_reader.hpp"
-#include <filesystem>
+
+#include <fstream>
 #include <iostream>
 
 namespace mlsdk::scenariorunner {
 
-ScenarioSpec::ScenarioSpec(std::istream *is, const std::filesystem::path &workDir,
+ScenarioSpec::ScenarioSpec(const std::string &jsonStr, const std::filesystem::path &workDir,
                            const std::filesystem::path &outputDir)
     : _workDir(workDir), _outputDir(outputDir) {
+    readJson(*this, jsonStr);
+}
+
+ScenarioSpec::ScenarioSpec(const std::filesystem::path &jsonFile, const std::filesystem::path &workDir,
+                           const std::filesystem::path &outputDir)
+    : _workDir(workDir), _outputDir(outputDir) {
+    std::ifstream is(jsonFile);
+    if (!is) {
+        throw std::runtime_error("Error while opening scenario file " + jsonFile.string());
+    }
+
     readJson(*this, is);
 }
 
