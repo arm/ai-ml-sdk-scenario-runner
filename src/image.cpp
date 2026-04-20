@@ -365,8 +365,8 @@ void Image::transitionLayout(const Context &ctx, vk::ImageLayout expectedLayout)
     auto cmdPool = ctx.device().createCommandPool(cmdPoolCreateInfo);
     const vk::CommandBufferAllocateInfo cmdBufferAllocInfo(*cmdPool, vk::CommandBufferLevel::ePrimary, 1);
     vk::raii::CommandBuffer cmdBuffer = std::move(ctx.device().allocateCommandBuffers(cmdBufferAllocInfo).front());
-    const vk::CommandBufferBeginInfo CmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-    cmdBuffer.begin(CmdBufferBeginInfo);
+    const vk::CommandBufferBeginInfo cmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+    cmdBuffer.begin(cmdBufferBeginInfo);
     addTransitionLayoutCommand(cmdBuffer, expectedLayout);
     cmdBuffer.end();
     vk::SubmitInfo submitInfo({}, {}, *cmdBuffer);
@@ -454,23 +454,23 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     if ((_dataType == vk::Format::eR32Sfloat || _dataType == vk::Format::eD32Sfloat) &&
         fileFormat == vk::Format::eD32SfloatS8Uint) {
         // Depth stencil discarding
-        std::vector<uint8_t> bodge_data(dataSize());
-        bool has_stencil_data = false;
+        std::vector<uint8_t> bodgeData(dataSize());
+        bool hasStencilData = false;
         for (uint64_t i = 0; i < totalElementsFromShape(shape()); ++i) {
-            uint64_t depth_idx = i * elementSizeFromVkFormat(fileFormat);
-            uint64_t bodge_idx = i * elementSizeFromVkFormat(_dataType);
-            if (data[depth_idx + 4]) {
-                has_stencil_data = true;
+            uint64_t depthIdx = i * elementSizeFromVkFormat(fileFormat);
+            uint64_t bodgeIdx = i * elementSizeFromVkFormat(_dataType);
+            if (data[depthIdx + 4]) {
+                hasStencilData = true;
             }
-            bodge_data[bodge_idx + 0] = data[depth_idx + 0];
-            bodge_data[bodge_idx + 1] = data[depth_idx + 1];
-            bodge_data[bodge_idx + 2] = data[depth_idx + 2];
-            bodge_data[bodge_idx + 3] = data[depth_idx + 3];
+            bodgeData[bodgeIdx + 0] = data[depthIdx + 0];
+            bodgeData[bodgeIdx + 1] = data[depthIdx + 1];
+            bodgeData[bodgeIdx + 2] = data[depthIdx + 2];
+            bodgeData[bodgeIdx + 3] = data[depthIdx + 3];
         }
-        if (has_stencil_data) {
+        if (hasStencilData) {
             mlsdk::logging::warning("Ignoring stencil data");
         }
-        data = std::move(bodge_data);
+        data = std::move(bodgeData);
     }
 
     const auto elementSize = elementSizeFromVkFormat(_dataType);
@@ -518,8 +518,8 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     auto cmdPool = ctx.device().createCommandPool(cmdPoolCreateInfo);
     const vk::CommandBufferAllocateInfo cmdBufferAllocInfo(*cmdPool, vk::CommandBufferLevel::ePrimary, 1);
     vk::raii::CommandBuffer cmdBuffer = std::move(ctx.device().allocateCommandBuffers(cmdBufferAllocInfo).front());
-    const vk::CommandBufferBeginInfo CmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-    cmdBuffer.begin(CmdBufferBeginInfo);
+    const vk::CommandBufferBeginInfo cmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+    cmdBuffer.begin(cmdBufferBeginInfo);
 
     cmdBuffer.pipelineBarrier2(vk::DependencyInfo((vk::DependencyFlags)0, memoryBarrier, {}, imageBarrier));
 
@@ -689,8 +689,8 @@ std::vector<char> Image::getImageData(const Context &ctx) {
     auto cmdPool = ctx.device().createCommandPool(cmdPoolCreateInfo);
     const vk::CommandBufferAllocateInfo cmdBufferAllocInfo(*cmdPool, vk::CommandBufferLevel::ePrimary, 1);
     vk::raii::CommandBuffer cmdBuffer = std::move(ctx.device().allocateCommandBuffers(cmdBufferAllocInfo).front());
-    const vk::CommandBufferBeginInfo CmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-    cmdBuffer.begin(CmdBufferBeginInfo);
+    const vk::CommandBufferBeginInfo cmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+    cmdBuffer.begin(cmdBufferBeginInfo);
     vk::BufferImageCopy region{};
     const vk::Extent3D extent(static_cast<uint32_t>(_imageInfo.shape[1]), static_cast<uint32_t>(_imageInfo.shape[2]),
                               static_cast<uint32_t>(_imageInfo.shape[3]));

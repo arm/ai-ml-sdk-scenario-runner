@@ -454,8 +454,8 @@ bool compareDDSHeader(const DDSHeaderInfo &input, const DDSHeaderInfo &output) {
 }
 
 bool isFloat16NaN(uint16_t val) {
-    constexpr uint16_t FP16_EXPONENT = 0x7C00;
-    return (val & FP16_EXPONENT) == FP16_EXPONENT;
+    constexpr uint16_t fP16Exponent = 0x7C00;
+    return (val & fP16Exponent) == fP16Exponent;
 }
 
 bool compare(const std::string &input, const std::string &output, const std::string &elementDtype) {
@@ -492,7 +492,10 @@ int main(int argc, const char **argv) {
     try {
         argparse::ArgumentParser parser(argv[0]);
 
-        parser.add_argument("--action").choices("generate", "to_npy", "compare").help("Required action").required();
+        parser.add_argument("--action")
+            .choices("generate", "to_npy", "compare")
+            .help("Required action: generate, to_npy, or compare")
+            .required();
 
         parser.add_argument("--height").scan<'i', uint32_t>().help("Image height");
         parser.add_argument("--width").scan<'i', uint32_t>().help("Image width");

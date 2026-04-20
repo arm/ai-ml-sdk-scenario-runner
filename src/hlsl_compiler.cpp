@@ -116,12 +116,12 @@ std::vector<DxcDefine> parsePreprocessorOptions(const std::string &options, std:
             defineStruct.Name = name.c_str();
             defineStruct.Value = nullptr;
         } else {
-            const size_t name_idx = storage.size();
+            const size_t nameIdx = storage.size();
             storage.emplace_back(stringToWstring(op.substr(0, equal)));
-            const size_t value_idx = storage.size();
+            const size_t valueIdx = storage.size();
             storage.emplace_back(stringToWstring(op.substr(equal + 1, op.size())));
-            defineStruct.Name = storage[name_idx].c_str();
-            defineStruct.Value = storage[value_idx].c_str();
+            defineStruct.Name = storage[nameIdx].c_str();
+            defineStruct.Value = storage[valueIdx].c_str();
         }
         defineStrings.push_back(defineStruct);
         start = end + 1;

@@ -1384,15 +1384,15 @@ TEST(JsonParser, ImageResource) {
         "tiling": "{TILING}"
     }
     )"";
-    const std::regex border_color("\\{BORDER_COLOR\\}");
-    const std::regex border_address_mode("\\{BORDER_ADDRESS_MODE\\}");
+    const std::regex borderColor("\\{BORDER_COLOR\\}");
+    const std::regex borderAddressMode("\\{BORDER_ADDRESS_MODE\\}");
     const std::regex tiling("\\{TILING\\}");
 
     {
 
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, border_color, "INT_TRANSPARENT_BLACK");
-        jsonInput = std::regex_replace(jsonInput, border_address_mode, "REPEAT");
+        jsonInput = std::regex_replace(jsonInput, borderColor, "INT_TRANSPARENT_BLACK");
+        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "REPEAT");
         jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
@@ -1426,8 +1426,8 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, border_address_mode, "MIRRORED_REPEAT");
-        jsonInput = std::regex_replace(jsonInput, border_color, "INT_TRANSPARENT_BLACK");
+        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "MIRRORED_REPEAT");
+        jsonInput = std::regex_replace(jsonInput, borderColor, "INT_TRANSPARENT_BLACK");
         jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
@@ -1437,8 +1437,8 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, border_address_mode, "CLAMP_EDGE");
-        jsonInput = std::regex_replace(jsonInput, border_color, "INT_TRANSPARENT_BLACK");
+        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "CLAMP_EDGE");
+        jsonInput = std::regex_replace(jsonInput, borderColor, "INT_TRANSPARENT_BLACK");
         jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
@@ -1448,10 +1448,10 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, border_address_mode, "CLAMP_BORDER");
+        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "CLAMP_BORDER");
         jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
 
-        jsonInput = std::regex_replace(jsonInput, border_color, "INT_TRANSPARENT_BLACK");
+        jsonInput = std::regex_replace(jsonInput, borderColor, "INT_TRANSPARENT_BLACK");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.borderColor.has_value());
@@ -1460,9 +1460,9 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, border_address_mode, "CLAMP_BORDER");
+        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "CLAMP_BORDER");
         jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
-        jsonInput = std::regex_replace(jsonInput, border_color, "INT_OPAQUE_BLACK");
+        jsonInput = std::regex_replace(jsonInput, borderColor, "INT_OPAQUE_BLACK");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.borderColor.has_value());
@@ -1471,9 +1471,9 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, border_address_mode, "CLAMP_BORDER");
+        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "CLAMP_BORDER");
         jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
-        jsonInput = std::regex_replace(jsonInput, border_color, "INT_OPAQUE_WHITE");
+        jsonInput = std::regex_replace(jsonInput, borderColor, "INT_OPAQUE_WHITE");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.borderColor.has_value());
@@ -1482,9 +1482,9 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, border_address_mode, "CLAMP_BORDER");
+        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "CLAMP_BORDER");
         jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
-        jsonInput = std::regex_replace(jsonInput, border_color, "FLOAT_TRANSPARENT_BLACK");
+        jsonInput = std::regex_replace(jsonInput, borderColor, "FLOAT_TRANSPARENT_BLACK");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.borderColor.has_value());
@@ -1493,9 +1493,9 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, border_address_mode, "CLAMP_BORDER");
+        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "CLAMP_BORDER");
         jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
-        jsonInput = std::regex_replace(jsonInput, border_color, "FLOAT_OPAQUE_BLACK");
+        jsonInput = std::regex_replace(jsonInput, borderColor, "FLOAT_OPAQUE_BLACK");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.borderColor.has_value());
@@ -1504,9 +1504,9 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, border_address_mode, "CLAMP_BORDER");
+        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "CLAMP_BORDER");
         jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
-        jsonInput = std::regex_replace(jsonInput, border_color, "FLOAT_OPAQUE_WHITE");
+        jsonInput = std::regex_replace(jsonInput, borderColor, "FLOAT_OPAQUE_WHITE");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.borderColor.has_value());
@@ -1515,8 +1515,8 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, border_color, "INT_TRANSPARENT_BLACK");
-        jsonInput = std::regex_replace(jsonInput, border_address_mode, "REPEAT");
+        jsonInput = std::regex_replace(jsonInput, borderColor, "INT_TRANSPARENT_BLACK");
+        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "REPEAT");
         jsonInput = std::regex_replace(jsonInput, tiling, "OPTIMAL");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);

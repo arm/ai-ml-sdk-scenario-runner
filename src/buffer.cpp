@@ -83,7 +83,7 @@ void Buffer::fillZero(const Context &ctx) const {
 void Buffer::store(const Context &ctx, const std::string &filename) const {
     _memoryManager->downloadData(ctx, _memoryOffset, size());
 
-    ScopeExit<void()> on_scope_exit_run([&] { _memoryManager->unmapStagingBufferMemory(); });
+    ScopeExit<void()> onScopeExitRun([&] { _memoryManager->unmapStagingBufferMemory(); });
     vgfutils::numpy::DataPtr data(
         reinterpret_cast<const char *>(_memoryManager->mapStagingBufferMemory(_memoryOffset, size())), {size()},
         vgfutils::numpy::DType('i', 1));

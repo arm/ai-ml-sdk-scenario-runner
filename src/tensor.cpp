@@ -85,12 +85,12 @@ void Tensor::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> me
         }
     }
 
-    int64_t *strides_ptr = _strides.data();
+    int64_t *stridesPtr = _strides.data();
     if (_strides.empty()) {
-        strides_ptr = nullptr;
+        stridesPtr = nullptr;
     }
 
-    vk::TensorDescriptionARM description(_tiling, _dataType, rank, _shape.data(), strides_ptr, usageFlags);
+    vk::TensorDescriptionARM description(_tiling, _dataType, rank, _shape.data(), stridesPtr, usageFlags);
 
     vk::TensorCreateFlagsARM flags{};
     if (_descriptorBufferCaptureReplay) {

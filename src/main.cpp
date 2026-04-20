@@ -89,7 +89,7 @@ void configureLogging() {
 
 int runScenarioRunner(int argc, const char **argv) {
     int retval = 0;
-    bool pause_on_exit = false;
+    bool pauseOnExit = false;
     try {
         argparse::ArgumentParser parser(argv[0], details::version);
 
@@ -248,7 +248,7 @@ int runScenarioRunner(int argc, const char **argv) {
             scenarioOptions.captureFrame = false;
         }
 
-        pause_on_exit = parser.get<bool>("--pause-on-exit");
+        pauseOnExit = parser.get<bool>("--pause-on-exit");
 
         ScenarioSpec scenarioSpec(&fstream, workDir, outputDir);
         mlsdk::logging::info("Scenario file parsed");
@@ -262,7 +262,7 @@ int runScenarioRunner(int argc, const char **argv) {
         mlsdk::logging::error(err.what());
         retval = -1;
     }
-    if (pause_on_exit) { // cppcheck-suppress-begin knownConditionTrueFalse
+    if (pauseOnExit) { // cppcheck-suppress-begin knownConditionTrueFalse
         mlsdk::logging::info("Press enter to continue...");
         std::ignore = getchar();
     }
