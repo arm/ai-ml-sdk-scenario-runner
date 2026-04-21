@@ -1,0 +1,30 @@
+{
+    "commands": [
+        {
+            "dispatch_optical_flow": {
+                "width": 1920,
+                "height": 1080,
+                "performance_level": "slow",
+                "mean_flow_l1_norm_hint": 2,
+                "bindings": {
+                    "search_image": {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "input_search"
+                    },
+                    "template_image": {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "input_template"
+                    },
+                    "output_image": {
+                        "id": 2,
+                        "set": 0,
+                        "resource_ref": "output_flow"
+                    }
+                }
+            }
+        }
+    ],
+    "resources": []
+}

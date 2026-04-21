@@ -42,6 +42,21 @@ class Pipeline {
     Pipeline(const CommonArguments &args, const ShaderInfo &vertexShaderInfo, const ShaderInfo &fragmentShaderInfo,
              const std::vector<vk::Format> &colorAttachmentFormats);
 
+    /// \brief Optical flow data graph pipeline constructor
+    ///
+    /// Builds a VkDataGraphPipelineOpticalFlow using image resources from DataManager
+    /// and the provided TypedBinding list. The bindings are interpreted as:
+    ///  - sampled images for inputs (search/template/hint)
+    ///  - storage images for outputs (flow/cost)
+    ///
+    /// The optical flow specific parameters (performance level, enable hint/cost)
+    /// are passed via the dedicated create info struct.
+    Pipeline(const CommonArguments &args, const DataManager &dataManager, const TypedBinding &inputSearch,
+             const TypedBinding &inputTemplate, const TypedBinding &outputFlow,
+             const std::optional<TypedBinding> &inputHintMV, const std::optional<TypedBinding> &outputCost,
+             vk::DataGraphOpticalFlowPerformanceLevelARM performanceLevel,
+             vk::DataGraphOpticalFlowGridSizeFlagsARM gridSize, uint32_t inputWidth, uint32_t inputHeight);
+
     /// \brief Vulkan® pipeline accessor
     /// \return The underlying Vulkan® pipeline of the object
     const vk::Pipeline &pipeline() const { return *_pipeline; }
@@ -85,6 +100,7 @@ class Pipeline {
     std::string _debugName{};
     uint64_t _dataGraphPipelineMemoryRequirement{};
     vk::ShaderStageFlags _pushConstantStages{};
+    bool _opticalFlowSession{false};
 
     void initSession(const Context &ctx);
 

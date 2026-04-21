@@ -127,6 +127,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         hasExtension(extensions, VK_KHR_SHADER_BFLOAT16_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.shader_float8 =
         hasExtension(extensions, VK_EXT_SHADER_FLOAT8_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+    _optionals.optical_flow =
+        hasExtension(extensions, VK_ARM_DATA_GRAPH_OPTICAL_FLOW_EXTENSION_NAME, scenarioOptions.disabledExtensions);
 
     // Create device
     const float queuePriority = 1.0f;
@@ -149,17 +151,25 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         prevPNext = &physicalDevReplicateCompositesFeat;
     }
 
-    const auto availableFeatures =
-        _physicalDev
-            .getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features,
-                          vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features,
-                          vk::PhysicalDeviceShaderBfloat16FeaturesKHR, vk::PhysicalDeviceShaderFloat8FeaturesEXT>();
+    const auto availableFeatures = _physicalDev.getFeatures2<
+        vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features,
+        vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR,
+        vk::PhysicalDeviceShaderFloat8FeaturesEXT, vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM>();
 
     const auto &availableCoreFeatures = availableFeatures.template get<vk::PhysicalDeviceFeatures2>().features;
     const auto &[available11Features, available12Features, available13Features, availableBfloat16, availableFloat8] =
         availableFeatures.template get<vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features,
                                        vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR,
                                        vk::PhysicalDeviceShaderFloat8FeaturesEXT>();
+
+    const auto &availableDataGraphOpticalFlow =
+        availableFeatures.template get<vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM>();
+    if (_optionals.optical_flow && !availableDataGraphOpticalFlow.dataGraphOpticalFlow) {
+        mlsdk::logging::warning("VK_ARM_data_graph_optical_flow extension is present, but "
+                                "dataGraphOpticalFlow feature is not supported. "
+                                "Disabling optical flow support.");
+        _optionals.optical_flow = false;
+    }
 
     const bool requiresDynamicRendering = familyQueue == FamilyQueue::Graphics;
     if (requiresDynamicRendering && !available13Features.dynamicRendering) {
@@ -202,6 +212,13 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         float8Feat.shaderFloat8 = availableFloat8.shaderFloat8;
         float8Feat.pNext = featureChain;
         featureChain = &float8Feat;
+    }
+
+    vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM dataGraphOpticalFlowFeat{};
+    if (_optionals.optical_flow) {
+        dataGraphOpticalFlowFeat.dataGraphOpticalFlow = availableDataGraphOpticalFlow.dataGraphOpticalFlow;
+        dataGraphOpticalFlowFeat.pNext = featureChain;
+        featureChain = &dataGraphOpticalFlowFeat;
     }
 
     vk::PhysicalDeviceDataGraphFeaturesARM dataGraphFeat{};
@@ -248,6 +265,9 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     }
     if (_optionals.shader_float8) {
         vulkanDeviceExtensions.push_back(VK_EXT_SHADER_FLOAT8_EXTENSION_NAME);
+    }
+    if (_optionals.optical_flow) {
+        vulkanDeviceExtensions.push_back(VK_ARM_DATA_GRAPH_OPTICAL_FLOW_EXTENSION_NAME);
     }
 #ifdef MOLTEN_VK_SUPPORT
     vulkanDeviceExtensions.push_back("VK_KHR_portability_subset");

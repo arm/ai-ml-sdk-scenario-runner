@@ -18,6 +18,7 @@ enum class CommandType {
     Unknown,
     DispatchCompute,
     DispatchDataGraph,
+    DispatchOpticalFlow,
     DispatchSpirvGraph,
     DispatchFragment,
     DispatchBarrier,
@@ -25,6 +26,31 @@ enum class CommandType {
 };
 
 enum class DescriptorType { Unknown, Auto, StorageImage };
+
+enum class OpticalFlowGridSize : uint32_t {
+    Invalid = 0xFFFFFFFFu,
+    e1x1 = 0,
+    e2x2 = 1,
+    e4x4 = 2,
+    e8x8 = 3,
+};
+
+enum class OpticalFlowPerformanceLevel : uint32_t {
+    Invalid = 0xFFFFFFFFu,
+    Unknown = 0,
+    Slow = 1,
+    Medium = 2,
+    Fast = 3,
+};
+
+enum class OpticalFlowExecutionFlag : uint32_t {
+    Invalid = 0,
+    DisableTemporalHints = 0x1u,
+    InputUnchanged = 0x2u,
+    ReferenceUnchanged = 0x4u,
+    InputIsPreviousReference = 0x8u,
+    ReferenceIsPreviousInput = 0x10u,
+};
 
 /**
  * @brief Commands are executed by the ScenarioRunner. CommandDesc describes a Command.
@@ -138,6 +164,31 @@ struct DispatchSpirvGraphDesc : CommandDesc {
     std::vector<Guid> graphConstants;
     bool implicitBarrier{true};
     std::string entry{"main"};
+};
+
+/**
+ * @brief The DispatchOpticalFlow command dispatches an optical flow data graph pipeline to execute.
+ * DispatchOpticalFlowDesc describes a DispatchOpticalFlow command.
+ *
+ */
+struct DispatchOpticalFlowDesc : CommandDesc {
+    DispatchOpticalFlowDesc();
+
+    std::string debugName;
+    BindingDesc searchImage;
+    BindingDesc templateImage;
+    BindingDesc outputImage;
+    std::optional<BindingDesc> hintMotionVectors;
+    std::optional<BindingDesc> outputCost;
+
+    uint32_t width{0};
+    uint32_t height{0};
+    OpticalFlowGridSize gridSize{OpticalFlowGridSize::e1x1};
+    OpticalFlowPerformanceLevel performanceLevel{OpticalFlowPerformanceLevel::Medium};
+    uint32_t executionFlags{0};
+    uint32_t meanFlowL1NormHint{0};
+
+    bool implicitBarrier{true};
 };
 
 /**

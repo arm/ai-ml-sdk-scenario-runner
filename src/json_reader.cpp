@@ -16,9 +16,13 @@ namespace {
 
 const std::unordered_map<std::string_view, CommandType> &getCommandTypeByKey() {
     static const std::unordered_map<std::string_view, CommandType> commandTypeByKey = {
-        {"dispatch_compute", CommandType::DispatchCompute},   {"dispatch_graph", CommandType::DispatchDataGraph},
-        {"dispatch_fragment", CommandType::DispatchFragment}, {"dispatch_spirv_graph", CommandType::DispatchSpirvGraph},
-        {"dispatch_barrier", CommandType::DispatchBarrier},   {"mark_boundary", CommandType::MarkBoundary},
+        {"dispatch_compute", CommandType::DispatchCompute},
+        {"dispatch_graph", CommandType::DispatchDataGraph},
+        {"dispatch_fragment", CommandType::DispatchFragment},
+        {"dispatch_spirv_graph", CommandType::DispatchSpirvGraph},
+        {"dispatch_barrier", CommandType::DispatchBarrier},
+        {"mark_boundary", CommandType::MarkBoundary},
+        {"dispatch_optical_flow", CommandType::DispatchOpticalFlow},
     };
 
     return commandTypeByKey;
@@ -190,6 +194,26 @@ NLOHMANN_JSON_SERIALIZE_ENUM(DescriptorType, {{DescriptorType::Unknown, nullptr}
 NLOHMANN_JSON_SERIALIZE_ENUM(Tiling,
                              {{Tiling::Unknown, nullptr}, {Tiling::Optimal, "OPTIMAL"}, {Tiling::Linear, "LINEAR"}})
 
+NLOHMANN_JSON_SERIALIZE_ENUM(OpticalFlowGridSize, {{OpticalFlowGridSize::Invalid, nullptr},
+                                                   {OpticalFlowGridSize::e1x1, "1x1"},
+                                                   {OpticalFlowGridSize::e2x2, "2x2"},
+                                                   {OpticalFlowGridSize::e4x4, "4x4"},
+                                                   {OpticalFlowGridSize::e8x8, "8x8"}})
+
+NLOHMANN_JSON_SERIALIZE_ENUM(OpticalFlowPerformanceLevel, {{OpticalFlowPerformanceLevel::Invalid, nullptr},
+                                                           {OpticalFlowPerformanceLevel::Unknown, "unknown"},
+                                                           {OpticalFlowPerformanceLevel::Slow, "slow"},
+                                                           {OpticalFlowPerformanceLevel::Medium, "medium"},
+                                                           {OpticalFlowPerformanceLevel::Fast, "fast"}})
+
+NLOHMANN_JSON_SERIALIZE_ENUM(OpticalFlowExecutionFlag,
+                             {{OpticalFlowExecutionFlag::Invalid, nullptr},
+                              {OpticalFlowExecutionFlag::DisableTemporalHints, "disable_temporal_hints"},
+                              {OpticalFlowExecutionFlag::InputUnchanged, "input_unchanged"},
+                              {OpticalFlowExecutionFlag::ReferenceUnchanged, "reference_unchanged"},
+                              {OpticalFlowExecutionFlag::InputIsPreviousReference, "input_is_previous_reference"},
+                              {OpticalFlowExecutionFlag::ReferenceIsPreviousInput, "reference_is_previous_input"}})
+
 void readJson(ScenarioSpec &scenarioSpec, std::istream *is) {
     json j;
     *is >> j;
@@ -274,6 +298,10 @@ void readJson(ScenarioSpec &scenarioSpec, std::istream *is) {
         case (CommandType::MarkBoundary): {
             auto markBoundary = commandJson.at("mark_boundary").get<MarkBoundaryDesc>();
             scenarioSpec.addCommand(std::make_unique<MarkBoundaryDesc>(std::move(markBoundary)));
+        } break;
+        case (CommandType::DispatchOpticalFlow): {
+            auto dispatchOpticalFlow = commandJson.at("dispatch_optical_flow").get<DispatchOpticalFlowDesc>();
+            scenarioSpec.addCommand(std::make_unique<DispatchOpticalFlowDesc>(std::move(dispatchOpticalFlow)));
         } break;
         default:
             throw std::runtime_error("Unknown Command type in commands");
@@ -390,6 +418,70 @@ void from_json(const json &j, DispatchSpirvGraphDesc &dispatchSpirvGraph) {
     }
     if (j.contains("implicit_barrier")) {
         dispatchSpirvGraph.implicitBarrier = j.at("implicit_barrier").get<bool>();
+    }
+}
+
+/**
+ * @brief De-serialize DispatchOpticalFlowDesc from JSON.
+ *
+ * @param j
+ * @param dispatchOpticalFlow
+ */
+void from_json(const json &j, DispatchOpticalFlowDesc &dispatchOpticalFlow) {
+    dispatchOpticalFlow.debugName = "dispatch_optical_flow";
+
+    dispatchOpticalFlow.width = j.at("width").get<uint32_t>();
+    dispatchOpticalFlow.height = j.at("height").get<uint32_t>();
+    dispatchOpticalFlow.gridSize = j.at("grid_size").get<OpticalFlowGridSize>();
+    if (dispatchOpticalFlow.gridSize == OpticalFlowGridSize::Invalid) {
+        throw std::runtime_error("Invalid optical flow grid_size value. Expected one of: 1x1, 2x2, 4x4, 8x8.");
+    }
+
+    if (j.contains("performance_level")) {
+        dispatchOpticalFlow.performanceLevel = j.at("performance_level").get<OpticalFlowPerformanceLevel>();
+        if (dispatchOpticalFlow.performanceLevel == OpticalFlowPerformanceLevel::Invalid) {
+            throw std::runtime_error(
+                "Invalid optical flow performance_level value. Expected one of: unknown, slow, medium, fast.");
+        }
+    }
+    dispatchOpticalFlow.meanFlowL1NormHint = j.value("mean_flow_l1_norm_hint", dispatchOpticalFlow.meanFlowL1NormHint);
+
+    if (dispatchOpticalFlow.width == 0 || dispatchOpticalFlow.height == 0) {
+        throw std::runtime_error("Optical flow width and height must be > 0");
+    }
+    if (dispatchOpticalFlow.meanFlowL1NormHint >= std::max(dispatchOpticalFlow.width, dispatchOpticalFlow.height)) {
+        throw std::runtime_error(
+            "Invalid optical flow mean_flow_l1_norm_hint value. Expected 0 or < max(width, height).");
+    }
+
+    if (j.contains("implicit_barrier")) {
+        dispatchOpticalFlow.implicitBarrier = j.at("implicit_barrier").get<bool>();
+    }
+
+    if (j.contains("execution_flags")) {
+        auto flags = j.at("execution_flags").get<std::vector<OpticalFlowExecutionFlag>>();
+        for (const auto flag : flags) {
+            if (flag == OpticalFlowExecutionFlag::Invalid) {
+                throw std::runtime_error("Invalid optical flow execution_flags value.");
+            }
+            dispatchOpticalFlow.executionFlags |= static_cast<uint32_t>(flag);
+        }
+    }
+    constexpr uint32_t validExecutionFlagsMask = 0x1Fu;
+    if ((dispatchOpticalFlow.executionFlags & ~validExecutionFlagsMask) != 0u) {
+        throw std::runtime_error("Invalid optical flow execution_flags value.");
+    }
+
+    const json &bindingsJson = j.at("bindings");
+    dispatchOpticalFlow.searchImage = bindingsJson.at("search_image").get<BindingDesc>();
+    dispatchOpticalFlow.templateImage = bindingsJson.at("template_image").get<BindingDesc>();
+    dispatchOpticalFlow.outputImage = bindingsJson.at("output_image").get<BindingDesc>();
+
+    if (bindingsJson.contains("hint_motion_vectors")) {
+        dispatchOpticalFlow.hintMotionVectors = bindingsJson.at("hint_motion_vectors").get<BindingDesc>();
+    }
+    if (bindingsJson.contains("output_cost")) {
+        dispatchOpticalFlow.outputCost = bindingsJson.at("output_cost").get<BindingDesc>();
     }
 }
 

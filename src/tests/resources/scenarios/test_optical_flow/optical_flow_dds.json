@@ -1,0 +1,116 @@
+{
+    "commands": [
+        {
+            "dispatch_optical_flow": {
+                "width": 64,
+                "height": 64,
+                "grid_size": "4x4",
+                "performance_level": "medium",
+                "execution_flags": [
+                    "input_unchanged"
+                ],
+                "mean_flow_l1_norm_hint": 2,
+                "implicit_barrier": true,
+                "bindings": {
+                    "search_image": {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "input_search"
+                    },
+                    "template_image": {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "input_template"
+                    },
+                    "output_image": {
+                        "id": 2,
+                        "set": 0,
+                        "resource_ref": "output_flow"
+                    },
+                    "hint_motion_vectors": {
+                        "id": 3,
+                        "set": 0,
+                        "resource_ref": "input_hint_mv"
+                    },
+                    "output_cost": {
+                        "id": 4,
+                        "set": 0,
+                        "resource_ref": "output_cost"
+                    }
+                }
+            }
+        }
+    ],
+    "resources": [
+        {
+            "image": {
+                "uid": "input_search",
+                "dims": [
+                    1,
+                    64,
+                    64,
+                    1
+                ],
+                "format": "VK_FORMAT_R8G8B8A8_UNORM",
+                "shader_access": "readonly",
+                "src": "input_search.DDS"
+            }
+        },
+        {
+            "image": {
+                "uid": "input_template",
+                "dims": [
+                    1,
+                    64,
+                    64,
+                    1
+                ],
+                "format": "VK_FORMAT_R8G8B8A8_UNORM",
+                "shader_access": "readonly",
+                "src": "input_template.DDS"
+            }
+        },
+        {
+            "image": {
+                "uid": "input_hint_mv",
+                "dims": [
+                    1,
+                    16,
+                    16,
+                    1
+                ],
+                "format": "VK_FORMAT_R16G16_SFLOAT",
+                "shader_access": "readonly",
+                "src": "input_mv.npy"
+            }
+        },
+        {
+            "image": {
+                "uid": "output_flow",
+                "dims": [
+                    1,
+                    16,
+                    16,
+                    1
+                ],
+                "format": "VK_FORMAT_R16G16_SFLOAT",
+                "shader_access": "writeonly",
+                "dst": "output_flow.dds"
+            }
+        },
+        {
+            "image": {
+                "uid": "output_cost",
+                "dims": [
+                    1,
+                    16,
+                    16,
+                    1
+                ],
+                "format": "VK_FORMAT_R16_UINT",
+                "shader_access": "writeonly",
+                "dst": "output_cost.dds"
+            }
+        }
+    ]
+}

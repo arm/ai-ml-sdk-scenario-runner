@@ -38,6 +38,12 @@ DispatchSpirvGraphDesc::DispatchSpirvGraphDesc() : CommandDesc(CommandType::Disp
 DispatchFragmentDesc::DispatchFragmentDesc() : CommandDesc(CommandType::DispatchFragment) {}
 
 /**
+ * @brief Construct a new Dispatch Optical Flow object
+ *
+ */
+DispatchOpticalFlowDesc::DispatchOpticalFlowDesc() : CommandDesc(CommandType::DispatchOpticalFlow) {}
+
+/**
  * @brief Construct a new Dispatch Barrier object
  *
  */

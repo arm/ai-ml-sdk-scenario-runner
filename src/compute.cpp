@@ -223,6 +223,19 @@ void Compute::createPipeline(const PipelineCreateArguments &args, const ShaderIn
     (void)_pipelines.emplace_back(commonArgs, vertexShaderInfo, fragmentShaderInfo, colorAttachmentFormats);
 }
 
+void Compute::createPipeline(const PipelineCreateArguments &args, const DataManager &dataManager,
+                             const TypedBinding &inputSearch, const TypedBinding &inputTemplate,
+                             const TypedBinding &outputFlow, const std::optional<TypedBinding> &inputHintMV,
+                             const std::optional<TypedBinding> &outputCost,
+                             vk::DataGraphOpticalFlowPerformanceLevelARM performanceLevel,
+                             vk::DataGraphOpticalFlowGridSizeFlagsARM gridSize, uint32_t inputWidth,
+                             uint32_t inputHeight) {
+    const std::vector<TypedBinding> emptyBindings{};
+    const Pipeline::CommonArguments commonArgs{_ctx, args.debugName, emptyBindings, args.pipelineCache};
+    (void)_pipelines.emplace_back(commonArgs, dataManager, inputSearch, inputTemplate, outputFlow, inputHintMV,
+                                  outputCost, performanceLevel, gridSize, inputWidth, inputHeight);
+}
+
 void Compute::_registerPipelineFencedCommon(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
                                             const char *pushConstantData, size_t pushConstantSize) {
     const auto &pipeline = _pipelines.back();
@@ -250,9 +263,10 @@ void Compute::_registerPipelineFencedCommon(const DataManager &dataManager, cons
 
 void Compute::registerPipelineFenced(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
                                      const char *pushConstantData, size_t pushConstantSize, bool implicitBarriers,
-                                     ComputeDispatch computeDispatch) {
+                                     ComputeDispatch computeDispatch,
+                                     std::optional<OpticalFlowDispatchInfo> opticalFlowDispatchInfo) {
     _registerPipelineFencedCommon(dataManager, bindings, pushConstantData, pushConstantSize);
-    _addDispatch(computeDispatch);
+    _addDispatch(computeDispatch, opticalFlowDispatchInfo);
 
     if (implicitBarriers) {
         _addImplicitBarriers();
@@ -293,10 +307,15 @@ void Compute::_addPushConstants(const char *pushConstantData, const Pipeline &pi
     }
 }
 
-void Compute::_addDispatch(const ComputeDispatch &computeDispatch) {
+void Compute::_addDispatch(const ComputeDispatch &computeDispatch,
+                           const std::optional<OpticalFlowDispatchInfo> &dispatchInfo) {
     const auto &pipeline = _pipelines.back();
     if (pipeline.isDataGraphPipeline()) {
-        _commands.emplace_back(DataGraphDispatch{pipeline.session()});
+        DataGraphDispatch dispatch{pipeline.session()};
+        if (dispatchInfo.has_value()) {
+            dispatch.dispatchInfo = dispatchInfo;
+        }
+        _commands.emplace_back(dispatch);
     } else {
         _commands.emplace_back(computeDispatch);
     }
@@ -493,7 +512,19 @@ void Compute::_createCmdBuffer() {
         } else if (std::holds_alternative<DataGraphDispatch>(cmd)) {
             mlsdk::logging::info("Dispatch graph");
             auto &typedCmd = std::get<DataGraphDispatch>(cmd);
-            _cmdBufferArray.back().dispatchDataGraphARM(typedCmd.session);
+            if (typedCmd.dispatchInfo.has_value()) {
+                vk::DataGraphPipelineOpticalFlowDispatchInfoARM opticalFlowInfo{};
+                opticalFlowInfo.setFlags(typedCmd.dispatchInfo->opticalFlowFlags);
+                opticalFlowInfo.setMeanFlowL1NormHint(typedCmd.dispatchInfo->meanFlowL1NormHint);
+
+                vk::DataGraphPipelineDispatchInfoARM dispatchInfo{};
+                dispatchInfo.setFlags(vk::DataGraphPipelineDispatchFlagsARM{});
+                dispatchInfo.setPNext(&opticalFlowInfo);
+
+                _cmdBufferArray.back().dispatchDataGraphARM(typedCmd.session, &dispatchInfo);
+            } else {
+                _cmdBufferArray.back().dispatchDataGraphARM(typedCmd.session);
+            }
         } else if (std::holds_alternative<GraphicsDispatch>(cmd)) {
             mlsdk::logging::info("Dispatch graphics");
             auto &typedCmd = std::get<GraphicsDispatch>(cmd);

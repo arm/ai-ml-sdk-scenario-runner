@@ -95,6 +95,7 @@ commands_path = pathlib.Path("commands")
 dispatch_compute_path = commands_path / "dispatch_compute"
 dispatch_graph_path = commands_path / "dispatch_graph"
 dispatch_spirv_graph_path = commands_path / "dispatch_spirv_graph"
+dispatch_optical_flow_path = commands_path / "dispatch_optical_flow"
 dispatch_barrier_path = commands_path / "dispatch_barrier"
 dispatch_fragment_path = commands_path / "dispatch_fragment"
 mark_boundary_path = commands_path / "mark_boundary"
@@ -163,6 +164,20 @@ graph_constant_path = resources_path / "graph_constant"
         (RequiredProperty("resource_ref"),dispatch_graph_path/"binding_missing_resource_ref.json"),
         (RequiredMin(0), dispatch_graph_path/"binding_negative_id.json"),
         (RequiredMin(0), dispatch_graph_path/"binding_negative_set.json"),
+        # dispatch_optical_flow
+        (Ok(), dispatch_optical_flow_path/"reference.json"),
+        (UnexpectedProperty("this_is_an_invalid_property"), dispatch_optical_flow_path/"invalid_property.json"),
+        (RequiredProperty("grid_size"), dispatch_optical_flow_path/"missing_grid_size.json"),
+        (Ok(), dispatch_optical_flow_path/"missing_performance_level.json"),
+        (Ok(), dispatch_optical_flow_path/"missing_mean_flow_l1_norm_hint.json"),
+        (RequiredMin(0), dispatch_optical_flow_path/"invalid_mean_flow_l1_norm_hint.json"),
+        (RequiredProperty("search_image"), dispatch_optical_flow_path/"missing_search_image.json"),
+        (RequiredProperty("template_image"), dispatch_optical_flow_path/"missing_template_image.json"),
+        (RequiredProperty("output_image"), dispatch_optical_flow_path/"missing_output_image.json"),
+        # dispatch_optical_flow->bindings
+        (RequiredProperty("resource_ref"), dispatch_optical_flow_path/"binding_missing_resource_ref.json"),
+        (RequiredMin(0), dispatch_optical_flow_path/"binding_negative_id.json"),
+        (RequiredMin(0), dispatch_optical_flow_path/"binding_negative_set.json"),
         # dispatch_barrier
         (Ok(), dispatch_barrier_path/"reference.json"),
         (RequiredProperty("image_barrier_refs"), dispatch_barrier_path/"missing_image_barrier_refs.json"),

@@ -23,4 +23,5 @@ markers = [
     "spec_const",
     "repeated_runs",
     "png",
+    "optical_flow",
 ]

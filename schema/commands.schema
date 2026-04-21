@@ -23,6 +23,9 @@
             },
             "mark_boundary": {
                 "$ref" : "urn:scenario:command:mark_boundary"
+            },
+            "dispatch_optical_flow": {
+                "$ref" : "urn:scenario:command:dispatch_optical_flow"
             }
         },
         "oneOf": [
@@ -43,6 +46,9 @@
             },
             {
                 "required": ["mark_boundary"]
+            },
+            {
+                "required": ["dispatch_optical_flow"]
             }
         ]
     }
