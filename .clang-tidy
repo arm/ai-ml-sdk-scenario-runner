@@ -32,6 +32,7 @@ Checks: >
     performance-trivially-destructible,
     performance-type-promotion-in-math-fn,
     performance-unnecessary-copy-initialization,
+    performance-unnecessary-value-param,
     readability-avoid-const-params-in-decls,
     readability-braces-around-statements,
     readability-const-return-type,
