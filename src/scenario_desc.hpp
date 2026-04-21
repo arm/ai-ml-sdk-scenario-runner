@@ -9,7 +9,6 @@
 #include "resource_desc.hpp"
 
 #include <filesystem>
-#include <fstream>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -17,7 +16,10 @@
 namespace mlsdk::scenariorunner {
 
 struct ScenarioSpec {
-    ScenarioSpec(std::istream *is, const std::filesystem::path &workDir, const std::filesystem::path &outputDir = {});
+    explicit ScenarioSpec(const std::string &jsonStr, const std::filesystem::path &workDir = {},
+                          const std::filesystem::path &outputDir = {});
+    ScenarioSpec(const std::filesystem::path &jsonFile, const std::filesystem::path &workDir,
+                 const std::filesystem::path &outputDir = {});
 
     /// \brief Add resource and resolve paths
     void addResource(std::unique_ptr<ResourceDesc> resource);

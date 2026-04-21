@@ -10,9 +10,7 @@
 #include "resource_desc.hpp"
 #include "scenario_desc.hpp"
 
-#include <fstream>
 #include <regex>
-#include <sstream>
 
 /**
  * @brief Test the JSON parser.
@@ -20,6 +18,7 @@
  */
 
 using namespace mlsdk::scenariorunner;
+using namespace nlohmann::json_literals;
 
 namespace {
 const std::string jsonData =
@@ -226,15 +225,17 @@ const std::string jsonData =
 }
 )"";
 
-// Helper utility to create an object from a json string.
-template <typename T> T MakeFromJSON(const std::string &s) {
-    json j;
-    std::istringstream iss(s);
-    iss >> j;
-
+// Helper utility to parse a json object.
+template <typename T> T MakeFromJSON(const json &j) {
     T obj;
     from_json(j, obj);
     return obj;
+}
+
+// Helper utility to create an object from a json string.
+template <typename T> T MakeFromJSON(const std::string &s) {
+    const auto j = json::parse(s);
+    return MakeFromJSON<T>(j);
 }
 
 } // namespace
@@ -254,71 +255,70 @@ TEST(JsonParser, MarkBoundaryInvalidResourcesType) {
     }
     )"";
 
-    std::istringstream iss(jsonScenario);
-    ASSERT_THROW(ScenarioSpec(&iss, {}), nlohmann::json::type_error);
+    ASSERT_THROW(ScenarioSpec{jsonScenario}, nlohmann::json::type_error);
 }
 
 TEST(JsonParser, DispatchComputeInvalidShaderRefType) {
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "bindings": [],
         "rangeND": [1, 1, 1],
         "shader_ref": 123
     }
-    )"";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json::type_error);
 }
 
 TEST(JsonParser, DispatchComputeInvalidPushDataRefType) {
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "bindings": [],
         "rangeND": [1, 1, 1],
         "shader_ref": "shader",
         "push_data_ref": 5
     }
-    )"";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json::type_error);
 }
 
 TEST(JsonParser, DispatchDataGraphInvalidGraphRefType) {
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "bindings": [],
         "graph_ref": 10
     }
-    )"";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<DispatchDataGraphDesc>(jsonInput), nlohmann::json::type_error);
 }
 
 TEST(JsonParser, DispatchDataGraphPushConstantsInvalidType) {
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "bindings": [],
         "graph_ref": "graph1",
         "push_constants": {}
     }
-    )"";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<DispatchDataGraphDesc>(jsonInput), nlohmann::json::type_error);
 }
 
 TEST(JsonParser, DataGraphInvalidSpecializationConstantsMapType) {
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "uid": "g",
         "src": "./graphs/g.vgf",
         "specialization_constants_map": 5
     }
-    )"";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<DataGraphDesc>(jsonInput), nlohmann::json::type_error);
 }
@@ -482,8 +482,7 @@ TEST(JsonParser, DispatchOpticalFlowRejectsIntegerExecutionFlag) {
 // 1. Deserialize a JSON test case
 // 2. Validate the number of commands and resources
 TEST(JsonParser, DeSerialization) {
-    std::istringstream iss(jsonData);
-    ScenarioSpec spec{&iss, {}};
+    ScenarioSpec spec{jsonData};
 
     ASSERT_TRUE(spec.commands.size() == 2);
     ASSERT_TRUE(spec.resources.size() == 10);
@@ -492,11 +491,9 @@ TEST(JsonParser, DeSerialization) {
 using namespace mlsdk::scenariorunner;
 
 TEST(JsonParser, Empty) {
-    std::istringstream empty1("{ \"resources\": [], \"commands\": [] }");
-    ASSERT_NO_THROW(ScenarioSpec(&empty1, {}));
+    ASSERT_NO_THROW(ScenarioSpec("{ \"resources\": [], \"commands\": [] }"));
 
-    std::istringstream empty2("");
-    ASSERT_THROW(ScenarioSpec(&empty2, {}), nlohmann::json_abi_v3_11_3::detail::parse_error);
+    ASSERT_THROW(ScenarioSpec(""), nlohmann::json_abi_v3_11_3::detail::parse_error);
 }
 
 TEST(JsonParser, NoCommands) {
@@ -516,8 +513,7 @@ TEST(JsonParser, NoCommands) {
     }
     )"";
 
-    std::istringstream iss(jsonInput);
-    ASSERT_THROW(ScenarioSpec(&iss, {}), nlohmann::json_abi_v3_11_3::detail::out_of_range);
+    ASSERT_THROW(ScenarioSpec{jsonInput}, nlohmann::json_abi_v3_11_3::detail::out_of_range);
 }
 
 TEST(JsonParser, NoResources) {
@@ -541,8 +537,7 @@ TEST(JsonParser, NoResources) {
     }
     )"";
 
-    std::istringstream iss(jsonInput);
-    ASSERT_THROW(ScenarioSpec(&iss, {}), nlohmann::json_abi_v3_11_3::detail::out_of_range);
+    ASSERT_THROW(ScenarioSpec{jsonInput}, nlohmann::json_abi_v3_11_3::detail::out_of_range);
 }
 
 TEST(JsonParser, UnknownResource) {
@@ -563,8 +558,7 @@ TEST(JsonParser, UnknownResource) {
     }
     )"";
 
-    std::istringstream iss(jsonInput);
-    ASSERT_THROW(ScenarioSpec(&iss, {}), std::runtime_error); // "Unknown Resource type"
+    ASSERT_THROW(ScenarioSpec{jsonInput}, std::runtime_error); // "Unknown Resource type"
 }
 
 TEST(JsonParser, UnknownCommand) {
@@ -589,8 +583,7 @@ TEST(JsonParser, UnknownCommand) {
     }
     )"";
 
-    std::istringstream iss(jsonInput);
-    ASSERT_THROW(ScenarioSpec(&iss, {}), std::runtime_error); // "Unknown Command type"
+    ASSERT_THROW(ScenarioSpec{jsonInput}, std::runtime_error); // "Unknown Command type"
 }
 
 TEST(JsonParser, Resources) {
@@ -619,8 +612,7 @@ TEST(JsonParser, Resources) {
         }
         )"");
 
-        std::istringstream iss(jsonInput);
-        ScenarioSpec scenarioSpec{&iss, {}};
+        ScenarioSpec scenarioSpec{jsonInput};
         auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::Buffer);
         auto &buffer = reinterpret_cast<std::unique_ptr<BufferDesc> &>(resource);
@@ -643,8 +635,7 @@ TEST(JsonParser, Resources) {
         }
         )"");
 
-        std::istringstream iss(jsonInput);
-        ScenarioSpec scenarioSpec{&iss, {}};
+        ScenarioSpec scenarioSpec{jsonInput};
         auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::Image);
         auto &resourcePtr = reinterpret_cast<std::unique_ptr<ImageDesc> &>(resource);
@@ -665,8 +656,7 @@ TEST(JsonParser, Resources) {
         }
         )"");
 
-        std::istringstream iss(jsonInput);
-        ScenarioSpec scenarioSpec{&iss, {}};
+        ScenarioSpec scenarioSpec{jsonInput};
         auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::Tensor);
         auto &resourcePtr = reinterpret_cast<std::unique_ptr<TensorDesc> &>(resource);
@@ -685,8 +675,7 @@ TEST(JsonParser, Resources) {
         }
         )"");
 
-        std::istringstream iss(jsonInput);
-        ScenarioSpec scenarioSpec{&iss, {}};
+        ScenarioSpec scenarioSpec{jsonInput};
         auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::RawData);
     }
@@ -705,8 +694,7 @@ TEST(JsonParser, Resources) {
         }
         )"");
 
-        std::istringstream iss(jsonInput);
-        ScenarioSpec scenarioSpec{&iss, {}};
+        ScenarioSpec scenarioSpec{jsonInput};
         auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::Shader);
         auto &resourcePtr = reinterpret_cast<std::unique_ptr<ShaderDesc> &>(resource);
@@ -725,8 +713,7 @@ TEST(JsonParser, Resources) {
         }
         )"");
 
-        std::istringstream iss(jsonInput);
-        ScenarioSpec scenarioSpec{&iss, {}};
+        ScenarioSpec scenarioSpec{jsonInput};
         auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::DataGraph);
     }
@@ -746,8 +733,7 @@ TEST(JsonParser, Resources) {
         }
         )"");
 
-        std::istringstream iss(jsonInput);
-        ScenarioSpec scenarioSpec{&iss, {}};
+        ScenarioSpec scenarioSpec{jsonInput};
         auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::MemoryBarrier);
         auto &resourcePtr = reinterpret_cast<std::unique_ptr<MemoryBarrierDesc> &>(resource);
@@ -772,8 +758,7 @@ TEST(JsonParser, Resources) {
         }
         )"");
 
-        std::istringstream iss(jsonInput);
-        ScenarioSpec scenarioSpec{&iss, {}};
+        ScenarioSpec scenarioSpec{jsonInput};
         auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::BufferBarrier);
         auto &resourcePtr = reinterpret_cast<std::unique_ptr<BufferBarrierDesc> &>(resource);
@@ -803,8 +788,7 @@ TEST(JsonParser, Resources) {
         }
         )"");
 
-        std::istringstream iss(jsonInput);
-        ScenarioSpec scenarioSpec{&iss, {}};
+        ScenarioSpec scenarioSpec{jsonInput};
         auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::ImageBarrier);
         auto &resourcePtr = reinterpret_cast<std::unique_ptr<ImageBarrierDesc> &>(resource);
@@ -827,8 +811,7 @@ TEST(JsonParser, Resources) {
         }
         )"");
 
-        std::istringstream iss(jsonInput);
-        ScenarioSpec scenarioSpec{&iss, {}};
+        ScenarioSpec scenarioSpec{jsonInput};
         auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::TensorBarrier);
         auto &resourcePtr = reinterpret_cast<std::unique_ptr<TensorBarrierDesc> &>(resource);
@@ -873,8 +856,7 @@ TEST(JsonParser, Commands) {
 
         )"");
 
-        std::istringstream iss(jsonInput);
-        ScenarioSpec scenarioSpec{&iss, {}};
+        ScenarioSpec scenarioSpec{jsonInput};
         auto &command = scenarioSpec.commands.at(0);
         ASSERT_TRUE(command->commandType == CommandType::DispatchDataGraph);
         auto &commandPtr = reinterpret_cast<std::unique_ptr<DispatchDataGraphDesc> &>(command);
@@ -933,10 +915,10 @@ TEST(JsonParser, Commands) {
 
         )"");
 
-        std::istringstream iss(jsonInput);
-        ScenarioSpec scenarioSpec{&iss, {}};
+        ScenarioSpec scenarioSpec{jsonInput};
         auto &command = scenarioSpec.commands.at(0);
         ASSERT_TRUE(command->commandType == CommandType::DispatchCompute);
+        ASSERT_TRUE(scenarioSpec.useComputeFamilyQueue);
         auto &commandPtr = reinterpret_cast<std::unique_ptr<DispatchComputeDesc> &>(command);
 
         auto &binding1 = commandPtr->bindings.at(1);
@@ -974,8 +956,7 @@ TEST(JsonParser, Commands) {
         }
         )"");
 
-        std::istringstream iss(jsonInput);
-        ScenarioSpec scenarioSpec{&iss, {}};
+        ScenarioSpec scenarioSpec{jsonInput};
         auto &command = scenarioSpec.commands.at(0);
         ASSERT_TRUE(command->commandType == CommandType::DispatchBarrier);
         auto &commandPtr = reinterpret_cast<std::unique_ptr<DispatchBarrierDesc> &>(command);
@@ -997,8 +978,7 @@ TEST(JsonParser, Commands) {
         }
         )"");
 
-        std::istringstream iss(jsonInput);
-        ScenarioSpec scenarioSpec{&iss, {}};
+        ScenarioSpec scenarioSpec{jsonInput};
         auto &command = scenarioSpec.commands.at(0);
         ASSERT_TRUE(command->commandType == CommandType::MarkBoundary);
         auto &commandPtr = reinterpret_cast<std::unique_ptr<MarkBoundaryDesc> &>(command);
@@ -1017,8 +997,7 @@ TEST(JsonParser, Commands) {
         }
         )"");
 
-        std::istringstream iss(jsonInput);
-        ScenarioSpec scenarioSpec{&iss, {}};
+        ScenarioSpec scenarioSpec{jsonInput};
         auto &command = scenarioSpec.commands.at(0);
         ASSERT_TRUE(command->commandType == CommandType::MarkBoundary);
         auto &commandPtr = reinterpret_cast<std::unique_ptr<MarkBoundaryDesc> &>(command);
@@ -1028,8 +1007,8 @@ TEST(JsonParser, Commands) {
 }
 
 TEST(JsonParser, DispatchDataGraph) {
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "bindings": [
             {
@@ -1040,7 +1019,7 @@ TEST(JsonParser, DispatchDataGraph) {
         ],
         "graph_ref": "graph1"
     }
-    )"";
+    )"_json;
 
     auto desc = MakeFromJSON<DispatchDataGraphDesc>(jsonInput);
 
@@ -1054,8 +1033,8 @@ TEST(JsonParser, DispatchDataGraph) {
 
 TEST(JsonParser, DipatchCompute) {
 
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "bindings": [
             {
@@ -1078,7 +1057,7 @@ TEST(JsonParser, DipatchCompute) {
         "rangeND": [10, 1, 1],
         "shader_ref": "add_shader"
     }
-    )"";
+    )"_json;
 
     auto desc = MakeFromJSON<DispatchComputeDesc>(jsonInput);
 
@@ -1099,8 +1078,8 @@ TEST(JsonParser, DipatchCompute) {
 }
 
 TEST(JsonParser, DispatchSpirvGraph) {
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "bindings": [
             {
@@ -1116,7 +1095,7 @@ TEST(JsonParser, DispatchSpirvGraph) {
         ],
         "graph_ref": "graph1"
     }
-    )"";
+    )"_json;
 
     auto desc = MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput);
 
@@ -1133,65 +1112,65 @@ TEST(JsonParser, DispatchSpirvGraph) {
 }
 
 TEST(JsonParser, DispatchSpirvGraphInvalidGraphRefType) {
-    const std::string jsonInput =
+    const auto jsonInput =
         R"(
     {
         "bindings": [],
         "graph_ref": 1
     }
-    )";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput), nlohmann::json::type_error);
 }
 
 TEST(JsonParser, DispatchSpirvGraphMissingBindings) {
-    const std::string jsonInput =
+    const auto jsonInput =
         R"(
     {
         "graph_ref": "graph1"
     }
-    )";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
 }
 
 TEST(JsonParser, DispatchSpirvGraphGraphConstantsInvalidType) {
-    const std::string jsonInput =
+    const auto jsonInput =
         R"(
     {
         "bindings": [],
         "graph_ref": "graph1",
         "graph_constants": "const0"
     }
-    )";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput), nlohmann::json::type_error);
 }
 
 TEST(JsonParser, DispatchSpirvGraphGraphConstantsItemsInvalidType) {
-    const std::string jsonInput =
+    const auto jsonInput =
         R"(
     {
         "bindings": [],
         "graph_ref": "graph1",
         "graph_constants": [1]
     }
-    )";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput), nlohmann::json::type_error);
 }
 
 TEST(JsonParser, BufferResource) {
     {
-        const std::string jsonInput =
-            R""(
+        const auto jsonInput =
+            R"(
         {
             "shader_access": "readonly",
             "size": 48,
             "src": "./shader_data/inbuffer2.npy",
             "uid": "InBuffer2"
         }
-        )"";
+        )"_json;
 
         auto desc = MakeFromJSON<BufferDesc>(jsonInput);
 
@@ -1204,15 +1183,15 @@ TEST(JsonParser, BufferResource) {
     }
 
     {
-        const std::string jsonInput =
-            R""(
+        const auto jsonInput =
+            R"(
         {
             "shader_access": "writeonly",
             "size": 52,
             "dst": "./shader_data/outbuffer.npy",
             "uid": "OutBuffer"
         }
-        )"";
+        )"_json;
 
         auto desc = MakeFromJSON<BufferDesc>(jsonInput);
 
@@ -1225,14 +1204,14 @@ TEST(JsonParser, BufferResource) {
     }
 
     {
-        const std::string jsonInput =
-            R""(
+        const auto jsonInput =
+            R"(
         {
             "shader_access": "readwrite",
             "size": 16,
             "uid": "InOutBuffer"
         }
-        )"";
+        )"_json;
 
         auto desc = MakeFromJSON<BufferDesc>(jsonInput);
 
@@ -1244,14 +1223,14 @@ TEST(JsonParser, BufferResource) {
     }
 
     {
-        const std::string jsonInput =
-            R""(
+        const auto jsonInput =
+            R"(
         {
             "shader_access": "something not recognised",
             "size": 16,
             "uid": "InOutBuffer"
         }
-        )"";
+        )"_json;
 
         ASSERT_THROW(MakeFromJSON<BufferDesc>(jsonInput), std::runtime_error); // "Unknown shader_access value"
     }
@@ -1259,8 +1238,8 @@ TEST(JsonParser, BufferResource) {
 
 TEST(JsonParser, ShaderResource) {
 
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "build_options": "-DQUANTIZE",
         "entry": "main",
@@ -1278,7 +1257,7 @@ TEST(JsonParser, ShaderResource) {
         "type": "SPIR-V",
         "uid": "matmul_shader"
     }
-    )"";
+    )"_json;
 
     auto desc = MakeFromJSON<ShaderDesc>(jsonInput);
 
@@ -1297,13 +1276,13 @@ TEST(JsonParser, ShaderResource) {
 
 TEST(JsonParser, RawDataResource) {
 
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "src": "./graph_data/rawdata.npy",
         "uid": "RawData"
     }
-    )"";
+    )"_json;
 
     auto desc = MakeFromJSON<RawDataDesc>(jsonInput);
 
@@ -1312,15 +1291,15 @@ TEST(JsonParser, RawDataResource) {
 }
 
 TEST(JsonParser, GraphConstantResource) {
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "uid": "weights0",
         "dims": [16,2,2,2,2,16],
         "format": "VK_FORMAT_R8_SINT",
         "src": "graph_constant.npy"
     }
-    )"";
+    )"_json;
 
     auto desc = MakeFromJSON<GraphConstantDesc>(jsonInput);
 
@@ -1343,8 +1322,8 @@ TEST(JsonParser, GraphConstantResource) {
 
 TEST(JsonParser, TensorResource) {
 
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "src": "./graph_data/intensor1.npy",
         "dims": [1, 4, 8, 16],
@@ -1353,7 +1332,7 @@ TEST(JsonParser, TensorResource) {
         "uid": "InTensor1",
         "tiling": "OPTIMAL"
     }
-    )"";
+    )"_json;
 
     auto desc = MakeFromJSON<TensorDesc>(jsonInput);
 
@@ -1373,8 +1352,8 @@ TEST(JsonParser, TensorResource) {
 
 TEST(JsonParser, TensorResourceMissingDims) {
 
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "src": "./graph_data/intensor1.npy",
         "format": "VK_FORMAT_R8_SINT",
@@ -1382,15 +1361,15 @@ TEST(JsonParser, TensorResourceMissingDims) {
         "uid": "InTensor1",
         "tiling": "OPTIMAL"
     }
-    )"";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<TensorDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
 }
 
 TEST(JsonParser, TensorResourceDimsInvalidType) {
 
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "src": "./graph_data/intensor1.npy",
         "dims": "1",
@@ -1399,30 +1378,30 @@ TEST(JsonParser, TensorResourceDimsInvalidType) {
         "uid": "InTensor1",
         "tiling": "OPTIMAL"
     }
-    )"";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<TensorDesc>(jsonInput), nlohmann::json::type_error);
 }
 
 TEST(JsonParser, ImageResourceMissingDims) {
 
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "format": "VK_FORMAT_R8G8B8A8_SRGB",
         "shader_access": "readwrite",
         "uid": "InputColorBuffer0",
         "mips": false
     }
-    )"";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<ImageDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
 }
 
 TEST(JsonParser, ImageResourceDimsInvalidType) {
 
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "dims": "256",
         "format": "VK_FORMAT_R8G8B8A8_SRGB",
@@ -1430,7 +1409,7 @@ TEST(JsonParser, ImageResourceDimsInvalidType) {
         "uid": "InputColorBuffer0",
         "mips": false
     }
-    )"";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<ImageDesc>(jsonInput), nlohmann::json::type_error);
 }
@@ -1448,14 +1427,13 @@ TEST(JsonParser, MarkBoundaryMissingResources) {
     }
     )"";
 
-    std::istringstream iss(jsonScenario);
-    ASSERT_THROW(ScenarioSpec(&iss, {}), nlohmann::json_abi_v3_11_3::detail::out_of_range);
+    ASSERT_THROW(ScenarioSpec{jsonScenario}, nlohmann::json_abi_v3_11_3::detail::out_of_range);
 }
 
 TEST(JsonParser, DispatchComputeMissingRangeND) {
 
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "bindings": [
             {
@@ -1466,15 +1444,15 @@ TEST(JsonParser, DispatchComputeMissingRangeND) {
         ],
         "shader_ref": "add_shader"
     }
-    )"";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
 }
 
 TEST(JsonParser, DispatchComputeRangeNDInvalidType) {
 
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "bindings": [
             {
@@ -1486,32 +1464,32 @@ TEST(JsonParser, DispatchComputeRangeNDInvalidType) {
         "rangeND": "10",
         "shader_ref": "add_shader"
     }
-    )"";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json::type_error);
 }
 
 TEST(JsonParser, DispatchComputeMissingBindings) {
 
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "rangeND": [1, 1, 1],
         "shader_ref": "add_shader"
     }
-    )"";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
 }
 
 TEST(JsonParser, DispatchDataGraphMissingBindings) {
 
-    const std::string jsonInput =
-        R""(
+    const auto jsonInput =
+        R"(
     {
         "graph_ref": "graph1"
     }
-    )"";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<DispatchDataGraphDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
 }
@@ -1992,7 +1970,7 @@ TEST(JsonParser, GlobalMemBarrier) {
 }
 
 TEST(JsonParser, GraphConstantResourceInvalidDimsTooShort) {
-    const std::string jsonInput =
+    const auto jsonInput =
         R"(
     {
         "uid": "graph_constant_0_ref",
@@ -2000,13 +1978,13 @@ TEST(JsonParser, GraphConstantResourceInvalidDimsTooShort) {
         "format": "VK_FORMAT_R8_SINT",
         "src": "constant-0.npy"
     }
-    )";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<GraphConstantDesc>(jsonInput), std::runtime_error);
 }
 
 TEST(JsonParser, GraphConstantResourceInvalidDimsTooLong) {
-    const std::string jsonInput =
+    const auto jsonInput =
         R"(
     {
         "uid": "graph_constant_0_ref",
@@ -2014,7 +1992,7 @@ TEST(JsonParser, GraphConstantResourceInvalidDimsTooLong) {
         "format": "VK_FORMAT_R8_SINT",
         "src": "constant-0.npy"
     }
-    )";
+    )"_json;
 
     ASSERT_THROW(MakeFromJSON<GraphConstantDesc>(jsonInput), std::runtime_error);
 }
