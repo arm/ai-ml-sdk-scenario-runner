@@ -153,7 +153,7 @@ void Pipeline::createDescriptorSetLayouts(const Context &ctx, const std::vector<
 }
 
 void Pipeline::computePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
-                                     std::shared_ptr<PipelineCache> pipelineCache) {
+                                     const std::shared_ptr<PipelineCache> &pipelineCache) {
     _pipelineLayout = createPipelineLayout(ctx, _descriptorSetLayouts, shaderInfo.pushConstantsSize,
                                            vk::ShaderStageFlagBits::eCompute);
     _pushConstantStages = shaderInfo.pushConstantsSize > 0
@@ -201,7 +201,7 @@ void Pipeline::computePipelineCommon(const Context &ctx, const ShaderInfo &shade
 void Pipeline::graphicsPipelineCommon(const Context &ctx, const ShaderInfo &vertexShaderInfo,
                                       const ShaderInfo &fragmentShaderInfo,
                                       const std::vector<vk::Format> &colorAttachmentFormats,
-                                      std::shared_ptr<PipelineCache> pipelineCache) {
+                                      const std::shared_ptr<PipelineCache> &pipelineCache) {
     const uint32_t pushConstantsSize =
         std::max(vertexShaderInfo.pushConstantsSize, fragmentShaderInfo.pushConstantsSize);
     const vk::ShaderStageFlags graphicsStages =
@@ -498,7 +498,7 @@ Pipeline::Pipeline(const CommonArguments &args, const DataManager &dataManager, 
 void Pipeline::graphComputePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
                                           const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
                                           const std::vector<vk::DataGraphPipelineConstantARM> &constantInfos,
-                                          std::shared_ptr<PipelineCache> pipelineCache) {
+                                          const std::shared_ptr<PipelineCache> &pipelineCache) {
     // Compile/load SPIR-V code
     const auto spv = readShaderCode(shaderInfo);
     _shader = createShaderModuleFromCode(ctx, spv.data(), spv.size());
@@ -509,7 +509,7 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, const ShaderInfo &
 }
 
 void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIndex, const VgfView &vgfView,
-                                          std::shared_ptr<PipelineCache> pipelineCache,
+                                          const std::shared_ptr<PipelineCache> &pipelineCache,
                                           const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos) {
     // Setup constant resource info
     auto constantIndexes = vgfView.getSegmentConstantIndexes(segmentIndex);
@@ -617,7 +617,7 @@ void Pipeline::initSession(const Context &ctx) {
 void Pipeline::buildDataGraphPipeline(const Context &ctx, const std::string &entry,
                                       const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
                                       const std::vector<vk::DataGraphPipelineConstantARM> &constantInfos,
-                                      std::shared_ptr<PipelineCache> pipelineCache) {
+                                      const std::shared_ptr<PipelineCache> &pipelineCache) {
     vk::DataGraphPipelineShaderModuleCreateInfoARM shaderModuleInfo(
         *_shader, entry.c_str(), nullptr, static_cast<uint32_t>(constantInfos.size()), constantInfos.data(), nullptr);
 

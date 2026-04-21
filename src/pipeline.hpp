@@ -107,28 +107,28 @@ class Pipeline {
     void createDescriptorSetLayouts(const Context &ctx, const std::vector<TypedBinding> &bindings);
 
     void computePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
-                               std::shared_ptr<PipelineCache> pipelineCache);
+                               const std::shared_ptr<PipelineCache> &pipelineCache);
 
     void graphicsPipelineCommon(const Context &ctx, const ShaderInfo &vertexShaderInfo,
                                 const ShaderInfo &fragmentShaderInfo,
                                 const std::vector<vk::Format> &colorAttachmentFormats,
-                                std::shared_ptr<PipelineCache> pipelineCache);
+                                const std::shared_ptr<PipelineCache> &pipelineCache);
 
     void graphComputePipelineCommon(const Context &ctx, uint32_t segmentIndex, const VgfView &vgfView,
-                                    std::shared_ptr<PipelineCache> pipelineCache,
+                                    const std::shared_ptr<PipelineCache> &pipelineCache,
                                     const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos);
 
     // Helper to build a Datagraph pipeline that has been dispatched through SPIR-V
     void graphComputePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
                                     const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
                                     const std::vector<vk::DataGraphPipelineConstantARM> &constantInfos,
-                                    std::shared_ptr<PipelineCache> pipelineCache);
+                                    const std::shared_ptr<PipelineCache> &pipelineCache);
 
     // Helper to build a DataGraph pipeline once shader module, entry, resources and constants are prepared
     void buildDataGraphPipeline(const Context &ctx, const std::string &entry,
                                 const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
                                 const std::vector<vk::DataGraphPipelineConstantARM> &constantInfos,
-                                std::shared_ptr<PipelineCache> pipelineCache);
+                                const std::shared_ptr<PipelineCache> &pipelineCache);
 };
 
 template <typename T>
