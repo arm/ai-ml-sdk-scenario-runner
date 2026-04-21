@@ -10,6 +10,8 @@
 
 #include <string_view>
 
+using namespace std::string_view_literals;
+
 namespace mlsdk::scenariorunner {
 namespace {
 void parseOptionalPipelineStages(const json &j, std::string_view fieldName, std::vector<PipelineStage> &stages) {
@@ -27,7 +29,7 @@ void parseOptionalPipelineStages(const json &j, std::string_view fieldName, std:
 }
 
 void parseResourceDescGuid(const json &j, ResourceDesc &resource) {
-    resource.guidStr = j.at("uid").get<std::string>();
+    resource.guidStr = j.at("uid"sv).get<std::string>();
     resource.guid = resource.guidStr;
 }
 
@@ -46,6 +48,17 @@ void parseBaseBarrierDesc(const json &j, BaseBarrierDesc &barrier) {
     barrier.dstAccess = parseRequiredMemoryAccess(j, "dst_access");
     parseOptionalPipelineStages(j, "src_stage", barrier.srcStages);
     parseOptionalPipelineStages(j, "dst_stage", barrier.dstStages);
+}
+
+template <typename ParsedType, typename ValueType>
+void parseOptionalFieldAs(const json &j, std::string_view fieldName, ValueType &value) {
+    if (const auto it = j.find(fieldName); it != j.end()) {
+        value = it->get<ParsedType>();
+    }
+}
+
+template <typename ValueType> void parseOptionalField(const json &j, std::string_view fieldName, ValueType &value) {
+    parseOptionalFieldAs<ValueType>(j, fieldName, value);
 }
 
 } // namespace
@@ -106,13 +119,11 @@ NLOHMANN_JSON_SERIALIZE_ENUM(ShaderStage, {{ShaderStage::Unknown, nullptr},
                                            {ShaderStage::Fragment, "fragment"}})
 
 // Map ShaderAccessType values to JSON as strings
-NLOHMANN_JSON_SERIALIZE_ENUM(ShaderAccessType, {
-                                                   {ShaderAccessType::Unknown, nullptr},
-                                                   {ShaderAccessType::ReadOnly, "readonly"},
-                                                   {ShaderAccessType::WriteOnly, "writeonly"},
-                                                   {ShaderAccessType::ReadWrite, "readwrite"},
-                                                   {ShaderAccessType::ImageRead, "image_read"},
-                                               })
+NLOHMANN_JSON_SERIALIZE_ENUM(ShaderAccessType, {{ShaderAccessType::Unknown, nullptr},
+                                                {ShaderAccessType::ReadOnly, "readonly"},
+                                                {ShaderAccessType::WriteOnly, "writeonly"},
+                                                {ShaderAccessType::ReadWrite, "readwrite"},
+                                                {ShaderAccessType::ImageRead, "image_read"}})
 // Map MemoryAccess values to JSON as strings
 NLOHMANN_JSON_SERIALIZE_ENUM(MemoryAccess, {{MemoryAccess::Unknown, nullptr},
                                             {MemoryAccess::MemoryWrite, "memory_write"},
@@ -195,52 +206,52 @@ void readJson(ScenarioSpec &scenarioSpec, const std::string &jsonStr) {
 }
 
 void readJsonImpl(ScenarioSpec &scenarioSpec, const json &j) {
-    const json &resourcesJson = j.at("resources");
+    const json &resourcesJson = j.at("resources"sv);
     for (const auto &resourceJson : resourcesJson) {
         const auto resourceType = json(resourceJson.begin().key()).get<ResourceType>();
         switch (resourceType) {
         case (ResourceType::Shader): {
-            auto shader = resourceJson.at("shader").get<ShaderDesc>();
+            auto shader = resourceJson.at("shader"sv).get<ShaderDesc>();
             scenarioSpec.addResource(std::make_unique<ShaderDesc>(std::move(shader)));
         } break;
         case (ResourceType::Buffer): {
-            auto buffer = resourceJson.at("buffer").get<BufferDesc>();
+            auto buffer = resourceJson.at("buffer"sv).get<BufferDesc>();
             scenarioSpec.addResource(std::make_unique<BufferDesc>(std::move(buffer)));
         } break;
         case (ResourceType::RawData): {
-            auto rawData = resourceJson.at("raw_data").get<RawDataDesc>();
+            auto rawData = resourceJson.at("raw_data"sv).get<RawDataDesc>();
             scenarioSpec.addResource(std::make_unique<RawDataDesc>(std::move(rawData)));
         } break;
         case (ResourceType::DataGraph): {
-            auto dataGraph = resourceJson.at("graph").get<DataGraphDesc>();
+            auto dataGraph = resourceJson.at("graph"sv).get<DataGraphDesc>();
             scenarioSpec.addResource(std::make_unique<DataGraphDesc>(std::move(dataGraph)));
         } break;
         case (ResourceType::Tensor): {
-            auto tensor = resourceJson.at("tensor").get<TensorDesc>();
+            auto tensor = resourceJson.at("tensor"sv).get<TensorDesc>();
             scenarioSpec.addResource(std::make_unique<TensorDesc>(std::move(tensor)));
         } break;
         case (ResourceType::Image): {
-            auto image = resourceJson.at("image").get<ImageDesc>();
+            auto image = resourceJson.at("image"sv).get<ImageDesc>();
             scenarioSpec.addResource(std::make_unique<ImageDesc>(std::move(image)));
         } break;
         case (ResourceType::ImageBarrier): {
-            auto imageBarrier = resourceJson.at("image_barrier").get<ImageBarrierDesc>();
+            auto imageBarrier = resourceJson.at("image_barrier"sv).get<ImageBarrierDesc>();
             scenarioSpec.addResource(std::make_unique<ImageBarrierDesc>(std::move(imageBarrier)));
         } break;
         case (ResourceType::TensorBarrier): {
-            auto tensorBarrier = resourceJson.at("tensor_barrier").get<TensorBarrierDesc>();
+            auto tensorBarrier = resourceJson.at("tensor_barrier"sv).get<TensorBarrierDesc>();
             scenarioSpec.addResource(std::make_unique<TensorBarrierDesc>(std::move(tensorBarrier)));
         } break;
         case (ResourceType::MemoryBarrier): {
-            auto memoryBarrier = resourceJson.at("memory_barrier").get<MemoryBarrierDesc>();
+            auto memoryBarrier = resourceJson.at("memory_barrier"sv).get<MemoryBarrierDesc>();
             scenarioSpec.addResource(std::make_unique<MemoryBarrierDesc>(std::move(memoryBarrier)));
         } break;
         case (ResourceType::BufferBarrier): {
-            auto bufferBarrier = resourceJson.at("buffer_barrier").get<BufferBarrierDesc>();
+            auto bufferBarrier = resourceJson.at("buffer_barrier"sv).get<BufferBarrierDesc>();
             scenarioSpec.addResource(std::make_unique<BufferBarrierDesc>(std::move(bufferBarrier)));
         } break;
         case (ResourceType::GraphConstant): {
-            auto graphConstant = resourceJson.at("graph_constant").get<GraphConstantDesc>();
+            auto graphConstant = resourceJson.at("graph_constant"sv).get<GraphConstantDesc>();
             scenarioSpec.addResource(std::make_unique<GraphConstantDesc>(std::move(graphConstant)));
         } break;
         default:
@@ -248,36 +259,36 @@ void readJsonImpl(ScenarioSpec &scenarioSpec, const json &j) {
         }
     }
 
-    const json &commandsJson = j.at("commands");
+    const json &commandsJson = j.at("commands"sv);
     for (const auto &commandJson : commandsJson) {
         const auto commandType = json(commandJson.begin().key()).get<CommandType>();
         switch (commandType) {
         case (CommandType::DispatchCompute): {
-            auto dispatchCompute = commandJson.at("dispatch_compute").get<DispatchComputeDesc>();
+            auto dispatchCompute = commandJson.at("dispatch_compute"sv).get<DispatchComputeDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchComputeDesc>(std::move(dispatchCompute)));
         } break;
         case (CommandType::DispatchDataGraph): {
-            auto dispatchDataGraph = commandJson.at("dispatch_graph").get<DispatchDataGraphDesc>();
+            auto dispatchDataGraph = commandJson.at("dispatch_graph"sv).get<DispatchDataGraphDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchDataGraphDesc>(std::move(dispatchDataGraph)));
         } break;
         case (CommandType::DispatchSpirvGraph): {
-            auto dispatchSpirvGraph = commandJson.at("dispatch_spirv_graph").get<DispatchSpirvGraphDesc>();
+            auto dispatchSpirvGraph = commandJson.at("dispatch_spirv_graph"sv).get<DispatchSpirvGraphDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchSpirvGraphDesc>(std::move(dispatchSpirvGraph)));
         } break;
         case (CommandType::DispatchFragment): {
-            auto dispatchFragment = commandJson.at("dispatch_fragment").get<DispatchFragmentDesc>();
+            auto dispatchFragment = commandJson.at("dispatch_fragment"sv).get<DispatchFragmentDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchFragmentDesc>(std::move(dispatchFragment)));
         } break;
         case (CommandType::DispatchBarrier): {
-            auto dispatchBarrier = commandJson.at("dispatch_barrier").get<DispatchBarrierDesc>();
+            auto dispatchBarrier = commandJson.at("dispatch_barrier"sv).get<DispatchBarrierDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchBarrierDesc>(std::move(dispatchBarrier)));
         } break;
         case (CommandType::MarkBoundary): {
-            auto markBoundary = commandJson.at("mark_boundary").get<MarkBoundaryDesc>();
+            auto markBoundary = commandJson.at("mark_boundary"sv).get<MarkBoundaryDesc>();
             scenarioSpec.addCommand(std::make_unique<MarkBoundaryDesc>(std::move(markBoundary)));
         } break;
         case (CommandType::DispatchOpticalFlow): {
-            auto dispatchOpticalFlow = commandJson.at("dispatch_optical_flow").get<DispatchOpticalFlowDesc>();
+            auto dispatchOpticalFlow = commandJson.at("dispatch_optical_flow"sv).get<DispatchOpticalFlowDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchOpticalFlowDesc>(std::move(dispatchOpticalFlow)));
         } break;
         default:
@@ -293,66 +304,42 @@ void readJsonImpl(ScenarioSpec &scenarioSpec, const json &j) {
  * @param dispatchCompute
  */
 void from_json(const json &j, DispatchComputeDesc &dispatchCompute) {
-    dispatchCompute.bindings = j.at("bindings").get<std::vector<BindingDesc>>();
-    const json &rangeNDJson = j.at("rangeND");
-    uint32_t i = 0;
-    for (auto dimension = rangeNDJson.begin(); dimension != rangeNDJson.end(); ++dimension) {
-        const json &newDimension = dimension.value();
-        dispatchCompute.rangeND.push_back(newDimension.get<uint32_t>());
-        ++i;
-    }
-    for (; i < 3; ++i) {
+    dispatchCompute.bindings = j.at("bindings"sv).get<std::vector<BindingDesc>>();
+    dispatchCompute.rangeND = j.at("rangeND"sv).get<std::vector<uint32_t>>();
+    for (size_t i = dispatchCompute.rangeND.size(); i < 3; ++i) {
         dispatchCompute.rangeND.push_back(1);
     }
-    auto shaderRef = j.at("shader_ref").get<std::string>();
-    dispatchCompute.shaderRef = shaderRef;
-    dispatchCompute.debugName = shaderRef;
-    if (j.contains("push_data_ref")) {
-        dispatchCompute.pushDataRef = j.at("push_data_ref").get<std::string>();
-    }
-    if (j.contains("implicit_barrier")) {
-        dispatchCompute.implicitBarrier = j.at("implicit_barrier").get<bool>();
-    }
+    dispatchCompute.debugName = j.at("shader_ref"sv).get<std::string>();
+    dispatchCompute.shaderRef = dispatchCompute.debugName;
+    parseOptionalFieldAs<std::string>(j, "push_data_ref", dispatchCompute.pushDataRef);
+    parseOptionalField(j, "implicit_barrier", dispatchCompute.implicitBarrier);
 }
 
 void from_json(const json &j, FragmentAttachmentDesc &fragmentAttachment) {
     if (j.is_string()) {
         fragmentAttachment.resourceRef = j.get<std::string>();
     } else if (j.is_object()) {
-        fragmentAttachment.resourceRef = j.at("resource_ref").get<std::string>();
-        if (j.contains("lod")) {
-            fragmentAttachment.lod = j.at("lod").get<uint32_t>();
-        }
+        fragmentAttachment.resourceRef = j.at("resource_ref"sv).get<std::string>();
+        parseOptionalFieldAs<uint32_t>(j, "lod", fragmentAttachment.lod);
     } else {
         throw std::runtime_error("color_attachment_refs entries must be strings or objects");
     }
 }
 
 void from_json(const json &j, DispatchFragmentDesc &dispatchFragment) {
-    dispatchFragment.bindings = j.at("bindings").get<std::vector<BindingDesc>>();
+    dispatchFragment.bindings = j.at("bindings"sv).get<std::vector<BindingDesc>>();
 
-    dispatchFragment.vertexShaderRef = j.at("vertex_shader_ref").get<std::string>();
-    const auto fragmentShaderRef = j.at("fragment_shader_ref").get<std::string>();
-    dispatchFragment.fragmentShaderRef = fragmentShaderRef;
-    dispatchFragment.debugName = fragmentShaderRef;
-    if (j.contains("debug_name")) {
-        dispatchFragment.debugName = j.at("debug_name").get<std::string>();
-    }
-    if (j.contains("color_attachment_refs")) {
-        dispatchFragment.colorAttachments = j.at("color_attachment_refs").get<std::vector<FragmentAttachmentDesc>>();
-    }
-    if (j.contains("render_extent")) {
-        dispatchFragment.renderExtent = j.at("render_extent").get<std::array<uint32_t, 2>>();
-    }
+    dispatchFragment.vertexShaderRef = j.at("vertex_shader_ref"sv).get<std::string>();
+    dispatchFragment.debugName = j.at("fragment_shader_ref"sv).get<std::string>();
+    dispatchFragment.fragmentShaderRef = dispatchFragment.debugName;
+    parseOptionalField(j, "debug_name", dispatchFragment.debugName);
+    parseOptionalField(j, "color_attachment_refs", dispatchFragment.colorAttachments);
+    parseOptionalFieldAs<std::array<uint32_t, 2>>(j, "render_extent", dispatchFragment.renderExtent);
     if (dispatchFragment.colorAttachments.empty() && !dispatchFragment.renderExtent.has_value()) {
         throw std::runtime_error("dispatch_fragment requires color_attachment_refs or render_extent");
     }
-    if (j.contains("push_data_ref")) {
-        dispatchFragment.pushDataRef = j.at("push_data_ref").get<std::string>();
-    }
-    if (j.contains("implicit_barrier")) {
-        dispatchFragment.implicitBarrier = j.at("implicit_barrier").get<bool>();
-    }
+    parseOptionalFieldAs<std::string>(j, "push_data_ref", dispatchFragment.pushDataRef);
+    parseOptionalField(j, "implicit_barrier", dispatchFragment.implicitBarrier);
 }
 
 /**
@@ -362,20 +349,13 @@ void from_json(const json &j, DispatchFragmentDesc &dispatchFragment) {
  * @param dispatchDataGraph
  */
 void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph) {
-    auto graphRef = j.at("graph_ref").get<std::string>();
-    dispatchDataGraph.dataGraphRef = graphRef;
-    dispatchDataGraph.debugName = graphRef;
-    dispatchDataGraph.bindings = j.at("bindings").get<std::vector<BindingDesc>>();
+    dispatchDataGraph.debugName = j.at("graph_ref"sv).get<std::string>();
+    dispatchDataGraph.dataGraphRef = dispatchDataGraph.debugName;
+    dispatchDataGraph.bindings = j.at("bindings"sv).get<std::vector<BindingDesc>>();
 
-    if (j.contains("push_constants")) {
-        dispatchDataGraph.pushConstants = j.at("push_constants").get<std::vector<PushConstantMap>>();
-    }
-    if (j.contains("shader_substitutions")) {
-        dispatchDataGraph.shaderSubstitutions = j.at("shader_substitutions").get<std::vector<ShaderSubstitution>>();
-    }
-    if (j.contains("implicit_barrier")) {
-        dispatchDataGraph.implicitBarrier = j.at("implicit_barrier").get<bool>();
-    }
+    parseOptionalField(j, "push_constants", dispatchDataGraph.pushConstants);
+    parseOptionalField(j, "shader_substitutions", dispatchDataGraph.shaderSubstitutions);
+    parseOptionalField(j, "implicit_barrier", dispatchDataGraph.implicitBarrier);
 }
 
 /**
@@ -385,17 +365,14 @@ void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph) {
  * @param dispatchSpirvGraph
  */
 void from_json(const json &j, DispatchSpirvGraphDesc &dispatchSpirvGraph) {
-    auto graphRef = j.at("graph_ref").get<std::string>();
-    dispatchSpirvGraph.dataGraphRef = graphRef;
-    dispatchSpirvGraph.debugName = graphRef;
-    dispatchSpirvGraph.bindings = j.at("bindings").get<std::vector<BindingDesc>>();
-    if (j.contains("graph_constants")) {
-        const auto graphConstants = j.at("graph_constants").get<std::vector<std::string>>();
+    dispatchSpirvGraph.debugName = j.at("graph_ref"sv).get<std::string>();
+    dispatchSpirvGraph.dataGraphRef = dispatchSpirvGraph.debugName;
+    dispatchSpirvGraph.bindings = j.at("bindings"sv).get<std::vector<BindingDesc>>();
+    if (const auto it = j.find("graph_constants"sv); it != j.end()) {
+        const auto graphConstants = it->get<std::vector<std::string>>();
         dispatchSpirvGraph.graphConstants.assign(graphConstants.begin(), graphConstants.end());
     }
-    if (j.contains("implicit_barrier")) {
-        dispatchSpirvGraph.implicitBarrier = j.at("implicit_barrier").get<bool>();
-    }
+    parseOptionalField(j, "implicit_barrier", dispatchSpirvGraph.implicitBarrier);
 }
 
 /**
@@ -407,36 +384,31 @@ void from_json(const json &j, DispatchSpirvGraphDesc &dispatchSpirvGraph) {
 void from_json(const json &j, DispatchOpticalFlowDesc &dispatchOpticalFlow) {
     dispatchOpticalFlow.debugName = "dispatch_optical_flow";
 
-    dispatchOpticalFlow.width = j.at("width").get<uint32_t>();
-    dispatchOpticalFlow.height = j.at("height").get<uint32_t>();
-    dispatchOpticalFlow.gridSize = j.at("grid_size").get<OpticalFlowGridSize>();
+    dispatchOpticalFlow.width = j.at("width"sv).get<uint32_t>();
+    dispatchOpticalFlow.height = j.at("height"sv).get<uint32_t>();
+    if (dispatchOpticalFlow.width == 0 || dispatchOpticalFlow.height == 0) {
+        throw std::runtime_error("Optical flow width and height must be > 0");
+    }
+    dispatchOpticalFlow.gridSize = j.at("grid_size"sv).get<OpticalFlowGridSize>();
     if (dispatchOpticalFlow.gridSize == OpticalFlowGridSize::Invalid) {
         throw std::runtime_error("Invalid optical flow grid_size value. Expected one of: 1x1, 2x2, 4x4, 8x8.");
     }
 
-    if (j.contains("performance_level")) {
-        dispatchOpticalFlow.performanceLevel = j.at("performance_level").get<OpticalFlowPerformanceLevel>();
-        if (dispatchOpticalFlow.performanceLevel == OpticalFlowPerformanceLevel::Invalid) {
-            throw std::runtime_error(
-                "Invalid optical flow performance_level value. Expected one of: unknown, slow, medium, fast.");
-        }
+    parseOptionalField(j, "performance_level", dispatchOpticalFlow.performanceLevel);
+    if (dispatchOpticalFlow.performanceLevel == OpticalFlowPerformanceLevel::Invalid) {
+        throw std::runtime_error(
+            "Invalid optical flow performance_level value. Expected one of: unknown, slow, medium, fast.");
     }
-    dispatchOpticalFlow.meanFlowL1NormHint = j.value("mean_flow_l1_norm_hint", dispatchOpticalFlow.meanFlowL1NormHint);
-
-    if (dispatchOpticalFlow.width == 0 || dispatchOpticalFlow.height == 0) {
-        throw std::runtime_error("Optical flow width and height must be > 0");
-    }
+    parseOptionalField(j, "mean_flow_l1_norm_hint", dispatchOpticalFlow.meanFlowL1NormHint);
     if (dispatchOpticalFlow.meanFlowL1NormHint >= std::max(dispatchOpticalFlow.width, dispatchOpticalFlow.height)) {
         throw std::runtime_error(
             "Invalid optical flow mean_flow_l1_norm_hint value. Expected 0 or < max(width, height).");
     }
 
-    if (j.contains("implicit_barrier")) {
-        dispatchOpticalFlow.implicitBarrier = j.at("implicit_barrier").get<bool>();
-    }
+    parseOptionalField(j, "implicit_barrier", dispatchOpticalFlow.implicitBarrier);
 
-    if (j.contains("execution_flags")) {
-        auto flags = j.at("execution_flags").get<std::vector<OpticalFlowExecutionFlag>>();
+    if (const auto it = j.find("execution_flags"sv); it != j.end()) {
+        auto flags = it->get<std::vector<OpticalFlowExecutionFlag>>();
         for (const auto flag : flags) {
             if (flag == OpticalFlowExecutionFlag::Invalid) {
                 throw std::runtime_error("Invalid optical flow execution_flags value.");
@@ -449,17 +421,13 @@ void from_json(const json &j, DispatchOpticalFlowDesc &dispatchOpticalFlow) {
         throw std::runtime_error("Invalid optical flow execution_flags value.");
     }
 
-    const json &bindingsJson = j.at("bindings");
-    dispatchOpticalFlow.searchImage = bindingsJson.at("search_image").get<BindingDesc>();
-    dispatchOpticalFlow.templateImage = bindingsJson.at("template_image").get<BindingDesc>();
-    dispatchOpticalFlow.outputImage = bindingsJson.at("output_image").get<BindingDesc>();
+    const json &bindingsJson = j.at("bindings"sv);
+    dispatchOpticalFlow.searchImage = bindingsJson.at("search_image"sv).get<BindingDesc>();
+    dispatchOpticalFlow.templateImage = bindingsJson.at("template_image"sv).get<BindingDesc>();
+    dispatchOpticalFlow.outputImage = bindingsJson.at("output_image"sv).get<BindingDesc>();
 
-    if (bindingsJson.contains("hint_motion_vectors")) {
-        dispatchOpticalFlow.hintMotionVectors = bindingsJson.at("hint_motion_vectors").get<BindingDesc>();
-    }
-    if (bindingsJson.contains("output_cost")) {
-        dispatchOpticalFlow.outputCost = bindingsJson.at("output_cost").get<BindingDesc>();
-    }
+    parseOptionalFieldAs<BindingDesc>(j, "hint_motion_vectors", dispatchOpticalFlow.hintMotionVectors);
+    parseOptionalFieldAs<BindingDesc>(j, "output_cost", dispatchOpticalFlow.outputCost);
 }
 
 /**
@@ -469,21 +437,11 @@ void from_json(const json &j, DispatchOpticalFlowDesc &dispatchOpticalFlow) {
  * @param dispatchBarrier
  */
 void from_json(const json &j, DispatchBarrierDesc &dispatchBarrier) {
-    dispatchBarrier.imageBarriersRef = j.at("image_barrier_refs").get<std::vector<std::string>>();
+    dispatchBarrier.imageBarriersRef = j.at("image_barrier_refs"sv).get<std::vector<std::string>>();
 
-    auto tensorBarriersIter = j.find("tensor_barrier_refs");
-    if (tensorBarriersIter != j.end()) {
-        const json &tensorBarriersJson = tensorBarriersIter.value();
-        for (auto tensorBarrier = tensorBarriersJson.begin(); tensorBarrier != tensorBarriersJson.end();
-             ++tensorBarrier) {
-            const json &newTensorBarrier = tensorBarrier.value();
-            dispatchBarrier.tensorBarriersRef.push_back(newTensorBarrier.get<std::string>());
-        }
-    }
-
-    dispatchBarrier.memoryBarriersRef = j.at("memory_barrier_refs").get<std::vector<std::string>>();
-
-    dispatchBarrier.bufferBarriersRef = j.at("buffer_barrier_refs").get<std::vector<std::string>>();
+    parseOptionalField(j, "tensor_barrier_refs", dispatchBarrier.tensorBarriersRef);
+    dispatchBarrier.memoryBarriersRef = j.at("memory_barrier_refs"sv).get<std::vector<std::string>>();
+    dispatchBarrier.bufferBarriersRef = j.at("buffer_barrier_refs"sv).get<std::vector<std::string>>();
 }
 
 /**
@@ -493,10 +451,10 @@ void from_json(const json &j, DispatchBarrierDesc &dispatchBarrier) {
  * @param markBoundaryDesc
  */
 void from_json(const json &j, MarkBoundaryDesc &markBoundaryDesc) {
-    if (j.contains("frame_id")) {
+    if (j.contains("frame_id"sv)) {
         mlsdk::logging::warning("Manual setting of frameID is deprecated");
     }
-    markBoundaryDesc.resources = j.at("resources").get<std::vector<std::string>>();
+    markBoundaryDesc.resources = j.at("resources"sv).get<std::vector<std::string>>();
 }
 
 /**
@@ -506,17 +464,13 @@ void from_json(const json &j, MarkBoundaryDesc &markBoundaryDesc) {
  * @param binding
  */
 void from_json(const json &j, BindingDesc &binding) {
-    binding.set = j.at("set").get<uint32_t>();
-    binding.id = j.at("id").get<uint32_t>();
-    if (j.contains("lod")) {
-        binding.lod = j.at("lod").get<int>();
-    }
-    binding.resourceRef = j.at("resource_ref").get<std::string>();
-    if (j.contains("descriptor_type")) {
-        binding.descriptorType = j.at("descriptor_type").get<DescriptorType>();
-        if (binding.descriptorType == DescriptorType::Unknown) {
-            throw std::runtime_error("Unknown descriptor_type value");
-        }
+    binding.set = j.at("set"sv).get<uint32_t>();
+    binding.id = j.at("id"sv).get<uint32_t>();
+    parseOptionalFieldAs<int>(j, "lod", binding.lod);
+    binding.resourceRef = j.at("resource_ref"sv).get<std::string>();
+    parseOptionalField(j, "descriptor_type", binding.descriptorType);
+    if (binding.descriptorType == DescriptorType::Unknown) {
+        throw std::runtime_error("Unknown descriptor_type value");
     }
 }
 
@@ -527,8 +481,8 @@ void from_json(const json &j, BindingDesc &binding) {
  * @param pushConstantMap
  */
 void from_json(const json &j, PushConstantMap &pushConstantMap) {
-    pushConstantMap.pushDataRef = j.at("push_data_ref").get<std::string>();
-    pushConstantMap.shaderTarget = j.at("shader_target").get<std::string>();
+    pushConstantMap.pushDataRef = j.at("push_data_ref"sv).get<std::string>();
+    pushConstantMap.shaderTarget = j.at("shader_target"sv).get<std::string>();
 }
 
 /**
@@ -538,10 +492,8 @@ void from_json(const json &j, PushConstantMap &pushConstantMap) {
  * @param group
  */
 void from_json(const json &j, MemoryGroup &group) {
-    group.memoryUid = j.at("id");
-    if (j.contains("offset")) {
-        group.offset = j.at("offset").get<uint64_t>();
-    }
+    group.memoryUid = j.at("id"sv);
+    parseOptionalField(j, "offset", group.offset);
 }
 
 //====================
@@ -556,20 +508,14 @@ void from_json(const json &j, MemoryGroup &group) {
  */
 void from_json(const json &j, BufferDesc &buffer) {
     parseResourceDescGuid(j, buffer);
-    buffer.size = j.at("size").get<uint32_t>();
-    buffer.shaderAccess = j.at("shader_access").get<ShaderAccessType>();
+    buffer.size = j.at("size"sv).get<uint32_t>();
+    buffer.shaderAccess = j.at("shader_access"sv).get<ShaderAccessType>();
     if (buffer.shaderAccess == ShaderAccessType::Unknown) {
         throw std::runtime_error("Unknown shader_access value");
     }
-    if (j.contains("src")) {
-        buffer.src = j.at("src").get<std::string>();
-    }
-    if (j.contains("dst")) {
-        buffer.dst = j.at("dst").get<std::string>();
-    }
-    if (j.contains("memory_group")) {
-        buffer.memoryGroup = j.at("memory_group").get<MemoryGroup>();
-    }
+    parseOptionalFieldAs<std::string>(j, "src", buffer.src);
+    parseOptionalFieldAs<std::string>(j, "dst", buffer.dst);
+    parseOptionalFieldAs<MemoryGroup>(j, "memory_group", buffer.memoryGroup);
 }
 
 /**
@@ -579,8 +525,8 @@ void from_json(const json &j, BufferDesc &buffer) {
  * @param specializationConstant
  */
 void from_json(const json &j, SpecializationConstant &specializationConstant) {
-    specializationConstant.id = j.at("id").get<int>();
-    const auto &val = j.at("value");
+    specializationConstant.id = j.at("id"sv).get<int>();
+    const auto &val = j.at("value"sv);
     if (val.is_boolean()) {
         specializationConstant.value.ui = val.get<bool>() ? 1u : 0u;
     } else if (val.is_number_unsigned()) {
@@ -601,9 +547,9 @@ void from_json(const json &j, SpecializationConstant &specializationConstant) {
  * @param specializationConstantMap
  */
 void from_json(const json &j, SpecializationConstantMap &specializationConstantMap) {
-    specializationConstantMap.shaderTarget = j.at("shader_target").get<std::string>();
+    specializationConstantMap.shaderTarget = j.at("shader_target"sv).get<std::string>();
     specializationConstantMap.specializationConstants =
-        j.at("specialization_constants").get<std::vector<SpecializationConstant>>();
+        j.at("specialization_constants"sv).get<std::vector<SpecializationConstant>>();
 }
 
 /**
@@ -613,8 +559,8 @@ void from_json(const json &j, SpecializationConstantMap &specializationConstantM
  * @param shaderSubstitution
  */
 void from_json(const json &j, ShaderSubstitution &shaderSubstitution) {
-    shaderSubstitution.shaderRef = j.at("shader_ref").get<std::string>();
-    shaderSubstitution.target = j.at("target").get<std::string>();
+    shaderSubstitution.shaderRef = j.at("shader_ref"sv).get<std::string>();
+    shaderSubstitution.target = j.at("target"sv).get<std::string>();
 }
 
 /**
@@ -625,17 +571,10 @@ void from_json(const json &j, ShaderSubstitution &shaderSubstitution) {
  */
 void from_json(const json &j, DataGraphDesc &dataGraph) {
     parseResourceDescGuid(j, dataGraph);
-    dataGraph.src = j.at("src").get<std::string>();
-    if (j.contains("shader_substitutions")) {
-        dataGraph.shaderSubstitutions = j.at("shader_substitutions").get<std::vector<ShaderSubstitution>>();
-    }
-    if (j.contains("specialization_constants_map")) {
-        dataGraph.specializationConstantMaps =
-            j.at("specialization_constants_map").get<std::vector<SpecializationConstantMap>>();
-    }
-    if (j.contains("push_constants_size")) {
-        dataGraph.pushConstantsSize = j.at("push_constants_size").get<uint32_t>();
-    }
+    dataGraph.src = j.at("src"sv).get<std::string>();
+    parseOptionalField(j, "shader_substitutions", dataGraph.shaderSubstitutions);
+    parseOptionalField(j, "specialization_constants_map", dataGraph.specializationConstantMaps);
+    parseOptionalField(j, "push_constants_size", dataGraph.pushConstantsSize);
 }
 
 /**
@@ -646,36 +585,23 @@ void from_json(const json &j, DataGraphDesc &dataGraph) {
  */
 void from_json(const json &j, ShaderDesc &shader) {
     parseResourceDescGuid(j, shader);
-    shader.src = j.at("src").get<std::string>();
-    shader.shaderType = j.at("type").get<ShaderType>();
+    shader.src = j.at("src"sv).get<std::string>();
+    shader.shaderType = j.at("type"sv).get<ShaderType>();
     if (shader.shaderType == ShaderType::Unknown) {
         throw std::runtime_error("Unknown shader type value");
     }
-    shader.stage = ShaderStage::Compute;
-    if (j.contains("stage")) {
-        shader.stage = j.at("stage").get<ShaderStage>();
-        if (shader.stage == ShaderStage::Unknown) {
-            throw std::runtime_error("Unknown shader stage value");
-        }
+    parseOptionalField(j, "stage", shader.stage);
+    if (shader.stage == ShaderStage::Unknown) {
+        throw std::runtime_error("Unknown shader stage value");
     }
-    if (j.contains("entry")) {
-        shader.entry = j.at("entry").get<std::string>();
-    }
-    if (shader.shaderType == ShaderType::GLSL && shader.entry != "main") {
+    parseOptionalField(j, "entry", shader.entry);
+    if (shader.shaderType == ShaderType::GLSL && shader.entry != "main"sv) {
         throw std::runtime_error("GLSL is required to have an entrypoint of 'main'");
     }
-    if (j.contains("push_constants_size")) {
-        shader.pushConstantsSize = j.at("push_constants_size").get<uint32_t>();
-    }
-    if (j.contains("specialization_constants")) {
-        shader.specializationConstants = j.at("specialization_constants").get<std::vector<SpecializationConstant>>();
-    }
-    if (j.contains("build_options")) {
-        shader.buildOpts = j.at("build_options").get<std::string>();
-    }
-    if (j.contains("include_dirs")) {
-        shader.includeDirs = j.at("include_dirs").get<std::vector<std::string>>();
-    }
+    parseOptionalField(j, "push_constants_size", shader.pushConstantsSize);
+    parseOptionalField(j, "specialization_constants", shader.specializationConstants);
+    parseOptionalField(j, "build_options", shader.buildOpts);
+    parseOptionalField(j, "include_dirs", shader.includeDirs);
 }
 
 /**
@@ -686,7 +612,7 @@ void from_json(const json &j, ShaderDesc &shader) {
  */
 void from_json(const json &j, RawDataDesc &rawData) {
     parseResourceDescGuid(j, rawData);
-    rawData.src = j.at("src").get<std::string>();
+    rawData.src = j.at("src"sv).get<std::string>();
 }
 
 /**
@@ -697,13 +623,13 @@ void from_json(const json &j, RawDataDesc &rawData) {
  */
 void from_json(const json &j, GraphConstantDesc &graphConstant) {
     parseResourceDescGuid(j, graphConstant);
-    const auto dims = j.at("dims").get<std::vector<int64_t>>();
+    const auto dims = j.at("dims"sv).get<std::vector<int64_t>>();
     if (dims.empty() || dims.size() > 6) {
         throw std::runtime_error("Invalid graph constant dimensions");
     }
     graphConstant.dims = dims;
-    graphConstant.src = j.at("src").get<std::string>();
-    graphConstant.format = j.at("format").get<std::string>();
+    graphConstant.src = j.at("src"sv).get<std::string>();
+    graphConstant.format = j.at("format"sv).get<std::string>();
 }
 
 /**
@@ -714,30 +640,22 @@ void from_json(const json &j, GraphConstantDesc &graphConstant) {
  */
 void from_json(const json &j, TensorDesc &tensor) {
     parseResourceDescGuid(j, tensor);
-    tensor.dims = j.at("dims").get<std::vector<int64_t>>();
-    tensor.format = j.at("format").get<std::string>();
-    tensor.shaderAccess = j.at("shader_access").get<ShaderAccessType>();
+    tensor.dims = j.at("dims"sv).get<std::vector<int64_t>>();
+    tensor.format = j.at("format"sv).get<std::string>();
+    tensor.shaderAccess = j.at("shader_access"sv).get<ShaderAccessType>();
     if (tensor.shaderAccess == ShaderAccessType::Unknown) {
         throw std::runtime_error("Unknown shader_access type");
     }
-    if (j.contains("src")) {
-        tensor.src = j.at("src").get<std::string>();
-    }
-    if (j.contains("dst")) {
-        tensor.dst = j.at("dst").get<std::string>();
-    }
-    if (j.contains("alias_target")) {
+    parseOptionalFieldAs<std::string>(j, "src", tensor.src);
+    parseOptionalFieldAs<std::string>(j, "dst", tensor.dst);
+    if (j.find("alias_target"sv) != j.end()) {
         throw std::runtime_error(
             "The alias_target field is deprecated, please use the memory_group functionality instead");
     }
-    if (j.contains("memory_group")) {
-        tensor.memoryGroup = j.at("memory_group").get<MemoryGroup>();
-    }
-    if (j.contains("tiling")) {
-        tensor.tiling = j.at("tiling").get<scenariorunner::Tiling>();
-        if (tensor.tiling == Tiling::Unknown) {
-            throw std::runtime_error("Unknown tiling value");
-        }
+    parseOptionalFieldAs<MemoryGroup>(j, "memory_group", tensor.memoryGroup);
+    parseOptionalFieldAs<Tiling>(j, "tiling", tensor.tiling);
+    if (tensor.tiling.has_value() && tensor.tiling.value() == Tiling::Unknown) {
+        throw std::runtime_error("Unknown tiling value");
     }
 }
 
@@ -749,82 +667,62 @@ void from_json(const json &j, TensorDesc &tensor) {
  */
 void from_json(const json &j, ImageDesc &image) {
     parseResourceDescGuid(j, image);
-    image.dims = j.at("dims").get<std::vector<uint32_t>>();
+    image.dims = j.at("dims"sv).get<std::vector<uint32_t>>();
     // for compatibility with the old json configs that had this field set as "false"
-    if (!j.contains("mips")) {
+    if (const auto it = j.find("mips"sv); it == j.end()) {
         image.mips = 1;
-    } else if (j.at("mips").is_boolean()) {
+    } else if (it.value().is_boolean()) {
         mlsdk::logging::warning("Boolean mips flag is deprecated, defaulting to \"1\". Use integer value instead");
         image.mips = 1;
     } else {
-        image.mips = j.at("mips").get<uint32_t>();
+        image.mips = it->get<uint32_t>();
     }
 
-    image.format = j.at("format").get<std::string>();
-    image.shaderAccess = j.at("shader_access").get<ShaderAccessType>();
+    image.format = j.at("format"sv).get<std::string>();
+    image.shaderAccess = j.at("shader_access"sv).get<ShaderAccessType>();
     if (image.shaderAccess == ShaderAccessType::Unknown) {
         throw std::runtime_error("Unknown shader_access type");
     }
-    if (j.contains("src")) {
-        image.src = j.at("src").get<std::string>();
+    parseOptionalFieldAs<std::string>(j, "src", image.src);
+    parseOptionalFieldAs<std::string>(j, "dst", image.dst);
+    parseOptionalFieldAs<bool>(j, "color_attachment", image.colorAttachment);
+    parseOptionalFieldAs<FilterMode>(j, "min_filter", image.minFilter);
+    if (image.minFilter.has_value() && image.minFilter.value() == FilterMode::Unknown) {
+        throw std::runtime_error("Unknown min_filter value");
     }
-    if (j.contains("dst")) {
-        image.dst = j.at("dst").get<std::string>();
+    parseOptionalFieldAs<FilterMode>(j, "mag_filter", image.magFilter);
+    if (image.magFilter.has_value() && image.magFilter.value() == FilterMode::Unknown) {
+        throw std::runtime_error("Unknown mag_filter value");
     }
-    if (j.contains("color_attachment")) {
-        image.colorAttachment = j.at("color_attachment").get<bool>();
+    parseOptionalFieldAs<FilterMode>(j, "mip_filter", image.mipFilter);
+    if (image.mipFilter.has_value() && image.mipFilter.value() == FilterMode::Unknown) {
+        throw std::runtime_error("Unknown mip_filter value");
     }
-    if (j.contains("min_filter")) {
-        image.minFilter = j.at("min_filter").get<FilterMode>();
-        if (image.minFilter == FilterMode::Unknown) {
-            throw std::runtime_error("Unknown min_filter value");
-        }
+    parseOptionalFieldAs<AddressMode>(j, "border_address_mode", image.borderAddressMode);
+    if (image.borderAddressMode.has_value() && image.borderAddressMode.value() == AddressMode::Unknown) {
+        throw std::runtime_error("Unknown border_address_mode value");
     }
-    if (j.contains("mag_filter")) {
-        image.magFilter = j.at("mag_filter").get<FilterMode>();
-        if (image.magFilter == FilterMode::Unknown) {
-            throw std::runtime_error("Unknown mag_filter value");
-        }
+    parseOptionalFieldAs<BorderColor>(j, "border_color", image.borderColor);
+    if (image.borderColor.has_value() && image.borderColor.value() == BorderColor::Unknown) {
+        throw std::runtime_error("Unknown border_color value");
     }
-    if (j.contains("mip_filter")) {
-        image.mipFilter = j.at("mip_filter").get<FilterMode>();
-        if (image.mipFilter == FilterMode::Unknown) {
-            throw std::runtime_error("Unknown mip_filter value");
-        }
-    }
-    if (j.contains("border_address_mode")) {
-        image.borderAddressMode = j.at("border_address_mode").get<AddressMode>();
-        if (image.borderAddressMode == AddressMode::Unknown) {
-            throw std::runtime_error("Unknown border_address_mode value");
-        }
-    }
-    if (j.contains("border_color")) {
-        image.borderColor = j.at("border_color").get<BorderColor>();
-        if (image.borderColor == BorderColor::Unknown) {
-            throw std::runtime_error("Unknown border_color value");
-        }
-    }
-    if (j.contains("custom_border_color")) {
+    if (const auto it = j.find("custom_border_color"sv); it != j.end()) {
         if (!image.borderColor.has_value()) {
             throw std::runtime_error("custom_border_color requires border_color");
         }
 
-        const json &customColorJson = j.at("custom_border_color");
+        const json &customColorJson = it.value();
         if (image.borderColor.value() == BorderColor::FloatCustomEXT) {
             image.customBorderColor = customColorJson.get<std::array<float, 4>>();
         } else {
             image.customBorderColor = customColorJson.get<std::array<int, 4>>();
         }
     }
-    if (j.contains("tiling")) {
-        image.tiling = j.at("tiling").get<scenariorunner::Tiling>();
-        if (image.tiling == Tiling::Unknown) {
-            throw std::runtime_error("Unknown tiling value");
-        }
+    parseOptionalFieldAs<Tiling>(j, "tiling", image.tiling);
+    if (image.tiling.has_value() && image.tiling.value() == Tiling::Unknown) {
+        throw std::runtime_error("Unknown tiling value");
     }
-    if (j.contains("memory_group")) {
-        image.memoryGroup = j.at("memory_group").get<MemoryGroup>();
-    }
+    parseOptionalFieldAs<MemoryGroup>(j, "memory_group", image.memoryGroup);
 }
 
 /**
@@ -844,7 +742,7 @@ void from_json(const json &j, MemoryBarrierDesc &memoryBarrier) { parseBaseBarri
 void from_json(const json &j, TensorBarrierDesc &tensorBarrier) {
     parseBaseBarrierDesc(j, tensorBarrier);
 
-    tensorBarrier.tensorResource = j.at("tensor_resource").get<std::string>();
+    tensorBarrier.tensorResource = j.at("tensor_resource"sv).get<std::string>();
 }
 
 /**
@@ -855,18 +753,16 @@ void from_json(const json &j, TensorBarrierDesc &tensorBarrier) {
  */
 void from_json(const json &j, ImageBarrierDesc &imageBarrier) {
     parseBaseBarrierDesc(j, imageBarrier);
-    imageBarrier.oldLayout = j.at("old_layout").get<ImageLayout>();
+    imageBarrier.oldLayout = j.at("old_layout"sv).get<ImageLayout>();
     if (imageBarrier.oldLayout == ImageLayout::Unknown) {
         throw std::runtime_error("Unknown old_layout value");
     }
-    imageBarrier.newLayout = j.at("new_layout").get<ImageLayout>();
+    imageBarrier.newLayout = j.at("new_layout"sv).get<ImageLayout>();
     if (imageBarrier.newLayout == ImageLayout::Unknown) {
         throw std::runtime_error("Unknown new_layout value");
     }
-    imageBarrier.imageResource = j.at("image_resource").get<std::string>();
-    if (j.contains("subresource_range")) {
-        imageBarrier.imageRange = j.at("subresource_range").get<SubresourceRange>();
-    }
+    imageBarrier.imageResource = j.at("image_resource"sv).get<std::string>();
+    parseOptionalField(j, "subresource_range", imageBarrier.imageRange);
 }
 
 /**
@@ -877,9 +773,9 @@ void from_json(const json &j, ImageBarrierDesc &imageBarrier) {
  */
 void from_json(const json &j, BufferBarrierDesc &bufferBarrier) {
     parseBaseBarrierDesc(j, bufferBarrier);
-    bufferBarrier.size = j.at("size").get<uint64_t>();
-    bufferBarrier.offset = j.at("offset").get<uint64_t>();
-    bufferBarrier.bufferResource = j.at("buffer_resource").get<std::string>();
+    bufferBarrier.size = j.at("size"sv).get<uint64_t>();
+    bufferBarrier.offset = j.at("offset"sv).get<uint64_t>();
+    bufferBarrier.bufferResource = j.at("buffer_resource"sv).get<std::string>();
 }
 
 /**
@@ -889,10 +785,10 @@ void from_json(const json &j, BufferBarrierDesc &bufferBarrier) {
  * @param subresourceRange
  */
 void from_json(const json &j, SubresourceRange &subresourceRange) {
-    subresourceRange.baseMipLevel = j.at("base_mip_level").get<uint32_t>();
-    subresourceRange.levelCount = j.at("level_count").get<uint32_t>();
-    subresourceRange.baseArrayLayer = j.at("base_array_layer").get<uint32_t>();
-    subresourceRange.layerCount = j.at("layer_count").get<uint32_t>();
+    subresourceRange.baseMipLevel = j.at("base_mip_level"sv).get<uint32_t>();
+    subresourceRange.levelCount = j.at("level_count"sv).get<uint32_t>();
+    subresourceRange.baseArrayLayer = j.at("base_array_layer"sv).get<uint32_t>();
+    subresourceRange.layerCount = j.at("layer_count"sv).get<uint32_t>();
 }
 
 } // namespace mlsdk::scenariorunner
