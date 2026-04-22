@@ -4,9 +4,7 @@
  */
 
 #include <string>
-#include <vector>
 
-#include "image.hpp"
 #include "image_formats.hpp"
 #include "vulkan/vulkan_core.h"
 
@@ -216,11 +214,8 @@ void saveHeaderToDDS(const DDSHeaderInfo &header, std::ofstream &fstream);
 /// \brief Create DDS file "filename" from image data
 ///
 /// \param filename file to create
-/// \param image image data to save to file
-/// \param data vector of raw data to save
 /// \param options save options
-void saveDataToDDS(const std::string &filename, const Image &image, const std::vector<char> &data,
-                   const ImageSaveOptions &options);
+void saveDataToDDS(const std::string &filename, const ImageSaveOptions &options);
 
 /// \brief Create a standard DDS (DX10) file header
 ///

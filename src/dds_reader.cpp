@@ -322,10 +322,15 @@ uint32_t calculatePitch(uint32_t width, uint32_t elementSize) {
     return (width * elementSize * 8 + 7) / 8;
 }
 
-DDSHeaderInfo generateDDSHeader(const Image &image) {
+DDSHeaderInfo generateDDSHeader(const ImageSaveOptions &options) {
+    if (options.shape.size() != 4) {
+        throw std::runtime_error("Unexpected image shape for DDS export");
+    }
+
+    const auto vkFormat = options.dataType;
     DDSHeaderInfo header =
-        generateDefaultDDSHeader(static_cast<uint32_t>(image.shape()[2]), static_cast<uint32_t>(image.shape()[1]),
-                                 elementSizeFromVkFormat(image.dataType()), vkFormatToDDSFormat(image.dataType()));
+        generateDefaultDDSHeader(static_cast<uint32_t>(options.shape[2]), static_cast<uint32_t>(options.shape[1]),
+                                 elementSizeFromVkFormat(vkFormat), vkFormatToDDSFormat(vkFormat));
     validateDDSHeader(header);
     return header;
 }
@@ -368,7 +373,7 @@ ImageLoadResult loadDataFromDDS(const std::string &filename, const ImageLoadOpti
         throw std::runtime_error("Failed to get DDS file size: " + filename);
     }
 
-    ImageLoadResult result(ddsFormatToVkFormat(header));
+    ImageLoadResult result(ddsFormatToVkFormat(header), header.header.width, header.header.height);
     result.data.resize(static_cast<size_t>(fileSize));
     file.seekg(dataPos);
     file.read(reinterpret_cast<char *>(result.data.data()), fileSize);
@@ -397,17 +402,16 @@ void saveHeaderToDDS(const DDSHeaderInfo &header, std::ofstream &fstream) {
     }
 }
 
-void saveDataToDDS(const std::string &filename, const Image &image, const std::vector<char> &data,
-                   const ImageSaveOptions &) {
+void saveDataToDDS(const std::string &filename, const ImageSaveOptions &options) {
     std::ofstream fstream(filename, std::ofstream::binary);
     if (!fstream.is_open()) {
         throw std::runtime_error("Error creating DDS file: " + filename);
     }
     fstream.exceptions(std::ios::badbit | std::ios::failbit);
 
-    DDSHeaderInfo header = generateDDSHeader(image);
+    DDSHeaderInfo header = generateDDSHeader(options);
     saveHeaderToDDS(header, fstream);
-    fstream.write(data.data(), std::streamsize(data.size()));
+    fstream.write(options.data.data(), std::streamsize(options.data.size()));
     fstream.close();
 }
 

@@ -12,8 +12,6 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
-#include "image.hpp"
-
 namespace mlsdk::scenariorunner {
 
 struct ImageLoadOptions {
@@ -32,13 +30,25 @@ struct ImageLoadOptions {
     uint64_t maxDecodedBytes{8192 * 8192 * 4};
 };
 
-struct ImageSaveOptions {};
+struct ImageSaveOptions {
+    /// Image shape expected as NHWC.
+    std::vector<int64_t> shape;
+    /// vk::Format of source image data.
+    vk::Format dataType{vk::Format::eUndefined};
+    /// Pixel data to save.
+    const std::vector<char> &data;
+};
 
 struct ImageLoadResult {
-    explicit ImageLoadResult(vk::Format vkFormat) : initialFormat(vkFormat) {}
+    explicit ImageLoadResult(vk::Format vkFormat, uint32_t imageWidth, uint32_t imageHeight)
+        : initialFormat(vkFormat), width(imageWidth), height(imageHeight) {}
 
     /// vk::Format of image file
     vk::Format initialFormat{vk::Format::eUndefined};
+    /// Image width in pixels
+    uint32_t width{0};
+    /// Image height in pixels
+    uint32_t height{0};
     /// Pixel data from file
     std::vector<uint8_t> data;
     /// Number of mip levels (only populated if relevant for data format)
@@ -49,9 +59,7 @@ struct ImageFormatHandler {
     std::set<std::string> extensions; // lower-case extensions including the dot
     std::function<vk::Format(const std::string &filename)> getFormat;
     std::function<ImageLoadResult(const std::string &filename, const ImageLoadOptions &options)> loadData;
-    std::function<void(const std::string &filename, const Image &image, const std::vector<char> &data,
-                       const ImageSaveOptions &options)>
-        saveData;
+    std::function<void(const std::string &filename, const ImageSaveOptions &options)> saveData;
 };
 
 /// \brief Find format handler by filename (extension is extracted and lower-cased).
