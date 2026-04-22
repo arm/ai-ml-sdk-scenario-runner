@@ -157,12 +157,13 @@ void Compute::_addDescriptorSets(const uint32_t baseDescriptorSetIdxGlobal, uint
                                  const std::vector<vk::DescriptorPoolSize> &poolSizes, const Pipeline &pipeline) {
     // Add new sets as needed
     while (_descriptorSets.size() <= baseDescriptorSetIdxGlobal + set) {
+        const auto nextSet = static_cast<uint32_t>(_descriptorSets.size() - baseDescriptorSetIdxGlobal);
         const vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo(
             vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 1, poolSizes);
         _descriptorPools.emplace_back(_ctx.device(), descriptorPoolCreateInfo);
 
         const vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo(*_descriptorPools.back(),
-                                                                      pipeline.descriptorSetLayout(set));
+                                                                      pipeline.descriptorSetLayout(nextSet));
 
         _descriptorSets.push_back(
             std::move(vk::raii::DescriptorSets(_ctx.device(), descriptorSetAllocateInfo).front()));

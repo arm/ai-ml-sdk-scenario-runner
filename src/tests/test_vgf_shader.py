@@ -20,10 +20,112 @@ pretendVulkanHeaderVersion = 123
 
 pytestmark = pytest.mark.vgf_shader
 
+INPUT0_BINDING = 4
+INPUT1_BINDING = 9
+OUTPUT_BINDING = 17
+INPUT_SET = 0
+OUTPUT_SET = 1
+
 
 def _skip_if_hlsl_unsupported(sdk_tools) -> None:
     if sdk_tools.hlsl_compiler.path is None:
         pytest.skip("HLSL compiler not provided; skipping HLSL-dependent tests.")
+
+
+def _write_two_descriptor_sets_vgf(
+    resources_helper,
+    vgf_filename: str,
+    *,
+    explicit_set_indices: bool,
+    swap_descriptor_order: bool,
+) -> None:
+    encoder = vgf.CreateEncoder(pretendVulkanHeaderVersion)
+
+    module0 = encoder.AddModule(vgf.ModuleType.Compute, "add_one", "main")
+
+    shaderInput = encoder.AddInputResource(
+        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [10], []
+    )
+    shaderInput2 = encoder.AddInputResource(
+        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [10], []
+    )
+    shaderOutput = encoder.AddOutputResource(
+        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [10], []
+    )
+
+    shaderInputBinding = encoder.AddBindingSlot(INPUT0_BINDING, shaderInput)
+    shaderInput2Binding = encoder.AddBindingSlot(INPUT1_BINDING, shaderInput2)
+    shaderOutputBinding = encoder.AddBindingSlot(OUTPUT_BINDING, shaderOutput)
+
+    input_bindings = [shaderInputBinding, shaderInput2Binding]
+    output_bindings = [shaderOutputBinding]
+    if explicit_set_indices:
+        # These set indices must match shader layout(set=...) declarations.
+        inputDescSetInfo = encoder.AddDescriptorSetInfo(input_bindings, INPUT_SET)
+        outputDescSetInfo = encoder.AddDescriptorSetInfo(output_bindings, OUTPUT_SET)
+    else:
+        inputDescSetInfo = encoder.AddDescriptorSetInfo(input_bindings)
+        outputDescSetInfo = encoder.AddDescriptorSetInfo(output_bindings)
+
+    descriptor_sets = (
+        [outputDescSetInfo, inputDescSetInfo]
+        if swap_descriptor_order
+        else [inputDescSetInfo, outputDescSetInfo]
+    )
+
+    encoder.AddModelSequenceInputsOutputs(
+        [shaderInputBinding, shaderInput2Binding],
+        ["shaderInput", "shaderInput2"],
+        [shaderOutputBinding],
+        ["shaderOutput"],
+    )
+
+    encoder.AddSegmentInfo(
+        module0,
+        "shader_segment",
+        descriptor_sets,
+        [shaderInputBinding, shaderInput2Binding],
+        [shaderOutputBinding],
+        [],
+        [10, 1, 1],
+    )
+
+    encoder.Finish()
+
+    vgfStream = io.FileIO(resources_helper.get_testenv_path(vgf_filename), mode="wb")
+    assert encoder.WriteTo(vgfStream)
+    vgfStream.close()
+
+
+def test_vgf_explicit_descriptor_set_index_is_used(
+    sdk_tools, resources_helper, numpy_helper
+):
+    sdk_tools.compile_shader(
+        "test_vgf_shader/add_shader_non_sequential_bindings.comp",
+        {"TestType": "int8_t"},
+        output="add_shader.spv",
+    )
+    _write_two_descriptor_sets_vgf(
+        resources_helper,
+        "two_descriptor_sets_explicit.vgf",
+        explicit_set_indices=True,
+        swap_descriptor_order=True,
+    )
+
+    input1 = numpy_helper.generate(
+        [10], dtype=np.uint8, filename="input.npy", data=[42] * 10
+    )
+    input2 = numpy_helper.generate(
+        [10], dtype=np.uint8, filename="input2.npy", data=[1] * 10
+    )
+
+    sdk_tools.run_scenario(
+        "test_vgf_shader/two_descriptor_sets.json",
+        {"{VGF_FILE}": "two_descriptor_sets_explicit.vgf"},
+    )
+
+    result = numpy_helper.load("output.npy", np.uint8)
+    assert np.array_equal(result, input1 + input2)
 
 
 def test_single_spirv_shader_module_in_vgf_with_shader_substitution(
