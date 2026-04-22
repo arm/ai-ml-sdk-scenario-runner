@@ -8,6 +8,9 @@
 
 #include "png_reader.hpp"
 
+#include "stb_image.h"
+#include "stb_image_write.h"
+
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -78,19 +81,18 @@ ImageLoadResult loadDataFromPNG(const std::string &filename, const ImageLoadOpti
     }
 
     const size_t expectedSize = checkedSize(width, height);
-    ImageLoadResult result(vk::Format::eR8G8B8A8Unorm);
+    ImageLoadResult result(vk::Format::eR8G8B8A8Unorm, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
     result.data.assign(decoded.get(), decoded.get() + expectedSize);
     return result;
 }
 
-void saveDataToPNG(const std::string &filename, const Image &image, const std::vector<char> &data,
-                   const ImageSaveOptions &) {
-    const auto &shape = image.shape();
+void saveDataToPNG(const std::string &filename, const ImageSaveOptions &options) {
+    const auto &shape = options.shape;
     if (shape.size() != 4) {
         throw std::runtime_error("Unexpected image shape for PNG export");
     }
 
-    vk::Format format = image.dataType();
+    vk::Format format = options.dataType;
     if (format != vk::Format::eR8G8B8A8Unorm) {
         throw std::runtime_error("PNG export supports only VK_FORMAT_R8G8B8A8_UNORM");
     }
@@ -98,13 +100,13 @@ void saveDataToPNG(const std::string &filename, const Image &image, const std::v
     const int64_t width64 = shape[1];
     const int64_t height64 = shape[2];
     const size_t expectedSize = checkedSize(width64, height64);
-    if (data.size() != expectedSize) {
+    if (options.data.size() != expectedSize) {
         throw std::runtime_error("Unexpected PNG data size for export");
     }
 
     const int width = static_cast<int>(width64);
     const int height = static_cast<int>(height64);
-    const auto *raw = reinterpret_cast<const unsigned char *>(data.data());
+    const auto *raw = reinterpret_cast<const unsigned char *>(options.data.data());
     if (stbi_write_png(filename.c_str(), width, height, 4, raw, width * 4) == 0) {
         throw std::runtime_error("Failed to write PNG: " + filename);
     }

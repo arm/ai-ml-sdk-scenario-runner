@@ -5,6 +5,8 @@
 
 #include "png_reader.hpp"
 
+#include "stb_image_write.h"
+
 #include <cstdint>
 #include <filesystem>
 #include <vector>
@@ -38,6 +40,8 @@ TEST(PngReader, LoadDataFromPNG) {
     const auto result = loadDataFromPNG(filePath.string(), {});
 
     EXPECT_EQ(result.initialFormat, vk::Format::eR8G8B8A8Unorm);
+    EXPECT_EQ(result.width, width);
+    EXPECT_EQ(result.height, height);
     EXPECT_EQ(result.data.size(), static_cast<size_t>(width) * static_cast<size_t>(height) * 4);
 
     std::error_code ignored;
@@ -56,6 +60,27 @@ TEST(PngReader, ThrowsOnDimensionMismatch) {
     options.expectedWidth = width;
 
     EXPECT_THROW((void)loadDataFromPNG(filePath.string(), options), std::runtime_error);
+
+    std::error_code ignored;
+    std::filesystem::remove(filePath, ignored);
+}
+
+TEST(PngReader, SaveDataToPNG) {
+    const auto filePath = makeTempPNGPath("scenario_runner_png_writer_test.png");
+    const uint32_t width = 4;
+    const uint32_t height = 4;
+
+    const auto data = std::vector<char>(static_cast<size_t>(width) * static_cast<size_t>(height) * 4, 0x7f);
+    ImageSaveOptions options{{1, height, width, 4}, vk::Format::eR8G8B8A8Unorm, data};
+
+    saveDataToPNG(filePath.string(), options);
+
+    const auto result = loadDataFromPNG(filePath.string(), {});
+
+    EXPECT_EQ(result.initialFormat, vk::Format::eR8G8B8A8Unorm);
+    EXPECT_EQ(result.width, width);
+    EXPECT_EQ(result.height, height);
+    EXPECT_EQ(result.data.size(), static_cast<size_t>(width) * static_cast<size_t>(height) * 4);
 
     std::error_code ignored;
     std::filesystem::remove(filePath, ignored);

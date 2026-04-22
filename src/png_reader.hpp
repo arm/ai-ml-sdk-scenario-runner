@@ -6,12 +6,8 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
-#include "image.hpp"
 #include "image_formats.hpp"
-#include "stb_image.h"
-#include "stb_image_write.h"
 #include "vulkan/vulkan_core.h"
 
 namespace mlsdk::scenariorunner {
@@ -31,10 +27,7 @@ vk::Format getVkFormatFromPNG(const std::string &filename);
 /// \brief Create PNG file from image data (expects RGBA8 data)
 ///
 /// \param filename file to create
-/// \param image image data to save to file
-/// \param data vector of raw data to save
 /// \param options save options
-void saveDataToPNG(const std::string &filename, const Image &image, const std::vector<char> &data,
-                   const ImageSaveOptions &options);
+void saveDataToPNG(const std::string &filename, const ImageSaveOptions &options);
 
 } // namespace mlsdk::scenariorunner

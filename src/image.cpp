@@ -4,7 +4,6 @@
  */
 
 #include "image.hpp"
-#include "dds_reader.hpp"
 #include "image_formats.hpp"
 #include "logging.hpp"
 #include "utils.hpp"
@@ -85,8 +84,7 @@ constexpr vk::ImageTiling convertTiling(const Tiling tiling) {
     }
 }
 
-void loadDataFromNPY(const std::string &filename, vk::Format dataType, std::vector<uint8_t> &data,
-                     vk::Format &initialFormat, uint32_t expectedHeight, uint32_t expectedWidth) {
+ImageLoadResult loadDataFromNPY(const std::string &filename, vk::Format dataType, const ImageLoadOptions &options) {
     MemoryMap mapped(filename);
     auto dataPtr = vgfutils::numpy::parse(mapped);
 
@@ -98,23 +96,24 @@ void loadDataFromNPY(const std::string &filename, vk::Format dataType, std::vect
         throw std::runtime_error("Image batch dimension must be 1 for npy sources");
     }
 
-    if ((dataPtr.shape[1] != static_cast<int64_t>(expectedHeight)) ||
-        (dataPtr.shape[2] != static_cast<int64_t>(expectedWidth)) ||
+    if ((dataPtr.shape[1] != static_cast<int64_t>(options.expectedHeight)) ||
+        (dataPtr.shape[2] != static_cast<int64_t>(options.expectedWidth)) ||
         (dataPtr.shape[3] != static_cast<int64_t>(numComponentsFromVkFormat(dataType)))) {
         throw std::runtime_error("Image description dimensions do not match npy data shape");
     }
 
-    const auto expectedSize =
-        static_cast<uint64_t>(dataPtr.shape[0]) * expectedHeight * expectedWidth * elementSizeFromVkFormat(dataType);
+    const auto expectedSize = static_cast<uint64_t>(dataPtr.shape[0]) * options.expectedHeight * options.expectedWidth *
+                              elementSizeFromVkFormat(dataType);
 
     if (dataPtr.size() != expectedSize) {
         throw std::runtime_error("Image description size does not match data size: expected " +
                                  std::to_string(expectedSize) + " vs " + std::to_string(dataPtr.size()));
     }
 
-    data.resize(dataPtr.size());
-    std::memcpy(data.data(), dataPtr.ptr, dataPtr.size());
-    initialFormat = dataType;
+    ImageLoadResult result(dataType, options.expectedWidth, options.expectedHeight);
+    result.data.resize(dataPtr.size());
+    std::memcpy(result.data.data(), dataPtr.ptr, dataPtr.size());
+    return result;
 }
 
 uint64_t calculateMipDataSize(uint32_t width, uint32_t height, uint32_t depth, uint32_t elementSize) {
@@ -440,7 +439,9 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
             fileFormat = result.initialFormat;
             mipmapsFromFile = result.mipLevels;
         } else if (extension == ".npy") {
-            loadDataFromNPY(desc.src.value(), _dataType, data, fileFormat, desc.dims[2], desc.dims[1]);
+            auto result = loadDataFromNPY(desc.src.value(), _dataType, ImageLoadOptions{desc.dims[2], desc.dims[1]});
+            data = std::move(result.data);
+            fileFormat = result.initialFormat;
         } else {
             throw std::runtime_error("Unsupported image source file type for " + desc.src.value());
         }
@@ -726,12 +727,12 @@ std::vector<char> Image::getImageData(const Context &ctx) {
 }
 
 void Image::store(const Context &ctx, const std::string &filename) {
-    auto data = getImageData(ctx);
     const auto *handler = getImageFormatHandler(filename);
     if (!handler) {
         throw std::runtime_error("Unsupported image destination format: " + filename);
     }
-    handler->saveData(filename, *this, data, ImageSaveOptions{});
+    const auto data = getImageData(ctx);
+    handler->saveData(filename, ImageSaveOptions{shape(), dataType(), data});
 }
 
 bool Image::isSampled() const { return _imageInfo.isSampled; }

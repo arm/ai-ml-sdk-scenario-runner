@@ -54,6 +54,8 @@ TEST(DdsReader, loadDataFromDDS) {
     const auto result = loadDataFromDDS(filePath.string(), {});
 
     EXPECT_EQ(result.initialFormat, vk::Format::eR8G8B8A8Unorm);
+    EXPECT_EQ(result.width, width);
+    EXPECT_EQ(result.height, height);
     EXPECT_EQ(result.mipLevels, mipLevels);
 
     std::error_code ignored;
@@ -74,6 +76,29 @@ TEST(DdsReader, ThrowsOnDimensionMismatch) {
     options.expectedWidth = width;
 
     EXPECT_THROW((void)loadDataFromDDS(filePath.string(), options), std::runtime_error);
+
+    std::error_code ignored;
+    std::filesystem::remove(filePath, ignored);
+}
+
+TEST(DdsReader, SaveDataToDDS) {
+    const auto filePath = makeTempDDSPath("scenario_runner_dds_writer_test.dds");
+    const uint32_t width = 4;
+    const uint32_t height = 4;
+    const uint32_t mipLevels = 1;
+    const uint32_t elementSize = 4;
+
+    const auto data = std::vector<char>(static_cast<size_t>(width) * static_cast<size_t>(height) * elementSize, 0);
+    ImageSaveOptions options{{1, height, width, 4}, vk::Format::eR8G8B8A8Unorm, data};
+
+    saveDataToDDS(filePath.string(), options);
+
+    const auto result = loadDataFromDDS(filePath.string(), {});
+
+    EXPECT_EQ(result.initialFormat, vk::Format::eR8G8B8A8Unorm);
+    EXPECT_EQ(result.width, width);
+    EXPECT_EQ(result.height, height);
+    EXPECT_EQ(result.mipLevels, mipLevels);
 
     std::error_code ignored;
     std::filesystem::remove(filePath, ignored);

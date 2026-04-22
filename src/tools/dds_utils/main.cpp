@@ -18,7 +18,7 @@
 
 using namespace mlsdk::scenariorunner;
 
-using DDSContent = std::pair<DDSHeaderInfo, std::vector<uint8_t>>;
+using DDSContent = std::pair<DDSHeaderInfo, ImageLoadResult>;
 
 std::vector<uint16_t> createRandomFloat16Data(uint32_t size) {
     std::vector<uint16_t> vec(size);
@@ -420,32 +420,23 @@ DDSContent load(const std::string &ddsPath) {
     std::ifstream ddsFile(ddsPath, std::ifstream::binary);
     DDSHeaderInfo ddsHeader = readDDSHeader(ddsFile);
 
-    auto dataPos = ddsFile.tellg();
-    ddsFile.seekg(0, std::ios::end);
-    auto size = ddsFile.tellg() - dataPos;
-    ddsFile.close();
-    if (size < 0) {
-        throw std::runtime_error("Failed to get DDS file size " + ddsPath);
-    }
     auto result = loadDataFromDDS(ddsPath, {});
-
-    return {ddsHeader, std::move(result.data)};
+    return {ddsHeader, std::move(result)};
 }
 
 void convertDDSToNpy(const std::string &input, const std::string &output, uint32_t elementSize) {
-    DDSContent ddsContent = load(input);
-    auto &info = ddsContent.first;
-    auto &ddsData = ddsContent.second;
-    auto imageElementSize = info.header.pitchOrLinearSize / info.header.width;
+    using namespace mlsdk::vgfutils;
+
+    const auto &[ddsHeader, ddsResult] = load(input);
+    auto imageElementSize = ddsHeader.header.pitchOrLinearSize / ddsResult.width;
 
     if (elementSize > imageElementSize) {
         throw std::runtime_error("The image cannot be coverted to a NumPy file with bigger element size");
     }
 
-    mlsdk::vgfutils::numpy::DataPtr data(reinterpret_cast<char *>(ddsData.data()),
-                                         {1, info.header.height, info.header.width, imageElementSize / elementSize},
-                                         mlsdk::vgfutils::numpy::DType('i', elementSize));
-    mlsdk::vgfutils::numpy::write(output, data);
+    const std::vector<int64_t> shape = {1, ddsResult.height, ddsResult.width, imageElementSize / elementSize};
+    numpy::DataPtr data(reinterpret_cast<const char *>(ddsResult.data.data()), shape, numpy::DType('i', elementSize));
+    numpy::write(output, data);
 }
 
 bool compareDDSHeader(const DDSHeaderInfo &input, const DDSHeaderInfo &output) {
@@ -459,18 +450,20 @@ bool isFloat16NaN(uint16_t val) {
 }
 
 bool compare(const std::string &input, const std::string &output, const std::string &elementDtype) {
-    auto [inputHeader, inputData] = load(input);
-    auto [outputHeader, outputData] = load(output);
+    const auto &[inputHeader, inputResult] = load(input);
+    const auto &[outputHeader, outputResult] = load(output);
 
     bool sameHeader = compareDDSHeader(inputHeader, outputHeader);
+    if (!sameHeader) {
+        std::cerr << "DDS headers do not match." << std::endl;
+    }
 
-    bool sameData = false;
+    bool sameData = true;
     if (elementDtype == "fp16") {
-        auto *inputFp16 = reinterpret_cast<uint16_t *>(inputData.data());
-        auto *outputFp16 = reinterpret_cast<uint16_t *>(outputData.data());
+        const auto *inputFp16 = reinterpret_cast<const uint16_t *>(inputResult.data.data());
+        const auto *outputFp16 = reinterpret_cast<const uint16_t *>(outputResult.data.data());
 
-        auto size = inputData.size() / sizeof(uint16_t);
-        sameData = true;
+        auto size = inputResult.data.size() / sizeof(uint16_t);
         for (size_t i = 0; i < size; i++) {
             if (isFloat16NaN(inputFp16[i]) && isFloat16NaN(outputFp16[i])) {
                 continue;
@@ -482,7 +475,10 @@ bool compare(const std::string &input, const std::string &output, const std::str
             }
         }
     } else {
-        sameData = inputData == outputData;
+        sameData = inputResult.data == outputResult.data;
+        if (!sameData) {
+            std::cerr << "DDS data does not match." << std::endl;
+        }
     }
 
     return sameHeader && sameData;
@@ -531,6 +527,9 @@ int main(int argc, const char **argv) {
             auto elementDtype = parser.get<std::string>("--element-dtype");
 
             bool same = compare(input, output, elementDtype);
+            if (same) {
+                std::cout << "DDS files match." << std::endl;
+            }
             return same ? 0 : 1;
         } else {
             throw std::runtime_error("Unsupported action: " + action);

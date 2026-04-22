@@ -5,7 +5,6 @@
 
 #include <argparse/argparse.hpp>
 #include <cstdint>
-#include <fstream>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
@@ -20,59 +19,43 @@ using namespace mlsdk::scenariorunner;
 namespace {
 
 void generatePNGFile(uint32_t height, uint32_t width, const std::string &output) {
-    if (height == 0 || width == 0 || width > static_cast<uint64_t>(std::numeric_limits<int>::max() / 4) ||
-        height > static_cast<uint64_t>(std::numeric_limits<int>::max()) ||
-        height > (static_cast<uint64_t>(std::numeric_limits<size_t>::max()) / 4) / width) {
-        throw std::runtime_error("Image dimensions exceed supported limits");
-    }
-
-    std::vector<uint8_t> data(static_cast<size_t>(static_cast<uint64_t>(width) * height * 4), 0);
-
-    if (stbi_write_png(output.c_str(), static_cast<int>(width), static_cast<int>(height), 4, data.data(),
-                       static_cast<int>(width) * 4) == 0) {
-        throw std::runtime_error("Failed to write PNG: " + output);
-    }
+    // Trust underlying function for validating dimensions and size.
+    const auto dataSize = static_cast<size_t>(static_cast<uint64_t>(width) * height * 4);
+    const std::vector<char> data(dataSize, 0);
+    const std::vector<int64_t> shape = {1, height, width, 4};
+    ImageSaveOptions options{shape, vk::Format::eR8G8B8A8Unorm, data};
+    saveDataToPNG(output, options);
 }
 
-struct PNG {
-    int width;
-    int height;
-    std::vector<uint8_t> data;
-};
-
-PNG load(const std::string &input) {
+ImageLoadResult load(const std::string &input) {
     auto result = loadDataFromPNG(input, {});
     if (result.initialFormat != vk::Format::eR8G8B8A8Unorm) {
         throw std::runtime_error("Unsupported decoded PNG format");
     }
 
-    int width = 0;
-    int height = 0;
-    int channels = 0;
-    if (!stbi_info(input.c_str(), &width, &height, &channels)) {
-        throw std::runtime_error("Failed to inspect PNG: " + input);
-    }
-    return {width, height, std::move(result.data)};
+    return result;
 }
 
 void convertPNGToNpy(const std::string &input, const std::string &output) {
-    PNG png = load(input);
-    mlsdk::vgfutils::numpy::DataPtr npData(reinterpret_cast<char *>(png.data.data()), {1, png.height, png.width, 4},
-                                           mlsdk::vgfutils::numpy::DType('u', 1));
-    mlsdk::vgfutils::numpy::write(output, npData);
+    using namespace mlsdk::vgfutils;
+    const auto result = load(input);
+    const std::vector<int64_t> shape = {1, result.height, result.width, 4};
+    numpy::DataPtr npData(reinterpret_cast<const char *>(result.data.data()), shape, numpy::DType('u', 1));
+    numpy::write(output, npData);
 }
 
 bool compare(const std::string &input, const std::string &output) {
-    try {
-        PNG lhs = load(input);
-        PNG rhs = load(output);
-        if (lhs.width != rhs.width || lhs.height != rhs.height) {
-            return false;
-        }
-        return lhs.data == rhs.data;
-    } catch (...) {
+    const auto lhs = load(input);
+    const auto rhs = load(output);
+    if (lhs.width != rhs.width || lhs.height != rhs.height) {
+        std::cerr << "PNG dimensions do not match." << std::endl;
         return false;
     }
+    const auto sameData = lhs.data == rhs.data;
+    if (!sameData) {
+        std::cerr << "PNG data does not match." << std::endl;
+    }
+    return sameData;
 }
 
 } // namespace
@@ -110,6 +93,9 @@ int main(int argc, const char **argv) {
             auto output = parser.get<std::string>("--output");
 
             bool same = compare(input, output);
+            if (same) {
+                std::cout << "PNG files match." << std::endl;
+            }
             return same ? 0 : 1;
         } else {
             throw std::runtime_error("Unsupported action: " + action);
