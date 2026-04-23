@@ -16,19 +16,24 @@ namespace mlsdk::scenariorunner {
 
 namespace {
 
-const std::array<ImageFormatHandler, 2> kImageFormatHandlers = {
-    ImageFormatHandler{
-        {".dds"},
-        getVkFormatFromDDS,
-        loadDataFromDDS,
-        saveDataToDDS,
-    },
-    ImageFormatHandler{
-        {".png"},
-        getVkFormatFromPNG,
-        loadDataFromPNG,
-        saveDataToPNG,
-    },
+struct HandlerMapping {
+    std::string_view extension; // lower-case extension including the dot
+    ImageFormatHandler handler;
+};
+
+constexpr std::array kHandlerMappings = {
+    HandlerMapping{".dds",
+                   {
+                       getVkFormatFromDDS,
+                       loadDataFromDDS,
+                       saveDataToDDS,
+                   }},
+    HandlerMapping{".png",
+                   {
+                       getVkFormatFromPNG,
+                       loadDataFromPNG,
+                       saveDataToPNG,
+                   }},
 };
 
 } // namespace
@@ -38,9 +43,9 @@ const ImageFormatHandler *getImageFormatHandler(const std::string &filename) {
     if (extension.empty()) {
         return nullptr;
     }
-    for (const auto &handler : kImageFormatHandlers) {
-        if (handler.extensions.count(extension) > 0) {
-            return &handler;
+    for (const auto &mapping : kHandlerMappings) {
+        if (mapping.extension == extension) {
+            return &mapping.handler;
         }
     }
     return nullptr;

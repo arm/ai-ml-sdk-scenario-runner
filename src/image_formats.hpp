@@ -6,8 +6,6 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
-#include <set>
 #include <string>
 #include <vector>
 #include <vulkan/vulkan.hpp>
@@ -56,10 +54,9 @@ struct ImageLoadResult {
 };
 
 struct ImageFormatHandler {
-    std::set<std::string> extensions; // lower-case extensions including the dot
-    std::function<vk::Format(const std::string &filename)> getFormat;
-    std::function<ImageLoadResult(const std::string &filename, const ImageLoadOptions &options)> loadData;
-    std::function<void(const std::string &filename, const ImageSaveOptions &options)> saveData;
+    vk::Format (*getFormat)(const std::string &filename);
+    ImageLoadResult (*loadData)(const std::string &filename, const ImageLoadOptions &options);
+    void (*saveData)(const std::string &filename, const ImageSaveOptions &options);
 };
 
 /// \brief Find format handler by filename (extension is extracted and lower-cased).
