@@ -69,3 +69,18 @@ index c69e276..d896721 100644
 +  target_link_libraries(dxcompiler_static PUBLIC clangSPIRV)
 +endif (ENABLE_SPIRV_CODEGEN)
 +target_compile_definitions(dxcompiler_static PUBLIC DXC_STATIC_LINK)
+diff --git a/tools/clang/include/clang/Frontend/FrontendOptions.h b/tools/clang/include/clang/Frontend/FrontendOptions.h
+index 1430e34..3d5f8ff 100644
+--- a/tools/clang/include/clang/Frontend/FrontendOptions.h
++++ b/tools/clang/include/clang/Frontend/FrontendOptions.h
+@@ -92,7 +92,7 @@ class FrontendInputFile {
+   /// \brief Whether we're dealing with a 'system' input (vs. a 'user' input).
+   bool IsSystem;
+ 
+-public:
+-  FrontendInputFile() : Buffer(nullptr), Kind(IK_None) { }
++public:
++  FrontendInputFile() : Buffer(nullptr), Kind(IK_None), IsSystem(false) { }
+   FrontendInputFile(StringRef File, InputKind Kind, bool IsSystem = false)
+     : File(File.str()), Buffer(nullptr), Kind(Kind), IsSystem(IsSystem) { }
+   FrontendInputFile(llvm::MemoryBuffer *buffer, InputKind Kind,
