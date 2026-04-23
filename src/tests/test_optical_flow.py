@@ -3,6 +3,8 @@
 # SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
+import sys
+
 import numpy as np
 import pytest
 
@@ -24,6 +26,9 @@ def _assert_outputs(resources_helper):
     assert output_cost.stat().st_size > 0
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="Optical flow is not supported on Darwin"
+)
 def test_optical_flow_png(sdk_tools, resources_helper, numpy_helper):
     width, height = 64, 64
     out_w, out_h = 16, 16
@@ -42,6 +47,9 @@ def test_optical_flow_png(sdk_tools, resources_helper, numpy_helper):
     _assert_outputs(resources_helper)
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="Optical flow is not supported on Darwin"
+)
 def test_optical_flow_dds(sdk_tools, resources_helper, numpy_helper):
     width, height = 64, 64
     out_w, out_h = 16, 16
