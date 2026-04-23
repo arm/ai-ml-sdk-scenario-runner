@@ -600,6 +600,72 @@ auto getOpticalFlowGridSize(OpticalFlowGridSize gridSize) {
     }
 }
 
+void verifyOpticalFlowConfig(const DataManager &dataManager, const DispatchOpticalFlowData &dispatchOpticalFlow) {
+    const auto &searchImage = dataManager.getImage(dispatchOpticalFlow.searchImage.resourceRef);
+    const auto &templateImage = dataManager.getImage(dispatchOpticalFlow.templateImage.resourceRef);
+    const auto &outputFlowImage = dataManager.getImage(dispatchOpticalFlow.outputImage.resourceRef);
+
+    if (searchImage.shape().size() < 3 || outputFlowImage.shape().size() < 3) {
+        throw std::runtime_error("Optical flow search and output flow images must have at least 3 dimensions");
+    }
+    const auto &searchImageWidth = searchImage.shape()[1];
+    const auto &searchImageHeight = searchImage.shape()[2];
+    const auto &outputFlowImageWidth = outputFlowImage.shape()[1];
+    const auto &outputFlowImageHeight = outputFlowImage.shape()[2];
+
+    if (dispatchOpticalFlow.width != searchImageWidth || dispatchOpticalFlow.height != searchImageHeight) {
+        throw std::runtime_error("Optical flow search image dimensions do not match specified input width/height");
+    }
+    if (searchImage.shape() != templateImage.shape()) {
+        throw std::runtime_error("Optical flow search and template images must have the same dimensions");
+    }
+    if (searchImage.dataType() != templateImage.dataType()) {
+        throw std::runtime_error("Optical flow search and template images must have the same data type");
+    }
+    if (dispatchOpticalFlow.outputCost.has_value()) {
+        const auto &costImage = dataManager.getImage(dispatchOpticalFlow.outputCost->resourceRef);
+        if (costImage.shape() != outputFlowImage.shape()) {
+            throw std::runtime_error(
+                "Optical flow output cost image must have the same dimensions as the output flow vector image");
+        }
+    }
+    if (dispatchOpticalFlow.hintMotionVectors.has_value()) {
+        const auto &hintMVImage = dataManager.getImage(dispatchOpticalFlow.hintMotionVectors->resourceRef);
+        if (hintMVImage.shape() != outputFlowImage.shape()) {
+            throw std::runtime_error(
+                "Optical flow hint motion vector image must have the same dimensions as the output flow vector image");
+        }
+    }
+
+    // Check ratio of input/output/grid size is correct
+    if (dispatchOpticalFlow.gridSize == OpticalFlowGridSize::e1x1) {
+        if (outputFlowImage.shape() != searchImage.shape()) {
+            throw std::runtime_error(
+                "Optical flow output flow vector image must have the same dimensions as the input for 1x1 grid size");
+        }
+    } else if (dispatchOpticalFlow.gridSize == OpticalFlowGridSize::e2x2) {
+        if (outputFlowImage.shape().size() < 2 || outputFlowImageWidth != (searchImageWidth + 1) / 2 ||
+            outputFlowImageHeight != (searchImageHeight + 1) / 2) {
+            throw std::runtime_error("Optical flow output flow vector image dimensions are incompatible with input "
+                                     "dimensions for 2x2 grid size");
+        }
+    } else if (dispatchOpticalFlow.gridSize == OpticalFlowGridSize::e4x4) {
+        if (outputFlowImage.shape().size() < 2 || outputFlowImageWidth != (searchImageWidth + 3) / 4 ||
+            outputFlowImageHeight != (searchImageHeight + 3) / 4) {
+            throw std::runtime_error("Optical flow output flow vector image dimensions are incompatible with input "
+                                     "dimensions for 4x4 grid size");
+        }
+    } else if (dispatchOpticalFlow.gridSize == OpticalFlowGridSize::e8x8) {
+        if (outputFlowImage.shape().size() < 2 || outputFlowImageWidth != (searchImageWidth + 7) / 8 ||
+            outputFlowImageHeight != (searchImageHeight + 7) / 8) {
+            throw std::runtime_error("Optical flow output flow vector image dimensions are incompatible with input "
+                                     "dimensions for 8x8 grid size");
+        }
+    } else {
+        throw std::runtime_error("Unsupported optical flow grid size");
+    }
+}
+
 } // namespace
 
 Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
@@ -856,6 +922,7 @@ void Scenario::setupCommands() {
         case (CommandType::DispatchOpticalFlow): {
             const auto &dispatchOpticalFlow = reinterpret_cast<DispatchOpticalFlowDesc &>(*command);
             const auto data = factory.createData(dispatchOpticalFlow);
+            verifyOpticalFlowConfig(_dataManager, data);
             createOpticalFlowPipeline(data, nQueries);
         } break;
         case (CommandType::MarkBoundary): {
