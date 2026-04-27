@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "scenario.hpp"
-#include "dds_reader.hpp"
 #include "frame_capturer.hpp"
 #include "glsl_compiler.hpp"
 #ifdef SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT

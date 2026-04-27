@@ -116,6 +116,18 @@ ImageLoadResult loadDataFromNPY(const std::string &filename, vk::Format dataType
     return result;
 }
 
+ImageLoadResult loadData(const std::string &fileName, vk::Format dataType, const ImageLoadOptions &options) {
+    if (const auto *handler = getImageFormatHandler(fileName); handler) {
+        return handler->loadData(fileName, options);
+    }
+
+    if (lowercaseExtension(fileName) == ".npy") {
+        return loadDataFromNPY(fileName, dataType, options);
+    }
+
+    throw std::runtime_error("Unsupported image source file type for " + fileName);
+}
+
 uint64_t calculateMipDataSize(uint32_t width, uint32_t height, uint32_t depth, uint32_t elementSize) {
     return uint64_t{width} * uint64_t{height} * uint64_t{depth} * uint64_t{elementSize};
 }
@@ -425,26 +437,14 @@ void Image::resetLayout() { _targetLayout = vk::ImageLayout::eUndefined; }
 void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     std::vector<uint8_t> data;
     vk::Format fileFormat = vk::Format::eUndefined;
-    const vk::ImageAspectFlags aspectMask = getImageAspectMaskForVkFormat(_dataType);
     uint32_t mipmapsFromFile = 1;
 
     // Determine image data, from file or zeroed
     if (desc.src) {
-        const auto extension = lowercaseExtension(desc.src.value());
-
-        const auto *handler = getImageFormatHandler(desc.src.value());
-        if (handler) {
-            auto result = handler->loadData(desc.src.value(), ImageLoadOptions{desc.dims[2], desc.dims[1]});
-            data = std::move(result.data);
-            fileFormat = result.initialFormat;
-            mipmapsFromFile = result.mipLevels;
-        } else if (extension == ".npy") {
-            auto result = loadDataFromNPY(desc.src.value(), _dataType, ImageLoadOptions{desc.dims[2], desc.dims[1]});
-            data = std::move(result.data);
-            fileFormat = result.initialFormat;
-        } else {
-            throw std::runtime_error("Unsupported image source file type for " + desc.src.value());
-        }
+        auto result = loadData(desc.src.value(), _dataType, ImageLoadOptions{desc.dims[2], desc.dims[1]});
+        data = std::move(result.data);
+        fileFormat = result.initialFormat;
+        mipmapsFromFile = result.mipLevels;
     } else {
         data.resize(dataSize());
         std::fill_n(data.begin(), dataSize(), 0);
@@ -489,10 +489,15 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
             std::to_string(requiredDataSize) + ", but got " + std::to_string(data.size()) + " instead");
     }
 
+    void *pBufferDeviceMemory = _memoryManager->mapStagingBufferMemory(0, data.size());
+    std::memcpy(pBufferDeviceMemory, data.data(), data.size());
+    _memoryManager->unmapStagingBufferMemory();
+
     // Create Image barrier
-    auto accessFlag = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite;
-    auto memoryBarrier = vk::MemoryBarrier2(vk::PipelineStageFlagBits2::eAllCommands, accessFlag,
-                                            vk::PipelineStageFlagBits2::eAllCommands, accessFlag);
+    const auto aspectMask = getImageAspectMaskForVkFormat(_dataType);
+    const auto accessFlag = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite;
+    const auto memoryBarrier = vk::MemoryBarrier2(vk::PipelineStageFlagBits2::eAllCommands, accessFlag,
+                                                  vk::PipelineStageFlagBits2::eAllCommands, accessFlag);
     auto imageBarrier = vk::ImageMemoryBarrier2();
     imageBarrier.srcAccessMask = vk::AccessFlagBits2::eNone;
     imageBarrier.dstAccessMask = vk::AccessFlagBits2::eTransferWrite;
@@ -508,10 +513,6 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     imageBarrier.subresourceRange.levelCount = _imageInfo.mips;
     imageBarrier.subresourceRange.baseArrayLayer = 0;
     imageBarrier.subresourceRange.layerCount = 1;
-
-    void *pBufferDeviceMemory = _memoryManager->mapStagingBufferMemory(0, data.size());
-    std::memcpy(pBufferDeviceMemory, data.data(), data.size());
-    _memoryManager->unmapStagingBufferMemory();
 
     // Setup of casting operation
     const vk::CommandPoolCreateInfo cmdPoolCreateInfo({vk::CommandPoolCreateFlagBits::eResetCommandBuffer},
