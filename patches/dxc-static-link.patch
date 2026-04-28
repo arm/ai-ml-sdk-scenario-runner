@@ -1,3 +1,7 @@
+From: svc_sdk <svc_sdk@arm.com>
+Date: Tue Apr 28 00:00:00 2026
+Subject: dxc-static-link-for-scenario-runner-28-04-2026
+
 diff --git a/include/dxc/dxcapi.h b/include/dxc/dxcapi.h
 index 95cc56a..c96b5e7 100644
 --- a/include/dxc/dxcapi.h
