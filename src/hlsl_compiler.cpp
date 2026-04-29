@@ -27,7 +27,6 @@ HRESULT SetupRegistryPassForHLSL();
 HRESULT SetupRegistryPassForPIX();
 } // namespace hlsl
 
-HRESULT DxilLibInitialize();
 #endif
 
 #if defined(_WIN32) && defined(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT) && !defined(DXC_DISABLE_ALLOCATOR_OVERRIDES)
@@ -158,11 +157,6 @@ void ensureStaticDxcInitialized() {
         }
 
         initResult = ::hlsl::SetupRegistryPassForPIX();
-        if (FAILED(initResult)) {
-            goto cleanup;
-        }
-
-        initResult = ::DxilLibInitialize();
         if (FAILED(initResult)) {
             goto cleanup;
         }
