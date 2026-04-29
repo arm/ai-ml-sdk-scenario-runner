@@ -23,6 +23,12 @@
   support for Windows® parity.
 - Added PNG load/save support and broader image/texture format coverage.
 
+### Bug Fixes
+
+- Fixed memory leaks in the `--repeat` option.
+- Fixed frame-boundary extension detection and default log-level behavior.
+- Fixed Linux out-of-bounds failures.
+
 ## Version 0.8.0 – *Format Coverage & Tooling Upgrades*
 
 ### Execution & Scenario Control
@@ -48,6 +54,12 @@
 
 - Added Darwin targets for AArch64 to the pip packaging matrix.
 - Refreshed SBOM data and adopted usage of `REUSE.toml`.
+
+### Bug Fixes
+
+- Fixed missing package version initialization, bad package names, and
+  SDK-root `--install` failures in packaging flows.
+- Fixed MSVC AddressSanitizer support in the build and test flow.
 
 ### Supported Platforms
 
