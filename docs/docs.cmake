@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 include(cmake/doxygen.cmake)
@@ -16,23 +16,13 @@ endif()
 
 file(MAKE_DIRECTORY ${SPHINX_GEN_DIR})
 
-# Generate a text file with the Scenario Runner tool help text
-set(SCENARIO_RUNNER_ARG_HELP_TXT ${SPHINX_GEN_DIR}/scenario_runner_help.txt)
-add_custom_command(
-    OUTPUT "${SCENARIO_RUNNER_ARG_HELP_TXT}"
-    COMMAND ${CMAKE_COMMAND}
-            -Dcmd=$<IF:$<PLATFORM_ID:Windows>,.\\,./>$<TARGET_FILE_NAME:${SCENARIO_RUNNER_NAMESPACE}::scenario-runner>
-            -Dargs=--help
-            -Dwd=$<TARGET_FILE_DIR:${SCENARIO_RUNNER_NAMESPACE}::scenario-runner>
-            -Dout=${SCENARIO_RUNNER_ARG_HELP_TXT}
-            -P ${CMAKE_CURRENT_LIST_DIR}/redirect-output.cmake
-    COMMAND_EXPAND_LISTS
-    DEPENDS ${SCENARIO_RUNNER_NAMESPACE}::scenario-runner
-    VERBATIM
-    COMMENT "Generating scenario runner ARGPARSE help documentation"
-)
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/docs/help/scenario_runner_help.rst
+    ${SPHINX_GEN_DIR}/scenario_runner_help.txt
+    COPYONLY)
 
-set(DOC_SRC_FILES_FULL_PATHS ${SCENARIO_RUNNER_ARG_HELP_TXT})
+set(DOC_SRC_FILES_FULL_PATHS
+    ${SPHINX_GEN_DIR}/scenario_runner_help.txt)
 # Copy MD files for inclusion into the published docs
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/CONTRIBUTING.md ${SPHINX_GEN_DIR}/CONTRIBUTING.md COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/README.md ${SPHINX_GEN_DIR}/README.md COPYONLY)

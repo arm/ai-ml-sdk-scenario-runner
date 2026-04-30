@@ -64,7 +64,8 @@ class Builder:
         self.spirv_headers_path = absolute(args.spirv_headers_path)
         self.argparse_path = absolute(args.argparse_path)
         self.pybind11_path = absolute(args.pybind11_path)
-        self.doc = args.doc
+        self.doc_only = args.doc_only
+        self.doc = args.doc or self.doc_only
         self.enable_sanitizers = args.enable_sanitizers
         self.lint = args.lint
         self.install = args.install
@@ -285,6 +286,8 @@ class Builder:
             "--config",
             self.build_type,
         ]
+        if self.doc_only:
+            cmake_build_cmd.extend(["--target", "scenario_runner_doc"])
 
         try:
             subprocess.run(cmake_setup_cmd, check=True)
@@ -648,9 +651,16 @@ def parse_arguments():
         help="Path to pybind11 repo. Default: %(default)s",
         default=f"{DEPENDENCY_DIR / 'pybind11'}",
     )
-    parser.add_argument(
+    doc_group = parser.add_mutually_exclusive_group()
+    doc_group.add_argument(
         "--doc",
         help="Build documentation. Default: %(default)s",
+        action="store_true",
+        default=False,
+    )
+    doc_group.add_argument(
+        "--doc-only",
+        help="Only build documentation. Default: %(default)s",
         action="store_true",
         default=False,
     )
