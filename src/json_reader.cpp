@@ -426,8 +426,8 @@ void from_json(const json &j, DispatchOpticalFlowDesc &dispatchOpticalFlow) {
     dispatchOpticalFlow.templateImage = bindingsJson.at("template_image"sv).get<BindingDesc>();
     dispatchOpticalFlow.outputImage = bindingsJson.at("output_image"sv).get<BindingDesc>();
 
-    parseOptionalFieldAs<BindingDesc>(j, "hint_motion_vectors", dispatchOpticalFlow.hintMotionVectors);
-    parseOptionalFieldAs<BindingDesc>(j, "output_cost", dispatchOpticalFlow.outputCost);
+    parseOptionalFieldAs<BindingDesc>(bindingsJson, "hint_motion_vectors", dispatchOpticalFlow.hintMotionVectors);
+    parseOptionalFieldAs<BindingDesc>(bindingsJson, "output_cost", dispatchOpticalFlow.outputCost);
 }
 
 /**
