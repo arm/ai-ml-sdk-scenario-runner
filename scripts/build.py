@@ -230,7 +230,6 @@ class Builder:
         if self.run_tests:
             cmake_setup_cmd.append("-DSCENARIO_RUNNER_BUILD_TESTS=ON")
             cmake_setup_cmd.append(f"-DGTEST_PATH={self.gtest_path}")
-            cmake_setup_cmd.append("-DML_SDK_VGF_LIB_BUILD_PYLIB=ON")
             cmake_setup_cmd.append(f"-DPYBIND11_PATH={self.pybind11_path}")
 
         if self.doc:
@@ -362,34 +361,17 @@ class Builder:
                 ]
                 subprocess.run(test_cmd, check=True)
 
-                cmake_build_vgf_pylib = [
-                    "cmake",
-                    "--build",
-                    f"{self.build_dir}",
-                    "--target",
-                    "vgfpy",
-                    "--config",
-                    self.build_type,
-                ]
-                subprocess.run(cmake_build_vgf_pylib, check=True)
-
                 pytest_cmd = [
                     sys.executable,
                     "-m",
                     "pytest",
                     "--tb=short",
+                    "-n",
+                    str(self.threads),
                     f"{SCENARIO_RUNNER_DIR / 'src' / 'tests'}",
-                    "--vgf-pylib-dir",
-                    f"{self.build_dir}/vgf-lib/src",
+                    "--build-dir",
+                    self.build_dir,
                 ]
-
-                # Run tests in parallel only when pytest-xdist is available.
-                if importlib.util.find_spec("xdist") is not None:
-                    pytest_cmd[3:3] = ["-n", str(self.threads)]
-                else:
-                    print(
-                        "WARNING: pytest-xdist is not installed, running pytest in serial mode"
-                    )
 
                 exe_ext = ".exe" if platform.system() == "Windows" else ""
 
