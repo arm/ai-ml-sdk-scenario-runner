@@ -286,7 +286,7 @@ int runScenarioRunner(int argc, const char **argv) {
         mlsdk::logging::info("Scenario file parsed");
         Scenario scenario(scenarioOptions, scenarioSpec);
         if (parser.get<bool>("--wait-for-key-stroke-before-run")) {
-            mlsdk::logging::error("Press enter to continue...");
+            mlsdk::logging::info("Press enter to continue...");
             std::ignore = getchar();
         }
         scenario.run(repeatCount, dryRun);
