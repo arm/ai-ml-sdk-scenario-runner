@@ -206,15 +206,19 @@ void Compute::createPipeline(const PipelineCreateArguments &args, const ShaderIn
 }
 
 void Compute::createPipeline(const PipelineCreateArguments &args, uint32_t segmentIndex, const VgfView &vgfView,
-                             const DataManager &dataManager) {
+                             const DataManager &dataManager, bool enableNeuralStatistics,
+                             vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
     const Pipeline::CommonArguments commonArgs{_ctx, args.debugName, args.bindings, args.pipelineCache};
-    (void)_pipelines.emplace_back(commonArgs, segmentIndex, vgfView, dataManager);
+    (void)_pipelines.emplace_back(commonArgs, segmentIndex, vgfView, dataManager, enableNeuralStatistics,
+                                  neuralStatisticsMode);
 }
 
 void Compute::createPipeline(const PipelineCreateArguments &args, const ShaderInfo &shaderInfo,
-                             const DataManager &dataManager, const std::vector<GraphConstantInfo> &constants) {
+                             const DataManager &dataManager, const std::vector<GraphConstantInfo> &constants,
+                             bool enableNeuralStatistics, vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
     const Pipeline::CommonArguments commonArgs{_ctx, args.debugName, args.bindings, args.pipelineCache};
-    (void)_pipelines.emplace_back(commonArgs, shaderInfo, dataManager, constants);
+    (void)_pipelines.emplace_back(commonArgs, shaderInfo, dataManager, constants, enableNeuralStatistics,
+                                  neuralStatisticsMode);
 }
 
 void Compute::createPipeline(const PipelineCreateArguments &args, const ShaderInfo &vertexShaderInfo,
@@ -681,6 +685,72 @@ void Compute::writeProfilingFile(const std::filesystem::path &profilingPath, int
                        repeatCount);
 }
 
+void Compute::dumpNeuralDebugDatabase(const std::filesystem::path &neuralDebugDatabaseDumpDir) const {
+    uint32_t graphPipelineIdx = 0;
+    for (const auto &pipeline : _pipelines) {
+        if (!pipeline.isDataGraphPipeline()) {
+            continue;
+        }
+
+        auto debugDatabaseData = pipeline.getGraphPipelinePropertyData<char>(
+            _ctx.device(), vk::DataGraphPipelinePropertyARM::eNeuralAcceleratorDebugDatabase);
+
+        if (debugDatabaseData.empty()) {
+            continue;
+        }
+
+        auto dumpPath = neuralDebugDatabaseDumpDir /
+                        ("Graph_Pipeline_" + std::to_string(graphPipelineIdx++) + "_Debug_Database.bin");
+        std::ofstream dumpFile(dumpPath, std::ios::out | std::ios::binary);
+        dumpFile.write(debugDatabaseData.data(), std::streamsize(debugDatabaseData.size()));
+        dumpFile.close();
+        mlsdk::logging::info("Graph debug database stored");
+    }
+}
+
+void Compute::dumpNeuralStatistics(const std::filesystem::path &neuralStatisticsDumpDir,
+                                   vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) const {
+    uint32_t graphPipelineIdx = 0;
+    for (const auto &pipeline : _pipelines) {
+        if (!pipeline.isDataGraphPipeline()) {
+            continue;
+        }
+
+        if (pipeline
+                .getGraphPipelinePropertyData<uint32_t>(
+                    _ctx.device(), vk::DataGraphPipelinePropertyARM::eNeuralAcceleratorStatisticsInfo)
+                .empty()) {
+            continue;
+        }
+
+        const auto &neuralStatisticsMemoryInfo = pipeline.neuralStatisticsMemoryInfo();
+        if (!neuralStatisticsMemoryInfo.has_value()) {
+            mlsdk::logging::warning(
+                "Expected one session memory instance for Neural Statistics per pipeline, but found none. "
+                "Neural Statistics file will not be saved.");
+            continue;
+        }
+
+        const auto [sessionMemoryIndex, size] = neuralStatisticsMemoryInfo.value();
+        const auto &memory = pipeline.sessionMemory()[sessionMemoryIndex];
+        auto *pData = static_cast<char *>(memory.mapMemory(0, size));
+        const std::vector<char> statisticsData(pData, pData + size);
+        memory.unmapMemory();
+
+        char statisticsModeSuffix =
+            neuralStatisticsMode == vk::NeuralAcceleratorStatisticsModeARM::eStatistics0 ? '0' : '1';
+
+        const std::string statisticsFileName =
+            "Graph_Pipeline_" + std::to_string(graphPipelineIdx++) + "_Statistics_" + statisticsModeSuffix + ".bin";
+        auto dumpPath = neuralStatisticsDumpDir / statisticsFileName;
+
+        std::ofstream dumpFile(dumpPath, std::ios::out | std::ios::binary);
+        dumpFile.write(statisticsData.data(), std::streamsize(statisticsData.size()));
+        dumpFile.close();
+        mlsdk::logging::info("Neural statistics saved to \"" + statisticsFileName + "\"");
+    }
+}
+
 void Compute::sessionRAMsDump(const std::filesystem::path &sessionRAMsDumpDir) const {
     uint32_t graphPipelineIdx = 0;
     for (const auto &pipeline : _pipelines) {
@@ -688,10 +758,10 @@ void Compute::sessionRAMsDump(const std::filesystem::path &sessionRAMsDumpDir) c
         const auto &sessionMemoryDataSizes = pipeline.sessionMemoryDataSizes();
 
         for (size_t i = 0; i < sessionMemory.size(); i++) {
-            const std::string neStatsFileName =
+            const std::string sessionRAMFileName =
                 "Graph_Pipeline_" + std::to_string(graphPipelineIdx++) + "_Session_RAM_" + std::to_string(i) + ".txt";
             std::ofstream fs;
-            fs.open(sessionRAMsDumpDir / neStatsFileName);
+            fs.open(sessionRAMsDumpDir / sessionRAMFileName);
 
             const vk::raii::DeviceMemory &deviceMemory = sessionMemory.at(i);
             uint64_t dataSize = sessionMemoryDataSizes.at(i);

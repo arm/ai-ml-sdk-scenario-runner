@@ -25,7 +25,8 @@ using namespace mlsdk::logging;
 namespace {
 constexpr std::array<std::string_view, 5> extensionList = {
     VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, VK_EXT_FRAME_BOUNDARY_EXTENSION_NAME,
-    VK_KHR_MAINTENANCE_5_EXTENSION_NAME, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
+    VK_ARM_DATA_GRAPH_NEURAL_ACCELERATOR_STATISTICS_EXTENSION_NAME, VK_KHR_MAINTENANCE_5_EXTENSION_NAME,
+    VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
 
 std::string printExtensionList() {
     size_t numExtensions = extensionList.size() - 1;
@@ -114,10 +115,21 @@ int runScenarioRunner(int argc, const char **argv) {
             .help("set pipeline cache location")
             .default_value<std::string>(std::filesystem::temp_directory_path().string())
             .nargs(1);
+        parser.add_argument("--neural-debug-database-dump-dir")
+            .help("path to dump Neural Accelerator Debug Database")
+            .default_value<std::string>("");
         parser.add_argument("--fail-on-pipeline-cache-miss")
             .help("ensure an error is generated on a pipeline cache miss")
             .default_value(false)
             .implicit_value(true);
+        parser.add_argument("--neural-statistics-dump-dir")
+            .help("path to dump Neural Accelerator Statistics")
+            .default_value<std::string>("");
+        parser.add_argument("--neural-statistics-mode")
+            .help("set neural accelerator statistics mode")
+            .default_value("1")
+            .choices("0", "1")
+            .help("set neural accelerator statistics mode to 0 or 1");
         parser.add_argument("--perf-counters-dump-path")
             .help("path to save performance counter stats")
             .default_value<std::string>("")
@@ -137,7 +149,8 @@ int runScenarioRunner(int argc, const char **argv) {
         parser.add_argument("--disable-extension")
             .append()
             .store_into(scenarioOptions.disabledExtensions)
-            .choices("VK_EXT_custom_border_color", "VK_EXT_frame_boundary", "VK_KHR_maintenance_5",
+            .choices("VK_EXT_custom_border_color", "VK_EXT_frame_boundary",
+                     "VK_ARM_data_graph_neural_accelerator_statistics", "VK_KHR_maintenance_5",
                      "VK_KHR_deferred_host_operations")
             .nargs(argparse::nargs_pattern::at_least_one)
             .help("specify extensions to disable out of the following: " + printExtensionList());
@@ -200,6 +213,23 @@ int runScenarioRunner(int argc, const char **argv) {
             }
         }
 
+        auto neuralDebugDatabaseDumpDirStr = parser.get("--neural-debug-database-dump-dir");
+        if (!neuralDebugDatabaseDumpDirStr.empty()) {
+            scenarioOptions.neuralDebugDatabaseDumpDir = std::filesystem::path(neuralDebugDatabaseDumpDirStr);
+            if (!std::filesystem::is_directory(scenarioOptions.neuralDebugDatabaseDumpDir)) {
+                throw std::runtime_error("Invalid Neural Debug Database dump directory: " +
+                                         neuralDebugDatabaseDumpDirStr);
+            }
+        }
+
+        auto neuralStatisticsDumpDirStr = parser.get("--neural-statistics-dump-dir");
+        if (!neuralStatisticsDumpDirStr.empty()) {
+            scenarioOptions.neuralStatisticsDumpDir = std::filesystem::path(neuralStatisticsDumpDirStr);
+            if (!std::filesystem::is_directory(scenarioOptions.neuralStatisticsDumpDir)) {
+                throw std::runtime_error("Invalid Neural Statistics dump directory: " + neuralStatisticsDumpDirStr);
+            }
+        }
+
         if (parser.is_used("--session-memory-dump-dir")) {
             auto sessionRAMsDumpDir = parser.get("--session-memory-dump-dir");
             scenarioOptions.sessionRAMsDumpDir = std::filesystem::path(sessionRAMsDumpDir);
@@ -222,6 +252,12 @@ int runScenarioRunner(int argc, const char **argv) {
             if (!std::ofstream(scenarioOptions.profilingPath)) {
                 throw std::runtime_error("Unable to open profiling data file for writing " + profilingPath);
             }
+        }
+
+        if (parser.get("--neural-statistics-mode") == "0") {
+            scenarioOptions.neuralStatisticsMode = vk::NeuralAcceleratorStatisticsModeARM::eStatistics0;
+        } else {
+            scenarioOptions.neuralStatisticsMode = vk::NeuralAcceleratorStatisticsModeARM::eStatistics1;
         }
 
         int repeatCount = 1;

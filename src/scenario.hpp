@@ -24,10 +24,16 @@ struct ScenarioOptions {
     bool enableGPUDebugMarkers{false};
     bool captureFrame{false};
     std::filesystem::path pipelineCachePath{};
+    std::filesystem::path neuralDebugDatabaseDumpDir{};
+    std::filesystem::path neuralStatisticsDumpDir{};
     std::filesystem::path sessionRAMsDumpDir{};
     std::filesystem::path perfCountersPath{};
     std::filesystem::path profilingPath{};
     std::vector<std::string> disabledExtensions{};
+    vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode{};
+
+    bool shouldDumpNeuralDebugDatabase() const { return !neuralDebugDatabaseDumpDir.empty(); }
+    bool shouldDumpNeuralStatistics() const { return !neuralStatisticsDumpDir.empty(); }
 };
 
 struct DispatchComputeData;

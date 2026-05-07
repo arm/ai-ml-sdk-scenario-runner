@@ -9,11 +9,16 @@
 #include "pipeline_cache.hpp"
 #include "types.hpp"
 
+#include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace mlsdk::scenariorunner {
+
+struct NeuralStatisticsMemoryInfo {
+    uint32_t sessionMemoryIndex;
+    vk::DeviceSize size;
+};
 
 class Pipeline {
   public:
@@ -32,12 +37,13 @@ class Pipeline {
     /// \param spvSize Size of SPIR-V code in number of uint32_t
     Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, const uint32_t *spvCode, size_t spvSize);
 
-    Pipeline(const CommonArguments &args, uint32_t segmentIndex, const VgfView &vgfView,
-             const DataManager &dataManager);
+    Pipeline(const CommonArguments &args, uint32_t segmentIndex, const VgfView &vgfView, const DataManager &dataManager,
+             bool enableNeuralStatistics, vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
 
     // Create DataGraph pipeline directly from SPIR-V module + constants (no VGF)
     Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, const DataManager &dataManager,
-             const std::vector<GraphConstantInfo> &constants);
+             const std::vector<GraphConstantInfo> &constants, bool enableNeuralStatistics,
+             vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
 
     Pipeline(const CommonArguments &args, const ShaderInfo &vertexShaderInfo, const ShaderInfo &fragmentShaderInfo,
              const std::vector<vk::Format> &colorAttachmentFormats);
@@ -85,6 +91,10 @@ class Pipeline {
 
     const std::string &debugName() const;
 
+    const std::optional<NeuralStatisticsMemoryInfo> &neuralStatisticsMemoryInfo() const {
+        return _neuralStatisticsMemoryInfo;
+    }
+
   private:
     enum class PipelineType { Unknown, Compute, GraphCompute, Graphics };
 
@@ -98,11 +108,13 @@ class Pipeline {
     vk::raii::ShaderModule _shader{nullptr};
     vk::raii::ShaderModule _fragmentShader{nullptr};
     std::string _debugName{};
+    std::optional<NeuralStatisticsMemoryInfo> _neuralStatisticsMemoryInfo{};
     uint64_t _dataGraphPipelineMemoryRequirement{};
     vk::ShaderStageFlags _pushConstantStages{};
     bool _opticalFlowSession{false};
 
-    void initSession(const Context &ctx);
+    void initSession(const Context &ctx, bool enableNeuralStatistics = false,
+                     vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode = {});
 
     void createDescriptorSetLayouts(const Context &ctx, const std::vector<TypedBinding> &bindings);
 
@@ -116,19 +128,24 @@ class Pipeline {
 
     void graphComputePipelineCommon(const Context &ctx, uint32_t segmentIndex, const VgfView &vgfView,
                                     const std::shared_ptr<PipelineCache> &pipelineCache,
-                                    const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos);
+                                    const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
+                                    bool enableNeuralStatistics,
+                                    vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
 
     // Helper to build a Datagraph pipeline that has been dispatched through SPIR-V
     void graphComputePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
                                     const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
                                     const std::vector<vk::DataGraphPipelineConstantARM> &constantInfos,
-                                    const std::shared_ptr<PipelineCache> &pipelineCache);
+                                    const std::shared_ptr<PipelineCache> &pipelineCache, bool enableNeuralStatistics,
+                                    vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
 
     // Helper to build a DataGraph pipeline once shader module, entry, resources and constants are prepared
     void buildDataGraphPipeline(const Context &ctx, const std::string &entry,
                                 const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
                                 const std::vector<vk::DataGraphPipelineConstantARM> &constantInfos,
-                                const std::shared_ptr<PipelineCache> &pipelineCache);
+                                const std::shared_ptr<PipelineCache> &pipelineCache,
+                                bool enableNeuralStatistics = false,
+                                vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode = {});
 };
 
 template <typename T>

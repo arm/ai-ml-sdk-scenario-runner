@@ -1234,7 +1234,8 @@ void Scenario::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSp
     // Create pipeline and record DataGraph dispatch
     PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + shaderInfo.debugName, "Pipeline Setup");
     const Compute::PipelineCreateArguments args{dispatchSpirvGraph.debugName, sequenceBindings, _pipelineCache};
-    _compute.createPipeline(args, shaderInfo, _dataManager, graphConstants);
+    _compute.createPipeline(args, shaderInfo, _dataManager, graphConstants, _opts.shouldDumpNeuralStatistics(),
+                            _opts.neuralStatisticsMode);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
     _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchSpirvGraph.implicitBarrier);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
@@ -1288,7 +1289,8 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
     const Compute::PipelineCreateArguments args{dispatchDataGraph.debugName, sequenceBindings, _pipelineCache};
     switch (vgfView.getSegmentType(segmentIndex)) {
     case ModuleType::GRAPH: {
-        _compute.createPipeline(args, segmentIndex, vgfView, _dataManager);
+        _compute.createPipeline(args, segmentIndex, vgfView, _dataManager, _opts.shouldDumpNeuralStatistics(),
+                                _opts.neuralStatisticsMode);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
         _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchDataGraph.implicitBarrier);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
@@ -1404,6 +1406,16 @@ void Scenario::saveResults(bool dryRun) {
         }
     }
     mlsdk::logging::info("Results stored");
+
+    // Store Neural Debug Database Dump
+    if (_opts.shouldDumpNeuralDebugDatabase()) {
+        _compute.dumpNeuralDebugDatabase(_opts.neuralDebugDatabaseDumpDir);
+    }
+
+    // Store Neural Statistics Dump
+    if (_opts.shouldDumpNeuralStatistics()) {
+        _compute.dumpNeuralStatistics(_opts.neuralStatisticsDumpDir, _opts.neuralStatisticsMode);
+    }
 
     // Hexdump the session ram for debugging
     if (!_opts.sessionRAMsDumpDir.empty()) {
