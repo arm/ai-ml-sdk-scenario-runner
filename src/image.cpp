@@ -140,17 +140,6 @@ uint32_t calculateMipDimension(uint32_t base, uint32_t level) {
     return value;
 }
 
-uint64_t calculateMipChainDataSize(uint32_t width, uint32_t height, uint32_t depth, uint32_t elementSize,
-                                   uint32_t mipLevels) {
-    uint64_t size = 0;
-    for (uint32_t mip = 0; mip < mipLevels; ++mip) {
-        size += calculateMipDataSize(width, height, depth, elementSize);
-        width = std::max(width / 2u, 1u);
-        height = std::max(height / 2u, 1u);
-    }
-    return size;
-}
-
 } // namespace
 
 Image::Image(const ImageInfo &imageInfo) : _imageInfo(imageInfo) {}
@@ -324,8 +313,23 @@ vk::Sampler Image::sampler() const { return *_sampler; }
 
 uint64_t Image::memSize() const { return _memoryManager->getMemSize(); }
 
-uint64_t Image::dataSize() const {
+uint64_t Image::baseDataSize() const {
     uint64_t size = elementSizeFromVkFormat(_dataType) * totalElementsFromShape(_imageInfo.shape);
+    return size;
+}
+
+uint64_t Image::mipChainDataSize(uint32_t mipLevels) const {
+    uint64_t size = 0;
+    auto width = static_cast<uint32_t>(_imageInfo.shape[1]);
+    auto height = static_cast<uint32_t>(_imageInfo.shape[2]);
+    const auto depth = static_cast<uint32_t>(_imageInfo.shape[3]);
+    const auto elementSize = elementSizeFromVkFormat(_dataType);
+
+    for (uint32_t mip = 0; mip < mipLevels; ++mip) {
+        size += calculateMipDataSize(width, height, depth, elementSize);
+        width = std::max(width / 2u, 1u);
+        height = std::max(height / 2u, 1u);
+    }
     return size;
 }
 
@@ -446,8 +450,8 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
         fileFormat = result.initialFormat;
         mipmapsFromFile = result.mipLevels;
     } else {
-        data.resize(dataSize());
-        std::fill_n(data.begin(), dataSize(), 0);
+        data.resize(baseDataSize());
+        std::fill_n(data.begin(), baseDataSize(), 0);
     }
     _targetLayout = vk::ImageLayout::eGeneral;
 
@@ -455,7 +459,7 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     if ((_dataType == vk::Format::eR32Sfloat || _dataType == vk::Format::eD32Sfloat) &&
         fileFormat == vk::Format::eD32SfloatS8Uint) {
         // Depth stencil discarding
-        std::vector<uint8_t> bodgeData(dataSize());
+        std::vector<uint8_t> bodgeData(baseDataSize());
         bool hasStencilData = false;
         for (uint64_t i = 0; i < totalElementsFromShape(shape()); ++i) {
             uint64_t depthIdx = i * elementSizeFromVkFormat(fileFormat);
@@ -479,9 +483,7 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     const auto baseHeight = static_cast<uint32_t>(_imageInfo.shape[2]);
     const auto depth = static_cast<uint32_t>(_imageInfo.shape[3]);
     const auto copiedMipLevels = std::min(mipmapsFromFile, _imageInfo.mips);
-    const uint64_t requiredDataSize =
-        mipmapsFromFile > 1 ? calculateMipChainDataSize(baseWidth, baseHeight, depth, elementSize, copiedMipLevels)
-                            : dataSize();
+    const uint64_t requiredDataSize = mipmapsFromFile > 1 ? mipChainDataSize(copiedMipLevels) : baseDataSize();
     const bool requireExactSize = mipmapsFromFile <= 1;
     if (data.size() < requiredDataSize || (requireExactSize && data.size() != requiredDataSize)) {
         throw std::runtime_error(
@@ -720,7 +722,7 @@ std::vector<char> Image::getImageData(const Context &ctx) {
         throw std::runtime_error("Error while waiting for fence.");
     }
 
-    std::vector<char> data(dataSize());
+    std::vector<char> data(baseDataSize());
     const void *pBufferDeviceMemory = _memoryManager->mapStagingBufferMemory(0, data.size());
     std::memcpy(data.data(), pBufferDeviceMemory, data.size());
     _memoryManager->unmapStagingBufferMemory();
