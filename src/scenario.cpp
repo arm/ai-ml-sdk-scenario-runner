@@ -670,6 +670,7 @@ void verifyOpticalFlowConfig(const DataManager &dataManager, const DispatchOptic
 Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
     : _opts{opts}, _ctx{opts, getFamilyQueue(scenarioSpec)}, _scenarioSpec(scenarioSpec), _compute(_ctx) {
     setupResources();
+    setupCommands();
 }
 
 void Scenario::run(int repeatCount, bool dryRun) {
@@ -678,8 +679,6 @@ void Scenario::run(int repeatCount, bool dryRun) {
     if (_opts.captureFrame) {
         frameCapturer = std::make_unique<FrameCapturer>();
     }
-
-    setupCommands();
 
     for (int i = 0; i < repeatCount; ++i) {
         mlsdk::logging::debug("Iteration: " + std::to_string(i));
