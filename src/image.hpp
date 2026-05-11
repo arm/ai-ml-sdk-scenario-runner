@@ -40,9 +40,13 @@ class Image {
     /// \return The underlying Vulkan® image sampler
     vk::Sampler sampler() const;
 
-    /// \brief Get image packed data size in bytes
-    /// \return Size of image packed data in bytes
-    uint64_t dataSize() const;
+    /// \brief Get base mip image packed data size in bytes
+    /// \return Size of base mip image packed data in bytes
+    uint64_t baseDataSize() const;
+
+    /// \brief Get image mip-chain packed data size in bytes
+    /// \return Size of image packed data for the requested number of mip levels in bytes
+    uint64_t mipChainDataSize(uint32_t mipLevels) const;
 
     /// \brief Get total size of memory object associated with this tensor
     /// \return Size of memory in bytes
