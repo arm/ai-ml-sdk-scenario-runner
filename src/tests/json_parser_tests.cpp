@@ -478,6 +478,39 @@ TEST(JsonParser, DispatchOpticalFlowRejectsIntegerExecutionFlag) {
     ASSERT_THROW(MakeFromJSON<DispatchOpticalFlowDesc>(jsonInput), std::runtime_error);
 }
 
+TEST(JsonParser, DispatchOpticalFlowAcceptsSearchImageLod) {
+    const std::string jsonInput =
+        R""(
+    {
+        "width": 64,
+        "height": 64,
+        "grid_size": "4x4",
+        "bindings": {
+            "search_image": {
+                "id": 0,
+                "set": 0,
+                "resource_ref": "input_search",
+                "lod": 1
+            },
+            "template_image": {
+                "id": 1,
+                "set": 0,
+                "resource_ref": "input_template"
+            },
+            "output_image": {
+                "id": 2,
+                "set": 0,
+                "resource_ref": "output_flow"
+            }
+        }
+    }
+    )"";
+
+    const auto cmd = MakeFromJSON<DispatchOpticalFlowDesc>(jsonInput);
+    ASSERT_TRUE(cmd.searchImage.lod.has_value());
+    ASSERT_EQ(cmd.searchImage.lod.value(), 1);
+}
+
 // Test the JSON parser:
 // 1. Deserialize a JSON test case
 // 2. Validate the number of commands and resources

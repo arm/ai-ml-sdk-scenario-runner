@@ -76,3 +76,24 @@ def test_fragment_dispatch_rejects_mismatched_color_attachment_extent(
 
     with pytest.raises(subprocess.CalledProcessError):
         sdk_tools.run_scenario("test_fragment/sampled_fragment_mismatched_extent.json")
+
+
+def test_fragment_dispatch_with_lod_bindings(
+    sdk_tools: SDKTools,
+    resources_helper: ResourcesHelper,
+) -> None:
+    width = 64
+    height = 64
+
+    input_arr = np.arange(width * height * 4, dtype=np.uint8).reshape(
+        (1, height, width, 4)
+    )
+
+    sdk_tools.generate_png_file(height, width, "input.png", data=input_arr[0].tobytes())
+    _prepare_fragment_shaders(sdk_tools)
+
+    sdk_tools.run_scenario("test_fragment/sampled_fragment_lod.json")
+
+    output_png = resources_helper.get_testenv_path("output.png")
+    assert output_png.is_file()
+    assert output_png.stat().st_size > 0

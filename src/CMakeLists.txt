@@ -22,6 +22,7 @@ set(SCENARIO_RUNNER_LIB_SOURCES
     json_reader.cpp
     json_writer.cpp
     logging.cpp
+    optical_flow_utils.cpp
     pipeline_cache.cpp
     pipeline.cpp
     raw_data.cpp

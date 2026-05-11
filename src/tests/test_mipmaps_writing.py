@@ -136,3 +136,65 @@ def test_write_to_mipmaps(sdk_tools, resources_helper, numpy_helper):
         mip_width //= 2
         mip_height //= 2
         sample_window_size *= 2
+
+
+def test_write_to_mipmaps_permuted_lod_mapping(
+    sdk_tools, resources_helper, numpy_helper
+):
+    width, height, element_size, mip_levels = 256, 256, 4, 3
+
+    data = np.zeros([width * height * 4], np.float32)
+    for x in range(width):
+        for y in range(height):
+            pos = (x * height + y) * 4
+            data[pos] = float(x)
+            data[pos + 1] = float(y)
+            data[pos + 2] = float(x * y)
+            data[pos + 3] = 128
+
+    sdk_tools.generate_dds_file(
+        height,
+        width,
+        "fp32",
+        element_size * 4,
+        "DXGI_FORMAT_R32G32B32A32_FLOAT",
+        "base_layer.dds",
+        data=data.tobytes(),
+    )
+
+    for color, rgba in [
+        ("red", [255.0, 0, 0, 0]),
+        ("green", [0, 255.0, 0, 0]),
+        ("blue", [0, 0, 255.0, 0]),
+    ]:
+        numpy_helper.generate(
+            (4,),
+            np.float32,
+            f"{color}.npy",
+            rgba,
+        )
+
+    sdk_tools.compile_shader("test_mipmap_writing/write_to_mipmaps.comp")
+    sdk_tools.compile_shader("test_mipmap_writing/read_from_mipmaps.comp")
+    sdk_tools.run_scenario("test_mipmap_writing/write_to_mipmaps_permuted_lod.json")
+
+    # LOD 0 <- blue (channel 2), LOD 1 <- red (channel 0), LOD 2 <- green (channel 1)
+    expected_channel_by_lod = [2, 0, 1]
+    mip_width, mip_height = width, height
+    for cur_mip_level in range(mip_levels):
+        dds_filename = f"lod{cur_mip_level}.dds"
+        dds_file = resources_helper.get_testenv_path(dds_filename)
+
+        dds_npy_file = sdk_tools.convert_dds_to_npy(dds_file, f"{dds_filename}.npy", 4)
+        dds_npy = numpy_helper.load(dds_npy_file, np.float32)
+        assert dds_npy.shape == (1, mip_height, mip_width, 4)
+
+        dds_npy = np.reshape(dds_npy, (-1, 4))
+
+        expected_channel = expected_channel_by_lod[cur_mip_level]
+        assert np.all(dds_npy[:, expected_channel] == 255.0)
+        assert np.all(dds_npy[:, :expected_channel] == 0)
+        assert np.all(dds_npy[:, expected_channel + 1 :] == 0)
+
+        mip_width //= 2
+        mip_height //= 2

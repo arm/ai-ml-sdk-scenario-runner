@@ -3,6 +3,7 @@
 # SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
+import subprocess
 import sys
 
 import numpy as np
@@ -75,3 +76,33 @@ def test_optical_flow_dds(sdk_tools, resources_helper, numpy_helper):
 
     sdk_tools.run_scenario("test_optical_flow/optical_flow_dds.json")
     _assert_outputs(resources_helper)
+
+
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="Optical flow is not supported on Darwin"
+)
+def test_optical_flow_search_image_lod_invalid(sdk_tools, numpy_helper):
+    width, height = 64, 64
+    out_w, out_h = 16, 16
+
+    sdk_tools.generate_dds_file(
+        height,
+        width,
+        "uint8",
+        4,
+        "DXGI_FORMAT_R8G8B8A8_UNORM",
+        "input_search.DDS",
+    )
+    sdk_tools.generate_dds_file(
+        height,
+        width,
+        "uint8",
+        4,
+        "DXGI_FORMAT_R8G8B8A8_UNORM",
+        "input_template.DDS",
+    )
+
+    _generate_hint_motion_vectors(numpy_helper, out_h, out_w)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        sdk_tools.run_scenario("test_optical_flow/optical_flow_search_lod_invalid.json")
