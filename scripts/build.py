@@ -71,6 +71,9 @@ class Builder:
         self.install = args.install
         self.emulation_layer = args.emulation_layer
         self.enable_rdoc = args.enable_rdoc
+        self.renderdoc_path = (
+            absolute(args.renderdoc_path) if args.renderdoc_path else ""
+        )
         self.clang_tidy_fix = args.clang_tidy_fix
         self.experimental_image_format_support = (
             args.enable_experimental_image_format_support
@@ -268,6 +271,8 @@ class Builder:
 
         if self.enable_rdoc:
             cmake_setup_cmd.append("-DSCENARIO_RUNNER_ENABLE_RDOC=ON")
+            if self.renderdoc_path:
+                cmake_setup_cmd.append(f"-DRenderDoc_ROOT={self.renderdoc_path}")
 
         if self.experimental_image_format_support:
             cmake_setup_cmd.append(
@@ -709,6 +714,11 @@ def parse_arguments():
         help=("Enable Rdoc support"),
         action="store_true",
         default=False,
+    )
+    parser.add_argument(
+        "--renderdoc-path",
+        help=("Path to the RenderDoc installation root used with --enable-rdoc"),
+        default="",
     )
     parser.add_argument(
         "--clang-tidy-fix",
