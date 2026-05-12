@@ -240,36 +240,18 @@ def test_image_passthrough_d32_type(sdk_tools, resources_helper, numpy_helper, s
     if shader.endswith(".hlsl") and sdk_tools.hlsl_compiler.path is None:
         pytest.skip("HLSL compiler not provided; skipping HLSL-dependent tests.")
 
-    def create_input(size):
-        values = [
-            0x00,  # 10
-            0x3C,
-            0x40,  # 100
-            0x56,
-            0xD0,  # 1000
-            0x63,
-            0xE2,  # 10,000
-            0x70,
-        ]
-        output = values * (size // 8)
-        return np.array(output).astype(np.uint8)
+    def create_input(depth_values, n_pixels):
+        depth_data = np.resize(np.array(depth_values, dtype=np.float32), n_pixels)
+        stencil_data = np.zeros(n_pixels, dtype=np.uint32)
 
-    def create_ref_output(size):
-        values = [
-            0x00,  # 10
-            0x3C,
-            0x40,  # 100
-            0x56,
-            0x00,  # 10
-            0x3C,
-            0x40,  # 100
-            0x56,
-        ]
-        output = values * (size // 8)
-        return np.array(output).astype(np.uint8)
+        # D32_SFLOAT_S8_UINT stores 64 bits per pixel: 32-bit float depth + 32-bit stencil/X24.
+        packed = np.empty((n_pixels, 2), dtype=np.uint32)
+        packed[:, 0] = depth_data.view(np.uint32)
+        packed[:, 1] = stencil_data
+        return packed.tobytes(), depth_data
 
     width, height, dsize = 16, 16, 8
-    data = create_input(width * height * dsize).tobytes()
+    data, ref_output = create_input([0.25, 0.5, 0.75, 1.0], width * height)
 
     dds_file = sdk_tools.generate_dds_file(
         height,
@@ -284,12 +266,11 @@ def test_image_passthrough_d32_type(sdk_tools, resources_helper, numpy_helper, s
     sdk_tools.compile_shader(shader, output="outputInput.spv")
     sdk_tools.run_scenario("test_dds/passthrough_depth.json")
 
-    ref_output = create_ref_output(width * height * dsize // 2)
-
     output_dds = resources_helper.get_testenv_path("output.dds")
-    output_dds_npy = sdk_tools.convert_dds_to_npy(output_dds, "output.dds.npy", 1)
+    output_dds_npy = sdk_tools.convert_dds_to_npy(output_dds, "output.dds.npy", 4)
 
-    assert numpy_helper.load(output_dds_npy).tobytes() == ref_output.tobytes()
+    output = numpy_helper.load(output_dds_npy, np.float32)
+    assert np.array_equal(output.reshape(-1), ref_output)
 
 
 def create_repeating_reference_output(size, pixels):
