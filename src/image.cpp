@@ -306,6 +306,10 @@ vk::ImageView Image::imageView(uint32_t lod) const {
         throw std::runtime_error(errorMessage.str());
     }
 
+    if (_imageViewMips.empty()) {
+        return *_imageView;
+    }
+
     return *_imageViewMips[lod];
 }
 
@@ -351,16 +355,17 @@ void Image::addTransitionLayoutCommand(vk::raii::CommandBuffer &cmdBuf, vk::Imag
     vk::AccessFlagBits2 dstAccess = vk::AccessFlagBits2::eShaderRead;
 
     vk::MemoryBarrier2 memoryBarrier{srcStage, srcAccess, dstStage, dstAccess};
-    vk::ImageMemoryBarrier2 imageBarrier{srcStage,
-                                         srcAccess,
-                                         dstStage,
-                                         dstAccess,
-                                         _targetLayout,
-                                         expectedLayout,
-                                         VK_QUEUE_FAMILY_IGNORED,
-                                         VK_QUEUE_FAMILY_IGNORED,
-                                         *_image,
-                                         vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}};
+    vk::ImageMemoryBarrier2 imageBarrier{
+        srcStage,
+        srcAccess,
+        dstStage,
+        dstAccess,
+        _targetLayout,
+        expectedLayout,
+        VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED,
+        *_image,
+        vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, _imageInfo.mips, 0, 1}};
 
     vk::DependencyInfo depInfo{
         {},            // memoryBarriers (global)
