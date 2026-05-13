@@ -426,6 +426,12 @@ def valid_dir(value):
 def pytest_addoption(parser) -> None:
     """Add command line options to pytest."""
     parser.addoption(
+        "--build-dir",
+        type=valid_dir,
+        required=True,
+        help="Path to Scenario Runner build",
+    )
+    parser.addoption(
         "--scenario-runner",
         type=valid_path,
         required=True,
@@ -467,13 +473,6 @@ def pytest_addoption(parser) -> None:
         type=valid_path,
         required=True,
         help="Path to SPIR-V validator",
-    )
-    parser.addoption(
-        "--vgf-pylib-dir",
-        action="store",
-        type=valid_dir,
-        required=True,
-        help="Directory of VGF Python Lib file",
     )
     parser.addoption(
         "--emulation-layer",
@@ -589,7 +588,10 @@ def pytest_configure(config):
         "markers",
         "emulation_layer_incompatible: mark test as incompatible with emulation-layer",
     )
-    sys.path.append(config.option.vgf_pylib_dir)
+    scenario_runner_build_path = config.getoption("--build-dir")
+    if scenario_runner_build_path:
+        vgf_pylib_path = Path(scenario_runner_build_path) / "vgf-lib" / "src"
+        sys.path.append(str(vgf_pylib_path))
 
     if config.getoption("--sanitizers") and platform.system() == "Windows":
         asan_dll_path = os.getenv("ASAN_DLL_PATH")
