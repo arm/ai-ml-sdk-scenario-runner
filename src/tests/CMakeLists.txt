@@ -30,16 +30,18 @@ target_include_directories(ScenarioRunnerTests PRIVATE
 )
 target_compile_options(ScenarioRunnerTests PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
 
-gtest_discover_tests(ScenarioRunnerTests PROPERTIES LABELS ScenarioRunnerTests)
+if(NOT ANDROID)
+  gtest_discover_tests(ScenarioRunnerTests PROPERTIES LABELS ScenarioRunnerTests)
 
-enable_testing()
+  enable_testing()
 
-# pytest tests depend on spirv tools and vgfpy
-add_custom_target(scenario-runner-tests ALL DEPENDS spirv-as spirv-val vgfpy)
-if(NOT (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR) AND ML_SDK_GENERATE_CPACK)
-  install(TARGETS spirv-as EXPORT ai_ml_sdk_for_vulkanConfig)
-  install(TARGETS spirv-val EXPORT ai_ml_sdk_for_vulkanConfig)
-else()
-  install(TARGETS spirv-as EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
-  install(TARGETS spirv-val EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
+  # pytest tests depend on spirv tools and vgfpy
+  add_custom_target(scenario-runner-tests ALL DEPENDS spirv-as spirv-val vgfpy)
+  if(NOT (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR) AND ML_SDK_GENERATE_CPACK)
+    install(TARGETS spirv-as EXPORT ai_ml_sdk_for_vulkanConfig)
+    install(TARGETS spirv-val EXPORT ai_ml_sdk_for_vulkanConfig)
+  else()
+    install(TARGETS spirv-as EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
+    install(TARGETS spirv-val EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
+  endif()
 endif()

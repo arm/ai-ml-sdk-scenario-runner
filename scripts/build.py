@@ -350,7 +350,7 @@ class Builder:
                 ]
                 subprocess.run(cmake_install_cmd, check=True)
 
-            if self.run_tests:
+            if self.run_tests and self.target_platform != "android":
                 test_cmd = [
                     "ctest",
                     "--test-dir",
