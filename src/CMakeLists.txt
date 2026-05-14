@@ -74,6 +74,6 @@ target_compile_options(ScenarioRunnerLib PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPIL
 
 add_subdirectory(tools)
 
-if(SCENARIO_RUNNER_BUILD_TESTS AND NOT ANDROID)
+if(SCENARIO_RUNNER_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
