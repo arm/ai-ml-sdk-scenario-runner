@@ -887,7 +887,7 @@ void Scenario::setupCommands() {
 
 bool Scenario::hasAliasedOptimalTensors() const {
     // If any tensors in any memgroup have optimal tiling
-    for ([[maybe_unused]] const auto &[_, resources] : _groupManager.getGroupResources()) {
+    for ([[maybe_unused]] const auto &[_, resources] : _groupManager.getGroups()) {
         for ([[maybe_unused]] const auto &[resource, type] : resources) {
             if (_dataManager.hasTensor(resource) &&
                 _dataManager.getTensor(resource).tiling() == vk::TensorTilingARM::eOptimal) {
@@ -901,7 +901,7 @@ bool Scenario::hasAliasedOptimalTensors() const {
 void Scenario::handleAliasedLayoutTransitions() {
 
     // Validation pass: ensure all resources in a group have the same tiling type
-    for ([[maybe_unused]] const auto &[_, resources] : _groupManager.getGroupResources()) {
+    for ([[maybe_unused]] const auto &[_, resources] : _groupManager.getGroups()) {
         bool allLinear = true;
         bool allOptimal = true;
         for ([[maybe_unused]] const auto &[resource, type] : resources) {

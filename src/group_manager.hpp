@@ -5,46 +5,36 @@
 
 #pragma once
 
-#include "guid.hpp"
-#include "vulkan_memory_manager.hpp"
+#include "scenario_runner.hpp"
 
 #include <set>
-#include <string>
 #include <unordered_map>
 
 namespace mlsdk::scenariorunner {
 
-enum class ResourceIdType {
-    Unknown,
-    Buffer,
-    Image,
-    Tensor,
-    RawData,
-};
-
-class GroupManager {
+class GroupManager : public IGroupManager {
   public:
     /// Create or add resource to group
-    void addResourceToGroup(const Guid &group, const Guid &resource, ResourceIdType resourceIdType);
+    void addResourceToGroup(const Guid &group, const Guid &resource, ResourceIdType resourceIdType) override;
 
     /// Return size of group that resource belongs to
-    size_t getAliasCount(const Guid &resource) const;
+    size_t getAliasCount(const Guid &resource) const override;
 
-    bool isAliased(const Guid &resource) const;
+    bool isAliased(const Guid &resource) const override;
 
     ///  Returns true if resource is aliased with any resource of type
-    bool hasAliasOfType(const Guid &resource, ResourceIdType resourceIdType) const;
-
-    const std::unordered_map<Guid, std::set<std::pair<Guid, ResourceIdType>>> &getGroupResources() const {
-        return _groupResources;
-    }
+    bool hasAliasOfType(const Guid &resource, ResourceIdType resourceIdType) const override;
 
     // Get memory manager, shared if resource is aliased.
-    std::shared_ptr<ResourceMemoryManager> getMemoryManager(const Guid &resource);
+    std::shared_ptr<ResourceMemoryManager> getMemoryManager(const Guid &resource) override;
+    const GroupResources &getGroups() const override;
+
+    std::optional<Guid> getGroupForResource(const Guid &resource) const;
+    std::vector<GroupResourceEntry> getResourcesInGroup(const Guid &group) const;
 
   private:
     std::unordered_map<Guid, Guid> _resourceToGroup;
-    std::unordered_map<Guid, std::set<std::pair<Guid, ResourceIdType>>> _groupResources;
+    GroupResources _groupResources;
     std::unordered_map<Guid, std::shared_ptr<ResourceMemoryManager>> _groupMemoryManagers;
 };
 
