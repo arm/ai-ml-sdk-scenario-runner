@@ -107,10 +107,10 @@ class Pipeline {
     std::vector<vk::DeviceSize> _sessionMemoryDataSizes;
     vk::raii::ShaderModule _shader{nullptr};
     vk::raii::ShaderModule _fragmentShader{nullptr};
-    std::string _debugName{};
-    std::optional<NeuralStatisticsMemoryInfo> _neuralStatisticsMemoryInfo{};
+    std::string _debugName;
+    std::optional<NeuralStatisticsMemoryInfo> _neuralStatisticsMemoryInfo;
     uint64_t _dataGraphPipelineMemoryRequirement{};
-    vk::ShaderStageFlags _pushConstantStages{};
+    vk::ShaderStageFlags _pushConstantStages;
     bool _opticalFlowSession{false};
 
     void initSession(const Context &ctx, bool enableNeuralStatistics = false,

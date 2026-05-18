@@ -105,7 +105,7 @@ class Compute {
 
     /// \brief Optional dispatch info for data graph pipelines.
     struct OpticalFlowDispatchInfo {
-        vk::DataGraphOpticalFlowExecuteFlagsARM opticalFlowFlags{};
+        vk::DataGraphOpticalFlowExecuteFlagsARM opticalFlowFlags;
         uint32_t meanFlowL1NormHint{0};
     };
 
@@ -182,7 +182,7 @@ class Compute {
 
     struct DataGraphDispatch {
         vk::DataGraphPipelineSessionARM session{nullptr};
-        std::optional<OpticalFlowDispatchInfo> dispatchInfo{};
+        std::optional<OpticalFlowDispatchInfo> dispatchInfo;
     };
 
     struct MemoryBarrier {
@@ -239,20 +239,20 @@ class Compute {
     vk::raii::Queue _queue{nullptr};
     vk::raii::Fence _fence{nullptr};
 
-    std::vector<Pipeline> _pipelines{};
-    std::vector<vk::raii::DescriptorPool> _descriptorPools{};
-    std::vector<vk::raii::DescriptorSet> _descriptorSets{};
-    std::vector<std::vector<vk::MemoryBarrier2>> _memoryBarriers{};
-    std::vector<std::vector<vk::TensorMemoryBarrierARM>> _tensorBarriers{};
-    std::vector<std::vector<vk::ImageMemoryBarrier2>> _imageBarriers{};
-    std::vector<std::vector<vk::BufferMemoryBarrier2>> _bufferBarriers{};
-    std::vector<std::vector<vk::Image>> _imageArray{};
-    std::vector<std::vector<vk::Buffer>> _bufferArray{};
-    std::vector<std::vector<vk::TensorARM>> _tensorArray{};
+    std::vector<Pipeline> _pipelines;
+    std::vector<vk::raii::DescriptorPool> _descriptorPools;
+    std::vector<vk::raii::DescriptorSet> _descriptorSets;
+    std::vector<std::vector<vk::MemoryBarrier2>> _memoryBarriers;
+    std::vector<std::vector<vk::TensorMemoryBarrierARM>> _tensorBarriers;
+    std::vector<std::vector<vk::ImageMemoryBarrier2>> _imageBarriers;
+    std::vector<std::vector<vk::BufferMemoryBarrier2>> _bufferBarriers;
+    std::vector<std::vector<vk::Image>> _imageArray;
+    std::vector<std::vector<vk::Buffer>> _bufferArray;
+    std::vector<std::vector<vk::TensorARM>> _tensorArray;
     std::vector<std::unique_ptr<vk::FrameBoundaryTensorsARM>> _markBoundaryTensorArray;
-    std::vector<Command> _commands{};
-    std::vector<vk::raii::CommandBuffer> _cmdBufferArray{};
-    std::vector<std::string> _debugMarkerNames{};
+    std::vector<Command> _commands;
+    std::vector<vk::raii::CommandBuffer> _cmdBufferArray;
+    std::vector<std::string> _debugMarkerNames;
     uint64_t _repeatNumber{};
 
     vk::raii::QueryPool _queryPool{nullptr};

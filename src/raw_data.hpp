@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -24,8 +24,8 @@ class RawData {
     const std::string &debugName() const;
 
   private:
-    const std::string _debugName{};
-    std::unique_ptr<MemoryMap> _mapped{};
-    vgfutils::numpy::DataPtr _dataptr{};
+    const std::string _debugName;
+    std::unique_ptr<MemoryMap> _mapped;
+    vgfutils::numpy::DataPtr _dataptr;
 };
 } // namespace mlsdk::scenariorunner

@@ -306,6 +306,7 @@ class Builder:
                 src_dirs = [
                     f"{SCENARIO_RUNNER_DIR / 'src'}",
                 ]
+                os.makedirs(f"{self.build_dir}/cppcheck", exist_ok=True)
 
                 lint_cmd = [
                     "cppcheck",

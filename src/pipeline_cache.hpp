@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -28,12 +28,12 @@ class PipelineCache {
   private:
     bool isValidPipelineCache(const void *cacheDataPtr, size_t cacheDataSize, uint32_t expectedVendorID,
                               uint32_t expectedDeviceID);
-    std::filesystem::path _pipelineCachePath{};
-    std::unique_ptr<MemoryMap> _cacheData{};
+    std::filesystem::path _pipelineCachePath;
+    std::unique_ptr<MemoryMap> _cacheData;
     vk::raii::PipelineCache _pipelineCache{nullptr};
-    vk::PipelineCreationFeedbackCreateInfo _feedbackCreateInfo{};
-    vk::PipelineCreationFeedback _feedback{};
-    vk::PipelineCreationFeedback _stagedFeedback{};
+    vk::PipelineCreationFeedbackCreateInfo _feedbackCreateInfo;
+    vk::PipelineCreationFeedback _feedback;
+    vk::PipelineCreationFeedback _stagedFeedback;
     bool _failOnMiss{false};
 };
 

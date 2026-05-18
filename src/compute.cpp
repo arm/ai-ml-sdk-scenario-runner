@@ -316,7 +316,7 @@ void Compute::_addDispatch(const ComputeDispatch &computeDispatch,
                            const std::optional<OpticalFlowDispatchInfo> &dispatchInfo) {
     const auto &pipeline = _pipelines.back();
     if (pipeline.isDataGraphPipeline()) {
-        DataGraphDispatch dispatch{pipeline.session()};
+        DataGraphDispatch dispatch{pipeline.session(), std::nullopt};
         if (dispatchInfo.has_value()) {
             dispatch.dispatchInfo = dispatchInfo;
         }
