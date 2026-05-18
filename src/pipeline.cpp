@@ -262,9 +262,9 @@ void Pipeline::graphicsPipelineCommon(const Context &ctx, const ShaderInfo &vert
     vk::PipelineColorBlendStateCreateInfo colorBlendState{};
     colorBlendState.setLogicOpEnable(VK_FALSE);
     colorBlendState.setLogicOp(vk::LogicOp::eCopy);
-    std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments;
-    if (!colorAttachmentFormats.empty()) {
-        colorBlendAttachments.assign(colorAttachmentFormats.size(), colorBlendAttachment);
+    const std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments(colorAttachmentFormats.size(),
+                                                                                   colorBlendAttachment);
+    if (!colorBlendAttachments.empty()) {
         colorBlendState.setAttachmentCount(static_cast<uint32_t>(colorBlendAttachments.size()));
         colorBlendState.setPAttachments(colorBlendAttachments.data());
     } else {

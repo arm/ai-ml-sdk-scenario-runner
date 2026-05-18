@@ -23,13 +23,13 @@ struct ScenarioOptions {
     bool failOnPipelineCacheMiss{false};
     bool enableGPUDebugMarkers{false};
     bool captureFrame{false};
-    std::filesystem::path pipelineCachePath{};
-    std::filesystem::path neuralDebugDatabaseDumpDir{};
-    std::filesystem::path neuralStatisticsDumpDir{};
-    std::filesystem::path sessionRAMsDumpDir{};
-    std::filesystem::path perfCountersPath{};
-    std::filesystem::path profilingPath{};
-    std::vector<std::string> disabledExtensions{};
+    std::filesystem::path pipelineCachePath;
+    std::filesystem::path neuralDebugDatabaseDumpDir;
+    std::filesystem::path neuralStatisticsDumpDir;
+    std::filesystem::path sessionRAMsDumpDir;
+    std::filesystem::path perfCountersPath;
+    std::filesystem::path profilingPath;
+    std::vector<std::string> disabledExtensions;
     vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode{};
 
     bool shouldDumpNeuralDebugDatabase() const { return !neuralDebugDatabaseDumpDir.empty(); }
@@ -77,9 +77,9 @@ class Scenario {
     Context _ctx;
     DataManager _dataManager;
     ScenarioSpec &_scenarioSpec;
-    std::shared_ptr<PipelineCache> _pipelineCache{};
+    std::shared_ptr<PipelineCache> _pipelineCache;
     Compute _compute;
-    std::vector<PerformanceCounter> _perfCounters{};
+    std::vector<PerformanceCounter> _perfCounters;
     GroupManager _groupManager;
 };
 

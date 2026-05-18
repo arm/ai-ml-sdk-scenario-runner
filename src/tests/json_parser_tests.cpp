@@ -646,9 +646,9 @@ TEST(JsonParser, Resources) {
         )"");
 
         ScenarioSpec scenarioSpec{jsonInput};
-        auto &resource = scenarioSpec.resources.at(0);
+        const auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::Buffer);
-        auto &buffer = reinterpret_cast<std::unique_ptr<BufferDesc> &>(resource);
+        const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
         ASSERT_TRUE(buffer->size == 0);
     }
 
@@ -669,9 +669,9 @@ TEST(JsonParser, Resources) {
         )"");
 
         ScenarioSpec scenarioSpec{jsonInput};
-        auto &resource = scenarioSpec.resources.at(0);
+        const auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::Image);
-        auto &resourcePtr = reinterpret_cast<std::unique_ptr<ImageDesc> &>(resource);
+        const auto &resourcePtr = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
         ASSERT_TRUE(resourcePtr->dims.size() == 3);
     }
 
@@ -690,9 +690,9 @@ TEST(JsonParser, Resources) {
         )"");
 
         ScenarioSpec scenarioSpec{jsonInput};
-        auto &resource = scenarioSpec.resources.at(0);
+        const auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::Tensor);
-        auto &resourcePtr = reinterpret_cast<std::unique_ptr<TensorDesc> &>(resource);
+        const auto &resourcePtr = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
         ASSERT_TRUE(resourcePtr->dims.size() == 4);
     }
 
@@ -709,7 +709,7 @@ TEST(JsonParser, Resources) {
         )"");
 
         ScenarioSpec scenarioSpec{jsonInput};
-        auto &resource = scenarioSpec.resources.at(0);
+        const auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::RawData);
     }
 
@@ -728,9 +728,9 @@ TEST(JsonParser, Resources) {
         )"");
 
         ScenarioSpec scenarioSpec{jsonInput};
-        auto &resource = scenarioSpec.resources.at(0);
+        const auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::Shader);
-        auto &resourcePtr = reinterpret_cast<std::unique_ptr<ShaderDesc> &>(resource);
+        const auto &resourcePtr = reinterpret_cast<const std::unique_ptr<ShaderDesc> &>(resource);
         ASSERT_TRUE(resourcePtr->shaderType == ShaderType::SPIR_V);
     }
 
@@ -747,7 +747,7 @@ TEST(JsonParser, Resources) {
         )"");
 
         ScenarioSpec scenarioSpec{jsonInput};
-        auto &resource = scenarioSpec.resources.at(0);
+        const auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::DataGraph);
     }
 
@@ -767,9 +767,9 @@ TEST(JsonParser, Resources) {
         )"");
 
         ScenarioSpec scenarioSpec{jsonInput};
-        auto &resource = scenarioSpec.resources.at(0);
+        const auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::MemoryBarrier);
-        auto &resourcePtr = reinterpret_cast<std::unique_ptr<MemoryBarrierDesc> &>(resource);
+        const auto &resourcePtr = reinterpret_cast<const std::unique_ptr<MemoryBarrierDesc> &>(resource);
         ASSERT_TRUE(resourcePtr->srcAccess == MemoryAccess::MemoryRead);
     }
 
@@ -792,9 +792,9 @@ TEST(JsonParser, Resources) {
         )"");
 
         ScenarioSpec scenarioSpec{jsonInput};
-        auto &resource = scenarioSpec.resources.at(0);
+        const auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::BufferBarrier);
-        auto &resourcePtr = reinterpret_cast<std::unique_ptr<BufferBarrierDesc> &>(resource);
+        const auto &resourcePtr = reinterpret_cast<const std::unique_ptr<BufferBarrierDesc> &>(resource);
         ASSERT_TRUE(resourcePtr->offset == 1);
     }
 
@@ -822,9 +822,9 @@ TEST(JsonParser, Resources) {
         )"");
 
         ScenarioSpec scenarioSpec{jsonInput};
-        auto &resource = scenarioSpec.resources.at(0);
+        const auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::ImageBarrier);
-        auto &resourcePtr = reinterpret_cast<std::unique_ptr<ImageBarrierDesc> &>(resource);
+        const auto &resourcePtr = reinterpret_cast<const std::unique_ptr<ImageBarrierDesc> &>(resource);
         ASSERT_TRUE(resourcePtr->oldLayout == ImageLayout::General);
     }
 
@@ -845,9 +845,9 @@ TEST(JsonParser, Resources) {
         )"");
 
         ScenarioSpec scenarioSpec{jsonInput};
-        auto &resource = scenarioSpec.resources.at(0);
+        const auto &resource = scenarioSpec.resources.at(0);
         ASSERT_TRUE(resource->resourceType == ResourceType::TensorBarrier);
-        auto &resourcePtr = reinterpret_cast<std::unique_ptr<TensorBarrierDesc> &>(resource);
+        const auto &resourcePtr = reinterpret_cast<const std::unique_ptr<TensorBarrierDesc> &>(resource);
         ASSERT_TRUE(resourcePtr->tensorResource == "string");
     }
 }
@@ -890,14 +890,14 @@ TEST(JsonParser, Commands) {
         )"");
 
         ScenarioSpec scenarioSpec{jsonInput};
-        auto &command = scenarioSpec.commands.at(0);
+        const auto &command = scenarioSpec.commands.at(0);
         ASSERT_TRUE(command->commandType == CommandType::DispatchDataGraph);
-        auto &commandPtr = reinterpret_cast<std::unique_ptr<DispatchDataGraphDesc> &>(command);
+        const auto &commandPtr = reinterpret_cast<const std::unique_ptr<DispatchDataGraphDesc> &>(command);
 
-        auto &binding = commandPtr->bindings.at(0);
+        const auto &binding = commandPtr->bindings.at(0);
         ASSERT_TRUE(binding.id == 0);
 
-        auto &pushConstant = commandPtr->pushConstants.at(0);
+        const auto &pushConstant = commandPtr->pushConstants.at(0);
         ASSERT_TRUE(pushConstant.pushDataRef == Guid("RawData1"));
         ASSERT_TRUE(pushConstant.shaderTarget == Guid("Shader1"));
     }
@@ -949,27 +949,27 @@ TEST(JsonParser, Commands) {
         )"");
 
         ScenarioSpec scenarioSpec{jsonInput};
-        auto &command = scenarioSpec.commands.at(0);
+        const auto &command = scenarioSpec.commands.at(0);
         ASSERT_TRUE(command->commandType == CommandType::DispatchCompute);
         ASSERT_TRUE(scenarioSpec.useComputeFamilyQueue);
-        auto &commandPtr = reinterpret_cast<std::unique_ptr<DispatchComputeDesc> &>(command);
+        const auto &commandPtr = reinterpret_cast<const std::unique_ptr<DispatchComputeDesc> &>(command);
 
-        auto &binding1 = commandPtr->bindings.at(1);
+        const auto &binding1 = commandPtr->bindings.at(1);
         ASSERT_TRUE(binding1.id == 1);
         ASSERT_TRUE(binding1.resourceRef == Guid("InBuffer2"));
         ASSERT_TRUE(binding1.descriptorType == DescriptorType::Auto);
 
-        auto &binding2 = commandPtr->bindings.at(2);
+        const auto &binding2 = commandPtr->bindings.at(2);
         ASSERT_TRUE(binding2.id == 2);
         ASSERT_TRUE(binding2.resourceRef == Guid("OutBuffer"));
         ASSERT_TRUE(binding2.descriptorType == DescriptorType::Auto);
 
-        auto &binding3 = commandPtr->bindings.at(3);
+        const auto &binding3 = commandPtr->bindings.at(3);
         ASSERT_TRUE(binding3.id == 3);
         ASSERT_TRUE(binding3.resourceRef == Guid("InImage"));
         ASSERT_TRUE(binding3.descriptorType == DescriptorType::Auto);
 
-        auto &binding4 = commandPtr->bindings.at(4);
+        const auto &binding4 = commandPtr->bindings.at(4);
         ASSERT_TRUE(binding4.id == 4);
         ASSERT_TRUE(binding4.resourceRef == Guid("OutImage"));
         ASSERT_TRUE(binding4.descriptorType == DescriptorType::StorageImage);
@@ -990,9 +990,9 @@ TEST(JsonParser, Commands) {
         )"");
 
         ScenarioSpec scenarioSpec{jsonInput};
-        auto &command = scenarioSpec.commands.at(0);
+        const auto &command = scenarioSpec.commands.at(0);
         ASSERT_TRUE(command->commandType == CommandType::DispatchBarrier);
-        auto &commandPtr = reinterpret_cast<std::unique_ptr<DispatchBarrierDesc> &>(command);
+        const auto &commandPtr = reinterpret_cast<const std::unique_ptr<DispatchBarrierDesc> &>(command);
 
         ASSERT_TRUE(commandPtr->imageBarriersRef.size() == 1);
         ASSERT_TRUE(commandPtr->memoryBarriersRef.size() == 2);
@@ -1012,9 +1012,9 @@ TEST(JsonParser, Commands) {
         )"");
 
         ScenarioSpec scenarioSpec{jsonInput};
-        auto &command = scenarioSpec.commands.at(0);
+        const auto &command = scenarioSpec.commands.at(0);
         ASSERT_TRUE(command->commandType == CommandType::MarkBoundary);
-        auto &commandPtr = reinterpret_cast<std::unique_ptr<MarkBoundaryDesc> &>(command);
+        const auto &commandPtr = reinterpret_cast<const std::unique_ptr<MarkBoundaryDesc> &>(command);
 
         ASSERT_TRUE(commandPtr->resources.size() == 1);
     }
@@ -1031,9 +1031,9 @@ TEST(JsonParser, Commands) {
         )"");
 
         ScenarioSpec scenarioSpec{jsonInput};
-        auto &command = scenarioSpec.commands.at(0);
+        const auto &command = scenarioSpec.commands.at(0);
         ASSERT_TRUE(command->commandType == CommandType::MarkBoundary);
-        auto &commandPtr = reinterpret_cast<std::unique_ptr<MarkBoundaryDesc> &>(command);
+        const auto &commandPtr = reinterpret_cast<const std::unique_ptr<MarkBoundaryDesc> &>(command);
 
         ASSERT_TRUE(commandPtr->resources.size() == 1);
     }

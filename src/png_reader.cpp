@@ -82,7 +82,8 @@ ImageLoadResult loadDataFromPNG(const std::string &filename, const ImageLoadOpti
 
     const size_t expectedSize = checkedSize(width, height);
     ImageLoadResult result(vk::Format::eR8G8B8A8Unorm, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
-    result.data.assign(decoded.get(), decoded.get() + expectedSize);
+    const auto *decodedData = static_cast<const stbi_uc *>(decoded.get());
+    result.data.assign(decodedData, decodedData + expectedSize);
     return result;
 }
 

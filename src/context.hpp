@@ -69,7 +69,7 @@ class Context {
   private:
     bool _gpuDebugMarkersEnabled;
     bool _sessionMemoryDumpEnabled;
-    vk::raii::Context _ctx{};
+    vk::raii::Context _ctx;
     vk::raii::Instance _instance{nullptr};
     vk::raii::PhysicalDevice _physicalDev{nullptr};
     vk::raii::Device _dev{nullptr};

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -59,7 +59,7 @@ class VulkanImageBarrier {
 
   private:
     vk::ImageMemoryBarrier2 _imageBarrier;
-    std::string _debugName{};
+    std::string _debugName;
 };
 
 class VulkanTensorBarrier {
@@ -80,7 +80,7 @@ class VulkanTensorBarrier {
 
   private:
     vk::TensorMemoryBarrierARM _tensorBarrier;
-    std::string _debugName{};
+    std::string _debugName;
 };
 
 class VulkanMemoryBarrier {
@@ -101,7 +101,7 @@ class VulkanMemoryBarrier {
 
   private:
     vk::MemoryBarrier2 _memoryBarrier;
-    std::string _debugName{};
+    std::string _debugName;
 };
 
 class VulkanBufferBarrier {
@@ -120,6 +120,6 @@ class VulkanBufferBarrier {
 
   private:
     vk::BufferMemoryBarrier2 _bufferBarrier;
-    std::string _debugName{};
+    std::string _debugName;
 };
 } // namespace mlsdk::scenariorunner

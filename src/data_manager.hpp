@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -55,14 +55,14 @@ class DataManager {
     uint32_t numImages() const;
 
   private:
-    std::unordered_map<Guid, Buffer> _buffers{};
-    std::unordered_map<Guid, Tensor> _tensors{};
-    std::unordered_map<Guid, Image> _images{};
-    std::unordered_map<Guid, RawData> _rawData{};
-    std::unordered_map<Guid, VgfView> _vgfViews{};
-    std::unordered_map<Guid, VulkanImageBarrier> _imageBarriers{};
-    std::unordered_map<Guid, VulkanMemoryBarrier> _memoryBarriers{};
-    std::unordered_map<Guid, VulkanBufferBarrier> _bufferBarriers{};
-    std::unordered_map<Guid, VulkanTensorBarrier> _tensorBarriers{};
+    std::unordered_map<Guid, Buffer> _buffers;
+    std::unordered_map<Guid, Tensor> _tensors;
+    std::unordered_map<Guid, Image> _images;
+    std::unordered_map<Guid, RawData> _rawData;
+    std::unordered_map<Guid, VgfView> _vgfViews;
+    std::unordered_map<Guid, VulkanImageBarrier> _imageBarriers;
+    std::unordered_map<Guid, VulkanMemoryBarrier> _memoryBarriers;
+    std::unordered_map<Guid, VulkanBufferBarrier> _bufferBarriers;
+    std::unordered_map<Guid, VulkanTensorBarrier> _tensorBarriers;
 };
 } // namespace mlsdk::scenariorunner
