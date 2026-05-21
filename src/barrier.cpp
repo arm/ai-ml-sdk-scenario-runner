@@ -11,17 +11,17 @@ namespace mlsdk::scenariorunner {
 namespace {
 vk::AccessFlags2 convertAccessFlags(MemoryAccess access) {
     switch (access) {
-    case (MemoryAccess::MemoryWrite):
+    case MemoryAccess::MemoryWrite:
         return vk::AccessFlagBits2::eMemoryWrite;
-    case (MemoryAccess::MemoryRead):
+    case MemoryAccess::MemoryRead:
         return vk::AccessFlagBits2::eMemoryRead;
-    case (MemoryAccess::GraphWrite):
+    case MemoryAccess::GraphWrite:
         return vk::AccessFlagBits2::eDataGraphWriteARM;
-    case (MemoryAccess::GraphRead):
+    case MemoryAccess::GraphRead:
         return vk::AccessFlagBits2::eDataGraphReadARM;
-    case (MemoryAccess::ComputeShaderWrite):
+    case MemoryAccess::ComputeShaderWrite:
         return vk::AccessFlagBits2::eShaderWrite;
-    case (MemoryAccess::ComputeShaderRead):
+    case MemoryAccess::ComputeShaderRead:
         return vk::AccessFlagBits2::eShaderRead;
     default: {
         throw std::runtime_error("Invalid barrier access flag");
@@ -31,13 +31,13 @@ vk::AccessFlags2 convertAccessFlags(MemoryAccess access) {
 
 vk::PipelineStageFlags2 convertStageFlag(PipelineStage stage) {
     switch (stage) {
-    case (PipelineStage::Graph):
+    case PipelineStage::Graph:
         return vk::PipelineStageFlagBits2::eDataGraphARM;
-    case (PipelineStage::Compute):
+    case PipelineStage::Compute:
         return vk::PipelineStageFlagBits2::eComputeShader;
-    case (PipelineStage::Graphics):
+    case PipelineStage::Graphics:
         return vk::PipelineStageFlagBits2::eFragmentShader | vk::PipelineStageFlagBits2::eColorAttachmentOutput;
-    case (PipelineStage::All):
+    case PipelineStage::All:
         return vk::PipelineStageFlagBits2::eAllCommands;
     default: {
         throw std::runtime_error("Invalid barrier stage flag");
@@ -55,11 +55,11 @@ vk::Flags<vk::PipelineStageFlagBits2> convertStageFlags(const std::vector<Pipeli
 
 vk::ImageLayout convertImageLayout(ImageLayout layout) {
     switch (layout) {
-    case (ImageLayout::TensorAliasing):
+    case ImageLayout::TensorAliasing:
         return vk::ImageLayout::eTensorAliasingARM;
-    case (ImageLayout::General):
+    case ImageLayout::General:
         return vk::ImageLayout::eGeneral;
-    case (ImageLayout::Undefined):
+    case ImageLayout::Undefined:
         return vk::ImageLayout::eUndefined;
     default: {
         throw std::runtime_error("Invalid image barrier layout");

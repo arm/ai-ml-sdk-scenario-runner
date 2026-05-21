@@ -210,47 +210,47 @@ void readJsonImpl(ScenarioSpec &scenarioSpec, const json &j) {
     for (const auto &resourceJson : resourcesJson) {
         const auto resourceType = json(resourceJson.begin().key()).get<ResourceType>();
         switch (resourceType) {
-        case (ResourceType::Shader): {
+        case ResourceType::Shader: {
             auto shader = resourceJson.at("shader"sv).get<ShaderDesc>();
             scenarioSpec.addResource(std::make_unique<ShaderDesc>(std::move(shader)));
         } break;
-        case (ResourceType::Buffer): {
+        case ResourceType::Buffer: {
             auto buffer = resourceJson.at("buffer"sv).get<BufferDesc>();
             scenarioSpec.addResource(std::make_unique<BufferDesc>(std::move(buffer)));
         } break;
-        case (ResourceType::RawData): {
+        case ResourceType::RawData: {
             auto rawData = resourceJson.at("raw_data"sv).get<RawDataDesc>();
             scenarioSpec.addResource(std::make_unique<RawDataDesc>(std::move(rawData)));
         } break;
-        case (ResourceType::DataGraph): {
+        case ResourceType::DataGraph: {
             auto dataGraph = resourceJson.at("graph"sv).get<DataGraphDesc>();
             scenarioSpec.addResource(std::make_unique<DataGraphDesc>(std::move(dataGraph)));
         } break;
-        case (ResourceType::Tensor): {
+        case ResourceType::Tensor: {
             auto tensor = resourceJson.at("tensor"sv).get<TensorDesc>();
             scenarioSpec.addResource(std::make_unique<TensorDesc>(std::move(tensor)));
         } break;
-        case (ResourceType::Image): {
+        case ResourceType::Image: {
             auto image = resourceJson.at("image"sv).get<ImageDesc>();
             scenarioSpec.addResource(std::make_unique<ImageDesc>(std::move(image)));
         } break;
-        case (ResourceType::ImageBarrier): {
+        case ResourceType::ImageBarrier: {
             auto imageBarrier = resourceJson.at("image_barrier"sv).get<ImageBarrierDesc>();
             scenarioSpec.addResource(std::make_unique<ImageBarrierDesc>(std::move(imageBarrier)));
         } break;
-        case (ResourceType::TensorBarrier): {
+        case ResourceType::TensorBarrier: {
             auto tensorBarrier = resourceJson.at("tensor_barrier"sv).get<TensorBarrierDesc>();
             scenarioSpec.addResource(std::make_unique<TensorBarrierDesc>(std::move(tensorBarrier)));
         } break;
-        case (ResourceType::MemoryBarrier): {
+        case ResourceType::MemoryBarrier: {
             auto memoryBarrier = resourceJson.at("memory_barrier"sv).get<MemoryBarrierDesc>();
             scenarioSpec.addResource(std::make_unique<MemoryBarrierDesc>(std::move(memoryBarrier)));
         } break;
-        case (ResourceType::BufferBarrier): {
+        case ResourceType::BufferBarrier: {
             auto bufferBarrier = resourceJson.at("buffer_barrier"sv).get<BufferBarrierDesc>();
             scenarioSpec.addResource(std::make_unique<BufferBarrierDesc>(std::move(bufferBarrier)));
         } break;
-        case (ResourceType::GraphConstant): {
+        case ResourceType::GraphConstant: {
             auto graphConstant = resourceJson.at("graph_constant"sv).get<GraphConstantDesc>();
             scenarioSpec.addResource(std::make_unique<GraphConstantDesc>(std::move(graphConstant)));
         } break;
@@ -263,31 +263,31 @@ void readJsonImpl(ScenarioSpec &scenarioSpec, const json &j) {
     for (const auto &commandJson : commandsJson) {
         const auto commandType = json(commandJson.begin().key()).get<CommandType>();
         switch (commandType) {
-        case (CommandType::DispatchCompute): {
+        case CommandType::DispatchCompute: {
             auto dispatchCompute = commandJson.at("dispatch_compute"sv).get<DispatchComputeDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchComputeDesc>(std::move(dispatchCompute)));
         } break;
-        case (CommandType::DispatchDataGraph): {
+        case CommandType::DispatchDataGraph: {
             auto dispatchDataGraph = commandJson.at("dispatch_graph"sv).get<DispatchDataGraphDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchDataGraphDesc>(std::move(dispatchDataGraph)));
         } break;
-        case (CommandType::DispatchSpirvGraph): {
+        case CommandType::DispatchSpirvGraph: {
             auto dispatchSpirvGraph = commandJson.at("dispatch_spirv_graph"sv).get<DispatchSpirvGraphDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchSpirvGraphDesc>(std::move(dispatchSpirvGraph)));
         } break;
-        case (CommandType::DispatchFragment): {
+        case CommandType::DispatchFragment: {
             auto dispatchFragment = commandJson.at("dispatch_fragment"sv).get<DispatchFragmentDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchFragmentDesc>(std::move(dispatchFragment)));
         } break;
-        case (CommandType::DispatchBarrier): {
+        case CommandType::DispatchBarrier: {
             auto dispatchBarrier = commandJson.at("dispatch_barrier"sv).get<DispatchBarrierDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchBarrierDesc>(std::move(dispatchBarrier)));
         } break;
-        case (CommandType::MarkBoundary): {
+        case CommandType::MarkBoundary: {
             auto markBoundary = commandJson.at("mark_boundary"sv).get<MarkBoundaryDesc>();
             scenarioSpec.addCommand(std::make_unique<MarkBoundaryDesc>(std::move(markBoundary)));
         } break;
-        case (CommandType::DispatchOpticalFlow): {
+        case CommandType::DispatchOpticalFlow: {
             auto dispatchOpticalFlow = commandJson.at("dispatch_optical_flow"sv).get<DispatchOpticalFlowDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchOpticalFlowDesc>(std::move(dispatchOpticalFlow)));
         } break;
