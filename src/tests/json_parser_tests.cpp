@@ -10,7 +10,7 @@
 #include "resource_desc.hpp"
 #include "scenario_desc.hpp"
 
-#include <regex>
+#include <string_view>
 
 /**
  * @brief Test the JSON parser.
@@ -236,6 +236,15 @@ template <typename T> T MakeFromJSON(const json &j) {
 template <typename T> T MakeFromJSON(const std::string &s) {
     const auto j = json::parse(s);
     return MakeFromJSON<T>(j);
+}
+
+std::string ReplaceAll(std::string input, std::string_view placeholder, std::string_view replacement) {
+    std::string::size_type pos = 0;
+    while ((pos = input.find(placeholder.data(), pos, placeholder.size())) != std::string::npos) {
+        input.replace(pos, placeholder.size(), replacement.data(), replacement.size());
+        pos += replacement.size();
+    }
+    return input;
 }
 
 } // namespace
@@ -629,12 +638,12 @@ TEST(JsonParser, Resources) {
     "commands": []
     }
     )"";
-    const std::regex resourceRegex("\\{RESOURCE\\}");
+    constexpr std::string_view resourceRegex = "{RESOURCE}";
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, resourceRegex,
-                                       R""(
+        jsonInput = ReplaceAll(jsonInput, resourceRegex,
+                               R""(
         {
         "buffer": {
                 "shader_access": "readonly",
@@ -654,8 +663,8 @@ TEST(JsonParser, Resources) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, resourceRegex,
-                                       R""(
+        jsonInput = ReplaceAll(jsonInput, resourceRegex,
+                               R""(
         {
         "image": {
             "uid": "string",
@@ -677,8 +686,8 @@ TEST(JsonParser, Resources) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, resourceRegex,
-                                       R""(
+        jsonInput = ReplaceAll(jsonInput, resourceRegex,
+                               R""(
         {
             "tensor": {
                 "shader_access": "readonly",
@@ -698,8 +707,8 @@ TEST(JsonParser, Resources) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, resourceRegex,
-                                       R""(
+        jsonInput = ReplaceAll(jsonInput, resourceRegex,
+                               R""(
         {
             "raw_data": {
                 "uid": "string",
@@ -715,8 +724,8 @@ TEST(JsonParser, Resources) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, resourceRegex,
-                                       R""(
+        jsonInput = ReplaceAll(jsonInput, resourceRegex,
+                               R""(
         {
             "shader": {
                 "uid": "string",
@@ -736,8 +745,8 @@ TEST(JsonParser, Resources) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, resourceRegex,
-                                       R""(
+        jsonInput = ReplaceAll(jsonInput, resourceRegex,
+                               R""(
         {
             "graph": {
                 "uid": "my_network",
@@ -753,8 +762,8 @@ TEST(JsonParser, Resources) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, resourceRegex,
-                                       R""(
+        jsonInput = ReplaceAll(jsonInput, resourceRegex,
+                               R""(
         {
             "memory_barrier": {
                 "uid": "string",
@@ -775,8 +784,8 @@ TEST(JsonParser, Resources) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, resourceRegex,
-                                       R""(
+        jsonInput = ReplaceAll(jsonInput, resourceRegex,
+                               R""(
         {
             "buffer_barrier": {
                 "uid": "string",
@@ -800,8 +809,8 @@ TEST(JsonParser, Resources) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, resourceRegex,
-                                       R""(
+        jsonInput = ReplaceAll(jsonInput, resourceRegex,
+                               R""(
         {
             "image_barrier": {
                 "uid": "string",
@@ -830,8 +839,8 @@ TEST(JsonParser, Resources) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, resourceRegex,
-                                       R""(
+        jsonInput = ReplaceAll(jsonInput, resourceRegex,
+                               R""(
         {
             "tensor_barrier": {
                 "uid": "string",
@@ -862,12 +871,12 @@ TEST(JsonParser, Commands) {
     "resources": []
     }
     )"";
-    const std::regex commandRegex("\\{COMMAND\\}");
+    constexpr std::string_view commandRegex = "{COMMAND}";
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, commandRegex,
-                                       R""(
+        jsonInput = ReplaceAll(jsonInput, commandRegex,
+                               R""(
         {
             "dispatch_graph": {
                 "bindings": [
@@ -904,8 +913,8 @@ TEST(JsonParser, Commands) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, commandRegex,
-                                       R""(
+        jsonInput = ReplaceAll(jsonInput, commandRegex,
+                               R""(
         {
             "dispatch_compute": {
                 "shader_ref": "Shader",
@@ -977,8 +986,8 @@ TEST(JsonParser, Commands) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, commandRegex,
-                                       R""(
+        jsonInput = ReplaceAll(jsonInput, commandRegex,
+                               R""(
         {
             "dispatch_barrier": {
                 "image_barrier_refs": ["string"],
@@ -1002,8 +1011,8 @@ TEST(JsonParser, Commands) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, commandRegex,
-                                       R""(
+        jsonInput = ReplaceAll(jsonInput, commandRegex,
+                               R""(
         {
             "mark_boundary": {
                 "resources": ["string"]
@@ -1021,8 +1030,8 @@ TEST(JsonParser, Commands) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, commandRegex,
-                                       R""(
+        jsonInput = ReplaceAll(jsonInput, commandRegex,
+                               R""(
         {
             "mark_boundary": {
                 "resources": ["string"]
@@ -1550,16 +1559,16 @@ TEST(JsonParser, ImageResource) {
         "tiling": "{TILING}"
     }
     )"";
-    const std::regex borderColor("\\{BORDER_COLOR\\}");
-    const std::regex borderAddressMode("\\{BORDER_ADDRESS_MODE\\}");
-    const std::regex tiling("\\{TILING\\}");
+    constexpr std::string_view borderColor = "{BORDER_COLOR}";
+    constexpr std::string_view borderAddressMode = "{BORDER_ADDRESS_MODE}";
+    constexpr std::string_view tiling = "{TILING}";
 
     {
 
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, borderColor, "INT_TRANSPARENT_BLACK");
-        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "REPEAT");
-        jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
+        jsonInput = ReplaceAll(jsonInput, borderColor, "INT_TRANSPARENT_BLACK");
+        jsonInput = ReplaceAll(jsonInput, borderAddressMode, "REPEAT");
+        jsonInput = ReplaceAll(jsonInput, tiling, "LINEAR");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.guid == Guid("InputColorBuffer0"));
@@ -1592,9 +1601,9 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "MIRRORED_REPEAT");
-        jsonInput = std::regex_replace(jsonInput, borderColor, "INT_TRANSPARENT_BLACK");
-        jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
+        jsonInput = ReplaceAll(jsonInput, borderAddressMode, "MIRRORED_REPEAT");
+        jsonInput = ReplaceAll(jsonInput, borderColor, "INT_TRANSPARENT_BLACK");
+        jsonInput = ReplaceAll(jsonInput, tiling, "LINEAR");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.borderAddressMode.has_value());
@@ -1603,9 +1612,9 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "CLAMP_EDGE");
-        jsonInput = std::regex_replace(jsonInput, borderColor, "INT_TRANSPARENT_BLACK");
-        jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
+        jsonInput = ReplaceAll(jsonInput, borderAddressMode, "CLAMP_EDGE");
+        jsonInput = ReplaceAll(jsonInput, borderColor, "INT_TRANSPARENT_BLACK");
+        jsonInput = ReplaceAll(jsonInput, tiling, "LINEAR");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.borderAddressMode.has_value());
@@ -1614,10 +1623,10 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "CLAMP_BORDER");
-        jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
+        jsonInput = ReplaceAll(jsonInput, borderAddressMode, "CLAMP_BORDER");
+        jsonInput = ReplaceAll(jsonInput, tiling, "LINEAR");
 
-        jsonInput = std::regex_replace(jsonInput, borderColor, "INT_TRANSPARENT_BLACK");
+        jsonInput = ReplaceAll(jsonInput, borderColor, "INT_TRANSPARENT_BLACK");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.borderColor.has_value());
@@ -1626,9 +1635,9 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "CLAMP_BORDER");
-        jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
-        jsonInput = std::regex_replace(jsonInput, borderColor, "INT_OPAQUE_BLACK");
+        jsonInput = ReplaceAll(jsonInput, borderAddressMode, "CLAMP_BORDER");
+        jsonInput = ReplaceAll(jsonInput, tiling, "LINEAR");
+        jsonInput = ReplaceAll(jsonInput, borderColor, "INT_OPAQUE_BLACK");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.borderColor.has_value());
@@ -1637,9 +1646,9 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "CLAMP_BORDER");
-        jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
-        jsonInput = std::regex_replace(jsonInput, borderColor, "INT_OPAQUE_WHITE");
+        jsonInput = ReplaceAll(jsonInput, borderAddressMode, "CLAMP_BORDER");
+        jsonInput = ReplaceAll(jsonInput, tiling, "LINEAR");
+        jsonInput = ReplaceAll(jsonInput, borderColor, "INT_OPAQUE_WHITE");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.borderColor.has_value());
@@ -1648,9 +1657,9 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "CLAMP_BORDER");
-        jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
-        jsonInput = std::regex_replace(jsonInput, borderColor, "FLOAT_TRANSPARENT_BLACK");
+        jsonInput = ReplaceAll(jsonInput, borderAddressMode, "CLAMP_BORDER");
+        jsonInput = ReplaceAll(jsonInput, tiling, "LINEAR");
+        jsonInput = ReplaceAll(jsonInput, borderColor, "FLOAT_TRANSPARENT_BLACK");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.borderColor.has_value());
@@ -1659,9 +1668,9 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "CLAMP_BORDER");
-        jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
-        jsonInput = std::regex_replace(jsonInput, borderColor, "FLOAT_OPAQUE_BLACK");
+        jsonInput = ReplaceAll(jsonInput, borderAddressMode, "CLAMP_BORDER");
+        jsonInput = ReplaceAll(jsonInput, tiling, "LINEAR");
+        jsonInput = ReplaceAll(jsonInput, borderColor, "FLOAT_OPAQUE_BLACK");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.borderColor.has_value());
@@ -1670,9 +1679,9 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "CLAMP_BORDER");
-        jsonInput = std::regex_replace(jsonInput, tiling, "LINEAR");
-        jsonInput = std::regex_replace(jsonInput, borderColor, "FLOAT_OPAQUE_WHITE");
+        jsonInput = ReplaceAll(jsonInput, borderAddressMode, "CLAMP_BORDER");
+        jsonInput = ReplaceAll(jsonInput, tiling, "LINEAR");
+        jsonInput = ReplaceAll(jsonInput, borderColor, "FLOAT_OPAQUE_WHITE");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.borderColor.has_value());
@@ -1681,9 +1690,9 @@ TEST(JsonParser, ImageResource) {
 
     {
         std::string jsonInput = jsonInputTemplate;
-        jsonInput = std::regex_replace(jsonInput, borderColor, "INT_TRANSPARENT_BLACK");
-        jsonInput = std::regex_replace(jsonInput, borderAddressMode, "REPEAT");
-        jsonInput = std::regex_replace(jsonInput, tiling, "OPTIMAL");
+        jsonInput = ReplaceAll(jsonInput, borderColor, "INT_TRANSPARENT_BLACK");
+        jsonInput = ReplaceAll(jsonInput, borderAddressMode, "REPEAT");
+        jsonInput = ReplaceAll(jsonInput, tiling, "OPTIMAL");
 
         auto desc = MakeFromJSON<ImageDesc>(jsonInput);
         ASSERT_TRUE(desc.tiling.has_value());
@@ -1692,7 +1701,7 @@ TEST(JsonParser, ImageResource) {
 }
 
 TEST(JsonParser, ImageBarrier) {
-    const std::regex stagesRegex("\\{STAGES\\}");
+    constexpr std::string_view stagesRegex = "{STAGES}";
 
     const std::string jsonBarrierInput = R""(
     {
@@ -1711,7 +1720,7 @@ TEST(JsonParser, ImageBarrier) {
         "src_stage": ["compute"],
         "dst_stage": ["compute"],
         )"";
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, barrierStages);
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, barrierStages);
         auto desc = MakeFromJSON<ImageBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
@@ -1729,7 +1738,7 @@ TEST(JsonParser, ImageBarrier) {
         "src_stage": ["all"],
         "dst_stage": ["all"],
         )"";
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, barrierStages);
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, barrierStages);
         auto desc = MakeFromJSON<ImageBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
@@ -1747,7 +1756,7 @@ TEST(JsonParser, ImageBarrier) {
         "src_stage": ["compute", "graph"],
         "dst_stage": ["compute", "graph"],
         )"";
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, barrierStages);
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, barrierStages);
         auto desc = MakeFromJSON<ImageBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
@@ -1762,7 +1771,7 @@ TEST(JsonParser, ImageBarrier) {
 
     {
 
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, "");
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, "");
         auto desc = MakeFromJSON<ImageBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
@@ -1777,7 +1786,7 @@ TEST(JsonParser, ImageBarrier) {
 }
 
 TEST(JsonParser, TensorBarrier) {
-    const std::regex stagesRegex("\\{STAGES\\}");
+    constexpr std::string_view stagesRegex = "{STAGES}";
 
     const std::string jsonBarrierInput = R""(
     {
@@ -1794,7 +1803,7 @@ TEST(JsonParser, TensorBarrier) {
         "src_stage": ["graph"],
         "dst_stage": ["compute"],
         )"";
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, barrierStages);
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, barrierStages);
         auto desc = MakeFromJSON<TensorBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
@@ -1810,7 +1819,7 @@ TEST(JsonParser, TensorBarrier) {
         "src_stage": ["all"],
         "dst_stage": ["all"],
         )"";
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, barrierStages);
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, barrierStages);
         auto desc = MakeFromJSON<TensorBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
@@ -1826,7 +1835,7 @@ TEST(JsonParser, TensorBarrier) {
         "src_stage": ["compute", "graph"],
         "dst_stage": ["graph", "compute"],
         )"";
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, barrierStages);
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, barrierStages);
         auto desc = MakeFromJSON<TensorBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
@@ -1839,7 +1848,7 @@ TEST(JsonParser, TensorBarrier) {
 
     {
 
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, "");
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, "");
         auto desc = MakeFromJSON<TensorBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
@@ -1852,7 +1861,7 @@ TEST(JsonParser, TensorBarrier) {
 }
 
 TEST(JsonParser, BufferBarrier) {
-    const std::regex stagesRegex("\\{STAGES\\}");
+    constexpr std::string_view stagesRegex = "{STAGES}";
 
     const std::string jsonBarrierInput = R""(
     {
@@ -1871,7 +1880,7 @@ TEST(JsonParser, BufferBarrier) {
         "src_stage": ["compute"],
         "dst_stage": ["compute"],
         )"";
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, barrierStages);
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, barrierStages);
         auto desc = MakeFromJSON<BufferBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
@@ -1888,7 +1897,7 @@ TEST(JsonParser, BufferBarrier) {
         "src_stage": ["all"],
         "dst_stage": ["all"],
         )"";
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, barrierStages);
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, barrierStages);
         auto desc = MakeFromJSON<BufferBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
@@ -1905,7 +1914,7 @@ TEST(JsonParser, BufferBarrier) {
         "src_stage": ["compute", "graph"],
         "dst_stage": ["graph", "compute"],
         )"";
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, barrierStages);
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, barrierStages);
         auto desc = MakeFromJSON<BufferBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
@@ -1919,7 +1928,7 @@ TEST(JsonParser, BufferBarrier) {
 
     {
 
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, "");
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, "");
         auto desc = MakeFromJSON<BufferBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
@@ -1933,7 +1942,7 @@ TEST(JsonParser, BufferBarrier) {
 }
 
 TEST(JsonParser, GlobalMemBarrier) {
-    const std::regex stagesRegex("\\{STAGES\\}");
+    constexpr std::string_view stagesRegex = "{STAGES}";
 
     const std::string jsonBarrierInput = R""(
     {
@@ -1949,7 +1958,7 @@ TEST(JsonParser, GlobalMemBarrier) {
         "src_stage": ["graph"],
         "dst_stage": ["compute"],
         )"";
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, barrierStages);
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, barrierStages);
         auto desc = MakeFromJSON<MemoryBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
@@ -1964,7 +1973,7 @@ TEST(JsonParser, GlobalMemBarrier) {
         "src_stage": ["all"],
         "dst_stage": ["all"],
         )"";
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, barrierStages);
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, barrierStages);
         auto desc = MakeFromJSON<MemoryBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
@@ -1979,7 +1988,7 @@ TEST(JsonParser, GlobalMemBarrier) {
         "src_stage": ["compute", "graph"],
         "dst_stage": ["graph", "compute"],
         )"";
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, barrierStages);
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, barrierStages);
         auto desc = MakeFromJSON<MemoryBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
@@ -1991,7 +2000,7 @@ TEST(JsonParser, GlobalMemBarrier) {
 
     {
 
-        auto json = std::regex_replace(jsonBarrierInput, stagesRegex, "");
+        auto json = ReplaceAll(jsonBarrierInput, stagesRegex, "");
         auto desc = MakeFromJSON<MemoryBarrierDesc>(json);
 
         ASSERT_TRUE(desc.guid == Guid("uid"));
