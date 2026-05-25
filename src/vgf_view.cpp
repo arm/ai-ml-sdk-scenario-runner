@@ -11,7 +11,7 @@
 
 namespace mlsdk::scenariorunner {
 namespace {
-std::string categoryToSuffix(vgflib::ResourceCategory category) {
+std::string_view categoryToSuffix(vgflib::ResourceCategory category) {
     switch (category) {
     case vgflib::ResourceCategory::INPUT:
         return "_input";
@@ -27,7 +27,7 @@ std::string categoryToSuffix(vgflib::ResourceCategory category) {
 }
 
 std::string createResourceGuidStr(uint32_t index, vgflib::ResourceCategory category) {
-    return "Resource_" + std::to_string(index) + categoryToSuffix(category);
+    return std::string("Resource_").append(std::to_string(index)).append(categoryToSuffix(category));
 }
 
 uint32_t bufferSize(const vgflib::DataView<int64_t> &shape) {
@@ -264,7 +264,8 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
         throw std::runtime_error("Descriptor type not found from VGF file");
     }
 
-    switch (expectedType.value()) {
+    const auto descriptorType = expectedType.value();
+    switch (descriptorType) {
     case DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
         const auto &buffer = resourceViewer.getBuffer();
 
@@ -285,15 +286,13 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
 
         // Check if tensor shapes match
         if (actualTensorShape != expectedTensorShape) {
-            throw std::runtime_error("Mismatch of tensor shape declarations "
-                                     "between JSON and VGF file");
+            throw std::runtime_error("Mismatch of tensor shape declarations between JSON and VGF file");
         }
 
         // Check if tensor data formats match
         auto format = resourceTableDecoder->getVkFormat(vgfMrtIndex);
         if (static_cast<int32_t>(tensor.dataType()) != format) {
-            throw std::runtime_error("Mismatch of tensor data type declarations "
-                                     "between JSON and VGF file");
+            throw std::runtime_error("Mismatch of tensor data type declarations between JSON and VGF file");
         }
     } break;
     case DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
@@ -304,20 +303,18 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
         auto dims = resourceTableDecoder->getTensorShape(vgfMrtIndex);
         const std::vector<int64_t> expectedImageShape(dims.begin(), dims.end());
         if (actualImageShape != expectedImageShape) {
-            throw std::runtime_error("Mismatch of image shape declarations "
-                                     "between JSON and VGF file");
+            throw std::runtime_error("Mismatch of image shape declarations between JSON and VGF file");
         }
 
         auto format = resourceTableDecoder->getVkFormat(vgfMrtIndex);
         if (static_cast<int32_t>(image.dataType()) != format) {
-            throw std::runtime_error("Mismatch of image data type declarations "
-                                     "between JSON and VGF file");
+            throw std::runtime_error("Mismatch of image data type declarations between JSON and VGF file");
         }
     } break;
     default:
-        throw std::runtime_error(
-            "No resource validation should be performed for resources different from tensors, buffers, and images");
-        break;
+        throw std::runtime_error("No resource validation should be performed for resources different from tensors, "
+                                 "buffers, and images. Found descriptor type: " +
+                                 std::to_string(descriptorType));
     }
 }
 
@@ -328,45 +325,46 @@ void VgfView::createIntermediateResources(IResourceCreator &creator) const {
         auto resourceCategory = resourceTableDecoder->getCategory(resourceIndex);
         if (resourceCategory == vgflib::ResourceCategory::INTERMEDIATE) {
             auto guidStr = createResourceGuidStr(resourceIndex, resourceCategory);
-            auto type = resourceTableDecoder->getDescriptorType(resourceIndex);
-            switch (type.value_or(DESCRIPTOR_TYPE_UNKNOWN)) {
-            case (DESCRIPTOR_TYPE_UNIFORM_BUFFER): {
-                auto shape = resourceTableDecoder->getTensorShape(resourceIndex);
+            const Guid guid(guidStr);
+            const auto shape = resourceTableDecoder->getTensorShape(resourceIndex);
+            const auto type = resourceTableDecoder->getDescriptorType(resourceIndex);
+            const auto descriptorType = type.value_or(DESCRIPTOR_TYPE_UNKNOWN);
+            switch (descriptorType) {
+            case DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
                 auto expectedBufferSize = bufferSize(shape);
 
                 // Create Scenario Runner buffer resource
-                BufferInfo info{guidStr, expectedBufferSize};
-                creator.createBuffer(guidStr, info);
+                BufferInfo info{std::move(guidStr), expectedBufferSize};
+                creator.createBuffer(guid, info);
             } break;
-            case (DESCRIPTOR_TYPE_TENSOR_ARM): {
-                auto shape = resourceTableDecoder->getTensorShape(resourceIndex);
+            case DESCRIPTOR_TYPE_TENSOR_ARM: {
                 auto format = resourceTableDecoder->getVkFormat(resourceIndex);
 
-                auto info = TensorInfo{guidStr, std::vector<int64_t>(shape.begin(), shape.end()), vk::Format(format),
-                                       -1, false};
+                auto info = TensorInfo{std::move(guidStr), std::vector<int64_t>(shape.begin(), shape.end()),
+                                       vk::Format(format), -1, false};
 
                 // Create Scenario Runner tensor
-                creator.createTensor(guidStr, info);
+                creator.createTensor(guid, info);
             } break;
-            case (DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER):
-            case (DESCRIPTOR_TYPE_STORAGE_IMAGE): {
-                auto shape = resourceTableDecoder->getTensorShape(resourceIndex);
+            case DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+            case DESCRIPTOR_TYPE_STORAGE_IMAGE: {
                 auto format = resourceTableDecoder->getVkFormat(resourceIndex);
 
                 ImageInfo info{};
-                info.debugName = guidStr;
+                info.debugName = std::move(guidStr);
                 info.shape = std::vector<int64_t>(shape.begin(), shape.end());
                 info.format = vk::Format(format);
                 info.targetFormat = info.format;
                 info.isInput = false;
                 info.mips = 1;
-                info.isSampled = (type == DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-                info.isStorage = (type == DESCRIPTOR_TYPE_STORAGE_IMAGE);
+                info.isSampled = (descriptorType == DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+                info.isStorage = (descriptorType == DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
-                creator.createImage(guidStr, info);
+                creator.createImage(guid, info);
             } break;
             default:
-                throw std::runtime_error("Unknown resource type read from VGF file");
+                throw std::runtime_error("Unknown resource type: " + std::to_string(descriptorType) +
+                                         " read from VGF file for uid: " + guidStr);
             }
         }
     }

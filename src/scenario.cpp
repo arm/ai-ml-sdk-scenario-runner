@@ -148,29 +148,29 @@ std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<Guid> &co
 
 std::string resourceType(const std::unique_ptr<ResourceDesc> &resource) {
     switch (resource->resourceType) {
-    case (ResourceType::Unknown):
+    case ResourceType::Unknown:
         return "Unknown";
-    case (ResourceType::Buffer):
+    case ResourceType::Buffer:
         return "Buffer";
-    case (ResourceType::DataGraph):
+    case ResourceType::DataGraph:
         return "DataGraph";
-    case (ResourceType::Shader):
+    case ResourceType::Shader:
         return "Shader";
-    case (ResourceType::RawData):
+    case ResourceType::RawData:
         return "RawData";
-    case (ResourceType::Tensor):
+    case ResourceType::Tensor:
         return "Tensor";
-    case (ResourceType::Image):
+    case ResourceType::Image:
         return "Image";
-    case (ResourceType::ImageBarrier):
+    case ResourceType::ImageBarrier:
         return "ImageBarrier";
-    case (ResourceType::MemoryBarrier):
+    case ResourceType::MemoryBarrier:
         return "MemoryBarrier";
-    case (ResourceType::TensorBarrier):
+    case ResourceType::TensorBarrier:
         return "TensorBarrier";
-    case (ResourceType::BufferBarrier):
+    case ResourceType::BufferBarrier:
         return "BufferBarrier";
-    case (ResourceType::GraphConstant):
+    case ResourceType::GraphConstant:
         return "GraphConstant";
     }
     throw std::runtime_error("Unknown resource type in ScenarioSpec");
@@ -665,19 +665,19 @@ void Scenario::setupResources() {
     // Handle memory groups
     for (const auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
-        case (ResourceType::Buffer): {
+        case ResourceType::Buffer: {
             const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
             if (buffer->memoryGroup.has_value()) {
                 _groupManager.addResourceToGroup(buffer->memoryGroup->memoryUid, buffer->guid, ResourceIdType::Buffer);
             }
         } break;
-        case (ResourceType::Image): {
+        case ResourceType::Image: {
             const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
             if (image->memoryGroup.has_value()) {
                 _groupManager.addResourceToGroup(image->memoryGroup->memoryUid, image->guid, ResourceIdType::Image);
             }
         } break;
-        case (ResourceType::Tensor): {
+        case ResourceType::Tensor: {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
             if (tensor->memoryGroup.has_value()) {
                 _groupManager.addResourceToGroup(tensor->memoryGroup->memoryUid, tensor->guid, ResourceIdType::Tensor);
@@ -694,26 +694,26 @@ void Scenario::setupResources() {
     ResourceInfoFactory resourceInfoFactory{_groupManager};
     for (const auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
-        case (ResourceType::Buffer): {
+        case ResourceType::Buffer: {
             const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
             const auto info = resourceInfoFactory.createInfo(*buffer);
             _dataManager.createBuffer(resource->guid, info);
         } break;
-        case (ResourceType::RawData): {
+        case ResourceType::RawData: {
             const auto &rawData = reinterpret_cast<const std::unique_ptr<RawDataDesc> &>(resource);
             _dataManager.createRawData(resource->guid, rawData->guidStr, rawData->src.value());
         } break;
-        case (ResourceType::Image): {
+        case ResourceType::Image: {
             const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
             const auto info = resourceInfoFactory.createInfo(*image);
             _dataManager.createImage(resource->guid, info);
         } break;
-        case (ResourceType::DataGraph): {
+        case ResourceType::DataGraph: {
             const auto &dataGraph = reinterpret_cast<const std::unique_ptr<DataGraphDesc> &>(resource);
             PerfCounterGuard guard(_perfCounters, "Parse VGF: " + dataGraph->guidStr, "Scenario Setup");
             _dataManager.createVgfView(resource->guid, dataGraph->src.value());
         } break;
-        case (ResourceType::Tensor): {
+        case ResourceType::Tensor: {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
             const auto info = resourceInfoFactory.createInfo(*tensor, _opts.captureFrame);
             _dataManager.createTensor(resource->guid, info);
@@ -728,11 +728,11 @@ void Scenario::setupResources() {
     // Setup aliasing resources, foundation before accessing tensors
     for (const auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
-        case (ResourceType::Buffer): {
+        case ResourceType::Buffer: {
             auto &bufferRef = _dataManager.getBufferMut(resource->guid);
             bufferRef.setup(_ctx, _groupManager.getMemoryManager(resource->guid));
         } break;
-        case (ResourceType::Image): {
+        case ResourceType::Image: {
             auto &imageRef = _dataManager.getImageMut(resource->guid);
             imageRef.setup(_ctx, _groupManager.getMemoryManager(resource->guid));
         } break;
@@ -753,22 +753,22 @@ void Scenario::setupResources() {
     BarrierDataFactory barrierDataFactory{_dataManager};
     for (const auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
-        case (ResourceType::ImageBarrier): {
+        case ResourceType::ImageBarrier: {
             const auto &imageBarrier = reinterpret_cast<const std::unique_ptr<ImageBarrierDesc> &>(resource);
             const auto data = barrierDataFactory.createInfo(*imageBarrier);
             _dataManager.createImageBarrier(resource->guid, data);
         } break;
-        case (ResourceType::MemoryBarrier): {
+        case ResourceType::MemoryBarrier: {
             const auto &memoryBarrier = reinterpret_cast<const std::unique_ptr<MemoryBarrierDesc> &>(resource);
             const auto data = barrierDataFactory.createInfo(*memoryBarrier);
             _dataManager.createMemoryBarrier(resource->guid, data);
         } break;
-        case (ResourceType::TensorBarrier): {
+        case ResourceType::TensorBarrier: {
             const auto &tensorBarrier = reinterpret_cast<const std::unique_ptr<TensorBarrierDesc> &>(resource);
             const auto data = barrierDataFactory.createInfo(*tensorBarrier);
             _dataManager.createTensorBarrier(resource->guid, data);
         } break;
-        case (ResourceType::BufferBarrier): {
+        case ResourceType::BufferBarrier: {
             const auto &bufferBarrier = reinterpret_cast<const std::unique_ptr<BufferBarrierDesc> &>(resource);
             const auto data = barrierDataFactory.createInfo(*bufferBarrier);
             _dataManager.createBufferBarrier(resource->guid, data);
@@ -783,7 +783,7 @@ void Scenario::setupResources() {
     // Allocate and fill resource memory
     for (auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
-        case (ResourceType::Tensor): {
+        case ResourceType::Tensor: {
             const auto &tensor = reinterpret_cast<std::unique_ptr<TensorDesc> &>(resource);
             auto &tensorRec = _dataManager.getTensorMut(tensor->guid);
             tensorRec.allocateMemory(_ctx);
@@ -792,7 +792,7 @@ void Scenario::setupResources() {
                 tensorRec.fillFromDescription(_ctx, *tensor);
             }
         } break;
-        case (ResourceType::Image): {
+        case ResourceType::Image: {
             const auto &image = reinterpret_cast<std::unique_ptr<ImageDesc> &>(resource);
             auto &imageRec = _dataManager.getImageMut(image->guid);
             imageRec.allocateMemory(_ctx);
@@ -803,7 +803,7 @@ void Scenario::setupResources() {
                 imageRec.transitionLayout(_ctx, vk::ImageLayout::eGeneral);
             }
         } break;
-        case (ResourceType::Buffer): {
+        case ResourceType::Buffer: {
             const auto &buffer = reinterpret_cast<std::unique_ptr<BufferDesc> &>(resource);
             auto &bufferRec = _dataManager.getBufferMut(buffer->guid);
             bufferRec.allocateMemory(_ctx);
@@ -834,38 +834,38 @@ void Scenario::setupCommands() {
     uint32_t nQueries = 0;
     for (const auto &command : _scenarioSpec.commands) {
         switch (command->commandType) {
-        case (CommandType::DispatchCompute): {
+        case CommandType::DispatchCompute: {
             const auto &dispatchCompute = reinterpret_cast<DispatchComputeDesc &>(*command);
             const auto data = factory.createData(dispatchCompute);
             createComputePipeline(data, nQueries);
         } break;
-        case (CommandType::DispatchBarrier): {
+        case CommandType::DispatchBarrier: {
             const auto &dispatchBarrier = reinterpret_cast<DispatchBarrierDesc &>(*command);
             const auto data = factory.createData(dispatchBarrier);
             _compute.registerPipelineBarrier(data, _dataManager);
         } break;
-        case (CommandType::DispatchDataGraph): {
+        case CommandType::DispatchDataGraph: {
             const auto &dispatchDataGraph = reinterpret_cast<DispatchDataGraphDesc &>(*command);
             const auto data = factory.createData(dispatchDataGraph);
             createDataGraphPipeline(data, nQueries);
         } break;
-        case (CommandType::DispatchSpirvGraph): {
+        case CommandType::DispatchSpirvGraph: {
             const auto &dispatchSpirvGraph = reinterpret_cast<DispatchSpirvGraphDesc &>(*command);
             const auto data = factory.createData(dispatchSpirvGraph);
             createSpirvGraphPipeline(data, nQueries);
         } break;
-        case (CommandType::DispatchFragment): {
+        case CommandType::DispatchFragment: {
             const auto &dispatchFragment = reinterpret_cast<DispatchFragmentDesc &>(*command);
             const auto data = factory.createData(dispatchFragment);
             createFragmentPipeline(data, nQueries);
         } break;
-        case (CommandType::DispatchOpticalFlow): {
+        case CommandType::DispatchOpticalFlow: {
             const auto &dispatchOpticalFlow = reinterpret_cast<DispatchOpticalFlowDesc &>(*command);
             const auto data = factory.createData(dispatchOpticalFlow);
             verifyOpticalFlowData(_dataManager, data);
             createOpticalFlowPipeline(data, nQueries);
         } break;
-        case (CommandType::MarkBoundary): {
+        case CommandType::MarkBoundary: {
             const auto &markBoundary = reinterpret_cast<MarkBoundaryDesc &>(*command);
             const auto data = factory.createData(markBoundary);
             if (_ctx._optionals.mark_boundary) {
