@@ -10,9 +10,13 @@
 #include "scenario.hpp"
 #include "version.hpp"
 
+#include <chrono>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <vector>
 
 #if defined(__ANDROID__)
@@ -38,9 +42,27 @@ std::string printExtensionList() {
     return outputString.str();
 }
 
+std::string currentTimestamp() {
+    const auto now = std::chrono::system_clock::now();
+    const auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+    const std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+
+    std::tm localTime{};
+#ifdef _WIN32
+    localtime_s(&localTime, &currentTime);
+#else
+    localtime_r(&currentTime, &localTime);
+#endif
+
+    std::ostringstream timestamp;
+    timestamp << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << ',' << std::setw(3) << std::setfill('0')
+              << milliseconds.count() << ' ';
+    return timestamp.str();
+}
+
 void loggingHandler(const std::string &logger, LogLevel logLevel, const std::string &message) {
     std::ostream &stream = logLevel == LogLevel::Error ? std::cerr : std::cout;
-    stream << "[" << logger << "] " << logLevel << ": " << message << std::endl;
+    stream << currentTimestamp() << "[" << logger << "] " << logLevel << ": " << message << std::endl;
 }
 
 LogLevel mapVGFLogLevel(mlsdk::vgflib::logging::LogLevel logLevel) {
