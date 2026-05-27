@@ -39,6 +39,7 @@ constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_UNKNOWN = 0;
 constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER = 1;
 constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_STORAGE_IMAGE = 3;
 constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_UNIFORM_BUFFER = 6;
+constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_STORAGE_BUFFER = 7;
 constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_TENSOR_ARM = 1000460000;
 
 constexpr vk::DescriptorType getVkDescriptorType(vgflib::DescriptorType descriptorType) {
@@ -48,6 +49,7 @@ constexpr vk::DescriptorType getVkDescriptorType(vgflib::DescriptorType descript
     case DESCRIPTOR_TYPE_STORAGE_IMAGE:
         return vk::DescriptorType::eStorageImage;
     case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+    case DESCRIPTOR_TYPE_STORAGE_BUFFER:
         return vk::DescriptorType::eStorageBuffer;
     case DESCRIPTOR_TYPE_TENSOR_ARM:
         return vk::DescriptorType::eTensorARM;
@@ -266,7 +268,8 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
 
     const auto descriptorType = expectedType.value();
     switch (descriptorType) {
-    case DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
+    case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+    case DESCRIPTOR_TYPE_STORAGE_BUFFER: {
         const auto &buffer = resourceViewer.getBuffer();
 
         // Check if buffer sizes match
@@ -330,7 +333,8 @@ void VgfView::createIntermediateResources(IResourceCreator &creator) const {
             const auto type = resourceTableDecoder->getDescriptorType(resourceIndex);
             const auto descriptorType = type.value_or(DESCRIPTOR_TYPE_UNKNOWN);
             switch (descriptorType) {
-            case DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
+            case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+            case DESCRIPTOR_TYPE_STORAGE_BUFFER: {
                 auto expectedBufferSize = bufferSize(shape);
 
                 // Create Scenario Runner buffer resource
