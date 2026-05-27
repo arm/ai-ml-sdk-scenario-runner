@@ -1,0 +1,45 @@
+{
+    "commands": [
+        {
+            "dispatch_graph": {
+                "bindings": [
+                    {
+                        "id": 17,
+                        "set": 0,
+                        "resource_ref": "shaderOutput"
+                    }
+                ],
+                "shader_substitutions": [
+                    {
+                        "shader_ref": "mismatchedBindingShader",
+                        "target": "interface_output_binding_mismatch"
+                    }
+                ],
+                "graph_ref": "vgfGraph"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "src": "interface_output_binding_mismatch.spv",
+                "type": "SPIR-V",
+                "uid": "mismatchedBindingShader"
+            }
+        },
+        {
+            "graph": {
+                "uid": "vgfGraph",
+                "src": "interface_output_binding_mismatch.vgf"
+            }
+        },
+        {
+            "buffer": {
+                "uid": "shaderOutput",
+                "shader_access": "writeonly",
+                "size": 1024,
+                "dst": "shaderOutput.npy"
+            }
+        }
+    ]
+}

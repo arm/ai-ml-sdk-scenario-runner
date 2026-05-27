@@ -1,0 +1,83 @@
+{
+    "commands": [
+        {
+            "dispatch_graph": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "conv2dInput"
+                    },
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "conv2dOutput"
+                    },
+                    {
+                        "id": 2,
+                        "set": 0,
+                        "resource_ref": "shaderOutput"
+                    }
+                ],
+                "shader_substitutions": [
+                    {
+                        "shader_ref": "collidingShader",
+                        "target": "colliding_intermediate"
+                    }
+                ],
+                "graph_ref": "vgfGraph"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "src": "colliding_intermediate.spv",
+                "type": "SPIR-V",
+                "uid": "collidingShader"
+            }
+        },
+        {
+            "graph": {
+                "uid": "vgfGraph",
+                "src": "external_binding_collision.vgf"
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "readonly",
+                "dims": [
+                    1,
+                    16,
+                    16,
+                    16
+                ],
+                "src": "conv2dInput.npy",
+                "format": "VK_FORMAT_R8_SINT",
+                "uid": "conv2dInput"
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "writeonly",
+                "dims": [
+                    1,
+                    8,
+                    8,
+                    16
+                ],
+                "dst": "conv2dOutput.npy",
+                "format": "VK_FORMAT_R8_SINT",
+                "uid": "conv2dOutput"
+            }
+        },
+        {
+            "buffer": {
+                "uid": "shaderOutput",
+                "shader_access": "writeonly",
+                "size": 1024,
+                "dst": "shaderOutput.npy"
+            }
+        }
+    ]
+}
