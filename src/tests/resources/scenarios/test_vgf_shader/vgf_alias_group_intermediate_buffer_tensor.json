@@ -1,0 +1,62 @@
+{
+    "commands": [
+        {
+            "dispatch_graph": {
+                "bindings": [
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "output"
+                    }
+                ],
+                "shader_substitutions": [
+                    {
+                        "shader_ref": "writeBuffer",
+                        "target": "write_alias_buffer"
+                    },
+                    {
+                        "shader_ref": "copyTensor",
+                        "target": "copy_alias_tensor"
+                    }
+                ],
+                "graph_ref": "vgfGraph"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "src": "write_alias_buffer_u16.spv",
+                "type": "SPIR-V",
+                "uid": "writeBuffer"
+            }
+        },
+        {
+            "shader": {
+                "src": "copy_tensor_shader.spv",
+                "type": "SPIR-V",
+                "uid": "copyTensor"
+            }
+        },
+        {
+            "graph": {
+                "uid": "vgfGraph",
+                "src": "alias_intermediates.vgf"
+            }
+        },
+        {
+            "tensor": {
+                "uid": "output",
+                "shader_access": "readwrite",
+                "dims": [
+                    1,
+                    16,
+                    16,
+                    1
+                ],
+                "format": "VK_FORMAT_R16_UINT",
+                "dst": "output.npy"
+            }
+        }
+    ]
+}
