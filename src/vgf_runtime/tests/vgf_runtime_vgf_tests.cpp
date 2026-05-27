@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "vgf.hpp"
-
-#include "vgf/encoder.hpp"
+#include "vgf_runtime_test_utils.hpp"
 
 #include <gtest/gtest.h>
 #include <vulkan/vulkan_core.h>
@@ -14,30 +13,18 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
-#include <functional>
 #include <initializer_list>
-#include <sstream>
 #include <string>
-#include <vector>
 
 namespace {
 
 using namespace mlsdk::vgf_runtime;
+using namespace mlsdk::vgf_runtime::test;
 
 template <typename T, typename U> bool viewEquals(DataView<T> view, std::initializer_list<U> expected) {
     return view.size() == expected.size() &&
            std::equal(view.begin(), view.end(), expected.begin(), expected.end(),
                       [](T actual, U expectedValue) { return actual == static_cast<T>(expectedValue); });
-}
-
-std::string writeVgf(const std::function<void(mlsdk::vgflib::Encoder &)> &populate) {
-    auto encoder = mlsdk::vgflib::CreateEncoder(VK_HEADER_VERSION);
-    populate(*encoder);
-    encoder->Finish();
-
-    std::stringstream stream;
-    EXPECT_TRUE(encoder->WriteTo(stream));
-    return stream.str();
 }
 
 bool pointsInside(const void *ptr, const std::string &buffer) {
@@ -49,7 +36,7 @@ bool pointsInside(const void *ptr, const std::string &buffer) {
 } // namespace
 
 TEST(VGF, DecodesSegmentsModulesBindingsResourcesAndDispatch) {
-    const std::vector<uint32_t> code = {0x07230203, 0x00010000, 0, 1};
+    const auto &code = assembleMaxpoolSpirv("maxpool_set0", {0, 0, 0, 1});
     const auto data = writeVgf([&](mlsdk::vgflib::Encoder &encoder) {
         const auto module = encoder.AddModule(mlsdk::vgflib::ModuleType::COMPUTE, "shader", "main", code);
         const auto input = encoder.AddInputResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_SFLOAT, {4}, {4});
@@ -124,7 +111,7 @@ TEST(VGF, DecodesSegmentsModulesBindingsResourcesAndDispatch) {
 }
 
 TEST(VGF, DecodesConstantsSamplersAndFileBackedData) {
-    const std::vector<uint32_t> code = {0x07230203, 0x00010000, 0, 2};
+    const auto &code = assembleMaxpoolSpirv("maxpool_set0", {0, 0, 1, 1});
     const std::array<int32_t, 4> constantData = {1, 2, 3, 4};
     const auto data = writeVgf([&](mlsdk::vgflib::Encoder &encoder) {
         const auto module = encoder.AddModule(mlsdk::vgflib::ModuleType::GRAPH, "graph", "main", code);
