@@ -144,6 +144,9 @@ int runScenarioRunner(int argc, const char **argv) {
             .help("ensure an error is generated on a pipeline cache miss")
             .default_value(false)
             .implicit_value(true);
+        parser.add_argument("--emulation-layer-profiling-dump-dir")
+            .help("path to dump Emulation Layer graph profiling data")
+            .default_value<std::string>("");
         parser.add_argument("--neural-statistics-dump-dir")
             .help("path to dump Neural Accelerator Statistics")
             .default_value<std::string>("");
@@ -232,6 +235,14 @@ int runScenarioRunner(int argc, const char **argv) {
                     selectableExtensions.end()) {
                     throw std::runtime_error("Unrecognized extension, cannot disable: " + extension);
                 }
+            }
+        }
+
+        auto graphProfilingDumpDirStr = parser.get("--emulation-layer-profiling-dump-dir");
+        if (!graphProfilingDumpDirStr.empty()) {
+            scenarioOptions.graphProfilingDumpDir = std::filesystem::path(graphProfilingDumpDirStr);
+            if (!std::filesystem::is_directory(scenarioOptions.graphProfilingDumpDir)) {
+                throw std::runtime_error("Invalid graph profiling dump directory: " + graphProfilingDumpDirStr);
             }
         }
 

@@ -15,6 +15,10 @@ namespace mlsdk::scenariorunner {
 
 namespace {
 
+// Keep in sync with the value defined in emulation-layer
+constexpr vk::DataGraphPipelinePropertyARM graphProfilingProperty =
+    static_cast<vk::DataGraphPipelinePropertyARM>(0x7ffffffe);
+
 struct PipelineBarrierDebugNameBuilder {
     template <class BarrierType> void addBarrier(const BarrierType &barrier) {
         if (!barrier.debugName().empty()) {
@@ -748,6 +752,50 @@ void Compute::dumpNeuralStatistics(const std::filesystem::path &neuralStatistics
         dumpFile.write(statisticsData.data(), std::streamsize(statisticsData.size()));
         dumpFile.close();
         mlsdk::logging::info("Neural statistics saved to \"" + statisticsFileName + "\"");
+    }
+}
+
+void Compute::dumpGraphProfilingData(const std::filesystem::path &graphProfilingDumpDir) const {
+    uint32_t graphPipelineIdx = 0;
+    for (const auto &pipeline : _pipelines) {
+        if (!pipeline.isDataGraphPipeline()) {
+            continue;
+        }
+
+        const auto graphPipelineIdxStr = std::to_string(graphPipelineIdx++);
+        try {
+            if (!pipeline.hasGraphPipelineProperty(_ctx.device(), graphProfilingProperty)) {
+                logging::warning("Skipping graph profiling dump for graph pipeline " + graphPipelineIdxStr +
+                                 ": property 0x7ffffffe is not available");
+                continue;
+            }
+        } catch (const std::exception &err) {
+            logging::warning("Failed querying available graph properties for pipeline " + graphPipelineIdxStr + ": " +
+                             err.what());
+            continue;
+        }
+
+        std::vector<char> graphProfilingData;
+        try {
+            graphProfilingData = pipeline.getGraphPipelinePropertyData<char>(_ctx.device(), graphProfilingProperty);
+        } catch (const std::exception &err) {
+            logging::warning("Skipping graph profiling dump for graph pipeline " + graphPipelineIdxStr +
+                             ": failed to query property data: " + err.what());
+            continue;
+        }
+
+        if (graphProfilingData.empty()) {
+            logging::warning("Skipping graph profiling dump for graph pipeline " + graphPipelineIdxStr +
+                             ": property data is empty");
+            continue;
+        }
+
+        const std::string fileName = "EmulationLayerPipeline_" + graphPipelineIdxStr + ".json";
+
+        std::ofstream dumpFile(graphProfilingDumpDir / fileName);
+        dumpFile.write(graphProfilingData.data(), std::streamsize(graphProfilingData.size()));
+        dumpFile.close();
+        logging::info("Graph profiling data saved to \"" + fileName + "\"");
     }
 }
 

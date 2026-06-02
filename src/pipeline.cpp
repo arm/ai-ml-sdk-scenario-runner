@@ -10,6 +10,7 @@
 #include "spirv-tools/libspirv.hpp"
 #include "vulkan_debug_utils.hpp"
 
+#include <algorithm>
 #include <array>
 
 namespace mlsdk::scenariorunner {
@@ -673,6 +674,17 @@ void Pipeline::buildDataGraphPipeline(const Context &ctx, const std::string &ent
     trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
 
     initSession(ctx, enableNeuralStatistics, neuralStatisticsMode);
+}
+
+bool Pipeline::hasGraphPipelineProperty(const vk::raii::Device &device,
+                                        vk::DataGraphPipelinePropertyARM property) const {
+    if (!isDataGraphPipeline()) {
+        throw std::runtime_error("getDataGraphPipelineAvailablePropertiesARM called on a non DataGraphPipeline");
+    }
+
+    vk::DataGraphPipelineInfoARM pipelineInfo{*_pipeline, nullptr};
+    const auto availableProperties = device.getDataGraphPipelineAvailablePropertiesARM(pipelineInfo);
+    return std::find(availableProperties.begin(), availableProperties.end(), property) != availableProperties.end();
 }
 
 const std::string &Pipeline::debugName() const { return _debugName; }
