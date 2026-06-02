@@ -24,6 +24,7 @@ class Session {
     Session &operator=(Session &&) = delete;
 
     void bindTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInfo binding);
+    void bindBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding);
 
     // Init cmd buffer, pipelines etc
     void configure();
@@ -32,30 +33,17 @@ class Session {
     void run();
 
   private:
-    struct BoundTensor {
-        DescriptorBindingInfo binding;
-        vk::TensorARM tensor{nullptr};
-        vk::raii::TensorViewARM tensorView{nullptr};
-    };
-
-    struct SegmentState {
-        vk::raii::ShaderModule shaderModule{nullptr};
-        std::vector<vk::raii::DescriptorSetLayout> descriptorSetLayouts;
-        vk::raii::PipelineLayout pipelineLayout{nullptr};
-        vk::raii::Pipeline pipeline{nullptr};
-        vk::raii::DeviceMemory sessionMemory{nullptr};
-        vk::raii::DataGraphPipelineSessionARM graphSession{nullptr};
-        vk::raii::DescriptorPool descriptorPool{nullptr};
-        std::vector<vk::raii::DescriptorSet> descriptorSets;
-        std::vector<DescriptorBindingInfo> bindings;
-    };
+    struct BoundTensor;
+    struct BoundBuffer;
+    struct SegmentState;
 
     void configureSegment(uint32_t segmentIndex);
     const BoundTensor *findBoundTensor(uint32_t resourceIndex) const;
+    const BoundBuffer *findBoundBuffer(uint32_t resourceIndex) const;
     void updateDescriptorSets(const std::vector<vk::raii::DescriptorSet> &descriptorSets,
                               const std::vector<DescriptorBindingInfo> &bindings) const;
-    void insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer,
-                              const std::vector<DescriptorBindingInfo> &producerBindings) const;
+    void insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer, const SegmentState &producer,
+                              const SegmentState &consumer) const;
 
     const vk::raii::PhysicalDevice &physicalDevice_;
     const vk::raii::Device &device_;
@@ -66,6 +54,7 @@ class Session {
 
     std::vector<SegmentState> segments_;
     std::vector<BoundTensor> boundTensors_;
+    std::vector<BoundBuffer> boundBuffers_;
 
     vk::raii::CommandPool commandPool_{nullptr};
     vk::raii::CommandBuffer commandBuffer_{nullptr};

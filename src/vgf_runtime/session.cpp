@@ -5,6 +5,7 @@
 #include "session.hpp"
 
 #include <algorithm>
+#include <array>
 #include <limits>
 #include <map>
 #include <stdexcept>
@@ -55,7 +56,79 @@ void waitForFence(const vk::raii::Device &device, const vk::raii::Fence &fence) 
     }
 }
 
+vk::PipelineBindPoint bindPoint(ModuleType type) {
+    switch (type) {
+    case ModuleType::GRAPH:
+        return vk::PipelineBindPoint::eDataGraphARM;
+    case ModuleType::SHADER:
+        return vk::PipelineBindPoint::eCompute;
+    default:
+        throw std::runtime_error("Unsupported VGF module type");
+    }
+}
+
+vk::PipelineStageFlags2 pipelineStage(ModuleType type) {
+    switch (type) {
+    case ModuleType::GRAPH:
+        return vk::PipelineStageFlagBits2::eDataGraphARM;
+    case ModuleType::SHADER:
+        return vk::PipelineStageFlagBits2::eComputeShader;
+    default:
+        throw std::runtime_error("Unsupported VGF module type");
+    }
+}
+
+vk::AccessFlags2 readAccess(ModuleType type) {
+    switch (type) {
+    case ModuleType::GRAPH:
+        return vk::AccessFlagBits2::eDataGraphReadARM;
+    case ModuleType::SHADER:
+        return vk::AccessFlagBits2::eShaderRead;
+    default:
+        throw std::runtime_error("Unsupported VGF module type");
+    }
+}
+
+vk::AccessFlags2 writeAccess(ModuleType type) {
+    switch (type) {
+    case ModuleType::GRAPH:
+        return vk::AccessFlagBits2::eDataGraphWriteARM;
+    case ModuleType::SHADER:
+        return vk::AccessFlagBits2::eShaderWrite;
+    default:
+        throw std::runtime_error("Unsupported VGF module type");
+    }
+}
+
 } // namespace
+
+struct Session::BoundTensor {
+    DescriptorBindingInfo binding;
+    vk::TensorARM tensor{nullptr};
+    vk::raii::TensorViewARM tensorView{nullptr};
+};
+
+struct Session::BoundBuffer {
+    DescriptorBindingInfo binding;
+    vk::Buffer buffer{nullptr};
+};
+
+struct Session::SegmentState {
+    // Common members
+    ModuleType type = ModuleType::UNKNOWN;
+    vk::raii::ShaderModule shaderModule{nullptr};
+    std::vector<vk::raii::DescriptorSetLayout> descriptorSetLayouts;
+    vk::raii::PipelineLayout pipelineLayout{nullptr};
+    vk::raii::Pipeline pipeline{nullptr};
+    std::vector<vk::raii::DeviceMemory> sessionMemory;
+    vk::raii::DescriptorPool descriptorPool{nullptr};
+    std::vector<vk::raii::DescriptorSet> descriptorSets;
+    std::vector<DescriptorBindingInfo> bindings;
+    // Graph
+    vk::raii::DataGraphPipelineSessionARM graphSession{nullptr};
+    // Shader
+    std::array<uint32_t, 3> dispatchShape = {};
+};
 
 Session::Session(const vk::raii::PhysicalDevice &physicalDevice, const vk::raii::Device &device,
                  uint32_t queueFamilyIndex, const vk::raii::Queue &queue, const VGF &vgf)
@@ -71,28 +144,49 @@ const Session::BoundTensor *Session::findBoundTensor(uint32_t resourceIndex) con
     return tensor != boundTensors_.rend() ? &*tensor : nullptr;
 }
 
+const Session::BoundBuffer *Session::findBoundBuffer(uint32_t resourceIndex) const {
+    const auto buffer =
+        std::find_if(boundBuffers_.rbegin(), boundBuffers_.rend(), [resourceIndex](const auto &boundBuffer) {
+            return boundBuffer.binding.resourceIndex == resourceIndex;
+        });
+    return buffer != boundBuffers_.rend() ? &*buffer : nullptr;
+}
+
 void Session::updateDescriptorSets(const std::vector<vk::raii::DescriptorSet> &descriptorSets,
                                    const std::vector<DescriptorBindingInfo> &bindings) const {
     for (const auto &binding : bindings) {
-        const auto *const tensor = findBoundTensor(binding.resourceIndex);
-        if (tensor == nullptr) {
-            continue;
+        switch (binding.descriptorType) {
+        case vk::DescriptorType::eTensorARM: {
+            const auto *const tensor = findBoundTensor(binding.resourceIndex);
+            const auto tensorView = *tensor->tensorView;
+            const vk::WriteDescriptorSetTensorARM tensorInfo(1, &tensorView);
+            const vk::WriteDescriptorSet write(*descriptorSets[binding.set], binding.binding, 0, 1,
+                                               binding.descriptorType, nullptr, nullptr, nullptr, &tensorInfo);
+            device_.updateDescriptorSets(write, nullptr);
+            break;
         }
-
-        const auto tensorView = *tensor->tensorView;
-        const vk::WriteDescriptorSetTensorARM tensorInfo(1, &tensorView);
-        const vk::WriteDescriptorSet write(*descriptorSets[binding.set], binding.binding, 0, 1, binding.descriptorType,
-                                           nullptr, nullptr, nullptr, &tensorInfo);
-        device_.updateDescriptorSets(write, nullptr);
+        case vk::DescriptorType::eStorageBuffer: {
+            const auto *const buffer = findBoundBuffer(binding.resourceIndex);
+            const vk::DescriptorBufferInfo bufferInfo(buffer->buffer, 0, vk::WholeSize);
+            const vk::WriteDescriptorSet write(*descriptorSets[binding.set], binding.binding, 0, 1,
+                                               binding.descriptorType, nullptr, &bufferInfo);
+            device_.updateDescriptorSets(write, nullptr);
+            break;
+        }
+        default:
+            throw std::runtime_error("Session does not support descriptor type " +
+                                     std::to_string(static_cast<uint32_t>(binding.descriptorType)));
+        }
     }
 }
 
-void Session::insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer,
-                                   const std::vector<DescriptorBindingInfo> &producerBindings) const {
+void Session::insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer, const SegmentState &producer,
+                                   const SegmentState &consumer) const {
     std::vector<vk::TensorMemoryBarrierARM> tensorBarriers;
+    std::vector<vk::BufferMemoryBarrier2> bufferBarriers;
     std::vector<uint32_t> barrierResourceIndices;
 
-    for (const auto &producerBinding : producerBindings) {
+    for (const auto &producerBinding : producer.bindings) {
         if ((producerBinding.resourceCategory != ResourceCategory::OUTPUT &&
              producerBinding.resourceCategory != ResourceCategory::INTERMEDIATE) ||
             std::find(barrierResourceIndices.begin(), barrierResourceIndices.end(), producerBinding.resourceIndex) !=
@@ -100,32 +194,57 @@ void Session::insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer,
             continue;
         }
 
-        const auto *const tensor = findBoundTensor(producerBinding.resourceIndex);
-        if (tensor == nullptr) {
-            continue;
+        switch (producerBinding.descriptorType) {
+        case vk::DescriptorType::eTensorARM: {
+            const auto *const tensor = findBoundTensor(producerBinding.resourceIndex);
+            vk::TensorMemoryBarrierARM tensorBarrier;
+            tensorBarrier.srcStageMask = pipelineStage(producer.type);
+            tensorBarrier.srcAccessMask = writeAccess(producer.type);
+            tensorBarrier.dstStageMask = pipelineStage(consumer.type);
+            tensorBarrier.dstAccessMask = readAccess(consumer.type) | writeAccess(consumer.type);
+            tensorBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            tensorBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            tensorBarrier.tensor = tensor->tensor;
+
+            tensorBarriers.push_back(tensorBarrier);
+            barrierResourceIndices.push_back(producerBinding.resourceIndex);
+            break;
         }
+        case vk::DescriptorType::eStorageBuffer: {
+            const auto *const buffer = findBoundBuffer(producerBinding.resourceIndex);
+            vk::BufferMemoryBarrier2 bufferBarrier;
+            bufferBarrier.srcStageMask = pipelineStage(producer.type);
+            bufferBarrier.srcAccessMask = writeAccess(producer.type);
+            bufferBarrier.dstStageMask = pipelineStage(consumer.type);
+            bufferBarrier.dstAccessMask = readAccess(consumer.type) | writeAccess(consumer.type);
+            bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            bufferBarrier.buffer = buffer->buffer;
+            bufferBarrier.offset = 0;
+            bufferBarrier.size = vk::WholeSize;
 
-        vk::TensorMemoryBarrierARM tensorBarrier;
-        tensorBarrier.srcStageMask = vk::PipelineStageFlagBits2::eDataGraphARM;
-        tensorBarrier.srcAccessMask = vk::AccessFlagBits2::eDataGraphWriteARM;
-        tensorBarrier.dstStageMask = vk::PipelineStageFlagBits2::eDataGraphARM;
-        tensorBarrier.dstAccessMask = vk::AccessFlagBits2::eDataGraphReadARM | vk::AccessFlagBits2::eDataGraphWriteARM;
-        tensorBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        tensorBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        tensorBarrier.tensor = tensor->tensor;
-
-        tensorBarriers.push_back(tensorBarrier);
-        barrierResourceIndices.push_back(producerBinding.resourceIndex);
+            bufferBarriers.push_back(bufferBarrier);
+            barrierResourceIndices.push_back(producerBinding.resourceIndex);
+            break;
+        }
+        default:
+            throw std::runtime_error("Session does not support descriptor type " +
+                                     std::to_string(static_cast<uint32_t>(producerBinding.descriptorType)));
+        }
     }
 
-    if (tensorBarriers.empty()) {
+    if (tensorBarriers.empty() && bufferBarriers.empty()) {
         return;
     }
 
     vk::TensorDependencyInfoARM tensorDependencyInfo(static_cast<uint32_t>(tensorBarriers.size()),
                                                      tensorBarriers.data());
     vk::DependencyInfo dependencyInfo;
-    dependencyInfo.pNext = &tensorDependencyInfo;
+    dependencyInfo.bufferMemoryBarrierCount = static_cast<uint32_t>(bufferBarriers.size());
+    dependencyInfo.pBufferMemoryBarriers = bufferBarriers.data();
+    if (!tensorBarriers.empty()) {
+        dependencyInfo.pNext = &tensorDependencyInfo;
+    }
     commandBuffer.pipelineBarrier2(dependencyInfo);
 }
 
@@ -135,17 +254,26 @@ void Session::bindTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInf
     boundTensors_.push_back({binding, *tensor, vk::raii::TensorViewARM(device_, viewCreateInfo)});
 }
 
+void Session::bindBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding) {
+    boundBuffers_.push_back({binding, *buffer});
+}
+
 void Session::configureSegment(uint32_t segmentIndex) {
     const auto segment = vgf_.getSegment(segmentIndex);
-    if (segment.type != ModuleType::GRAPH) {
-        throw std::runtime_error("Session only supports VGF data graph segments");
-    }
-    if (vgf_.getNumConstants(segmentIndex) != 0) {
-        throw std::runtime_error("Session does not support VGF graph constants");
+    if (segment.type != ModuleType::GRAPH && segment.type != ModuleType::SHADER) {
+        throw std::runtime_error("Session only supports VGF data graph and compute shader segments");
     }
 
     auto &state = segments_.emplace_back();
+    state.type = segment.type;
     state.bindings = vgf_.getDescriptorBindings(segmentIndex);
+    for (const auto &binding : state.bindings) {
+        if (binding.descriptorType != vk::DescriptorType::eStorageBuffer &&
+            binding.descriptorType != vk::DescriptorType::eTensorARM) {
+            throw std::runtime_error("Session does not support descriptor type " +
+                                     std::to_string(static_cast<uint32_t>(binding.descriptorType)));
+        }
+    }
 
     const auto bindingSets = splitBindingsBySet(state.bindings);
     state.descriptorSetLayouts.reserve(bindingSets.size());
@@ -162,61 +290,94 @@ void Session::configureSegment(uint32_t segmentIndex) {
     const vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo({}, descriptorSetLayouts);
     state.pipelineLayout = vk::raii::PipelineLayout(device_, pipelineLayoutCreateInfo);
 
-    std::vector<vk::TensorDescriptionARM> tensorDescriptions;
-    std::vector<vk::DataGraphPipelineResourceInfoARM> resourceInfos;
-    tensorDescriptions.reserve(state.bindings.size());
-    resourceInfos.reserve(state.bindings.size());
-    for (const auto &binding : state.bindings) {
-        const auto resource = vgf_.getResource(binding.resourceIndex);
-        tensorDescriptions.emplace_back(vk::TensorTilingARM::eLinear, resource.format,
-                                        static_cast<uint32_t>(resource.shape.size()), resource.shape.data(),
-                                        resource.stride.empty() ? nullptr : resource.stride.data(),
-                                        vk::TensorUsageFlagBitsARM::eDataGraph);
-        resourceInfos.emplace_back(binding.set, binding.binding, 0, &tensorDescriptions.back());
-    }
-
     const auto module = vgf_.getSPIRVModule(segment.moduleIndex);
     const vk::ShaderModuleCreateInfo shaderCreateInfo({}, module.code.size() * sizeof(uint32_t), module.code.data());
     state.shaderModule = vk::raii::ShaderModule(device_, shaderCreateInfo);
 
-    const vk::DataGraphPipelineShaderModuleCreateInfoARM shaderModuleInfo(
-        *state.shaderModule, module.entryPoint.c_str(), nullptr, 0, nullptr, nullptr);
-    const vk::DataGraphPipelineCreateInfoARM pipelineCreateInfo({}, *state.pipelineLayout,
-                                                                static_cast<uint32_t>(resourceInfos.size()),
-                                                                resourceInfos.data(), &shaderModuleInfo);
-    state.pipeline = vk::raii::Pipeline(device_, nullptr, nullptr, pipelineCreateInfo);
+    if (segment.type == ModuleType::SHADER) {
+        const auto dispatchShape = vgf_.getDispatchShape(segmentIndex);
+        if (dispatchShape.size() != state.dispatchShape.size() || dispatchShape[0] == 0 || dispatchShape[1] == 0 ||
+            dispatchShape[2] == 0) {
+            throw std::runtime_error("VGF compute shader segments must have a non-zero 3D dispatch shape");
+        }
+        std::copy(dispatchShape.begin(), dispatchShape.end(), state.dispatchShape.begin());
 
-    const vk::DataGraphPipelineSessionCreateInfoARM sessionCreateInfo({}, *state.pipeline);
-    state.graphSession = vk::raii::DataGraphPipelineSessionARM(device_, sessionCreateInfo);
-
-    const vk::DataGraphPipelineSessionBindPointRequirementsInfoARM bindPointInfo(*state.graphSession);
-    const auto bindPointRequirements = device_.getDataGraphPipelineSessionBindPointRequirementsARM(bindPointInfo);
-    std::vector<vk::BindDataGraphPipelineSessionMemoryInfoARM> bindInfos;
-    for (const auto &bindPointRequirement : bindPointRequirements) {
-        if (bindPointRequirement.bindPointType != vk::DataGraphPipelineSessionBindPointTypeARM::eMemory) {
-            continue;
+        const vk::PipelineShaderStageCreateInfo shaderStageCreateInfo({}, vk::ShaderStageFlagBits::eCompute,
+                                                                      *state.shaderModule, module.entryPoint.c_str());
+        const vk::ComputePipelineCreateInfo pipelineCreateInfo({}, shaderStageCreateInfo, *state.pipelineLayout);
+        const vk::raii::PipelineCache *pipelineCache = nullptr;
+        state.pipeline = vk::raii::Pipeline(device_, pipelineCache, pipelineCreateInfo);
+    } else {
+        std::vector<vk::TensorDescriptionARM> tensorDescriptions;
+        std::vector<vk::DataGraphPipelineResourceInfoARM> resourceInfos;
+        tensorDescriptions.reserve(state.bindings.size());
+        resourceInfos.reserve(state.bindings.size());
+        for (const auto &binding : state.bindings) {
+            const auto resource = vgf_.getResource(binding.resourceIndex);
+            tensorDescriptions.emplace_back(vk::TensorTilingARM::eLinear, resource.format,
+                                            static_cast<uint32_t>(resource.shape.size()), resource.shape.data(),
+                                            resource.stride.empty() ? nullptr : resource.stride.data(),
+                                            vk::TensorUsageFlagBitsARM::eDataGraph);
+            resourceInfos.emplace_back(binding.set, binding.binding, 0, &tensorDescriptions.back());
         }
 
-        if (bindPointRequirement.numObjects != 1) {
-            throw std::runtime_error("Expected exactly one data graph session memory object");
+        const uint32_t numConstants = vgf_.getNumConstants(segmentIndex);
+        std::vector<vk::TensorDescriptionARM> constantTensorDescriptions;
+        std::vector<vk::DataGraphPipelineConstantARM> constants;
+        constantTensorDescriptions.reserve(numConstants);
+        constants.reserve(numConstants);
+        for (uint32_t constantIndex = 0; constantIndex < numConstants; ++constantIndex) {
+            const auto constant = vgf_.getConstant(segmentIndex, constantIndex);
+            if (constant.sparsityDimension >= 0) {
+                throw std::runtime_error("Sparse VGF graph constants are not supported");
+            }
+            constantTensorDescriptions.emplace_back(vk::TensorTilingARM::eLinear, constant.format,
+                                                    static_cast<uint32_t>(constant.shape.size()), constant.shape.data(),
+                                                    constant.stride.empty() ? nullptr : constant.stride.data(),
+                                                    vk::TensorUsageFlagBitsARM::eDataGraph);
+            constants.emplace_back(constant.index, constant.data.data(), &constantTensorDescriptions.back());
         }
 
-        constexpr uint32_t objectIndex = 0;
-        const vk::DataGraphPipelineSessionMemoryRequirementsInfoARM memoryInfo(
-            *state.graphSession, bindPointRequirement.bindPoint, objectIndex);
-        const auto memReqs = device_.getDataGraphPipelineSessionMemoryRequirementsARM(memoryInfo);
-        if (memReqs.memoryRequirements.size == 0) {
-            continue;
-        }
+        const vk::DataGraphPipelineShaderModuleCreateInfoARM shaderModuleInfo(
+            *state.shaderModule, module.entryPoint.c_str(), nullptr, static_cast<uint32_t>(constants.size()),
+            constants.data(), nullptr);
+        const vk::DataGraphPipelineCreateInfoARM pipelineCreateInfo({}, *state.pipelineLayout,
+                                                                    static_cast<uint32_t>(resourceInfos.size()),
+                                                                    resourceInfos.data(), &shaderModuleInfo);
+        const vk::raii::DeferredOperationKHR deferredOperation(nullptr);
+        const vk::raii::PipelineCache *pipelineCache = nullptr;
+        state.pipeline = vk::raii::Pipeline(device_, deferredOperation, pipelineCache, pipelineCreateInfo);
 
-        const auto memoryType = findMemoryType(physicalDevice_, memReqs.memoryRequirements.memoryTypeBits,
-                                               vk::MemoryPropertyFlagBits::eDeviceLocal);
-        const vk::MemoryAllocateInfo allocateInfo(memReqs.memoryRequirements.size, memoryType);
-        state.sessionMemory = vk::raii::DeviceMemory(device_, allocateInfo);
-        bindInfos.emplace_back(*state.graphSession, bindPointRequirement.bindPoint, objectIndex, *state.sessionMemory);
-    }
-    if (!bindInfos.empty()) {
-        device_.bindDataGraphPipelineSessionMemoryARM(bindInfos);
+        const vk::DataGraphPipelineSessionCreateInfoARM sessionCreateInfo({}, *state.pipeline);
+        state.graphSession = vk::raii::DataGraphPipelineSessionARM(device_, sessionCreateInfo);
+
+        const vk::DataGraphPipelineSessionBindPointRequirementsInfoARM bindPointInfo(*state.graphSession);
+        const auto bindPointRequirements = device_.getDataGraphPipelineSessionBindPointRequirementsARM(bindPointInfo);
+        std::vector<vk::BindDataGraphPipelineSessionMemoryInfoARM> bindInfos;
+        for (const auto &bindPointRequirement : bindPointRequirements) {
+            if (bindPointRequirement.bindPointType != vk::DataGraphPipelineSessionBindPointTypeARM::eMemory) {
+                continue;
+            }
+
+            for (uint32_t objectIndex = 0; objectIndex < bindPointRequirement.numObjects; ++objectIndex) {
+                const vk::DataGraphPipelineSessionMemoryRequirementsInfoARM memoryInfo(
+                    *state.graphSession, bindPointRequirement.bindPoint, objectIndex);
+                const auto memReqs = device_.getDataGraphPipelineSessionMemoryRequirementsARM(memoryInfo);
+                if (memReqs.memoryRequirements.size == 0) {
+                    continue;
+                }
+
+                const auto memoryType = findMemoryType(physicalDevice_, memReqs.memoryRequirements.memoryTypeBits,
+                                                       vk::MemoryPropertyFlagBits::eDeviceLocal);
+                const vk::MemoryAllocateInfo allocateInfo(memReqs.memoryRequirements.size, memoryType);
+                state.sessionMemory.emplace_back(device_, allocateInfo);
+                bindInfos.emplace_back(*state.graphSession, bindPointRequirement.bindPoint, objectIndex,
+                                       *state.sessionMemory.back());
+            }
+        }
+        if (!bindInfos.empty()) {
+            device_.bindDataGraphPipelineSessionMemoryARM(bindInfos);
+        }
     }
 
     std::map<vk::DescriptorType, uint32_t> descriptorCounts;
@@ -268,15 +429,20 @@ void Session::run() {
     commandBuffer_.begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
     for (size_t segmentIndex = 0; segmentIndex < segments_.size(); ++segmentIndex) {
         const auto &segment = segments_[segmentIndex];
+        const auto pipelineBindPoint = bindPoint(segment.type);
         for (uint32_t set = 0; set < static_cast<uint32_t>(segment.descriptorSets.size()); ++set) {
-            commandBuffer_.bindDescriptorSets(vk::PipelineBindPoint::eDataGraphARM, *segment.pipelineLayout, set,
+            commandBuffer_.bindDescriptorSets(pipelineBindPoint, *segment.pipelineLayout, set,
                                               *segment.descriptorSets[set], nullptr);
         }
-        commandBuffer_.bindPipeline(vk::PipelineBindPoint::eDataGraphARM, *segment.pipeline);
-        commandBuffer_.dispatchDataGraphARM(*segment.graphSession);
+        commandBuffer_.bindPipeline(pipelineBindPoint, *segment.pipeline);
+        if (segment.type == ModuleType::GRAPH) {
+            commandBuffer_.dispatchDataGraphARM(*segment.graphSession);
+        } else {
+            commandBuffer_.dispatch(segment.dispatchShape[0], segment.dispatchShape[1], segment.dispatchShape[2]);
+        }
 
         if (segmentIndex + 1 < segments_.size()) {
-            insertSegmentBarrier(commandBuffer_, segment.bindings);
+            insertSegmentBarrier(commandBuffer_, segment, segments_[segmentIndex + 1]);
         }
     }
     commandBuffer_.end();
