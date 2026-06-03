@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -89,8 +89,8 @@ void PipelineCache::save() {
         throw std::runtime_error("Error storing pipeline cache into: " + _pipelineCachePath.string());
     }
     fstream.exceptions(std::ios::badbit | std::ios::failbit);
-    fstream.write(reinterpret_cast<char *>(_pipelineCache.getData().data()),
-                  std::streamsize(_pipelineCache.getData().size()));
+    const auto data = _pipelineCache.getData();
+    fstream.write(reinterpret_cast<const char *>(data.data()), std::streamsize(data.size()));
     fstream.close();
     mlsdk::logging::info("Pipeline Cache stored");
 }

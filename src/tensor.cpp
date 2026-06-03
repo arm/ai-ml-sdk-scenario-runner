@@ -74,14 +74,16 @@ void Tensor::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> me
         }
         // setting pStrides[dimensionCount-2] and pStrides[dimensionCount-1]
         if (rank > 1) {
-            if (numComponentsFromVkFormat(_memoryManager->getFormat()) != _shape.back()) {
-                throw std::runtime_error("Aliased tensor innermost dimension: " + std::to_string(_shape.back()) +
-                                         ", must match number of components of image: " +
-                                         std::to_string(numComponentsFromVkFormat(_memoryManager->getFormat())));
+            const auto numComponents = numComponentsFromVkFormat(_memoryManager->getFormat());
+            if (numComponents != _shape.back()) {
+                throw std::runtime_error(
+                    "Aliased tensor innermost dimension: " + std::to_string(_shape.back()) +
+                    ", must match number of components of image: " + std::to_string(numComponents));
             }
 
-            pushStride(elementSizeFromVkFormat(_dataType) * numComponentsFromVkFormat(_memoryManager->getFormat()));
-            pushStride(elementSizeFromVkFormat(_dataType));
+            const uint64_t elementSize{elementSizeFromVkFormat(_dataType)};
+            pushStride(elementSize * numComponents);
+            pushStride(elementSize);
         }
     }
 
