@@ -34,8 +34,28 @@ class Session {
   private:
     struct BoundTensor {
         DescriptorBindingInfo binding;
+        vk::TensorARM tensor{nullptr};
         vk::raii::TensorViewARM tensorView{nullptr};
     };
+
+    struct SegmentState {
+        vk::raii::ShaderModule shaderModule{nullptr};
+        std::vector<vk::raii::DescriptorSetLayout> descriptorSetLayouts;
+        vk::raii::PipelineLayout pipelineLayout{nullptr};
+        vk::raii::Pipeline pipeline{nullptr};
+        vk::raii::DeviceMemory sessionMemory{nullptr};
+        vk::raii::DataGraphPipelineSessionARM graphSession{nullptr};
+        vk::raii::DescriptorPool descriptorPool{nullptr};
+        std::vector<vk::raii::DescriptorSet> descriptorSets;
+        std::vector<DescriptorBindingInfo> bindings;
+    };
+
+    void configureSegment(uint32_t segmentIndex);
+    const BoundTensor *findBoundTensor(uint32_t resourceIndex) const;
+    void updateDescriptorSets(const std::vector<vk::raii::DescriptorSet> &descriptorSets,
+                              const std::vector<DescriptorBindingInfo> &bindings) const;
+    void insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer,
+                              const std::vector<DescriptorBindingInfo> &producerBindings) const;
 
     const vk::raii::PhysicalDevice &physicalDevice_;
     const vk::raii::Device &device_;
@@ -44,15 +64,7 @@ class Session {
     uint32_t queueFamilyIndex_ = 0;
     const vk::raii::Queue &queue_;
 
-    vk::raii::ShaderModule shaderModule_{nullptr};
-    std::vector<vk::raii::DescriptorSetLayout> descriptorSetLayouts_;
-    vk::raii::PipelineLayout pipelineLayout_{nullptr};
-    vk::raii::Pipeline pipeline_{nullptr};
-    std::vector<vk::raii::DeviceMemory> sessionMemory_;
-    vk::raii::DataGraphPipelineSessionARM graphSession_{nullptr};
-
-    vk::raii::DescriptorPool descriptorPool_{nullptr};
-    std::vector<vk::raii::DescriptorSet> descriptorSets_;
+    std::vector<SegmentState> segments_;
     std::vector<BoundTensor> boundTensors_;
 
     vk::raii::CommandPool commandPool_{nullptr};

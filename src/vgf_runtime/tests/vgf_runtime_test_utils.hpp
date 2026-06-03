@@ -32,11 +32,6 @@ struct MaxpoolSpvasmBindings {
     uint32_t outputBinding;
 };
 
-constexpr uint32_t kMaxpoolInputSet = 0;
-constexpr uint32_t kMaxpoolOutputSet = 1;
-constexpr size_t kMaxpoolInputElements = 1 * 16 * 16 * 16;
-constexpr size_t kMaxpoolOutputElements = 1 * 8 * 8 * 16;
-
 inline std::string writeVgf(const std::function<void(mlsdk::vgflib::Encoder &)> &populate) {
     auto encoder = mlsdk::vgflib::CreateEncoder(VK_HEADER_VERSION);
     populate(*encoder);
@@ -74,7 +69,7 @@ inline std::vector<uint32_t> assembleSpirv(std::string_view text) {
 }
 
 inline std::vector<uint32_t> assembleMaxpoolSpirv(std::string_view name, MaxpoolSpvasmBindings bindings) {
-    std::ifstream templateFile(VGF_RUNTIME_MAXPOOL_SPVASM);
+    std::ifstream templateFile(VGF_RUNTIME_MAXPOOL_16X16_TO_8X8_SPVASM);
     std::string spvasm((std::istreambuf_iterator<char>(templateFile)), {});
     replaceAll(spvasm, "INPUT_SET", std::to_string(bindings.inputSet));
     replaceAll(spvasm, "INPUT_BINDING", std::to_string(bindings.inputBinding));
@@ -98,8 +93,8 @@ inline std::string makeMaxpoolVgf() {
             encoder.AddOutputResource(VK_DESCRIPTOR_TYPE_TENSOR_ARM, VK_FORMAT_R8_SINT, {1, 8, 8, 16}, {});
         const auto inputBinding = encoder.AddBindingSlot(0, input);
         const auto outputBinding = encoder.AddBindingSlot(1, output);
-        const auto inputSet = encoder.AddDescriptorSetInfo({inputBinding}, kMaxpoolInputSet);
-        const auto outputSet = encoder.AddDescriptorSetInfo({outputBinding}, kMaxpoolOutputSet);
+        const auto inputSet = encoder.AddDescriptorSetInfo({inputBinding}, 0);
+        const auto outputSet = encoder.AddDescriptorSetInfo({outputBinding}, 1);
         encoder.AddSegmentInfo(module, "maxpool_graph_segment", {inputSet, outputSet}, {inputBinding}, {outputBinding},
                                {});
     });
@@ -136,10 +131,11 @@ inline uint32_t findMemoryType(const vk::raii::PhysicalDevice &physicalDevice, u
 
 struct Tensor {
     Tensor(const vk::raii::PhysicalDevice &physicalDevice, const vk::raii::Device &device, vk::Format format,
-           const std::vector<int64_t> &shape) {
+           const std::vector<int64_t> &shape)
+        : shape(shape) {
         const vk::TensorDescriptionARM description(vk::TensorTilingARM::eLinear, format,
-                                                   static_cast<uint32_t>(shape.size()), shape.data(), nullptr,
-                                                   vk::TensorUsageFlagBitsARM::eDataGraph);
+                                                   static_cast<uint32_t>(this->shape.size()), this->shape.data(),
+                                                   nullptr, vk::TensorUsageFlagBitsARM::eDataGraph);
         const vk::TensorCreateInfoARM createInfo({}, &description, vk::SharingMode::eExclusive);
         tensor = vk::raii::TensorARM(device, createInfo);
 
@@ -151,6 +147,16 @@ struct Tensor {
                            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
         memory = vk::raii::DeviceMemory(device, {memorySize, memoryType});
         device.bindTensorMemoryARM(vk::BindTensorMemoryInfoARM(*tensor, *memory, 0));
+    }
+
+    size_t numElements() const { return Tensor::numElements(shape); }
+
+    static size_t numElements(const std::vector<int64_t> &shape) {
+        size_t count = 1;
+        for (const auto dim : shape) {
+            count *= static_cast<size_t>(dim);
+        }
+        return count;
     }
 
     void fill(int8_t value, size_t elements) const {
@@ -175,37 +181,57 @@ struct Tensor {
         return result;
     }
 
+    std::vector<int64_t> shape;
     vk::raii::DeviceMemory memory{nullptr};
     vk::raii::TensorARM tensor{nullptr};
     vk::DeviceSize memorySize = 0;
 };
 
-inline std::vector<int8_t> makeMaxpoolInput(uint32_t seed = 0) {
-    std::vector<int8_t> input(kMaxpoolInputElements);
-    for (uint32_t h = 0; h < 16; ++h) {
-        for (uint32_t w = 0; w < 16; ++w) {
-            for (uint32_t c = 0; c < 16; ++c) {
-                const auto index = ((h * 16) + w) * 16 + c;
-                input[index] = static_cast<int8_t>((h * 13 + w * 7 + c * 3 + seed) % 97);
+inline std::vector<int8_t> makeMaxpoolInput(const std::vector<int64_t> &shape, uint32_t seed = 0) {
+    const auto batch = shape[0];
+    const auto height = shape[1];
+    const auto width = shape[2];
+    const auto channels = shape[3];
+
+    std::vector<int8_t> input(Tensor::numElements(shape));
+    for (int64_t n = 0; n < batch; ++n) {
+        for (int64_t h = 0; h < height; ++h) {
+            for (int64_t w = 0; w < width; ++w) {
+                for (int64_t c = 0; c < channels; ++c) {
+                    const auto index = static_cast<size_t>(((n * height + h) * width + w) * channels + c);
+                    input[index] = static_cast<int8_t>((n * 17 + h * 13 + w * 7 + c * 3 + seed) % 97);
+                }
             }
         }
     }
     return input;
 }
 
-inline std::vector<int8_t> expectedMaxpool(const std::vector<int8_t> &input) {
-    std::vector<int8_t> expected(kMaxpoolOutputElements);
-    for (uint32_t h = 0; h < 8; ++h) {
-        for (uint32_t w = 0; w < 8; ++w) {
-            for (uint32_t c = 0; c < 16; ++c) {
-                int8_t maxValue = input[(((h * 2) * 16) + (w * 2)) * 16 + c];
-                for (uint32_t kh = 0; kh < 2; ++kh) {
-                    for (uint32_t kw = 0; kw < 2; ++kw) {
-                        const auto inputIndex = ((((h * 2 + kh) * 16) + (w * 2 + kw)) * 16) + c;
-                        maxValue = std::max(maxValue, input[inputIndex]);
+inline std::vector<int8_t> expectedMaxpool(const std::vector<int8_t> &input, const std::vector<int64_t> &shape) {
+    const auto batch = shape[0];
+    const auto inputHeight = shape[1];
+    const auto inputWidth = shape[2];
+    const auto channels = shape[3];
+    const auto outputHeight = inputHeight / 2;
+    const auto outputWidth = inputWidth / 2;
+
+    std::vector<int8_t> expected(Tensor::numElements({batch, outputHeight, outputWidth, channels}));
+    for (int64_t n = 0; n < batch; ++n) {
+        for (int64_t h = 0; h < outputHeight; ++h) {
+            for (int64_t w = 0; w < outputWidth; ++w) {
+                for (int64_t c = 0; c < channels; ++c) {
+                    const auto firstInputIndex =
+                        static_cast<size_t>(((n * inputHeight + h * 2) * inputWidth + w * 2) * channels + c);
+                    int8_t maxValue = input[firstInputIndex];
+                    for (int64_t kh = 0; kh < 2; ++kh) {
+                        for (int64_t kw = 0; kw < 2; ++kw) {
+                            const auto inputIndex = static_cast<size_t>(
+                                ((n * inputHeight + h * 2 + kh) * inputWidth + w * 2 + kw) * channels + c);
+                            maxValue = std::max(maxValue, input[inputIndex]);
+                        }
                     }
+                    expected[static_cast<size_t>(((n * outputHeight + h) * outputWidth + w) * channels + c)] = maxValue;
                 }
-                expected[((h * 8) + w) * 16 + c] = maxValue;
             }
         }
     }

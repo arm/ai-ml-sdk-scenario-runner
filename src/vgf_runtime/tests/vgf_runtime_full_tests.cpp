@@ -13,6 +13,9 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -88,6 +91,46 @@ class VgfRuntimeFullTest : public ::testing::Test {
     vk::PhysicalDeviceDataGraphFeaturesARM dataGraphFeatures;
 };
 
+std::vector<uint32_t> assembleSecondMaxpoolSpirv() {
+    std::ifstream templateFile(VGF_RUNTIME_MAXPOOL_8X8_TO_4X4_SPVASM);
+    std::string spvasm((std::istreambuf_iterator<char>(templateFile)), {});
+    replaceAll(spvasm, "INPUT_SET", "0");
+    replaceAll(spvasm, "INPUT_BINDING", "0");
+    replaceAll(spvasm, "OUTPUT_SET", "0");
+    replaceAll(spvasm, "OUTPUT_BINDING", "1");
+
+    return assembleSpirv(spvasm);
+}
+
+std::string makeTwoSegmentMaxpoolVgf() {
+    const auto &firstCode = assembleMaxpoolSpirv("maxpool_16x16_to_8x8", {0, 0, 0, 1});
+    const auto &secondCode = assembleSecondMaxpoolSpirv();
+    return writeVgf([&](mlsdk::vgflib::Encoder &encoder) {
+        const auto firstModule =
+            encoder.AddModule(mlsdk::vgflib::ModuleType::GRAPH, "maxpool_16x16_to_8x8", "main", firstCode);
+        const auto secondModule =
+            encoder.AddModule(mlsdk::vgflib::ModuleType::GRAPH, "maxpool_8x8_to_4x4", "main", secondCode);
+
+        const auto firstInput =
+            encoder.AddInputResource(VK_DESCRIPTOR_TYPE_TENSOR_ARM, VK_FORMAT_R8_SINT, {1, 16, 16, 16}, {});
+        const auto firstOutput =
+            encoder.AddIntermediateResource(VK_DESCRIPTOR_TYPE_TENSOR_ARM, VK_FORMAT_R8_SINT, {1, 8, 8, 16}, {});
+        const auto firstInputBinding = encoder.AddBindingSlot(0, firstInput);
+        const auto firstOutputBinding = encoder.AddBindingSlot(1, firstOutput);
+        const auto firstDescriptorSet = encoder.AddDescriptorSetInfo({firstInputBinding, firstOutputBinding});
+        encoder.AddSegmentInfo(firstModule, "first_graph_segment", {firstDescriptorSet}, {firstInputBinding},
+                               {firstOutputBinding}, {});
+
+        const auto secondOutput =
+            encoder.AddOutputResource(VK_DESCRIPTOR_TYPE_TENSOR_ARM, VK_FORMAT_R8_SINT, {1, 4, 4, 16}, {});
+        const auto secondInputBinding = encoder.AddBindingSlot(0, firstOutput);
+        const auto secondOutputBinding = encoder.AddBindingSlot(1, secondOutput);
+        const auto secondDescriptorSet = encoder.AddDescriptorSetInfo({secondInputBinding, secondOutputBinding});
+        encoder.AddSegmentInfo(secondModule, "second_graph_segment", {secondDescriptorSet}, {secondInputBinding},
+                               {secondOutputBinding}, {});
+    });
+}
+
 } // namespace
 
 TEST_F(VgfRuntimeFullTest, RunMaxpoolDataVGF) {
@@ -98,9 +141,9 @@ TEST_F(VgfRuntimeFullTest, RunMaxpoolDataVGF) {
     Tensor outputTensor(physicalDevice, device, vk::Format::eR8Sint, {1, 8, 8, 16});
     Session session(physicalDevice, device, queueFamilyIndex, queue, vgf);
 
-    const auto input = makeMaxpoolInput();
+    const auto input = makeMaxpoolInput(inputTensor.shape);
     inputTensor.write(input);
-    outputTensor.fill(0, kMaxpoolOutputElements);
+    outputTensor.fill(0, outputTensor.numElements());
 
     const auto bindings = vgf.getDescriptorBindings(0);
     session.bindTensor(inputTensor.tensor, bindings[0]);
@@ -108,7 +151,7 @@ TEST_F(VgfRuntimeFullTest, RunMaxpoolDataVGF) {
     session.configure();
     session.run();
 
-    EXPECT_EQ(outputTensor.read(kMaxpoolOutputElements), expectedMaxpool(input));
+    EXPECT_EQ(outputTensor.read(outputTensor.numElements()), expectedMaxpool(input, inputTensor.shape));
 }
 
 TEST_F(VgfRuntimeFullTest, RunMaxpoolFileVGF) {
@@ -126,9 +169,9 @@ TEST_F(VgfRuntimeFullTest, RunMaxpoolFileVGF) {
     Tensor outputTensor(physicalDevice, device, vk::Format::eR8Sint, {1, 8, 8, 16});
     Session session(physicalDevice, device, queueFamilyIndex, queue, vgf);
 
-    const auto input = makeMaxpoolInput(0);
+    const auto input = makeMaxpoolInput(inputTensor.shape, 0);
     inputTensor.write(input);
-    outputTensor.fill(0, kMaxpoolOutputElements);
+    outputTensor.fill(0, outputTensor.numElements());
 
     const auto bindings = vgf.getDescriptorBindings(0);
     session.bindTensor(inputTensor.tensor, bindings[0]);
@@ -136,7 +179,7 @@ TEST_F(VgfRuntimeFullTest, RunMaxpoolFileVGF) {
     session.configure();
     session.run();
 
-    EXPECT_EQ(outputTensor.read(kMaxpoolOutputElements), expectedMaxpool(input));
+    EXPECT_EQ(outputTensor.read(outputTensor.numElements()), expectedMaxpool(input, inputTensor.shape));
 }
 
 TEST_F(VgfRuntimeFullTest, RunMaxpoolRepeatedDifferentInput) {
@@ -151,15 +194,49 @@ TEST_F(VgfRuntimeFullTest, RunMaxpoolRepeatedDifferentInput) {
     session.bindTensor(outputTensor.tensor, bindings[1]);
     session.configure();
 
-    const auto firstInput = makeMaxpoolInput(3);
+    const auto firstInput = makeMaxpoolInput(inputTensor.shape, 3);
     inputTensor.write(firstInput);
-    outputTensor.fill(0, kMaxpoolOutputElements);
+    outputTensor.fill(0, outputTensor.numElements());
     session.run();
-    EXPECT_EQ(outputTensor.read(kMaxpoolOutputElements), expectedMaxpool(firstInput));
+    EXPECT_EQ(outputTensor.read(outputTensor.numElements()), expectedMaxpool(firstInput, inputTensor.shape));
 
-    const auto secondInput = makeMaxpoolInput(41);
+    const auto secondInput = makeMaxpoolInput(inputTensor.shape, 41);
     inputTensor.write(secondInput);
-    outputTensor.fill(0, kMaxpoolOutputElements);
+    outputTensor.fill(0, outputTensor.numElements());
     session.run();
-    EXPECT_EQ(outputTensor.read(kMaxpoolOutputElements), expectedMaxpool(secondInput));
+    EXPECT_EQ(outputTensor.read(outputTensor.numElements()), expectedMaxpool(secondInput, inputTensor.shape));
+}
+
+TEST_F(VgfRuntimeFullTest, RunTwoMaxpoolGraphSegments) {
+    const auto bytes = makeTwoSegmentMaxpoolVgf();
+    const VGF vgf(bytes.data(), bytes.size());
+    ASSERT_EQ(vgf.getNumSegments(), 2);
+
+    Tensor firstInputTensor(physicalDevice, device, vk::Format::eR8Sint, {1, 16, 16, 16});
+    Tensor firstOutputTensor(physicalDevice, device, vk::Format::eR8Sint, {1, 8, 8, 16});
+    Tensor secondOutputTensor(physicalDevice, device, vk::Format::eR8Sint, {1, 4, 4, 16});
+
+    const auto firstInput = makeMaxpoolInput(firstInputTensor.shape, 7);
+    firstInputTensor.write(firstInput);
+    firstOutputTensor.fill(0, firstOutputTensor.numElements());
+    secondOutputTensor.fill(0, secondOutputTensor.numElements());
+
+    Session session(physicalDevice, device, queueFamilyIndex, queue, vgf);
+    const auto firstBindings = vgf.getDescriptorBindings(0);
+    ASSERT_EQ(firstBindings.size(), 2);
+    session.bindTensor(firstInputTensor.tensor, firstBindings[0]);
+    session.bindTensor(firstOutputTensor.tensor, firstBindings[1]);
+
+    const auto secondBindings = vgf.getDescriptorBindings(1);
+    ASSERT_EQ(secondBindings.size(), 2);
+    session.bindTensor(firstOutputTensor.tensor, secondBindings[0]);
+    session.bindTensor(secondOutputTensor.tensor, secondBindings[1]);
+
+    session.configure();
+    session.run();
+
+    const auto firstExpected = expectedMaxpool(firstInput, firstInputTensor.shape);
+    EXPECT_EQ(firstOutputTensor.read(firstOutputTensor.numElements()), firstExpected);
+    EXPECT_EQ(secondOutputTensor.read(secondOutputTensor.numElements()),
+              expectedMaxpool(firstExpected, firstOutputTensor.shape));
 }
