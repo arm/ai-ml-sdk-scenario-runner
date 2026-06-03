@@ -8,8 +8,6 @@ add_library(vgf_runtime STATIC
     vgf.cpp
 )
 
-find_library(VULKAN_LOADER_LIBRARY NAMES vulkan)
-
 target_include_directories(vgf_runtime PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
@@ -21,19 +19,12 @@ target_link_libraries(vgf_runtime
         VGF::vgf
         VGF::vgf-utils
 )
-if(VULKAN_LOADER_LIBRARY)
-    target_link_libraries(vgf_runtime PUBLIC ${VULKAN_LOADER_LIBRARY})
-endif()
 
 target_compile_options(vgf_runtime PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
 
 if(SCENARIO_RUNNER_BUILD_TESTS)
     include(gtest)
     include(CTest)
-
-    if(NOT VULKAN_LOADER_LIBRARY)
-        message(FATAL_ERROR "Vulkan loader library is required to build vgf_runtime_tests")
-    endif()
 
     add_executable(vgf_runtime_tests
         tests/vgf_runtime_test_utils.hpp
