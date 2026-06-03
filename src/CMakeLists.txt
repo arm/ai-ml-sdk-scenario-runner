@@ -73,7 +73,7 @@ endif()
 target_compile_options(ScenarioRunnerLib PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
 
 add_subdirectory(tools)
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+if(SCENARIO_RUNNER_EXPERIMENTAL_VGF_RUNTIME AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_subdirectory(vgf_runtime)
 endif()
 
