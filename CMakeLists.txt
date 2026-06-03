@@ -38,6 +38,7 @@ option(SCENARIO_RUNNER_ENABLE_RDOC "Build Scenario Runner w/ RDoc support enable
 option(SCENARIO_RUNNER_BUILD_DOCS "Build project documentation" OFF)
 option(MOLTEN_VK_SUPPORT "Darwin requires MoltenVK" OFF)
 option(SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT "Enable support for experimental image formats in DDS reader" OFF)
+option(SCENARIO_RUNNER_EXPERIMENTAL_VGF_RUNTIME "Build VGF runtime library (Experimental)" OFF)
 option(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT "HLSL only supported on Windows and Linux" OFF)
 
 # Handle build type, set default as Release
