@@ -35,9 +35,16 @@ class Session {
   private:
     struct BoundTensor;
     struct BoundBuffer;
+    struct OwnedTensor;
+    struct OwnedBuffer;
     struct SegmentState;
 
     void configureSegment(uint32_t segmentIndex);
+    void allocateIntermediateResources();
+    void allocateIntermediateTensor(const DescriptorBindingInfo &binding);
+    void allocateIntermediateBuffer(const DescriptorBindingInfo &binding);
+    void addBoundTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInfo binding);
+    void addBoundBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding);
     const BoundTensor *findBoundTensor(uint32_t resourceIndex) const;
     const BoundBuffer *findBoundBuffer(uint32_t resourceIndex) const;
     void updateDescriptorSets(const std::vector<vk::raii::DescriptorSet> &descriptorSets,
@@ -52,9 +59,11 @@ class Session {
     uint32_t queueFamilyIndex_ = 0;
     const vk::raii::Queue &queue_;
 
-    std::vector<SegmentState> segments_;
+    std::vector<OwnedTensor> ownedTensors_;
+    std::vector<OwnedBuffer> ownedBuffers_;
     std::vector<BoundTensor> boundTensors_;
     std::vector<BoundBuffer> boundBuffers_;
+    std::vector<SegmentState> segments_;
 
     vk::raii::CommandPool commandPool_{nullptr};
     vk::raii::CommandBuffer commandBuffer_{nullptr};

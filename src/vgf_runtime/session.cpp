@@ -10,6 +10,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace mlsdk::vgf_runtime {
 namespace {
@@ -100,6 +101,53 @@ vk::AccessFlags2 writeAccess(ModuleType type) {
     }
 }
 
+vk::DeviceSize formatByteSize(vk::Format format) {
+    switch (format) {
+    case vk::Format::eR8Sint:
+        return 1;
+    case vk::Format::eR32Sint:
+    case vk::Format::eR32Sfloat:
+        return 4;
+    default:
+        throw std::runtime_error("Session does not support storage buffer format " +
+                                 std::to_string(static_cast<uint32_t>(format)));
+    }
+}
+
+vk::DeviceSize resourceByteSize(const ResourceInfo &resource) {
+    const auto elementSize = formatByteSize(resource.format);
+
+    if (!resource.stride.empty()) {
+        vk::DeviceSize size = elementSize;
+        for (std::size_t i = 0; i < resource.shape.size(); ++i) {
+            size +=
+                static_cast<vk::DeviceSize>(resource.shape[i] - 1) * static_cast<vk::DeviceSize>(resource.stride[i]);
+        }
+        return size;
+    }
+
+    vk::DeviceSize elements = elementSize;
+    for (const int64_t dimension : resource.shape) {
+        elements *= static_cast<vk::DeviceSize>(dimension);
+    }
+    return elements;
+}
+
+std::string resourceCategoryName(ResourceCategory category) {
+    switch (category) {
+    case ResourceCategory::INPUT:
+        return "input";
+    case ResourceCategory::OUTPUT:
+        return "output";
+    case ResourceCategory::INTERMEDIATE:
+        return "intermediate";
+    case ResourceCategory::CONSTANT:
+        return "constant";
+    default:
+        return "unknown";
+    }
+}
+
 } // namespace
 
 struct Session::BoundTensor {
@@ -111,6 +159,16 @@ struct Session::BoundTensor {
 struct Session::BoundBuffer {
     DescriptorBindingInfo binding;
     vk::Buffer buffer{nullptr};
+};
+
+struct Session::OwnedTensor {
+    vk::raii::DeviceMemory memory{nullptr};
+    vk::raii::TensorARM tensor{nullptr};
+};
+
+struct Session::OwnedBuffer {
+    vk::raii::DeviceMemory memory{nullptr};
+    vk::raii::Buffer buffer{nullptr};
 };
 
 struct Session::SegmentState {
@@ -248,14 +306,100 @@ void Session::insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer, const
     commandBuffer.pipelineBarrier2(dependencyInfo);
 }
 
-void Session::bindTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInfo binding) {
+void Session::addBoundTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInfo binding) {
     const auto resource = vgf_.getResource(binding.resourceIndex);
     const vk::TensorViewCreateInfoARM viewCreateInfo({}, *tensor, resource.format);
     boundTensors_.push_back({binding, *tensor, vk::raii::TensorViewARM(device_, viewCreateInfo)});
 }
 
-void Session::bindBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding) {
+void Session::addBoundBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding) {
     boundBuffers_.push_back({binding, *buffer});
+}
+
+void Session::bindTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInfo binding) {
+    const auto resource = vgf_.getResource(binding.resourceIndex);
+    if (resource.category != ResourceCategory::INPUT && resource.category != ResourceCategory::OUTPUT) {
+        throw std::runtime_error(std::string("VGF ") + resourceCategoryName(resource.category) + " resource " +
+                                 std::to_string(binding.resourceIndex) + " must not be manually bound");
+    }
+    addBoundTensor(tensor, binding);
+}
+
+void Session::bindBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding) {
+    const auto resource = vgf_.getResource(binding.resourceIndex);
+    if (resource.category != ResourceCategory::INPUT && resource.category != ResourceCategory::OUTPUT) {
+        throw std::runtime_error(std::string("VGF ") + resourceCategoryName(resource.category) + " resource " +
+                                 std::to_string(binding.resourceIndex) + " must not be manually bound");
+    }
+    addBoundBuffer(buffer, binding);
+}
+
+void Session::allocateIntermediateTensor(const DescriptorBindingInfo &binding) {
+    const auto resource = vgf_.getResource(binding.resourceIndex);
+    OwnedTensor ownedTensor;
+
+    const vk::TensorDescriptionARM description(vk::TensorTilingARM::eLinear, resource.format,
+                                               static_cast<uint32_t>(resource.shape.size()), resource.shape.data(),
+                                               resource.stride.empty() ? nullptr : resource.stride.data(),
+                                               vk::TensorUsageFlagBitsARM::eDataGraph);
+    const vk::TensorCreateInfoARM createInfo({}, &description, vk::SharingMode::eExclusive);
+    ownedTensor.tensor = vk::raii::TensorARM(device_, createInfo);
+
+    const auto memoryRequirements =
+        device_.getTensorMemoryRequirementsARM(vk::TensorMemoryRequirementsInfoARM(*ownedTensor.tensor));
+    const auto memoryType = findMemoryType(physicalDevice_, memoryRequirements.memoryRequirements.memoryTypeBits,
+                                           vk::MemoryPropertyFlagBits::eDeviceLocal);
+    ownedTensor.memory = vk::raii::DeviceMemory(device_, {memoryRequirements.memoryRequirements.size, memoryType});
+    device_.bindTensorMemoryARM(vk::BindTensorMemoryInfoARM(*ownedTensor.tensor, *ownedTensor.memory, 0));
+
+    ownedTensors_.push_back(std::move(ownedTensor));
+    addBoundTensor(ownedTensors_.back().tensor, binding);
+}
+
+void Session::allocateIntermediateBuffer(const DescriptorBindingInfo &binding) {
+    const auto resource = vgf_.getResource(binding.resourceIndex);
+    OwnedBuffer ownedBuffer;
+    ownedBuffer.buffer = vk::raii::Buffer(
+        device_, vk::BufferCreateInfo({}, resourceByteSize(resource), vk::BufferUsageFlagBits::eStorageBuffer));
+
+    const auto memoryRequirements = ownedBuffer.buffer.getMemoryRequirements();
+    const auto memoryType =
+        findMemoryType(physicalDevice_, memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
+    ownedBuffer.memory = vk::raii::DeviceMemory(device_, {memoryRequirements.size, memoryType});
+    ownedBuffer.buffer.bindMemory(*ownedBuffer.memory, 0);
+
+    ownedBuffers_.push_back(std::move(ownedBuffer));
+    addBoundBuffer(ownedBuffers_.back().buffer, binding);
+}
+
+void Session::allocateIntermediateResources() {
+    std::vector<uint32_t> allocatedResourceIndices;
+    for (const auto &segment : segments_) {
+        for (const auto &binding : segment.bindings) {
+            // Skip if not intermediate resource
+            if (binding.resourceCategory != ResourceCategory::INTERMEDIATE) {
+                continue;
+            }
+            // Skip if already present
+            if (std::find(allocatedResourceIndices.begin(), allocatedResourceIndices.end(), binding.resourceIndex) !=
+                allocatedResourceIndices.end()) {
+                continue;
+            }
+
+            switch (binding.descriptorType) {
+            case vk::DescriptorType::eTensorARM:
+                allocateIntermediateTensor(binding);
+                break;
+            case vk::DescriptorType::eStorageBuffer:
+                allocateIntermediateBuffer(binding);
+                break;
+            default:
+                throw std::runtime_error("Session does not support descriptor type " +
+                                         std::to_string(static_cast<uint32_t>(binding.descriptorType)));
+            }
+            allocatedResourceIndices.push_back(binding.resourceIndex);
+        }
+    }
 }
 
 void Session::configureSegment(uint32_t segmentIndex) {
@@ -404,6 +548,7 @@ void Session::configure() {
     for (uint32_t segmentIndex = 0; segmentIndex < vgf_.getNumSegments(); ++segmentIndex) {
         configureSegment(segmentIndex);
     }
+    allocateIntermediateResources();
 
     commandPool_ =
         vk::raii::CommandPool(device_, {vk::CommandPoolCreateFlagBits::eResetCommandBuffer, queueFamilyIndex_});

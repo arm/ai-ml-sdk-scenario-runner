@@ -275,30 +275,24 @@ TEST_F(VgfRuntimeFullTest, RunTwoMaxpoolGraphSegments) {
     ASSERT_EQ(vgf.getNumSegments(), 2);
 
     Tensor firstInputTensor(physicalDevice, device, vk::Format::eR8Sint, {1, 16, 16, 16});
-    Tensor firstOutputTensor(physicalDevice, device, vk::Format::eR8Sint, {1, 8, 8, 16});
     Tensor secondOutputTensor(physicalDevice, device, vk::Format::eR8Sint, {1, 4, 4, 16});
 
     const auto firstInput = makeMaxpoolInput(firstInputTensor.shape, 7);
     firstInputTensor.write(firstInput);
-    firstOutputTensor.fill(0, firstOutputTensor.numElements());
     secondOutputTensor.fill(0, secondOutputTensor.numElements());
 
     Session session(physicalDevice, device, queueFamilyIndex, queue, vgf);
     const auto firstBindings = vgf.getDescriptorBindings(0);
     ASSERT_EQ(firstBindings.size(), 2);
     session.bindTensor(firstInputTensor.tensor, firstBindings[0]);
-    session.bindTensor(firstOutputTensor.tensor, firstBindings[1]);
 
     const auto secondBindings = vgf.getDescriptorBindings(1);
     ASSERT_EQ(secondBindings.size(), 2);
-    session.bindTensor(firstOutputTensor.tensor, secondBindings[0]);
     session.bindTensor(secondOutputTensor.tensor, secondBindings[1]);
 
     session.configure();
     session.run();
 
     const auto firstExpected = expectedMaxpool(firstInput, firstInputTensor.shape);
-    EXPECT_EQ(firstOutputTensor.read(firstOutputTensor.numElements()), firstExpected);
-    EXPECT_EQ(secondOutputTensor.read(secondOutputTensor.numElements()),
-              expectedMaxpool(firstExpected, firstOutputTensor.shape));
+    EXPECT_EQ(secondOutputTensor.read(secondOutputTensor.numElements()), expectedMaxpool(firstExpected, {1, 8, 8, 16}));
 }
