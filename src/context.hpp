@@ -60,11 +60,11 @@ class Context {
 
     /// \brief Are GPU debug markers enabled?
     /// \return Whether GPU debug markers are enabled or not
-    inline bool gpuDebugMarkersEnabled() const { return _gpuDebugMarkersEnabled; }
+    bool gpuDebugMarkersEnabled() const { return _gpuDebugMarkersEnabled; }
 
     /// @brief Does graph session memory need to be dumped?
     /// @return Whether graph session memory needs to be dumped
-    inline bool sessionMemoryDumpEnabled() const { return _sessionMemoryDumpEnabled; }
+    bool sessionMemoryDumpEnabled() const { return _sessionMemoryDumpEnabled; }
 
   private:
     bool _gpuDebugMarkersEnabled;
