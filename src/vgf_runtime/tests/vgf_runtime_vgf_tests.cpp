@@ -41,9 +41,9 @@ TEST(VGF, DecodesSegmentsModulesBindingsResourcesAndDispatch) {
         const auto module = encoder.AddModule(mlsdk::vgflib::ModuleType::COMPUTE, "shader", "main", code);
         const auto input = encoder.AddInputResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_SFLOAT, {4}, {4});
         const auto output =
-            encoder.AddOutputResource(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_FORMAT_R8G8B8A8_UNORM, {2, 2, 1}, {});
+            encoder.AddOutputResource(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_FORMAT_R32_SINT, {2, 2, 1}, {});
         const auto intermediate =
-            encoder.AddIntermediateResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_UINT, {8}, {});
+            encoder.AddIntermediateResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_SINT, {8}, {});
         const auto inputBinding = encoder.AddBindingSlot(3, input);
         const auto outputBinding = encoder.AddBindingSlot(5, output);
         const auto intermediateBinding = encoder.AddBindingSlot(7, intermediate);
@@ -95,7 +95,7 @@ TEST(VGF, DecodesSegmentsModulesBindingsResourcesAndDispatch) {
     const auto intermediateResource = vgf.getResource(2);
     ASSERT_TRUE(outputResource.descriptorType.has_value());
     EXPECT_EQ(*outputResource.descriptorType, vk::DescriptorType::eStorageImage);
-    EXPECT_EQ(outputResource.format, vk::Format::eR8G8B8A8Unorm);
+    EXPECT_EQ(outputResource.format, vk::Format::eR32Sint);
     EXPECT_TRUE(viewEquals(outputResource.shape, {2, 2, 1}));
     EXPECT_TRUE(viewEquals(inputResource.stride, {4}));
     EXPECT_EQ(intermediateResource.index, 2);
