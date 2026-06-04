@@ -159,6 +159,7 @@ class Compute {
     void dumpNeuralDebugDatabase(const std::filesystem::path &neuralDebugDatabaseDumpDir) const;
     void dumpNeuralStatistics(const std::filesystem::path &neuralStatisticsDumpDir,
                               vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) const;
+    void dumpGraphProfilingData(const std::filesystem::path &graphProfilingDumpDir) const;
     void sessionRAMsDump(const std::filesystem::path &sessionRAMsDumpDir) const;
 
   private:

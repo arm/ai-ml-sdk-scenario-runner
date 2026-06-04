@@ -1358,6 +1358,11 @@ void Scenario::saveResults(bool dryRun) {
         _compute.dumpNeuralStatistics(_opts.neuralStatisticsDumpDir, _opts.neuralStatisticsMode);
     }
 
+    // Store Graph Profiling Data Dump
+    if (_opts.shouldDumpGraphProfiling()) {
+        _compute.dumpGraphProfilingData(_opts.graphProfilingDumpDir);
+    }
+
     // Hexdump the session ram for debugging
     if (!_opts.sessionRAMsDumpDir.empty()) {
         _compute.sessionRAMsDump(_opts.sessionRAMsDumpDir);

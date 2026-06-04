@@ -26,6 +26,7 @@ struct ScenarioOptions {
     std::filesystem::path pipelineCachePath;
     std::filesystem::path neuralDebugDatabaseDumpDir;
     std::filesystem::path neuralStatisticsDumpDir;
+    std::filesystem::path graphProfilingDumpDir;
     std::filesystem::path sessionRAMsDumpDir;
     std::filesystem::path perfCountersPath;
     std::filesystem::path profilingPath;
@@ -34,6 +35,7 @@ struct ScenarioOptions {
 
     bool shouldDumpNeuralDebugDatabase() const { return !neuralDebugDatabaseDumpDir.empty(); }
     bool shouldDumpNeuralStatistics() const { return !neuralStatisticsDumpDir.empty(); }
+    bool shouldDumpGraphProfiling() const { return !graphProfilingDumpDir.empty(); }
 };
 
 struct DispatchComputeData;

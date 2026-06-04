@@ -89,6 +89,8 @@ class Pipeline {
     std::vector<T> getGraphPipelinePropertyData(const vk::raii::Device &device,
                                                 vk::DataGraphPipelinePropertyARM property) const;
 
+    bool hasGraphPipelineProperty(const vk::raii::Device &device, vk::DataGraphPipelinePropertyARM property) const;
+
     const std::string &debugName() const;
 
     const std::optional<NeuralStatisticsMemoryInfo> &neuralStatisticsMemoryInfo() const {
