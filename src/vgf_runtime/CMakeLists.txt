@@ -40,6 +40,7 @@ if(SCENARIO_RUNNER_BUILD_TESTS)
     target_compile_definitions(vgf_runtime_tests PRIVATE
         VGF_RUNTIME_MAXPOOL_16X16_TO_8X8_SPVASM="${CMAKE_CURRENT_SOURCE_DIR}/tests/resources/spvasm/maxpool_16x16_to_8x8.spvasm"
         VGF_RUNTIME_MAXPOOL_8X8_TO_4X4_SPVASM="${CMAKE_CURRENT_SOURCE_DIR}/tests/resources/spvasm/maxpool_8x8_to_4x4.spvasm"
+        VGF_RUNTIME_ADD_INT32_BUFFERS_SPVASM="${CMAKE_CURRENT_SOURCE_DIR}/tests/resources/spvasm/add_int32_buffers.spvasm"
     )
     target_compile_options(vgf_runtime_tests PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
 

@@ -56,13 +56,19 @@ inline std::vector<uint32_t> assembleSpirv(std::string_view text) {
         throw std::runtime_error("Failed to instantiate SPIR-V tools");
     }
 
+    std::string diagnostics;
+    tools.SetMessageConsumer([&](spv_message_level_t, const char *, const spv_position_t &position,
+                                 const char *message) {
+        diagnostics += std::to_string(position.line) + ":" + std::to_string(position.column) + ": " + message + "\n";
+    });
+
     std::vector<uint32_t> spirvModule;
     if (!tools.Assemble(std::string(text), &spirvModule)) {
-        throw std::runtime_error("Failed to assemble SPIR-V program");
+        throw std::runtime_error("Failed to assemble SPIR-V program\n" + diagnostics);
     }
 
     if (!tools.Validate(spirvModule)) {
-        throw std::runtime_error("Failed to validate SPIR-V program");
+        throw std::runtime_error("Failed to validate SPIR-V program\n" + diagnostics);
     }
 
     return spirvModule;
@@ -109,7 +115,8 @@ inline bool hasExtension(const std::vector<vk::ExtensionProperties> &extensions,
 inline uint32_t findDataGraphQueueFamily(const vk::raii::PhysicalDevice &physicalDevice) {
     const auto queueFamilies = physicalDevice.getQueueFamilyProperties();
     for (uint32_t i = 0; i < static_cast<uint32_t>(queueFamilies.size()); ++i) {
-        if (queueFamilies[i].queueFlags & vk::QueueFlagBits::eDataGraphARM) {
+        const auto requiredFlags = vk::QueueFlagBits::eDataGraphARM | vk::QueueFlagBits::eCompute;
+        if ((queueFamilies[i].queueFlags & requiredFlags) == requiredFlags) {
             return i;
         }
     }
@@ -184,6 +191,38 @@ struct Tensor {
     std::vector<int64_t> shape;
     vk::raii::DeviceMemory memory{nullptr};
     vk::raii::TensorARM tensor{nullptr};
+    vk::DeviceSize memorySize = 0;
+};
+
+struct Buffer {
+    Buffer(const vk::raii::PhysicalDevice &physicalDevice, const vk::raii::Device &device, vk::DeviceSize size)
+        : buffer(device, vk::BufferCreateInfo({}, size, vk::BufferUsageFlagBits::eStorageBuffer)) {
+        const auto memoryRequirements = buffer.getMemoryRequirements();
+        memorySize = memoryRequirements.size;
+        const auto memoryType =
+            findMemoryType(physicalDevice, memoryRequirements.memoryTypeBits,
+                           vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+        memory = vk::raii::DeviceMemory(device, {memorySize, memoryType});
+        buffer.bindMemory(*memory, 0);
+    }
+
+    void write(const std::vector<int32_t> &values) const {
+        void *data = memory.mapMemory(0, memorySize);
+        std::memset(data, 0, static_cast<size_t>(memorySize));
+        std::copy(values.begin(), values.end(), static_cast<int32_t *>(data));
+        memory.unmapMemory();
+    }
+
+    std::vector<int32_t> read(size_t elements) const {
+        const void *data = memory.mapMemory(0, memorySize);
+        const auto *begin = static_cast<const int32_t *>(data);
+        std::vector<int32_t> result(begin, begin + elements);
+        memory.unmapMemory();
+        return result;
+    }
+
+    vk::raii::DeviceMemory memory{nullptr};
+    vk::raii::Buffer buffer{nullptr};
     vk::DeviceSize memorySize = 0;
 };
 

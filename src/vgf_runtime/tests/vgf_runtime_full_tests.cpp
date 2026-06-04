@@ -10,9 +10,11 @@
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_raii.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -43,7 +45,7 @@ class VgfRuntimeFullTest : public ::testing::Test {
             }
         }
         if (queueFamilyIndex == UINT32_MAX) {
-            GTEST_SKIP() << "No Vulkan device with VK_ARM_data_graph and VK_ARM_tensors support";
+            GTEST_SKIP() << "No Vulkan device with VK_ARM_data_graph, VK_ARM_tensors, and compute queue support";
         }
 
         const float queuePriority = 1.0F;
@@ -131,7 +133,67 @@ std::string makeTwoSegmentMaxpoolVgf() {
     });
 }
 
+std::vector<uint32_t> assembleAddInt32BuffersSpirv() {
+    std::ifstream templateFile(VGF_RUNTIME_ADD_INT32_BUFFERS_SPVASM);
+    std::string spvasm((std::istreambuf_iterator<char>(templateFile)), {});
+    return assembleSpirv(spvasm);
+}
+
+std::string makeAddInt32BuffersVgf() {
+    const auto &code = assembleAddInt32BuffersSpirv();
+    return writeVgf([&](mlsdk::vgflib::Encoder &encoder) {
+        const auto module = encoder.AddModule(mlsdk::vgflib::ModuleType::COMPUTE, "add_int32_buffers", "main", code);
+
+        const auto firstInput =
+            encoder.AddInputResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_SINT, {10}, {4});
+        const auto secondInput =
+            encoder.AddInputResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_SINT, {10}, {4});
+        const auto output = encoder.AddOutputResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_SINT, {10}, {4});
+
+        const auto firstInputBinding = encoder.AddBindingSlot(0, firstInput);
+        const auto secondInputBinding = encoder.AddBindingSlot(1, secondInput);
+        const auto outputBinding = encoder.AddBindingSlot(2, output);
+        const auto inputSet = encoder.AddDescriptorSetInfo({firstInputBinding, secondInputBinding}, 0);
+        const auto outputSet = encoder.AddDescriptorSetInfo({outputBinding}, 1);
+        encoder.AddSegmentInfo(module, "add_int32_buffers_segment", {inputSet, outputSet},
+                               {firstInputBinding, secondInputBinding}, {outputBinding}, {}, {10, 1, 1});
+    });
+}
+
 } // namespace
+
+TEST_F(VgfRuntimeFullTest, RunComputeShaderSegment) {
+    constexpr size_t elements = 10;
+    constexpr vk::DeviceSize bufferSize = elements * sizeof(int32_t);
+
+    const auto bytes = makeAddInt32BuffersVgf();
+    const VGF vgf(bytes.data(), bytes.size());
+
+    Buffer firstInputBuffer(physicalDevice, device, bufferSize);
+    Buffer secondInputBuffer(physicalDevice, device, bufferSize);
+    Buffer outputBuffer(physicalDevice, device, bufferSize);
+
+    const std::vector<int32_t> firstInput = {1, 2, 3, 4, 5, -6, -7, 8, 9, 10};
+    const std::vector<int32_t> secondInput = {10, 9, 8, 7, 6, 5, 4, -3, -2, -1};
+    std::vector<int32_t> expected(elements);
+    std::transform(firstInput.begin(), firstInput.end(), secondInput.begin(), expected.begin(), std::plus<>());
+
+    firstInputBuffer.write(firstInput);
+    secondInputBuffer.write(secondInput);
+    outputBuffer.write(std::vector<int32_t>(elements, 0));
+
+    Session session(physicalDevice, device, queueFamilyIndex, queue, vgf);
+    const auto bindings = vgf.getDescriptorBindings(0);
+    ASSERT_EQ(bindings.size(), 3);
+    session.bindBuffer(firstInputBuffer.buffer, bindings[0]);
+    session.bindBuffer(secondInputBuffer.buffer, bindings[1]);
+    session.bindBuffer(outputBuffer.buffer, bindings[2]);
+
+    session.configure();
+    session.run();
+
+    EXPECT_EQ(outputBuffer.read(elements), expected);
+}
 
 TEST_F(VgfRuntimeFullTest, RunMaxpoolDataVGF) {
     const auto bytes = makeMaxpoolVgf();
