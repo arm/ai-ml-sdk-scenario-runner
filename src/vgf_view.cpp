@@ -6,6 +6,7 @@
 
 #include "data_manager.hpp"
 #include "iresource.hpp"
+#include "utils.hpp"
 
 #include <numeric>
 
@@ -30,9 +31,13 @@ std::string createResourceGuidStr(uint32_t index, vgflib::ResourceCategory categ
     return std::string("Resource_").append(std::to_string(index)).append(categoryToSuffix(category));
 }
 
-uint32_t bufferSize(const vgflib::DataView<int64_t> &shape) {
+uint32_t bufferElementCount(const vgflib::DataView<int64_t> &shape) {
     return static_cast<uint32_t>(
         std::abs(std::accumulate(shape.begin(), shape.end(), int64_t(1), std::multiplies<int64_t>())));
+}
+
+uint32_t bufferSize(const vgflib::DataView<int64_t> &shape, vk::Format format) {
+    return bufferElementCount(shape) * elementSizeFromVkFormat(format);
 }
 
 constexpr vgflib::DescriptorType DESCRIPTOR_TYPE_UNKNOWN = 0;
@@ -274,7 +279,7 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
 
         // Check if buffer sizes match
         auto shape = resourceTableDecoder->getTensorShape(vgfMrtIndex);
-        auto expectedBufferSize = bufferSize(shape);
+        auto expectedBufferSize = bufferElementCount(shape);
         if (buffer.size() != expectedBufferSize) {
             throw std::runtime_error("Mismatch of buffer size declarations between JSON and VGF file");
         }
@@ -335,7 +340,8 @@ void VgfView::createIntermediateResources(IResourceCreator &creator) const {
             switch (descriptorType) {
             case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
             case DESCRIPTOR_TYPE_STORAGE_BUFFER: {
-                auto expectedBufferSize = bufferSize(shape);
+                auto expectedBufferSize =
+                    bufferSize(shape, vk::Format(resourceTableDecoder->getVkFormat(resourceIndex)));
 
                 // Create Scenario Runner buffer resource
                 BufferInfo info{std::move(guidStr), expectedBufferSize};
