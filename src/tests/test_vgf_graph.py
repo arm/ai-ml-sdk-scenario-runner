@@ -207,6 +207,160 @@ def test_conv2d_vgf_mismatching_resource_type_or_resource_data_type_or_resource_
         sdk_tools.run_scenario("test_vgf_graph/conv2d.json")
 
 
+def test_external_binding_collision_ignores_intermediate_resource(
+    sdk_tools, resources_helper, numpy_helper
+):
+    conv2d_spv_path = sdk_tools.assemble_spirv(
+        "test_vgf_graph/conv2d.spvasm",
+        {
+            "INPUT_SET": "0",
+            "INPUT_BINDING": "0",
+            "OUTPUT_SET": "0",
+            "OUTPUT_BINDING": "1",
+        },
+    )
+    sdk_tools.validate_spirv(conv2d_spv_path)
+    conv2dCode = np.fromfile(conv2d_spv_path, dtype=np.uint32)
+
+    sdk_tools.compile_shader(
+        "test_vgf_graph/colliding_intermediate.comp",
+        output="colliding_intermediate.spv",
+    )
+
+    encoder = vgf.CreateEncoder(pretendVulkanHeaderVersion)
+
+    graphModule = encoder.AddModule(vgf.ModuleType.Graph, "conv2d", "main", conv2dCode)
+    shaderModule = encoder.AddModule(
+        vgf.ModuleType.Compute, "colliding_intermediate", "main"
+    )
+
+    conv2dInput = encoder.AddInputResource(
+        DESCRIPTOR_TYPE_TENSOR_ARM, VK_FORMAT_R8_SINT, [1, 16, 16, 16], []
+    )
+    conv2dOutput = encoder.AddOutputResource(
+        DESCRIPTOR_TYPE_TENSOR_ARM, VK_FORMAT_R8_SINT, [1, 8, 8, 16], []
+    )
+    shaderIntermediate = encoder.AddIntermediateResource(
+        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+    )
+    shaderOutput = encoder.AddOutputResource(
+        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+    )
+
+    conv2dInputBinding = encoder.AddBindingSlot(0, conv2dInput)
+    conv2dOutputBinding = encoder.AddBindingSlot(1, conv2dOutput)
+    shaderIntermediateBinding = encoder.AddBindingSlot(0, shaderIntermediate)
+    shaderOutputBinding = encoder.AddBindingSlot(2, shaderOutput)
+
+    conv2dDescSetInfo = encoder.AddDescriptorSetInfo(
+        [conv2dInputBinding, conv2dOutputBinding]
+    )
+    shaderDescSetInfo = encoder.AddDescriptorSetInfo(
+        [shaderIntermediateBinding, shaderOutputBinding]
+    )
+
+    encoder.AddModelSequenceInputsOutputs(
+        [conv2dInputBinding],
+        ["conv2dInput"],
+        [conv2dOutputBinding, shaderOutputBinding],
+        ["conv2dOutput", "shaderOutput"],
+    )
+
+    const0Shape = [16, 2, 2, 16]
+    constantResource0 = encoder.AddConstantResource(VK_FORMAT_R8_SINT, const0Shape, [])
+    constantData0 = np.full((16 * 2 * 2 * 16), 1, dtype=np.int8)
+    constantRef0 = encoder.AddConstant(constantResource0, constantData0)
+
+    encoder.AddSegmentInfo(
+        graphModule,
+        "conv2d_graph_segment",
+        [conv2dDescSetInfo],
+        [conv2dInputBinding],
+        [conv2dOutputBinding],
+        [constantRef0],
+    )
+    encoder.AddSegmentInfo(
+        shaderModule,
+        "colliding_shader_segment",
+        [shaderDescSetInfo],
+        [shaderIntermediateBinding],
+        [shaderOutputBinding],
+        [],
+        [1024, 1, 1],
+    )
+
+    encoder.Finish()
+
+    vgfStream = io.FileIO(
+        resources_helper.get_testenv_path("external_binding_collision.vgf"), mode="wb"
+    )
+    assert encoder.WriteTo(vgfStream)
+    vgfStream.close()
+
+    numpy_helper.generate([1, 16, 16, 16], dtype=np.int8, filename="conv2dInput.npy")
+
+    sdk_tools.run_scenario(
+        "test_vgf_graph/external_binding_ignores_intermediate_collision.json"
+    )
+
+
+def test_external_binding_resolves_model_output_with_shader_local_binding(
+    sdk_tools, resources_helper
+):
+    sdk_tools.compile_shader(
+        "test_vgf_graph/colliding_intermediate.comp",
+        output="interface_output_binding_mismatch.spv",
+    )
+
+    encoder = vgf.CreateEncoder(pretendVulkanHeaderVersion)
+
+    shaderModule = encoder.AddModule(
+        vgf.ModuleType.Compute, "interface_output_binding_mismatch", "main"
+    )
+
+    shaderInput = encoder.AddIntermediateResource(
+        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+    )
+    shaderOutput = encoder.AddOutputResource(
+        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+    )
+
+    shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
+    shaderLocalOutputBinding = encoder.AddBindingSlot(2, shaderOutput)
+    modelOutputBinding = encoder.AddBindingSlot(17, shaderOutput)
+
+    shaderDescSetInfo = encoder.AddDescriptorSetInfo(
+        [shaderInputBinding, shaderLocalOutputBinding]
+    )
+
+    encoder.AddModelSequenceInputsOutputs(
+        [], [], [modelOutputBinding], ["shaderOutput"]
+    )
+
+    encoder.AddSegmentInfo(
+        shaderModule,
+        "interface_output_binding_mismatch_segment",
+        [shaderDescSetInfo],
+        [shaderInputBinding],
+        [modelOutputBinding],
+        [],
+        [1024, 1, 1],
+    )
+
+    encoder.Finish()
+
+    vgfStream = io.FileIO(
+        resources_helper.get_testenv_path("interface_output_binding_mismatch.vgf"),
+        mode="wb",
+    )
+    assert encoder.WriteTo(vgfStream)
+    vgfStream.close()
+
+    sdk_tools.run_scenario(
+        "test_vgf_graph/external_binding_resolves_model_output_with_shader_local_binding.json"
+    )
+
+
 def test_maxpool_conv2d_parallel_vgf(sdk_tools, resources_helper, numpy_helper):
 
     maxpool_spv_path = sdk_tools.assemble_spirv(

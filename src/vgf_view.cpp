@@ -9,6 +9,7 @@
 #include "utils.hpp"
 
 #include <numeric>
+#include <optional>
 
 namespace mlsdk::scenariorunner {
 namespace {
@@ -61,6 +62,21 @@ constexpr vk::DescriptorType getVkDescriptorType(vgflib::DescriptorType descript
     default:
         throw std::runtime_error("Descriptor type from VGF file not found");
     }
+}
+
+std::optional<uint32_t> findModelInterfaceMrtIndex(const vgflib::ModelSequenceTableDecoder &decoder,
+                                                   uint32_t bindingId) {
+    const auto findInBindingSlots = [&](vgflib::BindingSlotArrayHandle handle) -> std::optional<uint32_t> {
+        for (uint32_t slot = 0; slot < decoder.getBindingsSize(handle); ++slot) {
+            if (decoder.getBindingSlotBinding(handle, slot) == bindingId) {
+                return decoder.getBindingSlotMrtIndex(handle, slot);
+            }
+        }
+        return std::nullopt;
+    };
+
+    const auto mrtIndex = findInBindingSlots(decoder.getModelSequenceInputBindingSlotsHandle());
+    return mrtIndex.has_value() ? mrtIndex : findInBindingSlots(decoder.getModelSequenceOutputBindingSlotsHandle());
 }
 
 } // namespace
@@ -250,15 +266,21 @@ std::vector<TypedBinding> VgfView::resolveBindings(uint32_t segmentIndex, const 
         }
 
         const DataManagerResourceViewer resourceViewer(dataManager, externalBinding.resourceRef);
-        for (auto &binding : bindings) {
-            if (binding.set == externalBinding.set && binding.id == externalBinding.id) {
-                binding.resourceRef = externalBinding.resourceRef;
+        const auto externalMrtIndex = findModelInterfaceMrtIndex(*sequenceTableDecoder, externalBinding.id);
+        if (!externalMrtIndex.has_value()) {
+            continue;
+        }
 
-                auto mrtIndexSearch = mrtIndexes.find({externalBinding.set, externalBinding.id});
-                if (mrtIndexSearch == mrtIndexes.end()) {
-                    throw std::runtime_error("No resource found in MRT Table");
-                }
-                validateResource(resourceViewer, mrtIndexSearch->second);
+        for (auto &binding : bindings) {
+            auto mrtIndexSearch = mrtIndexes.find({binding.set, binding.id});
+            if (mrtIndexSearch == mrtIndexes.end()) {
+                throw std::runtime_error("No resource found in MRT Table");
+            }
+            const auto segmentMrtIndex = mrtIndexSearch->second;
+
+            if (segmentMrtIndex == externalMrtIndex.value()) {
+                binding.resourceRef = externalBinding.resourceRef;
+                validateResource(resourceViewer, segmentMrtIndex);
             }
         }
     }
