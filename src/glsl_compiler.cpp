@@ -79,7 +79,7 @@ std::pair<std::string, std::vector<uint32_t>> GlslCompiler::compile(const std::s
 
     DirStackFileIncluder includer;
     for (const auto &dir : shaderDirs) {
-        includer.pushExternalLocalDirectory(dir);
+        includer.pushExternalDirectory(dir);
     };
 
     const std::string userPreamble = parsePreprocessorOptions(preprocessorOptions);
