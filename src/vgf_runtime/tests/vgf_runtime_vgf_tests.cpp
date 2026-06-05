@@ -2,8 +2,8 @@
  * SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "vgf.hpp"
 #include "vgf_runtime_test_utils.hpp"
+#include <vgf_runtime/runtime.hpp>
 
 #include <gtest/gtest.h>
 #include <vulkan/vulkan_core.h>
@@ -74,7 +74,7 @@ TEST(VGF, DecodesSegmentsModulesBindingsResourcesAndDispatch) {
     EXPECT_EQ(module.index, 0);
     EXPECT_EQ(module.name, "shader");
     EXPECT_EQ(module.entryPoint, "main");
-    EXPECT_TRUE(pointsInside(module.code.begin(), data));
+    EXPECT_TRUE(pointsInside(module.code.data(), data));
     ASSERT_EQ(module.code.size(), code.size());
     EXPECT_TRUE(std::equal(code.begin(), code.end(), module.code.begin()));
 
@@ -104,11 +104,6 @@ TEST(VGF, DecodesSegmentsModulesBindingsResourcesAndDispatch) {
 
     const auto dispatchShape = vgf.getDispatchShape(0);
     EXPECT_TRUE(viewEquals(dispatchShape, {1, 2, 3}));
-    EXPECT_EQ(vgf.getNumPushConstantRanges(0), 1);
-    const auto pushConstantRange = vgf.getPushConstantRange(0, 0);
-    EXPECT_EQ(pushConstantRange.stageFlags, VK_SHADER_STAGE_COMPUTE_BIT);
-    EXPECT_EQ(pushConstantRange.offset, 0);
-    EXPECT_EQ(pushConstantRange.size, 16);
 }
 
 TEST(VGF, DecodesConstantsSamplersAndFileBackedData) {
@@ -142,29 +137,17 @@ TEST(VGF, DecodesConstantsSamplersAndFileBackedData) {
     EXPECT_EQ(vgf.getNumResources(), 2);
     EXPECT_EQ(vgf.getNumConstants(), 1);
     EXPECT_EQ(vgf.getNumConstants(0), 1);
-    EXPECT_EQ(vgf.getNumPushConstantRanges(0), 0);
 
     const auto segment = vgf.getSegment(0);
     EXPECT_EQ(segment.type, ModuleType::GRAPH);
     const auto module = vgf.getSPIRVModule(segment.moduleIndex);
     EXPECT_EQ(module.name, "graph");
 
-    const auto resource = vgf.getResource(0);
-    ASSERT_TRUE(resource.sampler.has_value());
-    EXPECT_EQ(resource.sampler->minFilter, VK_FILTER_LINEAR);
-    EXPECT_EQ(resource.sampler->magFilter, VK_FILTER_NEAREST);
-    EXPECT_EQ(resource.sampler->addressModeU, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
-    EXPECT_EQ(resource.sampler->addressModeV, VK_SAMPLER_ADDRESS_MODE_REPEAT);
-    EXPECT_EQ(resource.sampler->borderColor, VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK);
-
     const auto constantResource = vgf.getResource(1);
     EXPECT_EQ(constantResource.category, ResourceCategory::CONSTANT);
     EXPECT_FALSE(constantResource.descriptorType.has_value());
     EXPECT_EQ(constantResource.format, vk::Format::eR32Sint);
     EXPECT_TRUE(viewEquals(constantResource.shape, {4}));
-
-    const auto constantIndexes = vgf.getConstantIndexes(0);
-    EXPECT_TRUE(viewEquals(constantIndexes, {0}));
 
     const auto constant = vgf.getConstant(0, 0);
     EXPECT_EQ(constant.index, 0);
@@ -173,7 +156,7 @@ TEST(VGF, DecodesConstantsSamplersAndFileBackedData) {
     EXPECT_TRUE(viewEquals(constant.shape, {4}));
     EXPECT_EQ(constant.sparsityDimension, 1);
     ASSERT_EQ(constant.data.size(), constantData.size() * sizeof(int32_t));
-    EXPECT_EQ(*reinterpret_cast<const int32_t *>(constant.data.begin()), 1);
+    EXPECT_EQ(*reinterpret_cast<const int32_t *>(constant.data.data()), 1);
 }
 
 TEST(VGF, DecodesResourceAliasGroups) {

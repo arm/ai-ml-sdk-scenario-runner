@@ -1,5 +1,5 @@
 #
-# SPDX-FileCopyrightText: Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -53,6 +53,19 @@ macro(mlsdk_package)
     include(CPack)
     include(CMakePackageConfigHelpers)
 
+    if(TARGET vgf_runtime)
+        set(SCENARIO_RUNNER_HAS_VGF_RUNTIME TRUE)
+    else()
+        set(SCENARIO_RUNNER_HAS_VGF_RUNTIME FALSE)
+    endif()
+
+    configure_package_config_file(
+        "${PROJECT_SOURCE_DIR}/cmake/Config.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/${ARGS_PACKAGE_NAME}Config.cmake"
+        INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${ARGS_PACKAGE_NAME}"
+        PATH_VARS CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_LIBDIR
+        NO_CHECK_REQUIRED_COMPONENTS_MACRO)
+
     write_basic_package_version_file("${ARGS_PACKAGE_NAME}ConfigVersion.cmake"
         VERSION ${CPACK_PACKAGE_VERSION}
         COMPATIBILITY ExactVersion)
@@ -61,6 +74,8 @@ macro(mlsdk_package)
             NAMESPACE ${ARGS_NAMESPACE}::
             DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${ARGS_PACKAGE_NAME}")
 
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${ARGS_PACKAGE_NAME}Config.cmake"
+            DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${ARGS_PACKAGE_NAME}")
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${ARGS_PACKAGE_NAME}ConfigVersion.cmake"
             DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${ARGS_PACKAGE_NAME}")
     install(FILES "${PROJECT_SOURCE_DIR}/ai-ml-sdk-scenario-runner.spdx.json"
