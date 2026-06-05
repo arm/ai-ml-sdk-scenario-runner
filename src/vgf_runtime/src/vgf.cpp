@@ -12,32 +12,6 @@
 namespace mlsdk::vgf_runtime {
 namespace {
 
-template <typename T> DataView<T> toDataView(vgflib::DataView<T> view) { return {view.begin(), view.size()}; }
-
-ModuleType toModuleType(vgflib::ModuleType type) {
-    switch (type) {
-    case vgflib::ModuleType::GRAPH:
-        return ModuleType::GRAPH;
-    case vgflib::ModuleType::COMPUTE:
-        return ModuleType::SHADER;
-    }
-    return ModuleType::UNKNOWN;
-}
-
-ResourceCategory toResourceCategory(vgflib::ResourceCategory category) {
-    switch (category) {
-    case vgflib::ResourceCategory::INPUT:
-        return ResourceCategory::INPUT;
-    case vgflib::ResourceCategory::OUTPUT:
-        return ResourceCategory::OUTPUT;
-    case vgflib::ResourceCategory::INTERMEDIATE:
-        return ResourceCategory::INTERMEDIATE;
-    case vgflib::ResourceCategory::CONSTANT:
-        return ResourceCategory::CONSTANT;
-    }
-    return ResourceCategory::UNKNOWN;
-}
-
 void decode(const void *data, std::size_t size, std::unique_ptr<vgflib::HeaderDecoder> &header,
             std::unique_ptr<vgflib::ModuleTableDecoder> &moduleTable,
             std::unique_ptr<vgflib::ModelSequenceTableDecoder> &modelSequenceTable,
@@ -62,7 +36,7 @@ VGF::VGF(const std::filesystem::path &vgf) : mapped_(std::make_unique<MemoryMap>
            constants_);
 }
 
-VGF::VGF(const void *data, std::size_t size) : mapped_(nullptr) {
+VGF::VGF(const void *data, std::size_t size) {
     decode(data, size, header_, moduleTable_, modelSequenceTable_, modelResourceTable_, constants_);
 }
 
@@ -82,7 +56,7 @@ std::vector<DescriptorBindingInfo> VGF::getDescriptorBindings(uint32_t segmentIn
             const uint32_t resourceIndex = modelSequenceTable_->getBindingSlotMrtIndex(handle, slot);
             bindings.push_back({set, modelSequenceTable_->getBindingSlotBinding(handle, slot), resourceIndex,
                                 vk::DescriptorType(*modelResourceTable_->getDescriptorType(resourceIndex)),
-                                toResourceCategory(modelResourceTable_->getCategory(resourceIndex))});
+                                modelResourceTable_->getCategory(resourceIndex)});
         }
     }
     return bindings;
@@ -104,7 +78,7 @@ SegmentInfo VGF::getSegment(uint32_t segmentIndex) const {
     const uint32_t moduleIndex = modelSequenceTable_->getSegmentModuleIndex(segmentIndex);
     return {segmentIndex,
             std::string(modelSequenceTable_->getSegmentName(segmentIndex)),
-            toModuleType(modelSequenceTable_->getSegmentType(segmentIndex)),
+            modelSequenceTable_->getSegmentType(segmentIndex),
             moduleIndex,
             std::string(moduleTable_->getModuleName(moduleIndex)),
             std::string(moduleTable_->getModuleEntryPoint(moduleIndex))};
@@ -112,19 +86,18 @@ SegmentInfo VGF::getSegment(uint32_t segmentIndex) const {
 
 SPIRVModule VGF::getSPIRVModule(uint32_t moduleIndex) const {
     return {moduleIndex, std::string(moduleTable_->getModuleName(moduleIndex)),
-            std::string(moduleTable_->getModuleEntryPoint(moduleIndex)),
-            toDataView(moduleTable_->getSPIRVModuleCode(moduleIndex))};
+            std::string(moduleTable_->getModuleEntryPoint(moduleIndex)), moduleTable_->getSPIRVModuleCode(moduleIndex)};
 }
 
 ResourceInfo VGF::getResource(uint32_t resourceIndex) const {
     const auto descriptorType = modelResourceTable_->getDescriptorType(resourceIndex);
     ResourceInfo resource{resourceIndex,
-                          toResourceCategory(modelResourceTable_->getCategory(resourceIndex)),
+                          modelResourceTable_->getCategory(resourceIndex),
                           descriptorType ? std::optional<vk::DescriptorType>(vk::DescriptorType(*descriptorType))
                                          : std::nullopt,
                           vk::Format(modelResourceTable_->getVkFormat(resourceIndex)),
-                          toDataView(modelResourceTable_->getTensorShape(resourceIndex)),
-                          toDataView(modelResourceTable_->getTensorStride(resourceIndex)),
+                          modelResourceTable_->getTensorShape(resourceIndex),
+                          modelResourceTable_->getTensorStride(resourceIndex),
                           std::nullopt};
     if (const auto *sampler = modelResourceTable_->getSamplerConfigHandle(resourceIndex)) {
         resource.sampler = SamplerInfo{modelResourceTable_->getSamplerConfigMinFilter(sampler),
@@ -136,8 +109,8 @@ ResourceInfo VGF::getResource(uint32_t resourceIndex) const {
     return resource;
 }
 
-DataView<uint32_t> VGF::getConstantIndexes(uint32_t segmentIndex) const {
-    return toDataView(modelSequenceTable_->getSegmentConstantIndexes(segmentIndex));
+vgflib::DataView<uint32_t> VGF::getConstantIndexes(uint32_t segmentIndex) const {
+    return modelSequenceTable_->getSegmentConstantIndexes(segmentIndex);
 }
 
 ConstantInfo VGF::getConstant(uint32_t segmentIndex, uint32_t index) const {
@@ -147,14 +120,14 @@ ConstantInfo VGF::getConstant(uint32_t segmentIndex, uint32_t index) const {
     return {constantIndex,
             resourceIndex,
             vk::Format(modelResourceTable_->getVkFormat(resourceIndex)),
-            toDataView(modelResourceTable_->getTensorShape(resourceIndex)),
-            toDataView(modelResourceTable_->getTensorStride(resourceIndex)),
-            toDataView(constants_->getConstant(constantIndex)),
+            modelResourceTable_->getTensorShape(resourceIndex),
+            modelResourceTable_->getTensorStride(resourceIndex),
+            constants_->getConstant(constantIndex),
             constants_->getConstantSparsityDimension(constantIndex)};
 }
 
-DataView<uint32_t> VGF::getDispatchShape(uint32_t segmentIndex) const {
-    return toDataView(modelSequenceTable_->getSegmentDispatchShape(segmentIndex));
+vgflib::DataView<uint32_t> VGF::getDispatchShape(uint32_t segmentIndex) const {
+    return modelSequenceTable_->getSegmentDispatchShape(segmentIndex);
 }
 
 uint32_t VGF::getNumPushConstantRanges(uint32_t segmentIndex) const {
