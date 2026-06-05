@@ -4,12 +4,13 @@
 #
 
 add_library(vgf_runtime STATIC
-    session.cpp
-    vgf.cpp
+    src/session.cpp
+    src/vgf.cpp
 )
 
-target_include_directories(vgf_runtime PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
+target_include_directories(vgf_runtime
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 target_link_libraries(vgf_runtime
