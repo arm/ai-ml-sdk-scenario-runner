@@ -154,21 +154,13 @@ struct Session::BoundTensor {
     DescriptorBindingInfo binding;
     vk::TensorARM tensor{nullptr};
     vk::raii::TensorViewARM tensorView{nullptr};
+    BoundMemoryInfo memory{};
 };
 
 struct Session::BoundBuffer {
     DescriptorBindingInfo binding;
     vk::Buffer buffer{nullptr};
-};
-
-struct Session::OwnedTensor {
-    vk::raii::DeviceMemory memory{nullptr};
-    vk::raii::TensorARM tensor{nullptr};
-};
-
-struct Session::OwnedBuffer {
-    vk::raii::DeviceMemory memory{nullptr};
-    vk::raii::Buffer buffer{nullptr};
+    BoundMemoryInfo memory{};
 };
 
 struct Session::SegmentState {
@@ -199,13 +191,37 @@ const Session::BoundTensor *Session::findBoundTensor(uint32_t resourceIndex) con
         std::find_if(boundTensors_.rbegin(), boundTensors_.rend(), [resourceIndex](const auto &boundTensor) {
             return boundTensor.binding.resourceIndex == resourceIndex;
         });
-    return tensor != boundTensors_.rend() ? &*tensor : nullptr;
+    if (tensor == boundTensors_.rend()) {
+        throw std::runtime_error("No tensor bound for VGF resource " + std::to_string(resourceIndex));
+    }
+    return &*tensor;
 }
 
 const Session::BoundBuffer *Session::findBoundBuffer(uint32_t resourceIndex) const {
     const auto buffer =
         std::find_if(boundBuffers_.rbegin(), boundBuffers_.rend(), [resourceIndex](const auto &boundBuffer) {
             return boundBuffer.binding.resourceIndex == resourceIndex;
+        });
+    if (buffer == boundBuffers_.rend()) {
+        throw std::runtime_error("No buffer bound for VGF resource " + std::to_string(resourceIndex));
+    }
+    return &*buffer;
+}
+
+const Session::BoundTensor *Session::findBoundTensorInAliasGroup(uint32_t aliasGroupId) const {
+    const auto tensor =
+        std::find_if(boundTensors_.rbegin(), boundTensors_.rend(), [this, aliasGroupId](const auto &boundTensor) {
+            const auto resource = vgf_.getResource(boundTensor.binding.resourceIndex);
+            return resource.aliasGroupId.has_value() && *resource.aliasGroupId == aliasGroupId;
+        });
+    return tensor != boundTensors_.rend() ? &*tensor : nullptr;
+}
+
+const Session::BoundBuffer *Session::findBoundBufferInAliasGroup(uint32_t aliasGroupId) const {
+    const auto buffer =
+        std::find_if(boundBuffers_.rbegin(), boundBuffers_.rend(), [this, aliasGroupId](const auto &boundBuffer) {
+            const auto resource = vgf_.getResource(boundBuffer.binding.resourceIndex);
+            return resource.aliasGroupId.has_value() && *resource.aliasGroupId == aliasGroupId;
         });
     return buffer != boundBuffers_.rend() ? &*buffer : nullptr;
 }
@@ -240,8 +256,10 @@ void Session::updateDescriptorSets(const std::vector<vk::raii::DescriptorSet> &d
 
 void Session::insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer, const SegmentState &producer,
                                    const SegmentState &consumer) const {
+    std::vector<vk::MemoryBarrier2> memoryBarriers;
     std::vector<vk::TensorMemoryBarrierARM> tensorBarriers;
     std::vector<vk::BufferMemoryBarrier2> bufferBarriers;
+    std::vector<uint32_t> barrierAliasGroupIds;
     std::vector<uint32_t> barrierResourceIndices;
 
     for (const auto &producerBinding : producer.bindings) {
@@ -249,6 +267,24 @@ void Session::insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer, const
              producerBinding.resourceCategory != vgflib::ResourceCategory::INTERMEDIATE) ||
             std::find(barrierResourceIndices.begin(), barrierResourceIndices.end(), producerBinding.resourceIndex) !=
                 barrierResourceIndices.end()) {
+            continue;
+        }
+
+        const auto resource = vgf_.getResource(producerBinding.resourceIndex);
+        if (resource.aliasGroupId.has_value()) {
+            if (std::find(barrierAliasGroupIds.begin(), barrierAliasGroupIds.end(), *resource.aliasGroupId) !=
+                barrierAliasGroupIds.end()) {
+                continue;
+            }
+
+            vk::MemoryBarrier2 memoryBarrier;
+            memoryBarrier.srcStageMask = pipelineStage(producer.type);
+            memoryBarrier.srcAccessMask = writeAccess(producer.type);
+            memoryBarrier.dstStageMask = pipelineStage(consumer.type);
+            memoryBarrier.dstAccessMask = readAccess(consumer.type) | writeAccess(consumer.type);
+
+            memoryBarriers.push_back(memoryBarrier);
+            barrierAliasGroupIds.push_back(*resource.aliasGroupId);
             continue;
         }
 
@@ -291,13 +327,15 @@ void Session::insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer, const
         }
     }
 
-    if (tensorBarriers.empty() && bufferBarriers.empty()) {
+    if (memoryBarriers.empty() && tensorBarriers.empty() && bufferBarriers.empty()) {
         return;
     }
 
     vk::TensorDependencyInfoARM tensorDependencyInfo(static_cast<uint32_t>(tensorBarriers.size()),
                                                      tensorBarriers.data());
     vk::DependencyInfo dependencyInfo;
+    dependencyInfo.memoryBarrierCount = static_cast<uint32_t>(memoryBarriers.size());
+    dependencyInfo.pMemoryBarriers = memoryBarriers.data();
     dependencyInfo.bufferMemoryBarrierCount = static_cast<uint32_t>(bufferBarriers.size());
     dependencyInfo.pBufferMemoryBarriers = bufferBarriers.data();
     if (!tensorBarriers.empty()) {
@@ -306,83 +344,197 @@ void Session::insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer, const
     commandBuffer.pipelineBarrier2(dependencyInfo);
 }
 
-void Session::addBoundTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInfo binding) {
+void Session::addBoundTensor(vk::TensorARM tensor, DescriptorBindingInfo binding, BoundMemoryInfo memory) {
     const auto resource = vgf_.getResource(binding.resourceIndex);
-    const vk::TensorViewCreateInfoARM viewCreateInfo({}, *tensor, resource.format);
-    boundTensors_.push_back({binding, *tensor, vk::raii::TensorViewARM(device_, viewCreateInfo)});
+    const vk::TensorViewCreateInfoARM viewCreateInfo({}, tensor, resource.format);
+    boundTensors_.push_back({binding, tensor, vk::raii::TensorViewARM(device_, viewCreateInfo), memory});
 }
 
-void Session::addBoundBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding) {
-    boundBuffers_.push_back({binding, *buffer});
+void Session::addBoundBuffer(vk::Buffer buffer, DescriptorBindingInfo binding, BoundMemoryInfo memory) {
+    boundBuffers_.push_back({binding, buffer, memory});
 }
 
-void Session::bindTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInfo binding) {
-    const auto resource = vgf_.getResource(binding.resourceIndex);
-    if (resource.category != vgflib::ResourceCategory::INPUT && resource.category != vgflib::ResourceCategory::OUTPUT) {
-        throw std::runtime_error(std::string("VGF ") + resourceCategoryName(resource.category) + " resource " +
-                                 std::to_string(binding.resourceIndex) + " must not be manually bound");
-    }
-    addBoundTensor(tensor, binding);
-}
-
-void Session::bindBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding) {
+void Session::bindTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInfo binding, BoundMemoryInfo memory) {
     const auto resource = vgf_.getResource(binding.resourceIndex);
     if (resource.category != vgflib::ResourceCategory::INPUT && resource.category != vgflib::ResourceCategory::OUTPUT) {
         throw std::runtime_error(std::string("VGF ") + resourceCategoryName(resource.category) + " resource " +
                                  std::to_string(binding.resourceIndex) + " must not be manually bound");
     }
-    addBoundBuffer(buffer, binding);
+    addBoundTensor(*tensor, binding, memory);
 }
 
-void Session::allocateIntermediateTensor(const DescriptorBindingInfo &binding) {
+void Session::bindBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding, BoundMemoryInfo memory) {
     const auto resource = vgf_.getResource(binding.resourceIndex);
-    OwnedTensor ownedTensor;
+    if (resource.category != vgflib::ResourceCategory::INPUT && resource.category != vgflib::ResourceCategory::OUTPUT) {
+        throw std::runtime_error(std::string("VGF ") + resourceCategoryName(resource.category) + " resource " +
+                                 std::to_string(binding.resourceIndex) + " must not be manually bound");
+    }
+    addBoundBuffer(*buffer, binding, memory);
+}
+
+vk::raii::TensorARM Session::createIntermediateTensor(const DescriptorBindingInfo &binding) const {
+    const auto resource = vgf_.getResource(binding.resourceIndex);
 
     const vk::TensorDescriptionARM description(vk::TensorTilingARM::eLinear, resource.format,
                                                static_cast<uint32_t>(resource.shape.size()), resource.shape.begin(),
                                                resource.stride.empty() ? nullptr : resource.stride.begin(),
                                                vk::TensorUsageFlagBitsARM::eDataGraph);
     const vk::TensorCreateInfoARM createInfo({}, &description, vk::SharingMode::eExclusive);
-    ownedTensor.tensor = vk::raii::TensorARM(device_, createInfo);
+    return vk::raii::TensorARM(device_, createInfo);
+}
 
+vk::raii::Buffer Session::createIntermediateBuffer(const DescriptorBindingInfo &binding) const {
+    const auto resource = vgf_.getResource(binding.resourceIndex);
+    return vk::raii::Buffer(
+        device_, vk::BufferCreateInfo({}, resourceByteSize(resource), vk::BufferUsageFlagBits::eStorageBuffer));
+}
+
+void Session::allocateIntermediateTensor(const DescriptorBindingInfo &binding) {
+    auto ownedTensor = createIntermediateTensor(binding);
     const auto memoryRequirements =
-        device_.getTensorMemoryRequirementsARM(vk::TensorMemoryRequirementsInfoARM(*ownedTensor.tensor));
+        device_.getTensorMemoryRequirementsARM(vk::TensorMemoryRequirementsInfoARM(*ownedTensor));
     const auto memoryType = findMemoryType(physicalDevice_, memoryRequirements.memoryRequirements.memoryTypeBits,
                                            vk::MemoryPropertyFlagBits::eDeviceLocal);
-    ownedTensor.memory = vk::raii::DeviceMemory(device_, {memoryRequirements.memoryRequirements.size, memoryType});
-    device_.bindTensorMemoryARM(vk::BindTensorMemoryInfoARM(*ownedTensor.tensor, *ownedTensor.memory, 0));
+    ownedMemory_.emplace_back(device_, vk::MemoryAllocateInfo(memoryRequirements.memoryRequirements.size, memoryType));
+    device_.bindTensorMemoryARM(vk::BindTensorMemoryInfoARM(*ownedTensor, *ownedMemory_.back(), 0));
 
     ownedTensors_.push_back(std::move(ownedTensor));
-    addBoundTensor(ownedTensors_.back().tensor, binding);
+    addBoundTensor(ownedTensors_.back(), binding);
 }
 
 void Session::allocateIntermediateBuffer(const DescriptorBindingInfo &binding) {
-    const auto resource = vgf_.getResource(binding.resourceIndex);
-    OwnedBuffer ownedBuffer;
-    ownedBuffer.buffer = vk::raii::Buffer(
-        device_, vk::BufferCreateInfo({}, resourceByteSize(resource), vk::BufferUsageFlagBits::eStorageBuffer));
-
-    const auto memoryRequirements = ownedBuffer.buffer.getMemoryRequirements();
+    auto ownedBuffer = createIntermediateBuffer(binding);
+    const auto memoryRequirements = ownedBuffer.getMemoryRequirements();
     const auto memoryType =
         findMemoryType(physicalDevice_, memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
-    ownedBuffer.memory = vk::raii::DeviceMemory(device_, {memoryRequirements.size, memoryType});
-    ownedBuffer.buffer.bindMemory(*ownedBuffer.memory, 0);
+    ownedMemory_.emplace_back(device_, vk::MemoryAllocateInfo(memoryRequirements.size, memoryType));
+    ownedBuffer.bindMemory(*ownedMemory_.back(), 0);
 
     ownedBuffers_.push_back(std::move(ownedBuffer));
-    addBoundBuffer(ownedBuffers_.back().buffer, binding);
+    addBoundBuffer(ownedBuffers_.back(), binding);
 }
 
-void Session::allocateIntermediateResources() {
-    std::vector<uint32_t> allocatedResourceIndices;
-    for (const auto &segment : segments_) {
-        for (const auto &binding : segment.bindings) {
-            // Skip if not intermediate resource
-            if (binding.resourceCategory != vgflib::ResourceCategory::INTERMEDIATE) {
+void Session::allocateAliasedResources(const std::vector<DescriptorBindingInfo> &bindings) {
+    std::vector<std::pair<DescriptorBindingInfo, vk::raii::TensorARM>> tensors;
+    std::vector<std::pair<DescriptorBindingInfo, vk::raii::Buffer>> buffers;
+
+    const auto aliasGroupId = *vgf_.getResource(bindings.front().resourceIndex).aliasGroupId;
+
+    uint32_t memoryTypeBits = std::numeric_limits<uint32_t>::max();
+    vk::DeviceSize memorySize = 0;
+    for (const auto &binding : bindings) {
+        if (binding.descriptorType == vk::DescriptorType::eTensorARM) {
+            // Add already bound input/output tensor
+            if (const auto *const aliasedTensor = findBoundTensorInAliasGroup(aliasGroupId)) {
+                addBoundTensor(aliasedTensor->tensor, binding, aliasedTensor->memory);
                 continue;
             }
+            if (binding.resourceCategory != vgflib::ResourceCategory::INTERMEDIATE) {
+                throw std::runtime_error("No manually bound tensor for aliased VGF resource " +
+                                         std::to_string(binding.resourceIndex));
+            }
+            const auto *const aliasedBuffer = findBoundBufferInAliasGroup(aliasGroupId);
+            auto ownedTensor = createIntermediateTensor(binding);
+            // If buffer in alias group already bound
+            if (aliasedBuffer != nullptr) {
+                if (aliasedBuffer->memory.memory == nullptr) {
+                    throw std::runtime_error("Manually bound buffer for aliased VGF resource " +
+                                             std::to_string(aliasedBuffer->binding.resourceIndex) +
+                                             " must include memory info");
+                }
+                device_.bindTensorMemoryARM(vk::BindTensorMemoryInfoARM(*ownedTensor, aliasedBuffer->memory.memory,
+                                                                        aliasedBuffer->memory.offset));
+                ownedTensors_.push_back(std::move(ownedTensor));
+                addBoundTensor(*ownedTensors_.back(), binding, aliasedBuffer->memory);
+            } else {
+                const auto memoryRequirements =
+                    device_.getTensorMemoryRequirementsARM(vk::TensorMemoryRequirementsInfoARM(*ownedTensor))
+                        .memoryRequirements;
+                memoryTypeBits &= memoryRequirements.memoryTypeBits;
+                memorySize = std::max(memorySize, memoryRequirements.size);
+                tensors.emplace_back(binding, std::move(ownedTensor));
+            }
+        } else if (binding.descriptorType == vk::DescriptorType::eStorageBuffer) {
+            // Add already bound input/output buffer
+            if (const auto *const aliasedBuffer = findBoundBufferInAliasGroup(aliasGroupId)) {
+                addBoundBuffer(aliasedBuffer->buffer, binding, aliasedBuffer->memory);
+                continue;
+            }
+            if (binding.resourceCategory != vgflib::ResourceCategory::INTERMEDIATE) {
+                throw std::runtime_error("No manually bound buffer for aliased VGF resource " +
+                                         std::to_string(binding.resourceIndex));
+            }
+            const auto *const aliasedTensor = findBoundTensorInAliasGroup(aliasGroupId);
+            auto ownedBuffer = createIntermediateBuffer(binding);
+            // If tensor in alias group already bound
+            if (aliasedTensor != nullptr) {
+                if (aliasedTensor->memory.memory == nullptr) {
+                    throw std::runtime_error("Manually bound tensor for aliased VGF resource " +
+                                             std::to_string(aliasedTensor->binding.resourceIndex) +
+                                             " must include memory info");
+                }
+                ownedBuffer.bindMemory(aliasedTensor->memory.memory, aliasedTensor->memory.offset);
+                ownedBuffers_.push_back(std::move(ownedBuffer));
+                addBoundBuffer(*ownedBuffers_.back(), binding, aliasedTensor->memory);
+            } else {
+                const auto memoryRequirements = ownedBuffer.getMemoryRequirements();
+                memoryTypeBits &= memoryRequirements.memoryTypeBits;
+                memorySize = std::max(memorySize, memoryRequirements.size);
+                buffers.emplace_back(binding, std::move(ownedBuffer));
+            }
+        } else {
+            throw std::runtime_error("Session does not support descriptor type " +
+                                     std::to_string(static_cast<uint32_t>(binding.descriptorType)));
+        }
+    }
+
+    if (tensors.empty() && buffers.empty()) {
+        return;
+    }
+
+    // Allocate and add fully intermediate aliased resources
+    const auto memoryType = findMemoryType(physicalDevice_, memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
+    ownedMemory_.emplace_back(device_, vk::MemoryAllocateInfo(memorySize, memoryType));
+    const vk::DeviceMemory memory = *ownedMemory_.back();
+
+    for (auto &[binding, ownedTensor] : tensors) {
+        device_.bindTensorMemoryARM(vk::BindTensorMemoryInfoARM(*ownedTensor, memory, 0));
+        ownedTensors_.push_back(std::move(ownedTensor));
+        addBoundTensor(*ownedTensors_.back(), binding, {*ownedMemory_.back(), 0, memorySize});
+    }
+
+    for (auto &[binding, ownedBuffer] : buffers) {
+        ownedBuffer.bindMemory(memory, 0);
+        ownedBuffers_.push_back(std::move(ownedBuffer));
+        addBoundBuffer(*ownedBuffers_.back(), binding, {*ownedMemory_.back(), 0, memorySize});
+    }
+}
+
+void Session::allocateResources() {
+    std::vector<uint32_t> allocatedResourceIndices;
+    std::map<uint32_t, std::vector<DescriptorBindingInfo>> aliasGroups;
+    for (const auto &segment : segments_) {
+        for (const auto &binding : segment.bindings) {
             // Skip if already present
             if (std::find(allocatedResourceIndices.begin(), allocatedResourceIndices.end(), binding.resourceIndex) !=
                 allocatedResourceIndices.end()) {
+                continue;
+            }
+
+            // Only allocate non-aliased resources in current loop
+            const auto resource = vgf_.getResource(binding.resourceIndex);
+            if (binding.resourceCategory != vgflib::ResourceCategory::INTERMEDIATE) {
+                // If aliased Input/Output
+                if (resource.aliasGroupId.has_value()) {
+                    aliasGroups[*resource.aliasGroupId].push_back(binding);
+                }
+                allocatedResourceIndices.push_back(binding.resourceIndex);
+                continue;
+            }
+
+            if (resource.aliasGroupId.has_value()) {
+                aliasGroups[*resource.aliasGroupId].push_back(binding);
+                allocatedResourceIndices.push_back(binding.resourceIndex);
                 continue;
             }
 
@@ -399,6 +551,10 @@ void Session::allocateIntermediateResources() {
             }
             allocatedResourceIndices.push_back(binding.resourceIndex);
         }
+    }
+
+    for (const auto &aliasGroup : aliasGroups) {
+        allocateAliasedResources(aliasGroup.second);
     }
 }
 
@@ -548,7 +704,7 @@ void Session::configure() {
     for (uint32_t segmentIndex = 0; segmentIndex < vgf_.getNumSegments(); ++segmentIndex) {
         configureSegment(segmentIndex);
     }
-    allocateIntermediateResources();
+    allocateResources();
 
     commandPool_ =
         vk::raii::CommandPool(device_, {vk::CommandPoolCreateFlagBits::eResetCommandBuffer, queueFamilyIndex_});

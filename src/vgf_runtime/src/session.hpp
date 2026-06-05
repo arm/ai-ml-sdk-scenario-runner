@@ -14,6 +14,12 @@ namespace mlsdk::vgf_runtime {
 
 class Session {
   public:
+    struct BoundMemoryInfo {
+        vk::DeviceMemory memory;
+        vk::DeviceSize offset;
+        vk::DeviceSize size;
+    };
+
     Session(const vk::raii::PhysicalDevice &physicalDevice, const vk::raii::Device &device, uint32_t queueFamilyIndex,
             const vk::raii::Queue &queue, const VGF &vgf);
     ~Session();
@@ -23,8 +29,10 @@ class Session {
     Session(Session &&) = delete;
     Session &operator=(Session &&) = delete;
 
-    void bindTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInfo binding);
-    void bindBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding);
+    void bindTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInfo binding,
+                    BoundMemoryInfo memory = BoundMemoryInfo());
+    void bindBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding,
+                    BoundMemoryInfo memory = BoundMemoryInfo());
 
     // Init cmd buffer, pipelines etc
     void configure();
@@ -35,18 +43,22 @@ class Session {
   private:
     struct BoundTensor;
     struct BoundBuffer;
-    struct OwnedTensor;
-    struct OwnedBuffer;
     struct SegmentState;
 
     void configureSegment(uint32_t segmentIndex);
-    void allocateIntermediateResources();
+    void allocateResources();
+    vk::raii::TensorARM createIntermediateTensor(const DescriptorBindingInfo &binding) const;
+    vk::raii::Buffer createIntermediateBuffer(const DescriptorBindingInfo &binding) const;
     void allocateIntermediateTensor(const DescriptorBindingInfo &binding);
     void allocateIntermediateBuffer(const DescriptorBindingInfo &binding);
-    void addBoundTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInfo binding);
-    void addBoundBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding);
+    void allocateAliasedResources(const std::vector<DescriptorBindingInfo> &bindings);
+    void addBoundTensor(vk::TensorARM tensor, DescriptorBindingInfo binding,
+                        BoundMemoryInfo memory = BoundMemoryInfo());
+    void addBoundBuffer(vk::Buffer buffer, DescriptorBindingInfo binding, BoundMemoryInfo memory = BoundMemoryInfo());
     const BoundTensor *findBoundTensor(uint32_t resourceIndex) const;
     const BoundBuffer *findBoundBuffer(uint32_t resourceIndex) const;
+    const BoundTensor *findBoundTensorInAliasGroup(uint32_t aliasGroupId) const;
+    const BoundBuffer *findBoundBufferInAliasGroup(uint32_t aliasGroupId) const;
     void updateDescriptorSets(const std::vector<vk::raii::DescriptorSet> &descriptorSets,
                               const std::vector<DescriptorBindingInfo> &bindings) const;
     void insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer, const SegmentState &producer,
@@ -59,8 +71,9 @@ class Session {
     uint32_t queueFamilyIndex_ = 0;
     const vk::raii::Queue &queue_;
 
-    std::vector<OwnedTensor> ownedTensors_;
-    std::vector<OwnedBuffer> ownedBuffers_;
+    std::vector<vk::raii::DeviceMemory> ownedMemory_;
+    std::vector<vk::raii::TensorARM> ownedTensors_;
+    std::vector<vk::raii::Buffer> ownedBuffers_;
     std::vector<BoundTensor> boundTensors_;
     std::vector<BoundBuffer> boundBuffers_;
     std::vector<SegmentState> segments_;
