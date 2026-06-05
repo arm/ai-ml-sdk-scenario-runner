@@ -5,6 +5,7 @@
 #pragma once
 
 #include "iresource.hpp"
+#include "scenario_runner.hpp"
 #include "types.hpp"
 
 #include "vgf-utils/memory_map.hpp"
@@ -12,10 +13,17 @@
 
 #include <map>
 #include <memory>
+#include <vector>
 
 namespace mlsdk::scenariorunner {
 
 class DataManager;
+
+struct ResourceAlias {
+    Guid group;
+    Guid resource;
+    ResourceIdType resourceType;
+};
 
 class VgfView {
   public:
@@ -42,6 +50,7 @@ class VgfView {
 
     std::vector<TypedBinding> resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
                                               const std::vector<TypedBinding> &externalBindings) const;
+    std::vector<ResourceAlias> getResourceAliases(const std::vector<TypedBinding> &externalBindings) const;
     void createIntermediateResources(IResourceCreator &creator) const;
 
   private:

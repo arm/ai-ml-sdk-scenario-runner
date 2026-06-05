@@ -16,6 +16,7 @@ import vgfpy as vgf
 DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT = 6
 DESCRIPTOR_TYPE_TENSOR_ARM = 1000460000
 VK_FORMAT_R8_SINT = 14
+VK_FORMAT_R16_UINT = 74
 pretendVulkanHeaderVersion = 123
 
 pytestmark = pytest.mark.vgf_shader
@@ -628,6 +629,86 @@ def test_two_spirv_shader_module_in_vgf_with_shader_substitution(
 
     result = numpy_helper.load("output.npy", np.uint8)
     assert np.array_equal(result, np.add(input, 3))
+
+
+def test_vgf_alias_group_for_internal_intermediates(
+    sdk_tools, resources_helper, numpy_helper
+):
+    sdk_tools.compile_shader(
+        "test_memory_aliasing/write_alias_buffer_u16.comp",
+        output="write_alias_buffer_u16.spv",
+    )
+    sdk_tools.compile_shader(
+        "test_memory_aliasing/copy_tensor_shader.comp",
+        output="copy_tensor_shader.spv",
+    )
+
+    encoder = vgf.CreateEncoder(pretendVulkanHeaderVersion)
+
+    module0 = encoder.AddModule(vgf.ModuleType.Compute, "write_alias_buffer", "main")
+    module1 = encoder.AddModule(vgf.ModuleType.Compute, "copy_alias_tensor", "main")
+
+    aliasBuffer = encoder.AddIntermediateResource(
+        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [512], [], 7
+    )
+    aliasTensor = encoder.AddIntermediateResource(
+        DESCRIPTOR_TYPE_TENSOR_ARM, VK_FORMAT_R16_UINT, [1, 16, 16, 1], [], 7
+    )
+    outputTensor = encoder.AddOutputResource(
+        DESCRIPTOR_TYPE_TENSOR_ARM, VK_FORMAT_R16_UINT, [1, 16, 16, 1], []
+    )
+
+    aliasBufferBinding = encoder.AddBindingSlot(0, aliasBuffer)
+    aliasTensorBinding = encoder.AddBindingSlot(0, aliasTensor)
+    outputTensorBinding = encoder.AddBindingSlot(1, outputTensor)
+
+    writerDescSetInfo = encoder.AddDescriptorSetInfo([aliasBufferBinding])
+    readerDescSetInfo = encoder.AddDescriptorSetInfo(
+        [aliasTensorBinding, outputTensorBinding]
+    )
+
+    encoder.AddModelSequenceInputsOutputs(
+        [],
+        [],
+        [outputTensorBinding],
+        ["outputTensor"],
+    )
+
+    encoder.AddSegmentInfo(
+        module0,
+        "write_alias_buffer_segment",
+        [writerDescSetInfo],
+        [],
+        [aliasBufferBinding],
+        [],
+        [16, 16, 1],
+    )
+    encoder.AddSegmentInfo(
+        module1,
+        "copy_alias_tensor_segment",
+        [readerDescSetInfo],
+        [aliasTensorBinding],
+        [outputTensorBinding],
+        [],
+        [16, 16, 1],
+    )
+
+    encoder.Finish()
+
+    vgfStream = io.FileIO(
+        resources_helper.get_testenv_path("alias_intermediates.vgf"), mode="wb"
+    )
+    assert encoder.WriteTo(vgfStream)
+    vgfStream.close()
+
+    sdk_tools.run_scenario(
+        "test_vgf_shader/vgf_alias_group_intermediate_buffer_tensor.json"
+    )
+
+    result = numpy_helper.load("output.npy", np.uint16)
+    expected = (np.arange(256, dtype=np.uint16) + np.uint16(5)).reshape(1, 16, 16, 1)
+
+    assert np.array_equal(result, expected)
 
 
 def test_two_spirv_shader_module_in_vgf_without_shader_substitution(

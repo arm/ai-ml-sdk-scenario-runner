@@ -383,32 +383,72 @@ std::vector<TypedBinding> convertBindings(const DataManager &dataManager,
 
 class Creator final : public IResourceCreator {
   public:
-    Creator(const Context &ctx, DataManager &dataManager) : _ctx{ctx}, _dataManager{dataManager} {}
+    Creator(const Context &ctx, DataManager &dataManager, GroupManager &groupManager)
+        : _ctx{ctx}, _dataManager{dataManager}, _groupManager{groupManager} {}
 
-    void createBuffer(Guid guid, const BufferInfo &info) override {
+    void createBuffer(Guid guid, BufferInfo info) override {
         _dataManager.createBuffer(guid, info);
-        auto &buffer = _dataManager.getBufferMut(guid);
-        buffer.setup(_ctx);
-        buffer.allocateMemory(_ctx);
+        _createdResources.push_back({guid, ResourceIdType::Buffer});
     }
 
-    void createTensor(Guid guid, const TensorInfo &info) override {
+    void createTensor(Guid guid, TensorInfo info) override {
+        info.isAliasedWithImage = _groupManager.hasAliasOfType(guid, ResourceIdType::Image);
         _dataManager.createTensor(guid, info);
-        auto &tensor = _dataManager.getTensorMut(guid);
-        tensor.setup(_ctx);
-        tensor.allocateMemory(_ctx);
+        _createdResources.push_back({guid, ResourceIdType::Tensor});
     }
 
-    void createImage(Guid guid, const ImageInfo &info) override {
+    void createImage(Guid guid, ImageInfo info) override {
+        info.isAliased = _groupManager.isAliased(guid);
         _dataManager.createImage(guid, info);
-        auto &image = _dataManager.getImageMut(guid);
-        image.setup(_ctx);
-        image.allocateMemory(_ctx);
+        _createdResources.push_back({guid, ResourceIdType::Image});
+    }
+
+    void setupCreatedNonTensorResources() {
+        for (const auto &[guid, type] : _createdResources) {
+            switch (type) {
+            case ResourceIdType::Buffer:
+                _dataManager.getBufferMut(guid).setup(_ctx, _groupManager.getMemoryManager(guid));
+                break;
+            case ResourceIdType::Image:
+                _dataManager.getImageMut(guid).setup(_ctx, _groupManager.getMemoryManager(guid));
+                break;
+            default:
+                break;
+            }
+        }
+    }
+
+    void setupCreatedTensorResources() {
+        for (const auto &[guid, type] : _createdResources) {
+            if (type == ResourceIdType::Tensor) {
+                _dataManager.getTensorMut(guid).setup(_ctx, _groupManager.getMemoryManager(guid));
+            }
+        }
+    }
+
+    void allocateCreatedResources() {
+        for (const auto &[guid, type] : _createdResources) {
+            switch (type) {
+            case ResourceIdType::Buffer:
+                _dataManager.getBufferMut(guid).allocateMemory(_ctx);
+                break;
+            case ResourceIdType::Image:
+                _dataManager.getImageMut(guid).allocateMemory(_ctx);
+                break;
+            case ResourceIdType::Tensor:
+                _dataManager.getTensorMut(guid).allocateMemory(_ctx);
+                break;
+            default:
+                break;
+            }
+        }
     }
 
   private:
     const Context &_ctx;
     DataManager &_dataManager;
+    GroupManager &_groupManager;
+    std::vector<GroupResourceEntry> _createdResources;
 };
 
 struct CommandDataFactory {
@@ -725,6 +765,22 @@ void Scenario::setupResources() {
         mlsdk::logging::debug(resourceType(resource) + ": " + resource->guidStr + " loaded");
     }
 
+    Creator vgfResourceCreator{_ctx, _dataManager, _groupManager};
+    for (const auto &command : _scenarioSpec.commands) {
+        if (command->commandType != CommandType::DispatchDataGraph) {
+            continue;
+        }
+
+        const auto &dispatchDataGraph = static_cast<const DispatchDataGraphDesc &>(*command);
+        const auto &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraphRef);
+        const auto externalBindings = convertBindings(_dataManager, dispatchDataGraph.bindings);
+        // Register aliases before creating resources so setup/allocation sees the complete group membership.
+        for (const auto &alias : vgfView.getResourceAliases(externalBindings)) {
+            _groupManager.addResourceToGroup(alias.group, alias.resource, alias.resourceType);
+        }
+        vgfView.createIntermediateResources(vgfResourceCreator);
+    }
+
     // Setup aliasing resources, foundation before accessing tensors
     for (const auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
@@ -740,6 +796,7 @@ void Scenario::setupResources() {
             break; // No action
         }
     }
+    vgfResourceCreator.setupCreatedNonTensorResources();
 
     // Setup tensors, aliasing tensors are dependent on other resources having been constructed
     for (const auto &resource : _scenarioSpec.resources) {
@@ -748,6 +805,7 @@ void Scenario::setupResources() {
             tensorRef.setup(_ctx, _groupManager.getMemoryManager(resource->guid));
         }
     }
+    vgfResourceCreator.setupCreatedTensorResources();
 
     // Setup barrier resource info, these depend on other resources
     BarrierDataFactory barrierDataFactory{_dataManager};
@@ -818,6 +876,7 @@ void Scenario::setupResources() {
         }
         mlsdk::logging::debug(resourceType(resource) + ": " + resource->guidStr + " loaded");
     }
+    vgfResourceCreator.allocateCreatedResources();
 }
 
 void Scenario::setupCommands() {
@@ -1118,8 +1177,6 @@ void Scenario::createFragmentPipeline(const DispatchFragmentData &dispatchFragme
 
 void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries) {
     const VgfView &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraphRef);
-    Creator creator{_ctx, _dataManager};
-    vgfView.createIntermediateResources(creator);
     for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
         const auto &sequenceBindings = vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings);
         auto moduleName = vgfView.getModuleName(segmentIndex);
