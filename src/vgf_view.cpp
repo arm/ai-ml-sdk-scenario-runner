@@ -98,6 +98,103 @@ ResourceIdType getResourceIdType(vgflib::DescriptorType descriptorType) {
 
 Guid createVgfAliasGroupGuid(uint32_t aliasGroupId) { return Guid(std::to_string(aliasGroupId)); }
 
+std::runtime_error unsupportedVgfSamplerValue(const std::string &field, const std::string &value) {
+    return std::runtime_error("Unsupported VGF sampler " + field + ": " + value);
+}
+
+FilterMode vgfSamplerFilterToFilterMode(uint32_t filter) {
+    const auto vgfFilter = vgflib::ToFilterType(static_cast<VkFilter>(filter));
+    if (!vgflib::ValidateDecodedFilterType(vgfFilter)) {
+        throw unsupportedVgfSamplerValue("filter", vgflib::FilterTypeToName(vgfFilter));
+    }
+
+    const auto vkFilter = static_cast<vk::Filter>(vgflib::ToVkFilter(vgfFilter));
+    switch (vkFilter) {
+    case vk::Filter::eNearest:
+        return FilterMode::Nearest;
+    case vk::Filter::eLinear:
+        return FilterMode::Linear;
+    default:
+        throw unsupportedVgfSamplerValue("filter", vk::to_string(vkFilter));
+    }
+}
+
+AddressMode vgfSamplerAddressModeToAddressMode(uint32_t addressMode) {
+    const auto vgfAddressMode = vgflib::ToSamplerAddressModeType(static_cast<VkSamplerAddressMode>(addressMode));
+    if (!vgflib::ValidateDecodedSamplerAddressModeType(vgfAddressMode)) {
+        throw unsupportedVgfSamplerValue("address mode", vgflib::SamplerAddressModeTypeToName(vgfAddressMode));
+    }
+
+    const auto vkAddressMode = static_cast<vk::SamplerAddressMode>(vgflib::ToVkSamplerAddressMode(vgfAddressMode));
+    switch (vkAddressMode) {
+    case vk::SamplerAddressMode::eClampToBorder:
+        return AddressMode::ClampBorder;
+    case vk::SamplerAddressMode::eClampToEdge:
+        return AddressMode::ClampEdge;
+    case vk::SamplerAddressMode::eRepeat:
+        return AddressMode::Repeat;
+    case vk::SamplerAddressMode::eMirroredRepeat:
+        return AddressMode::MirroredRepeat;
+    default:
+        throw unsupportedVgfSamplerValue("address mode", vk::to_string(vkAddressMode));
+    }
+}
+
+BorderColor vgfBorderColorToBorderColor(uint32_t borderColor) {
+    const auto vgfBorderColor = vgflib::ToBorderColorType(static_cast<VkBorderColor>(borderColor));
+    if (!vgflib::ValidateDecodedBorderColorType(vgfBorderColor)) {
+        throw unsupportedVgfSamplerValue("border color", vgflib::BorderColorTypeToName(vgfBorderColor));
+    }
+
+    const auto vkBorderColor = static_cast<vk::BorderColor>(vgflib::ToVkBorderColor(vgfBorderColor));
+    switch (vkBorderColor) {
+    case vk::BorderColor::eFloatTransparentBlack:
+        return BorderColor::FloatTransparentBlack;
+    case vk::BorderColor::eFloatOpaqueBlack:
+        return BorderColor::FloatOpaqueBlack;
+    case vk::BorderColor::eFloatOpaqueWhite:
+        return BorderColor::FloatOpaqueWhite;
+    case vk::BorderColor::eIntTransparentBlack:
+        return BorderColor::IntTransparentBlack;
+    case vk::BorderColor::eIntOpaqueBlack:
+        return BorderColor::IntOpaqueBlack;
+    case vk::BorderColor::eIntOpaqueWhite:
+        return BorderColor::IntOpaqueWhite;
+    case vk::BorderColor::eFloatCustomEXT:
+        return BorderColor::FloatCustomEXT;
+    case vk::BorderColor::eIntCustomEXT:
+        return BorderColor::IntCustomEXT;
+    default:
+        throw unsupportedVgfSamplerValue("border color", vk::to_string(vkBorderColor));
+    }
+}
+
+void applyVgfSamplerConfigIfPresent(const vgflib::ModelResourceTableDecoder &decoder, uint32_t resourceIndex,
+                                    ImageInfo &info) {
+    const auto *const samplerConfigHandle = decoder.getSamplerConfigHandle(resourceIndex);
+    if (samplerConfigHandle == nullptr) {
+        return;
+    }
+
+    const auto addressModeU = decoder.getSamplerConfigAddressModeU(samplerConfigHandle);
+    const auto addressModeV = decoder.getSamplerConfigAddressModeV(samplerConfigHandle);
+    if (addressModeU != addressModeV) {
+        const auto vgfAddressModeU = vgflib::ToSamplerAddressModeType(static_cast<VkSamplerAddressMode>(addressModeU));
+        const auto vgfAddressModeV = vgflib::ToSamplerAddressModeType(static_cast<VkSamplerAddressMode>(addressModeV));
+        throw std::runtime_error("Distinct VGF sampler U/V address modes are not yet supported: address_mode_u=" +
+                                 vgflib::SamplerAddressModeTypeToName(vgfAddressModeU) +
+                                 ", address_mode_v=" + vgflib::SamplerAddressModeTypeToName(vgfAddressModeV));
+    }
+
+    info.samplerSettings.minFilter =
+        vgfSamplerFilterToFilterMode(decoder.getSamplerConfigMinFilter(samplerConfigHandle));
+    info.samplerSettings.magFilter =
+        vgfSamplerFilterToFilterMode(decoder.getSamplerConfigMagFilter(samplerConfigHandle));
+    info.samplerSettings.borderColor =
+        vgfBorderColorToBorderColor(decoder.getSamplerConfigBorderColor(samplerConfigHandle));
+    info.samplerSettings.borderAddressMode = vgfSamplerAddressModeToAddressMode(addressModeU);
+}
+
 } // namespace
 
 VgfView::VgfView(std::unique_ptr<MemoryMap> mapped, std::unique_ptr<vgflib::ModuleTableDecoder> moduleTableDecoder,
@@ -446,6 +543,9 @@ void VgfView::createIntermediateResources(IResourceCreator &creator) const {
                 info.mips = 1;
                 info.isSampled = (descriptorType == DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
                 info.isStorage = (descriptorType == DESCRIPTOR_TYPE_STORAGE_IMAGE);
+                if (descriptorType == DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+                    applyVgfSamplerConfigIfPresent(*resourceTableDecoder, resourceIndex, info);
+                }
 
                 creator.createImage(guid, std::move(info));
             } break;
