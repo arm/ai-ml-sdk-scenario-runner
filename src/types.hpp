@@ -85,7 +85,9 @@ struct SamplerSettings {
     FilterMode minFilter = FilterMode::Nearest;
     FilterMode magFilter = FilterMode::Nearest;
     FilterMode mipFilter = FilterMode::Nearest;
-    AddressMode borderAddressMode = AddressMode::ClampEdge;
+    AddressMode addressModeU = AddressMode::ClampEdge;
+    AddressMode addressModeV = AddressMode::ClampEdge;
+    AddressMode addressModeW = AddressMode::ClampEdge;
     BorderColor borderColor = BorderColor::FloatTransparentBlack;
     CustomColorValue customBorderColor;
 };

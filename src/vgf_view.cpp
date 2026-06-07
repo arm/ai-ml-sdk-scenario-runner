@@ -178,13 +178,6 @@ void applyVgfSamplerConfigIfPresent(const vgflib::ModelResourceTableDecoder &dec
 
     const auto addressModeU = decoder.getSamplerConfigAddressModeU(samplerConfigHandle);
     const auto addressModeV = decoder.getSamplerConfigAddressModeV(samplerConfigHandle);
-    if (addressModeU != addressModeV) {
-        const auto vgfAddressModeU = vgflib::ToSamplerAddressModeType(static_cast<VkSamplerAddressMode>(addressModeU));
-        const auto vgfAddressModeV = vgflib::ToSamplerAddressModeType(static_cast<VkSamplerAddressMode>(addressModeV));
-        throw std::runtime_error("Distinct VGF sampler U/V address modes are not yet supported: address_mode_u=" +
-                                 vgflib::SamplerAddressModeTypeToName(vgfAddressModeU) +
-                                 ", address_mode_v=" + vgflib::SamplerAddressModeTypeToName(vgfAddressModeV));
-    }
 
     info.samplerSettings.minFilter =
         vgfSamplerFilterToFilterMode(decoder.getSamplerConfigMinFilter(samplerConfigHandle));
@@ -192,7 +185,8 @@ void applyVgfSamplerConfigIfPresent(const vgflib::ModelResourceTableDecoder &dec
         vgfSamplerFilterToFilterMode(decoder.getSamplerConfigMagFilter(samplerConfigHandle));
     info.samplerSettings.borderColor =
         vgfBorderColorToBorderColor(decoder.getSamplerConfigBorderColor(samplerConfigHandle));
-    info.samplerSettings.borderAddressMode = vgfSamplerAddressModeToAddressMode(addressModeU);
+    info.samplerSettings.addressModeU = vgfSamplerAddressModeToAddressMode(addressModeU);
+    info.samplerSettings.addressModeV = vgfSamplerAddressModeToAddressMode(addressModeV);
 }
 
 } // namespace

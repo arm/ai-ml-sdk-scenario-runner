@@ -207,7 +207,9 @@ struct ResourceInfoFactory {
             info.samplerSettings.mipFilter = image.mipFilter.value();
         }
         if (image.borderAddressMode) {
-            info.samplerSettings.borderAddressMode = image.borderAddressMode.value();
+            info.samplerSettings.addressModeU = image.borderAddressMode.value();
+            info.samplerSettings.addressModeV = image.borderAddressMode.value();
+            info.samplerSettings.addressModeW = image.borderAddressMode.value();
         }
         if (image.borderColor) {
             info.samplerSettings.borderColor = image.borderColor.value();

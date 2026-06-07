@@ -233,13 +233,15 @@ void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> mem
     trySetVkRaiiObjectDebugName(ctx, _image, _imageInfo.debugName);
 
     // Create image sampler
-    const auto borderAddressMode = convertSamplerAddressMode(_imageInfo.samplerSettings.borderAddressMode);
+    const auto addressModeU = convertSamplerAddressMode(_imageInfo.samplerSettings.addressModeU);
+    const auto addressModeV = convertSamplerAddressMode(_imageInfo.samplerSettings.addressModeV);
+    const auto addressModeW = convertSamplerAddressMode(_imageInfo.samplerSettings.addressModeW);
     const auto mipFilter = convertFilter(_imageInfo.samplerSettings.minFilter);
     const auto magFilter = convertFilter(_imageInfo.samplerSettings.magFilter);
     const auto mipMapMode = convertSamplerMipmapMode(_imageInfo.samplerSettings.mipFilter);
     const auto borderColor = convertBorderColor(_imageInfo.samplerSettings.borderColor);
-    vk::SamplerCreateInfo samplerCreateInfo(vk::SamplerCreateFlags(), mipFilter, magFilter, mipMapMode,
-                                            borderAddressMode, borderAddressMode, borderAddressMode,
+    vk::SamplerCreateInfo samplerCreateInfo(vk::SamplerCreateFlags(), mipFilter, magFilter, mipMapMode, addressModeU,
+                                            addressModeV, addressModeW,
                                             /*mipLodBias=*/0.0f, /*anisotropyEnable=*/false, /*maxAnisotropy=*/1.0f,
                                             /*compareEnable=*/false, vk::CompareOp::eNever, /*minLod=*/0.0f,
                                             /*maxLod=*/static_cast<float>(_imageInfo.mips - 1), borderColor);
