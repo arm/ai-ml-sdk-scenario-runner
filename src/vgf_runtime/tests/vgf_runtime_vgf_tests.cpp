@@ -18,6 +18,7 @@
 
 namespace {
 
+using namespace mlsdk::vgflib;
 using namespace mlsdk::vgf_runtime;
 using namespace mlsdk::vgf_runtime::test;
 
@@ -37,8 +38,8 @@ bool pointsInside(const void *ptr, const std::string &buffer) {
 
 TEST(VGF, DecodesSegmentsModulesBindingsResourcesAndDispatch) {
     const auto &code = assembleMaxpoolSpirv("maxpool_set0", {0, 0, 0, 1});
-    const auto data = writeVgf([&](mlsdk::vgflib::Encoder &encoder) {
-        const auto module = encoder.AddModule(mlsdk::vgflib::ModuleType::COMPUTE, "shader", "main", code);
+    const auto data = writeVgf([&](Encoder &encoder) {
+        const auto module = encoder.AddModule(ModuleType::COMPUTE, "shader", "main", code);
         const auto input = encoder.AddInputResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_SFLOAT, {4}, {4});
         const auto output =
             encoder.AddOutputResource(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_FORMAT_R32_SINT, {2, 2, 1}, {});
@@ -64,7 +65,7 @@ TEST(VGF, DecodesSegmentsModulesBindingsResourcesAndDispatch) {
     const auto segment = vgf.getSegment(0);
     EXPECT_EQ(segment.index, 0);
     EXPECT_EQ(segment.name, "segment");
-    EXPECT_EQ(segment.type, ModuleType::SHADER);
+    EXPECT_EQ(segment.type, ModuleType::COMPUTE);
     EXPECT_EQ(segment.moduleIndex, 0);
     EXPECT_EQ(segment.moduleName, "shader");
     EXPECT_EQ(segment.entryPoint, "main");
@@ -73,7 +74,7 @@ TEST(VGF, DecodesSegmentsModulesBindingsResourcesAndDispatch) {
     EXPECT_EQ(module.index, 0);
     EXPECT_EQ(module.name, "shader");
     EXPECT_EQ(module.entryPoint, "main");
-    EXPECT_TRUE(pointsInside(module.code.data(), data));
+    EXPECT_TRUE(pointsInside(module.code.begin(), data));
     ASSERT_EQ(module.code.size(), code.size());
     EXPECT_TRUE(std::equal(code.begin(), code.end(), module.code.begin()));
 
@@ -113,8 +114,8 @@ TEST(VGF, DecodesSegmentsModulesBindingsResourcesAndDispatch) {
 TEST(VGF, DecodesConstantsSamplersAndFileBackedData) {
     const auto &code = assembleMaxpoolSpirv("maxpool_set0", {0, 0, 1, 1});
     const std::array<int32_t, 4> constantData = {1, 2, 3, 4};
-    const auto data = writeVgf([&](mlsdk::vgflib::Encoder &encoder) {
-        const auto module = encoder.AddModule(mlsdk::vgflib::ModuleType::GRAPH, "graph", "main", code);
+    const auto data = writeVgf([&](Encoder &encoder) {
+        const auto module = encoder.AddModule(ModuleType::GRAPH, "graph", "main", code);
         const auto image = encoder.AddInputResource(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_FORMAT_R8G8B8A8_UNORM,
                                                     {4, 4, 1}, {});
         encoder.AddSamplerConfig(image, VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
@@ -172,5 +173,5 @@ TEST(VGF, DecodesConstantsSamplersAndFileBackedData) {
     EXPECT_TRUE(viewEquals(constant.shape, {4}));
     EXPECT_EQ(constant.sparsityDimension, 1);
     ASSERT_EQ(constant.data.size(), constantData.size() * sizeof(int32_t));
-    EXPECT_EQ(*reinterpret_cast<const int32_t *>(constant.data.data()), 1);
+    EXPECT_EQ(*reinterpret_cast<const int32_t *>(constant.data.begin()), 1);
 }

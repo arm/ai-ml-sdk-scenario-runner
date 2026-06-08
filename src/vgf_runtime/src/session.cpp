@@ -57,44 +57,44 @@ void waitForFence(const vk::raii::Device &device, const vk::raii::Fence &fence) 
     }
 }
 
-vk::PipelineBindPoint bindPoint(ModuleType type) {
+vk::PipelineBindPoint bindPoint(vgflib::ModuleType type) {
     switch (type) {
-    case ModuleType::GRAPH:
+    case vgflib::ModuleType::GRAPH:
         return vk::PipelineBindPoint::eDataGraphARM;
-    case ModuleType::SHADER:
+    case vgflib::ModuleType::COMPUTE:
         return vk::PipelineBindPoint::eCompute;
     default:
         throw std::runtime_error("Unsupported VGF module type");
     }
 }
 
-vk::PipelineStageFlags2 pipelineStage(ModuleType type) {
+vk::PipelineStageFlags2 pipelineStage(vgflib::ModuleType type) {
     switch (type) {
-    case ModuleType::GRAPH:
+    case vgflib::ModuleType::GRAPH:
         return vk::PipelineStageFlagBits2::eDataGraphARM;
-    case ModuleType::SHADER:
+    case vgflib::ModuleType::COMPUTE:
         return vk::PipelineStageFlagBits2::eComputeShader;
     default:
         throw std::runtime_error("Unsupported VGF module type");
     }
 }
 
-vk::AccessFlags2 readAccess(ModuleType type) {
+vk::AccessFlags2 readAccess(vgflib::ModuleType type) {
     switch (type) {
-    case ModuleType::GRAPH:
+    case vgflib::ModuleType::GRAPH:
         return vk::AccessFlagBits2::eDataGraphReadARM;
-    case ModuleType::SHADER:
+    case vgflib::ModuleType::COMPUTE:
         return vk::AccessFlagBits2::eShaderRead;
     default:
         throw std::runtime_error("Unsupported VGF module type");
     }
 }
 
-vk::AccessFlags2 writeAccess(ModuleType type) {
+vk::AccessFlags2 writeAccess(vgflib::ModuleType type) {
     switch (type) {
-    case ModuleType::GRAPH:
+    case vgflib::ModuleType::GRAPH:
         return vk::AccessFlagBits2::eDataGraphWriteARM;
-    case ModuleType::SHADER:
+    case vgflib::ModuleType::COMPUTE:
         return vk::AccessFlagBits2::eShaderWrite;
     default:
         throw std::runtime_error("Unsupported VGF module type");
@@ -119,7 +119,7 @@ vk::DeviceSize resourceByteSize(const ResourceInfo &resource) {
 
     if (!resource.stride.empty()) {
         vk::DeviceSize size = elementSize;
-        for (std::size_t i = 0; i < resource.shape.size(); ++i) {
+        for (uint32_t i = 0; i < resource.shape.size(); ++i) {
             size +=
                 static_cast<vk::DeviceSize>(resource.shape[i] - 1) * static_cast<vk::DeviceSize>(resource.stride[i]);
         }
@@ -133,15 +133,15 @@ vk::DeviceSize resourceByteSize(const ResourceInfo &resource) {
     return elements;
 }
 
-std::string resourceCategoryName(ResourceCategory category) {
+std::string resourceCategoryName(vgflib::ResourceCategory category) {
     switch (category) {
-    case ResourceCategory::INPUT:
+    case vgflib::ResourceCategory::INPUT:
         return "input";
-    case ResourceCategory::OUTPUT:
+    case vgflib::ResourceCategory::OUTPUT:
         return "output";
-    case ResourceCategory::INTERMEDIATE:
+    case vgflib::ResourceCategory::INTERMEDIATE:
         return "intermediate";
-    case ResourceCategory::CONSTANT:
+    case vgflib::ResourceCategory::CONSTANT:
         return "constant";
     default:
         return "unknown";
@@ -173,7 +173,7 @@ struct Session::OwnedBuffer {
 
 struct Session::SegmentState {
     // Common members
-    ModuleType type = ModuleType::UNKNOWN;
+    vgflib::ModuleType type;
     vk::raii::ShaderModule shaderModule{nullptr};
     std::vector<vk::raii::DescriptorSetLayout> descriptorSetLayouts;
     vk::raii::PipelineLayout pipelineLayout{nullptr};
@@ -245,8 +245,8 @@ void Session::insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer, const
     std::vector<uint32_t> barrierResourceIndices;
 
     for (const auto &producerBinding : producer.bindings) {
-        if ((producerBinding.resourceCategory != ResourceCategory::OUTPUT &&
-             producerBinding.resourceCategory != ResourceCategory::INTERMEDIATE) ||
+        if ((producerBinding.resourceCategory != vgflib::ResourceCategory::OUTPUT &&
+             producerBinding.resourceCategory != vgflib::ResourceCategory::INTERMEDIATE) ||
             std::find(barrierResourceIndices.begin(), barrierResourceIndices.end(), producerBinding.resourceIndex) !=
                 barrierResourceIndices.end()) {
             continue;
@@ -318,7 +318,7 @@ void Session::addBoundBuffer(const vk::raii::Buffer &buffer, DescriptorBindingIn
 
 void Session::bindTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInfo binding) {
     const auto resource = vgf_.getResource(binding.resourceIndex);
-    if (resource.category != ResourceCategory::INPUT && resource.category != ResourceCategory::OUTPUT) {
+    if (resource.category != vgflib::ResourceCategory::INPUT && resource.category != vgflib::ResourceCategory::OUTPUT) {
         throw std::runtime_error(std::string("VGF ") + resourceCategoryName(resource.category) + " resource " +
                                  std::to_string(binding.resourceIndex) + " must not be manually bound");
     }
@@ -327,7 +327,7 @@ void Session::bindTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInf
 
 void Session::bindBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding) {
     const auto resource = vgf_.getResource(binding.resourceIndex);
-    if (resource.category != ResourceCategory::INPUT && resource.category != ResourceCategory::OUTPUT) {
+    if (resource.category != vgflib::ResourceCategory::INPUT && resource.category != vgflib::ResourceCategory::OUTPUT) {
         throw std::runtime_error(std::string("VGF ") + resourceCategoryName(resource.category) + " resource " +
                                  std::to_string(binding.resourceIndex) + " must not be manually bound");
     }
@@ -339,8 +339,8 @@ void Session::allocateIntermediateTensor(const DescriptorBindingInfo &binding) {
     OwnedTensor ownedTensor;
 
     const vk::TensorDescriptionARM description(vk::TensorTilingARM::eLinear, resource.format,
-                                               static_cast<uint32_t>(resource.shape.size()), resource.shape.data(),
-                                               resource.stride.empty() ? nullptr : resource.stride.data(),
+                                               static_cast<uint32_t>(resource.shape.size()), resource.shape.begin(),
+                                               resource.stride.empty() ? nullptr : resource.stride.begin(),
                                                vk::TensorUsageFlagBitsARM::eDataGraph);
     const vk::TensorCreateInfoARM createInfo({}, &description, vk::SharingMode::eExclusive);
     ownedTensor.tensor = vk::raii::TensorARM(device_, createInfo);
@@ -377,7 +377,7 @@ void Session::allocateIntermediateResources() {
     for (const auto &segment : segments_) {
         for (const auto &binding : segment.bindings) {
             // Skip if not intermediate resource
-            if (binding.resourceCategory != ResourceCategory::INTERMEDIATE) {
+            if (binding.resourceCategory != vgflib::ResourceCategory::INTERMEDIATE) {
                 continue;
             }
             // Skip if already present
@@ -404,7 +404,7 @@ void Session::allocateIntermediateResources() {
 
 void Session::configureSegment(uint32_t segmentIndex) {
     const auto segment = vgf_.getSegment(segmentIndex);
-    if (segment.type != ModuleType::GRAPH && segment.type != ModuleType::SHADER) {
+    if (segment.type != vgflib::ModuleType::GRAPH && segment.type != vgflib::ModuleType::COMPUTE) {
         throw std::runtime_error("Session only supports VGF data graph and compute shader segments");
     }
 
@@ -435,10 +435,10 @@ void Session::configureSegment(uint32_t segmentIndex) {
     state.pipelineLayout = vk::raii::PipelineLayout(device_, pipelineLayoutCreateInfo);
 
     const auto module = vgf_.getSPIRVModule(segment.moduleIndex);
-    const vk::ShaderModuleCreateInfo shaderCreateInfo({}, module.code.size() * sizeof(uint32_t), module.code.data());
+    const vk::ShaderModuleCreateInfo shaderCreateInfo({}, module.code.size() * sizeof(uint32_t), module.code.begin());
     state.shaderModule = vk::raii::ShaderModule(device_, shaderCreateInfo);
 
-    if (segment.type == ModuleType::SHADER) {
+    if (segment.type == vgflib::ModuleType::COMPUTE) {
         const auto dispatchShape = vgf_.getDispatchShape(segmentIndex);
         if (dispatchShape.size() != state.dispatchShape.size() || dispatchShape[0] == 0 || dispatchShape[1] == 0 ||
             dispatchShape[2] == 0) {
@@ -459,8 +459,8 @@ void Session::configureSegment(uint32_t segmentIndex) {
         for (const auto &binding : state.bindings) {
             const auto resource = vgf_.getResource(binding.resourceIndex);
             tensorDescriptions.emplace_back(vk::TensorTilingARM::eLinear, resource.format,
-                                            static_cast<uint32_t>(resource.shape.size()), resource.shape.data(),
-                                            resource.stride.empty() ? nullptr : resource.stride.data(),
+                                            static_cast<uint32_t>(resource.shape.size()), resource.shape.begin(),
+                                            resource.stride.empty() ? nullptr : resource.stride.begin(),
                                             vk::TensorUsageFlagBitsARM::eDataGraph);
             resourceInfos.emplace_back(binding.set, binding.binding, 0, &tensorDescriptions.back());
         }
@@ -475,11 +475,11 @@ void Session::configureSegment(uint32_t segmentIndex) {
             if (constant.sparsityDimension >= 0) {
                 throw std::runtime_error("Sparse VGF graph constants are not supported");
             }
-            constantTensorDescriptions.emplace_back(vk::TensorTilingARM::eLinear, constant.format,
-                                                    static_cast<uint32_t>(constant.shape.size()), constant.shape.data(),
-                                                    constant.stride.empty() ? nullptr : constant.stride.data(),
-                                                    vk::TensorUsageFlagBitsARM::eDataGraph);
-            constants.emplace_back(constant.index, constant.data.data(), &constantTensorDescriptions.back());
+            constantTensorDescriptions.emplace_back(
+                vk::TensorTilingARM::eLinear, constant.format, static_cast<uint32_t>(constant.shape.size()),
+                constant.shape.begin(), constant.stride.empty() ? nullptr : constant.stride.begin(),
+                vk::TensorUsageFlagBitsARM::eDataGraph);
+            constants.emplace_back(constant.index, constant.data.begin(), &constantTensorDescriptions.back());
         }
 
         const vk::DataGraphPipelineShaderModuleCreateInfoARM shaderModuleInfo(
@@ -580,7 +580,7 @@ void Session::run() {
                                               *segment.descriptorSets[set], nullptr);
         }
         commandBuffer_.bindPipeline(pipelineBindPoint, *segment.pipeline);
-        if (segment.type == ModuleType::GRAPH) {
+        if (segment.type == vgflib::ModuleType::GRAPH) {
             commandBuffer_.dispatchDataGraphARM(*segment.graphSession);
         } else {
             commandBuffer_.dispatch(segment.dispatchShape[0], segment.dispatchShape[1], segment.dispatchShape[2]);
