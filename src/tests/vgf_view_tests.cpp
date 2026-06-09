@@ -123,7 +123,9 @@ TEST(VgfView, IntermediateSampledImageUsesVgfSamplerConfig) {
         const auto &samplerSettings = creator.images.front().second.samplerSettings;
         EXPECT_EQ(samplerSettings.minFilter, FilterMode::Linear);
         EXPECT_EQ(samplerSettings.magFilter, FilterMode::Nearest);
-        EXPECT_EQ(samplerSettings.borderAddressMode, AddressMode::ClampBorder);
+        EXPECT_EQ(samplerSettings.addressModeU, AddressMode::ClampBorder);
+        EXPECT_EQ(samplerSettings.addressModeV, AddressMode::ClampBorder);
+        EXPECT_EQ(samplerSettings.addressModeW, AddressMode::ClampEdge);
         EXPECT_EQ(samplerSettings.borderColor, BorderColor::IntOpaqueWhite);
         EXPECT_EQ(samplerSettings.mipFilter, FilterMode::Nearest);
         EXPECT_TRUE(creator.buffers.empty());
@@ -135,7 +137,7 @@ TEST(VgfView, IntermediateSampledImageUsesVgfSamplerConfig) {
     std::filesystem::remove(vgfPath);
 }
 
-TEST(VgfView, IntermediateSampledImageRejectsDistinctVgfAddressModes) {
+TEST(VgfView, IntermediateSampledImageAcceptsDistinctVgfAddressModes) {
     const auto vgfPath =
         writeVgfWithSampledIntermediateImage(VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
 
@@ -143,13 +145,13 @@ TEST(VgfView, IntermediateSampledImageRejectsDistinctVgfAddressModes) {
         auto view = VgfView::createVgfView(vgfPath.string());
         CapturingResourceCreator creator;
 
-        try {
-            view.createIntermediateResources(creator);
-            FAIL() << "Expected createIntermediateResources to reject distinct sampler U/V address modes";
-        } catch (const std::runtime_error &error) {
-            const std::string message = error.what();
-            EXPECT_NE(message.find("Distinct VGF sampler U/V address modes are not yet supported"), std::string::npos);
-        }
+        view.createIntermediateResources(creator);
+
+        ASSERT_EQ(creator.images.size(), 1);
+        const auto &samplerSettings = creator.images.front().second.samplerSettings;
+        EXPECT_EQ(samplerSettings.addressModeU, AddressMode::Repeat);
+        EXPECT_EQ(samplerSettings.addressModeV, AddressMode::ClampEdge);
+        EXPECT_EQ(samplerSettings.addressModeW, AddressMode::ClampEdge);
     } catch (...) {
         std::filesystem::remove(vgfPath);
         throw;
