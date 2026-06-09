@@ -445,6 +445,7 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
         throw std::runtime_error("Descriptor type not found from VGF file");
     }
 
+    auto format = resourceTableDecoder->getVkFormat(vgfMrtIndex);
     const auto descriptorType = expectedType.value();
     switch (descriptorType) {
     case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
@@ -453,7 +454,7 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
 
         // Check if buffer sizes match
         auto shape = resourceTableDecoder->getTensorShape(vgfMrtIndex);
-        auto expectedBufferSize = bufferElementCount(shape);
+        auto expectedBufferSize = bufferSize(shape, vk::Format(format));
         if (buffer.size() != expectedBufferSize) {
             throw std::runtime_error("Mismatch of buffer size declarations between JSON and VGF file");
         }
@@ -472,7 +473,6 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
         }
 
         // Check if tensor data formats match
-        auto format = resourceTableDecoder->getVkFormat(vgfMrtIndex);
         if (static_cast<int32_t>(tensor.dataType()) != format) {
             throw std::runtime_error("Mismatch of tensor data type declarations between JSON and VGF file");
         }
@@ -488,7 +488,6 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
             throw std::runtime_error("Mismatch of image shape declarations between JSON and VGF file");
         }
 
-        auto format = resourceTableDecoder->getVkFormat(vgfMrtIndex);
         if (static_cast<int32_t>(image.dataType()) != format) {
             throw std::runtime_error("Mismatch of image data type declarations between JSON and VGF file");
         }
