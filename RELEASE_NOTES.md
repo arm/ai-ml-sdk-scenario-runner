@@ -2,6 +2,40 @@
 
 ---
 
+## Version 0.10.0 – *Optical Flow, VGF Runtime & APK Packaging*
+
+### Optical Flow Task API
+
+- Added Scenario JSON schema and runtime support for `dispatch_optical_flow`.
+- Added data graph image resource support for optical-flow image inputs and
+  outputs.
+- Added optical-flow image binding validation, including LOD-aware extent checks.
+
+### Highlights
+
+- Added APK packaging support.
+- Added support for running GLSL/HLSL embedded shaders from VGF files.
+- Added support for Neural Accelerator Statistics.
+- Added experimental VGF runtime support for session handling, multi-segment
+  dispatch, storage-buffer resources, alias groups, and embedded shaders.
+
+### Image, Format & Resource Handling
+
+- Added DDS mipmap support and broader image tooling improvements.
+- Added additional Vulkan® image format support and updated the image/tensor
+  format support documentation.
+- Added VGF descriptor-set index handling and fixed VGF binding GUID generation
+  to use MRT resource indices.
+
+### Build, Packaging & Developer Experience
+
+- Split binary and documentation build flows.
+- Improved Android™ build support.
+- Updated dependencies and DXC integration.
+- Added VGF runtime build controls and design documentation.
+- Added an Emulation Layer profiling dump option for serialized per-layer timing
+  reports.
+
 ## Version 0.9.0 – *Datatype, Dispatch & DXC Support*
 
 ### Highlights
