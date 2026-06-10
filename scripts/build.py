@@ -359,6 +359,8 @@ class Builder:
                     "-j",
                     str(self.threads),
                     "--output-on-failure",
+                    "--output-junit",
+                    f"{self.build_dir}/test_results.xml",
                 ]
                 subprocess.run(test_cmd, check=True)
 

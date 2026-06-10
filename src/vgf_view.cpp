@@ -12,6 +12,7 @@
 
 #include <numeric>
 #include <optional>
+#include <string_view>
 
 namespace mlsdk::scenariorunner {
 namespace {
@@ -66,19 +67,53 @@ constexpr vk::DescriptorType getVkDescriptorType(vgflib::DescriptorType descript
     }
 }
 
-std::optional<uint32_t> findModelInterfaceMrtIndex(const vgflib::ModelSequenceTableDecoder &decoder,
-                                                   uint32_t bindingId) {
-    const auto findInBindingSlots = [&](vgflib::BindingSlotArrayHandle handle) -> std::optional<uint32_t> {
+std::string formatShape(const std::vector<int64_t> &shape) {
+    std::string s;
+    s += '[';
+    for (size_t i = 0; i < shape.size(); ++i) {
+        if (i > 0) {
+            s += ", ";
+        }
+        s += std::to_string(shape[i]);
+    }
+    s += ']';
+    return s;
+}
+
+struct ModelInterfaceLookup {
+    uint32_t mrtIndex;
+    bool isOutput;
+    uint32_t slotIndex;
+};
+
+std::optional<ModelInterfaceLookup> findModelInterfaceResource(const vgflib::ModelSequenceTableDecoder &decoder,
+                                                               uint32_t bindingId) {
+    const auto findInHandle = [&](vgflib::BindingSlotArrayHandle handle) -> std::optional<uint32_t> {
         for (uint32_t slot = 0; slot < decoder.getBindingsSize(handle); ++slot) {
             if (decoder.getBindingSlotBinding(handle, slot) == bindingId) {
-                return decoder.getBindingSlotMrtIndex(handle, slot);
+                return slot;
             }
         }
         return std::nullopt;
     };
 
-    const auto mrtIndex = findInBindingSlots(decoder.getModelSequenceInputBindingSlotsHandle());
-    return mrtIndex.has_value() ? mrtIndex : findInBindingSlots(decoder.getModelSequenceOutputBindingSlotsHandle());
+    const auto *inputHandle = decoder.getModelSequenceInputBindingSlotsHandle();
+    if (const auto slot = findInHandle(inputHandle)) {
+        const auto slotIndex = *slot;
+        return ModelInterfaceLookup{decoder.getBindingSlotMrtIndex(inputHandle, slotIndex), false, slotIndex};
+    }
+    const auto *outputHandle = decoder.getModelSequenceOutputBindingSlotsHandle();
+    if (const auto slot = findInHandle(outputHandle)) {
+        const auto slotIndex = *slot;
+        return ModelInterfaceLookup{decoder.getBindingSlotMrtIndex(outputHandle, slotIndex), true, slotIndex};
+    }
+    return std::nullopt;
+}
+
+std::optional<uint32_t> findModelInterfaceMrtIndex(const vgflib::ModelSequenceTableDecoder &decoder,
+                                                   uint32_t bindingId) {
+    const auto result = findModelInterfaceResource(decoder, bindingId);
+    return result ? std::optional<uint32_t>{result->mrtIndex} : std::nullopt;
 }
 
 ResourceIdType getResourceIdType(vgflib::DescriptorType descriptorType) {
@@ -191,15 +226,16 @@ void applyVgfSamplerConfigIfPresent(const vgflib::ModelResourceTableDecoder &dec
 
 } // namespace
 
-VgfView::VgfView(std::unique_ptr<MemoryMap> mapped, std::unique_ptr<vgflib::ModuleTableDecoder> moduleTableDecoder,
+VgfView::VgfView(std::string vgfFileName, std::unique_ptr<MemoryMap> mapped,
+                 std::unique_ptr<vgflib::ModuleTableDecoder> moduleTableDecoder,
                  std::unique_ptr<vgflib::ModelSequenceTableDecoder> sequenceTableDecoder,
                  std::unique_ptr<vgflib::ModelResourceTableDecoder> resourceTableDecoder,
                  std::unique_ptr<vgflib::ConstantDecoder> constantTableDecoder)
-    : mapped(std::move(mapped)), moduleTableDecoder(std::move(moduleTableDecoder)),
-      sequenceTableDecoder(std::move(sequenceTableDecoder)), resourceTableDecoder(std::move(resourceTableDecoder)),
-      constantTableDecoder(std::move(constantTableDecoder)) {}
+    : _vgfFileName(std::move(vgfFileName)), mapped(std::move(mapped)),
+      moduleTableDecoder(std::move(moduleTableDecoder)), sequenceTableDecoder(std::move(sequenceTableDecoder)),
+      resourceTableDecoder(std::move(resourceTableDecoder)), constantTableDecoder(std::move(constantTableDecoder)) {}
 
-VgfView VgfView::createVgfView(const std::string &vgfFile) {
+VgfView VgfView::createVgfView(std::string vgfFile) {
 
     auto mapped = std::make_unique<MemoryMap>(vgfFile);
     auto headerDecoder = vgflib::CreateHeaderDecoder(mapped->ptr(), vgflib::HeaderSize(), mapped->size());
@@ -238,8 +274,8 @@ VgfView VgfView::createVgfView(const std::string &vgfFile) {
         throw std::runtime_error("Invalid constant section");
     }
 
-    VgfView vgfView(std::move(mapped), std::move(moduleTableDecoder), std::move(sequenceTableDecoder),
-                    std::move(resourceTableDecoder), std::move(constantTableDecoder));
+    VgfView vgfView(std::move(vgfFile), std::move(mapped), std::move(moduleTableDecoder),
+                    std::move(sequenceTableDecoder), std::move(resourceTableDecoder), std::move(constantTableDecoder));
     return vgfView;
 }
 
@@ -376,8 +412,8 @@ std::vector<TypedBinding> VgfView::resolveBindings(uint32_t segmentIndex, const 
         }
 
         const DataManagerResourceViewer resourceViewer(dataManager, externalBinding.resourceRef);
-        const auto externalMrtIndex = findModelInterfaceMrtIndex(*sequenceTableDecoder, externalBinding.id);
-        if (!externalMrtIndex.has_value()) {
+        const auto interfaceLookup = findModelInterfaceResource(*sequenceTableDecoder, externalBinding.id);
+        if (!interfaceLookup.has_value()) {
             continue;
         }
 
@@ -388,9 +424,10 @@ std::vector<TypedBinding> VgfView::resolveBindings(uint32_t segmentIndex, const 
             }
             const auto segmentMrtIndex = mrtIndexSearch->second;
 
-            if (segmentMrtIndex == externalMrtIndex.value()) {
+            if (segmentMrtIndex == interfaceLookup->mrtIndex) {
                 binding.resourceRef = externalBinding.resourceRef;
-                validateResource(resourceViewer, segmentMrtIndex);
+                const std::string_view direction = interfaceLookup->isOutput ? "output" : "input";
+                validateResource(resourceViewer, segmentMrtIndex, direction, interfaceLookup->slotIndex);
             }
         }
     }
@@ -433,7 +470,8 @@ std::vector<ResourceAlias> VgfView::getResourceAliases(const std::vector<TypedBi
     return aliases;
 }
 
-void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t vgfMrtIndex) const {
+void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t vgfMrtIndex,
+                               std::string_view vgfDirection, uint32_t vgfSlotIndex) const {
     std::optional<vgflib::DescriptorType> expectedType = resourceTableDecoder->getDescriptorType(vgfMrtIndex);
     if (!expectedType.has_value()) {
         throw std::runtime_error("Descriptor type not found from VGF file");
@@ -441,6 +479,9 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
 
     auto format = resourceTableDecoder->getVkFormat(vgfMrtIndex);
     const auto descriptorType = expectedType.value();
+    const auto getVgfContext = [this, vgfDirection, vgfSlotIndex]() {
+        return "VGF '" + _vgfFileName + "' " + std::string(vgfDirection) + " idx " + std::to_string(vgfSlotIndex);
+    };
     switch (descriptorType) {
     case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
     case DESCRIPTOR_TYPE_STORAGE_BUFFER: {
@@ -450,7 +491,9 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
         auto shape = resourceTableDecoder->getTensorShape(vgfMrtIndex);
         auto expectedBufferSize = bufferSize(shape, vk::Format(format));
         if (buffer.size() != expectedBufferSize) {
-            throw std::runtime_error("Mismatch of buffer size declarations between JSON and VGF file");
+            throw std::runtime_error(getVgfContext() + " expects buffer size " + std::to_string(expectedBufferSize) +
+                                     " but scenario buffer '" + buffer.debugName() + "' has size " +
+                                     std::to_string(buffer.size()));
         }
     } break;
     case DESCRIPTOR_TYPE_TENSOR_ARM: {
@@ -463,12 +506,16 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
 
         // Check if tensor shapes match
         if (actualTensorShape != expectedTensorShape) {
-            throw std::runtime_error("Mismatch of tensor shape declarations between JSON and VGF file");
+            throw std::runtime_error(getVgfContext() + " has shape " + formatShape(expectedTensorShape) +
+                                     " but scenario tensor '" + tensor.debugName() + "' has shape " +
+                                     formatShape(actualTensorShape));
         }
 
         // Check if tensor data formats match
         if (static_cast<int32_t>(tensor.dataType()) != format) {
-            throw std::runtime_error("Mismatch of tensor data type declarations between JSON and VGF file");
+            throw std::runtime_error(getVgfContext() + " has format " + vk::to_string(vk::Format(format)) +
+                                     " but scenario tensor '" + tensor.debugName() + "' has format " +
+                                     vk::to_string(tensor.dataType()));
         }
     } break;
     case DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
@@ -479,15 +526,20 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
         auto dims = resourceTableDecoder->getTensorShape(vgfMrtIndex);
         const std::vector<int64_t> expectedImageShape(dims.begin(), dims.end());
         if (actualImageShape != expectedImageShape) {
-            throw std::runtime_error("Mismatch of image shape declarations between JSON and VGF file");
+            throw std::runtime_error(getVgfContext() + " has shape " + formatShape(expectedImageShape) +
+                                     " but scenario image '" + image.debugName() + "' has shape " +
+                                     formatShape(actualImageShape));
         }
 
         if (static_cast<int32_t>(image.dataType()) != format) {
-            throw std::runtime_error("Mismatch of image data type declarations between JSON and VGF file");
+            throw std::runtime_error(getVgfContext() + " has format " + vk::to_string(vk::Format(format)) +
+                                     " but scenario image '" + image.debugName() + "' has format " +
+                                     vk::to_string(image.dataType()));
         }
     } break;
     default:
-        throw std::runtime_error("No resource validation should be performed for resources different from tensors, "
+        throw std::runtime_error(getVgfContext() +
+                                 "No resource validation should be performed for resources different from tensors, "
                                  "buffers, and images. Found descriptor type: " +
                                  std::to_string(descriptorType));
     }
