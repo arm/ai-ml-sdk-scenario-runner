@@ -175,3 +175,37 @@ TEST(VGF, DecodesConstantsSamplersAndFileBackedData) {
     ASSERT_EQ(constant.data.size(), constantData.size() * sizeof(int32_t));
     EXPECT_EQ(*reinterpret_cast<const int32_t *>(constant.data.begin()), 1);
 }
+
+TEST(VGF, DecodesResourceAliasGroups) {
+    const auto &code = assembleMaxpoolSpirv("maxpool_set0", {0, 0, 0, 1});
+    const auto data = writeVgf([&](mlsdk::vgflib::Encoder &encoder) {
+        constexpr uint32_t aliasGroup = 17;
+        const auto module = encoder.AddModule(mlsdk::vgflib::ModuleType::COMPUTE, "shader", "main", code);
+        const auto input = encoder.AddInputResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_SFLOAT, {4}, {4});
+        const auto tensorAlias = encoder.AddIntermediateResource(VK_DESCRIPTOR_TYPE_TENSOR_ARM, VK_FORMAT_R32_SFLOAT,
+                                                                 {1, 4}, {}, aliasGroup);
+        const auto bufferAlias =
+            encoder.AddIntermediateResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_SFLOAT, {4}, {4});
+        encoder.SetAliasGroup(bufferAlias, aliasGroup);
+
+        const auto inputBinding = encoder.AddBindingSlot(0, input);
+        const auto tensorAliasBinding = encoder.AddBindingSlot(1, tensorAlias);
+        const auto bufferAliasBinding = encoder.AddBindingSlot(2, bufferAlias);
+        const auto descriptorSet =
+            encoder.AddDescriptorSetInfo({inputBinding, tensorAliasBinding, bufferAliasBinding}, 0);
+        encoder.AddSegmentInfo(module, "segment", {descriptorSet}, {inputBinding},
+                               {tensorAliasBinding, bufferAliasBinding}, {}, {1, 1, 1});
+    });
+
+    const VGF vgf(data.data(), data.size());
+
+    const auto input = vgf.getResource(0);
+    const auto tensorAlias = vgf.getResource(1);
+    const auto bufferAlias = vgf.getResource(2);
+
+    EXPECT_FALSE(input.aliasGroupId.has_value());
+    ASSERT_TRUE(tensorAlias.aliasGroupId.has_value());
+    ASSERT_TRUE(bufferAlias.aliasGroupId.has_value());
+    EXPECT_EQ(*tensorAlias.aliasGroupId, 17);
+    EXPECT_EQ(*bufferAlias.aliasGroupId, 17);
+}

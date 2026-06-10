@@ -63,6 +63,7 @@ struct ResourceInfo {
     vgflib::DataView<int64_t> shape;
     vgflib::DataView<int64_t> stride;
     std::optional<SamplerInfo> sampler;
+    std::optional<uint32_t> aliasGroupId;
 };
 
 struct ConstantInfo {

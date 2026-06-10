@@ -98,6 +98,7 @@ ResourceInfo VGF::getResource(uint32_t resourceIndex) const {
                           vk::Format(modelResourceTable_->getVkFormat(resourceIndex)),
                           modelResourceTable_->getTensorShape(resourceIndex),
                           modelResourceTable_->getTensorStride(resourceIndex),
+                          std::nullopt,
                           std::nullopt};
     if (const auto *sampler = modelResourceTable_->getSamplerConfigHandle(resourceIndex)) {
         resource.sampler = SamplerInfo{modelResourceTable_->getSamplerConfigMinFilter(sampler),
@@ -106,6 +107,7 @@ ResourceInfo VGF::getResource(uint32_t resourceIndex) const {
                                        modelResourceTable_->getSamplerConfigAddressModeV(sampler),
                                        modelResourceTable_->getSamplerConfigBorderColor(sampler)};
     }
+    resource.aliasGroupId = modelResourceTable_->getAliasGroupId(resourceIndex);
     return resource;
 }
 
