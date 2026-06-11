@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <version.hpp>
 
 #include "png_reader.hpp"
 #include "vgf-utils/numpy.hpp"
@@ -62,7 +63,7 @@ bool compare(const std::string &input, const std::string &output) {
 
 int main(int argc, const char **argv) {
     try {
-        argparse::ArgumentParser parser(argv[0]);
+        argparse::ArgumentParser parser(argv[0], details::version);
 
         parser.add_argument("--action")
             .choices("generate", "to_npy", "compare")

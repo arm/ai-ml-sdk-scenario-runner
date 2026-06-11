@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <argparse/argparse.hpp>
+#include <version.hpp>
 
 #include "hlsl_compiler.hpp"
 
@@ -13,7 +14,7 @@ using namespace mlsdk::scenariorunner;
 int main(int argc, const char **argv) {
 
     try {
-        argparse::ArgumentParser parser(argv[0]);
+        argparse::ArgumentParser parser(argv[0], details::version);
 
         parser.add_argument("--input").help("the HLSL file to be compiled to SPIR-V").required();
         parser.add_argument("--output").help("the SPIR-V output file").required();

@@ -137,8 +137,14 @@ mlsdk_generate_version_header(
         ${SCENARIO_RUNNER_VERSION_DEPS}
 )
 
+get_filename_component(SCENARIO_RUNNER_VERSION_HEADER_DIR "${SCENARIO_RUNNER_VERSION_HEADER}" DIRECTORY)
+foreach(SCENARIO_RUNNER_VERSION_TARGET glslc dds_utils png_utils hlslc)
+    if(TARGET ${SCENARIO_RUNNER_VERSION_TARGET})
+        target_include_directories(${SCENARIO_RUNNER_VERSION_TARGET} PRIVATE "${SCENARIO_RUNNER_VERSION_HEADER_DIR}")
+    endif()
+endforeach()
+
 if(ANDROID)
-    get_filename_component(SCENARIO_RUNNER_VERSION_HEADER_DIR "${SCENARIO_RUNNER_VERSION_HEADER}" DIRECTORY)
     target_include_directories(scenario_runner_jni PRIVATE "${SCENARIO_RUNNER_VERSION_HEADER_DIR}")
 endif()
 
