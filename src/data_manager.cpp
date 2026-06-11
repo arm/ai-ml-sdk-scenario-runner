@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -14,8 +14,8 @@ void DataManager::createTensor(Guid guid, const TensorInfo &info) { _tensors.ins
 
 void DataManager::createImage(Guid guid, const ImageInfo &info) { _images.insert({guid, Image(info)}); }
 
-void DataManager::createVgfView(Guid guid, const std::string &src) {
-    _vgfViews.insert({guid, VgfView::createVgfView(src)});
+void DataManager::createVgfView(Guid guid, std::string src) {
+    _vgfViews.insert({guid, VgfView::createVgfView(std::move(src))});
 }
 
 void DataManager::createImageBarrier(Guid guid, const ImageBarrierData &data) {

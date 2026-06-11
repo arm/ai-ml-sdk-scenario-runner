@@ -13,6 +13,8 @@
 
 #include <map>
 #include <memory>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace mlsdk::scenariorunner {
@@ -27,7 +29,7 @@ struct ResourceAlias {
 
 class VgfView {
   public:
-    static VgfView createVgfView(const std::string &vgfFile);
+    static VgfView createVgfView(std::string vgfFile);
 
     size_t getNumSegments() const;
     ModuleType getSegmentType(uint32_t segmentIndex) const;
@@ -58,15 +60,18 @@ class VgfView {
     using MrtIndexes = std::map<std::tuple<uint32_t, uint32_t>, uint32_t>;
 
     std::pair<std::vector<TypedBinding>, MrtIndexes> getBindings(uint32_t segmentIndex) const;
-    void validateResource(const IResourceViewer &resourceViewer, uint32_t vgfMrtIndex) const;
+    void validateResource(const IResourceViewer &resourceViewer, uint32_t vgfMrtIndex, std::string_view vgfDirection,
+                          uint32_t vgfSlotIndex) const;
 
+    std::string _vgfFileName;
     std::unique_ptr<MemoryMap> mapped;
     std::unique_ptr<vgflib::ModuleTableDecoder> moduleTableDecoder;
     std::unique_ptr<vgflib::ModelSequenceTableDecoder> sequenceTableDecoder;
     std::unique_ptr<vgflib::ModelResourceTableDecoder> resourceTableDecoder;
     std::unique_ptr<vgflib::ConstantDecoder> constantTableDecoder;
 
-    VgfView(std::unique_ptr<MemoryMap> mapped, std::unique_ptr<vgflib::ModuleTableDecoder> moduleTableDecoder,
+    VgfView(std::string vgfFileName, std::unique_ptr<MemoryMap> mapped,
+            std::unique_ptr<vgflib::ModuleTableDecoder> moduleTableDecoder,
             std::unique_ptr<vgflib::ModelSequenceTableDecoder> sequenceTableDecoder,
             std::unique_ptr<vgflib::ModelResourceTableDecoder> resourceTableDecoder,
             std::unique_ptr<vgflib::ConstantDecoder> constantTableDecoder);

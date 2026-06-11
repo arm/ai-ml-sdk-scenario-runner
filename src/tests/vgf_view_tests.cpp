@@ -5,13 +5,18 @@
 
 #include "vgf_view.hpp"
 
+#include "data_manager.hpp"
+
 #include "vgf/encoder.hpp"
 #include "vgf/vulkan_helpers.generated.hpp"
+
+#include "vgf-utils/temp_folder.hpp"
 
 #include <gtest/gtest.h>
 
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <string>
 
 using namespace mlsdk::scenariorunner;
@@ -30,7 +35,57 @@ class CapturingResourceCreator final : public IResourceCreator {
     std::vector<std::pair<Guid, ImageInfo>> images;
 };
 
-std::filesystem::path writeVgfWithIntermediateBuffer(vk::Format format, const std::vector<int64_t> &shape) {
+std::filesystem::path writeVgfWithTensorInterfaceResources(TempFolder &tempFolder) {
+    auto encoder = vgflib::CreateEncoder(123);
+
+    const auto module = encoder->AddModule(vgflib::ModuleType::COMPUTE, "tensor_interface", "main");
+
+    const std::vector<int64_t> inputShape{1, 16, 16, 4};
+    const std::vector<int64_t> outputShape{1, 8, 8, 4};
+
+    const auto inputTensor = encoder->AddInputResource(vgflib::ToDescriptorType(VK_DESCRIPTOR_TYPE_TENSOR_ARM),
+                                                       vgflib::ToFormatType(VK_FORMAT_R8_SINT), inputShape, {});
+    const auto outputTensor = encoder->AddOutputResource(vgflib::ToDescriptorType(VK_DESCRIPTOR_TYPE_TENSOR_ARM),
+                                                         vgflib::ToFormatType(VK_FORMAT_R8_SINT), outputShape, {});
+
+    const auto inputBinding = encoder->AddBindingSlot(0, inputTensor);
+    const auto outputBinding = encoder->AddBindingSlot(1, outputTensor);
+    const auto descriptorSet =
+        encoder->AddDescriptorSetInfo(std::vector<vgflib::BindingSlotRef>{inputBinding, outputBinding});
+
+    encoder->AddModelSequenceInputsOutputs({inputBinding}, {"inputTensor"}, {outputBinding}, {"outputTensor"});
+    encoder->AddSegmentInfo(module, "tensor_interface_segment",
+                            std::vector<vgflib::DescriptorSetInfoRef>{descriptorSet}, {inputBinding}, {outputBinding},
+                            {}, {1, 1, 1});
+    encoder->Finish();
+
+    const std::string vgfPath = tempFolder.relative("scenario_runner_vgf_view_tensor_interface.vgf").string();
+    std::ofstream output(vgfPath, std::ios::binary);
+    encoder->WriteTo(output);
+    return vgfPath;
+}
+
+DataManager makeDataManagerWithTensor(const std::string &uid, std::vector<int64_t> shape, vk::Format format) {
+    DataManager dataManager;
+    TensorInfo info{};
+    info.debugName = uid;
+    info.shape = std::move(shape);
+    info.format = format;
+    dataManager.createTensor(Guid(uid), info);
+    return dataManager;
+}
+
+std::string mismatchMessageFor(const VgfView &view, const DataManager &dataManager, const TypedBinding &binding) {
+    try {
+        view.resolveBindings(0, dataManager, std::vector<TypedBinding>{binding});
+        return {};
+    } catch (const std::runtime_error &error) {
+        return error.what();
+    }
+}
+
+std::filesystem::path writeVgfWithIntermediateBuffer(TempFolder &tempFolder, vk::Format format,
+                                                     const std::vector<int64_t> &shape) {
     auto encoder = vgflib::CreateEncoder(123);
 
     const auto module = encoder->AddModule(vgflib::ModuleType::COMPUTE, "buffer_size", "main");
@@ -44,18 +99,14 @@ std::filesystem::path writeVgfWithIntermediateBuffer(vk::Format format, const st
                             std::vector<vgflib::BindingSlotRef>{binding}, {}, {1, 1, 1});
     encoder->Finish();
 
-    const auto vgfPath = std::filesystem::temp_directory_path() / "scenario_runner_vgf_view_buffer_size.vgf";
+    const std::string vgfPath = tempFolder.relative("scenario_runner_vgf_view_buffer_size.vgf").string();
     std::ofstream output(vgfPath, std::ios::binary);
-    if (!output) {
-        throw std::runtime_error("Failed to open temporary VGF file for writing");
-    }
-    if (!encoder->WriteTo(output)) {
-        throw std::runtime_error("Failed to write temporary VGF file");
-    }
+    encoder->WriteTo(output);
     return vgfPath;
 }
 
-std::filesystem::path writeVgfWithSampledIntermediateImage(uint32_t addressModeU, uint32_t addressModeV) {
+std::filesystem::path writeVgfWithSampledIntermediateImage(TempFolder &tempFolder, uint32_t addressModeU,
+                                                           uint32_t addressModeV) {
     auto encoder = vgflib::CreateEncoder(123);
 
     const std::vector<int64_t> shape{16, 16, 1, 1};
@@ -74,15 +125,9 @@ std::filesystem::path writeVgfWithSampledIntermediateImage(uint32_t addressModeU
     encoder->Finish();
 
     const auto suffix = std::to_string(addressModeU) + "_" + std::to_string(addressModeV);
-    const auto vgfPath =
-        std::filesystem::temp_directory_path() / ("scenario_runner_vgf_view_sampled_image_" + suffix + ".vgf");
+    const auto vgfPath = tempFolder.relative("scenario_runner_vgf_view_sampled_image_" + suffix + ".vgf").string();
     std::ofstream output(vgfPath, std::ios::binary);
-    if (!output) {
-        throw std::runtime_error("Failed to open temporary VGF file for writing");
-    }
-    if (!encoder->WriteTo(output)) {
-        throw std::runtime_error("Failed to write temporary VGF file");
-    }
+    encoder->WriteTo(output);
     return vgfPath;
 }
 
@@ -90,71 +135,90 @@ std::filesystem::path writeVgfWithSampledIntermediateImage(uint32_t addressModeU
 
 TEST(VgfView, IntermediateBufferSizeUsesVgfFormatElementSize) {
     constexpr uint32_t elementCount = 256;
-    const auto vgfPath = writeVgfWithIntermediateBuffer(vk::Format::eR16Uint, {elementCount});
+    TempFolder tempFolder("vgf_view");
+    const auto vgfPath = writeVgfWithIntermediateBuffer(tempFolder, vk::Format::eR16Uint, {elementCount});
 
-    try {
-        auto view = VgfView::createVgfView(vgfPath.string());
-        CapturingResourceCreator creator;
+    auto view = VgfView::createVgfView(vgfPath.string());
+    CapturingResourceCreator creator;
 
-        view.createIntermediateResources(creator);
+    view.createIntermediateResources(creator);
 
-        ASSERT_EQ(creator.buffers.size(), 1);
-        EXPECT_EQ(creator.buffers.front().second.size, elementCount * sizeof(uint16_t));
-        EXPECT_TRUE(creator.tensors.empty());
-        EXPECT_TRUE(creator.images.empty());
-    } catch (...) {
-        std::filesystem::remove(vgfPath);
-        throw;
-    }
-    std::filesystem::remove(vgfPath);
+    ASSERT_EQ(creator.buffers.size(), 1);
+    EXPECT_EQ(creator.buffers.front().second.size, elementCount * sizeof(uint16_t));
+    EXPECT_TRUE(creator.tensors.empty());
+    EXPECT_TRUE(creator.images.empty());
 }
 
 TEST(VgfView, IntermediateSampledImageUsesVgfSamplerConfig) {
-    const auto vgfPath = writeVgfWithSampledIntermediateImage(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+    TempFolder tempFolder("vgf_view");
+    const auto vgfPath = writeVgfWithSampledIntermediateImage(tempFolder, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
                                                               VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER);
 
-    try {
-        auto view = VgfView::createVgfView(vgfPath.string());
-        CapturingResourceCreator creator;
+    auto view = VgfView::createVgfView(vgfPath.string());
+    CapturingResourceCreator creator;
 
-        view.createIntermediateResources(creator);
+    view.createIntermediateResources(creator);
 
-        ASSERT_EQ(creator.images.size(), 1);
-        const auto &samplerSettings = creator.images.front().second.samplerSettings;
-        EXPECT_EQ(samplerSettings.minFilter, FilterMode::Linear);
-        EXPECT_EQ(samplerSettings.magFilter, FilterMode::Nearest);
-        EXPECT_EQ(samplerSettings.addressModeU, AddressMode::ClampBorder);
-        EXPECT_EQ(samplerSettings.addressModeV, AddressMode::ClampBorder);
-        EXPECT_EQ(samplerSettings.addressModeW, AddressMode::ClampEdge);
-        EXPECT_EQ(samplerSettings.borderColor, BorderColor::IntOpaqueWhite);
-        EXPECT_EQ(samplerSettings.mipFilter, FilterMode::Nearest);
-        EXPECT_TRUE(creator.buffers.empty());
-        EXPECT_TRUE(creator.tensors.empty());
-    } catch (...) {
-        std::filesystem::remove(vgfPath);
-        throw;
-    }
-    std::filesystem::remove(vgfPath);
+    ASSERT_EQ(creator.images.size(), 1);
+    const auto &samplerSettings = creator.images.front().second.samplerSettings;
+    EXPECT_EQ(samplerSettings.minFilter, FilterMode::Linear);
+    EXPECT_EQ(samplerSettings.magFilter, FilterMode::Nearest);
+    EXPECT_EQ(samplerSettings.addressModeU, AddressMode::ClampBorder);
+    EXPECT_EQ(samplerSettings.addressModeV, AddressMode::ClampBorder);
+    EXPECT_EQ(samplerSettings.addressModeW, AddressMode::ClampEdge);
+    EXPECT_EQ(samplerSettings.borderColor, BorderColor::IntOpaqueWhite);
+    EXPECT_EQ(samplerSettings.mipFilter, FilterMode::Nearest);
+    EXPECT_TRUE(creator.buffers.empty());
+    EXPECT_TRUE(creator.tensors.empty());
 }
 
 TEST(VgfView, IntermediateSampledImageAcceptsDistinctVgfAddressModes) {
-    const auto vgfPath =
-        writeVgfWithSampledIntermediateImage(VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
+    TempFolder tempFolder("vgf_view");
+    const auto vgfPath = writeVgfWithSampledIntermediateImage(tempFolder, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                              VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
 
-    try {
-        auto view = VgfView::createVgfView(vgfPath.string());
-        CapturingResourceCreator creator;
+    auto view = VgfView::createVgfView(vgfPath.string());
+    CapturingResourceCreator creator;
 
-        view.createIntermediateResources(creator);
+    view.createIntermediateResources(creator);
 
-        ASSERT_EQ(creator.images.size(), 1);
-        const auto &samplerSettings = creator.images.front().second.samplerSettings;
-        EXPECT_EQ(samplerSettings.addressModeU, AddressMode::Repeat);
-        EXPECT_EQ(samplerSettings.addressModeV, AddressMode::ClampEdge);
-        EXPECT_EQ(samplerSettings.addressModeW, AddressMode::ClampEdge);
-    } catch (...) {
-        std::filesystem::remove(vgfPath);
-        throw;
-    }
-    std::filesystem::remove(vgfPath);
+    ASSERT_EQ(creator.images.size(), 1);
+    const auto &samplerSettings = creator.images.front().second.samplerSettings;
+    EXPECT_EQ(samplerSettings.addressModeU, AddressMode::Repeat);
+    EXPECT_EQ(samplerSettings.addressModeV, AddressMode::ClampEdge);
+    EXPECT_EQ(samplerSettings.addressModeW, AddressMode::ClampEdge);
+}
+
+TEST(VgfView, ResolveBindingsReportsTensorShapeMismatchWithJsonLine) {
+    TempFolder tempFolder("vgf_view");
+    const auto vgfPath = writeVgfWithTensorInterfaceResources(tempFolder);
+
+    auto view = VgfView::createVgfView(vgfPath.string());
+    const auto dataManager = makeDataManagerWithTensor("inputTensor", {1, 16, 16, 3}, vk::Format::eR8Sint);
+    const TypedBinding binding{0, 0, Guid("inputTensor"), std::nullopt, vk::DescriptorType::eTensorARM};
+
+    const auto message = mismatchMessageFor(view, dataManager, binding);
+    ASSERT_FALSE(message.empty());
+    EXPECT_NE(message.find("VGF '" + vgfPath.string()), std::string::npos);
+    EXPECT_NE(message.find("input idx 0"), std::string::npos);
+    EXPECT_NE(message.find("has shape [1, 16, 16, 4]"), std::string::npos);
+    EXPECT_NE(message.find("scenario tensor 'inputTensor'"), std::string::npos);
+    EXPECT_NE(message.find("has shape [1, 16, 16, 3]"), std::string::npos);
+}
+
+TEST(VgfView, ResolveBindingsReportsTensorFormatMismatchWithJsonLine) {
+    TempFolder tempFolder("vgf_view");
+    const auto vgfPath = writeVgfWithTensorInterfaceResources(tempFolder);
+
+    auto view = VgfView::createVgfView(vgfPath.string());
+    const auto dataManager = makeDataManagerWithTensor("outputTensor", {1, 8, 8, 4}, vk::Format::eR16Uint);
+    const TypedBinding binding{0, 1, Guid("outputTensor"), std::nullopt, vk::DescriptorType::eTensorARM};
+
+    const auto message = mismatchMessageFor(view, dataManager, binding);
+    ASSERT_FALSE(message.empty());
+    EXPECT_NE(message.find("VGF '" + vgfPath.string()), std::string::npos);
+    EXPECT_NE(message.find("output idx 0"), std::string::npos);
+    EXPECT_NE(message.find("has format R8Sint"), std::string::npos);
+    EXPECT_NE(message.find("scenario tensor 'outputTensor'"), std::string::npos);
+    EXPECT_NE(message.find("has format R16Uint"), std::string::npos);
 }
