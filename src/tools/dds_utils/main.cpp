@@ -4,6 +4,7 @@
  */
 
 #include <argparse/argparse.hpp>
+#include <version.hpp>
 
 #include "dds_reader.hpp"
 #include "vgf-utils/numpy.hpp"
@@ -274,7 +275,7 @@ bool compare(const std::string &input, const std::string &output, const std::str
 
 int main(int argc, const char **argv) {
     try {
-        argparse::ArgumentParser parser(argv[0]);
+        argparse::ArgumentParser parser(argv[0], details::version);
 
         parser.add_argument("--action")
             .choices("generate", "to_npy", "compare")
