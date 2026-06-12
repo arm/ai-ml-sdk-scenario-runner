@@ -11,6 +11,11 @@ name = "ai_ml_sdk_scenario_runner"
 description = "ML SDK Scenario Runner"
 readme = "README.md"
 dynamic = ["version"]
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Arm Limited" }
+]
+requires-python = ">=3.8"
 
 [project.scripts]
 scenario_runner = "scenario_runner.cli:main"
