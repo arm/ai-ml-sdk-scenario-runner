@@ -6,6 +6,9 @@ plugins {
     id 'com.android.application'
 }
 
+def packageVersion = providers.gradleProperty("packageVersion").orElse("").get()
+def packageVersionPart = packageVersion ? "-${packageVersion}" : ""
+
 android {
     namespace "com.arm.ai_ml_sdk_scenario_runner"
 
@@ -14,5 +17,13 @@ android {
     defaultConfig {
         minSdk 21
         targetSdk 34
+    }
+}
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.outputs.each { output ->
+            output.outputFileName.set("ai-ml-sdk-scenario-runner${packageVersionPart}-${variant.name}.apk")
+        }
     }
 }
