@@ -103,8 +103,17 @@ ResourceInfo VGF::getResource(uint32_t resourceIndex) const {
                           vk::Format(impl_->modelResourceTable->getVkFormat(resourceIndex)),
                           impl_->modelResourceTable->getTensorShape(resourceIndex),
                           impl_->modelResourceTable->getTensorStride(resourceIndex),
+                          std::nullopt,
                           std::nullopt};
     resource.aliasGroupId = impl_->modelResourceTable->getAliasGroupId(resourceIndex);
+    if (const auto samplerConfig = impl_->modelResourceTable->getSamplerConfigHandle(resourceIndex)) {
+        resource.samplerConfig = ResourceInfo::SamplerConfig{
+            vk::Filter(impl_->modelResourceTable->getSamplerConfigMinFilter(samplerConfig)),
+            vk::Filter(impl_->modelResourceTable->getSamplerConfigMagFilter(samplerConfig)),
+            vk::SamplerAddressMode(impl_->modelResourceTable->getSamplerConfigAddressModeU(samplerConfig)),
+            vk::SamplerAddressMode(impl_->modelResourceTable->getSamplerConfigAddressModeV(samplerConfig)),
+            vk::BorderColor(impl_->modelResourceTable->getSamplerConfigBorderColor(samplerConfig))};
+    }
     return resource;
 }
 
