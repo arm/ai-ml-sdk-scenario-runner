@@ -18,6 +18,7 @@ class Image {
     ///
     /// \param imageInfo ImageInfo struct
     explicit Image(const ImageInfo &imageInfo);
+    explicit Image(ImageInfo &&imageInfo);
     Image() = default;
 
     /// \brief Setup instance, assumes all aliasing objects have been constructed

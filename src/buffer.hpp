@@ -17,7 +17,7 @@ class Buffer {
     /// \brief Constructor
     ///
     /// \param bufferInfo buffer Information
-    explicit Buffer(const BufferInfo &bufferInfo);
+    explicit Buffer(BufferInfo bufferInfo);
     Buffer() = default;
 
     /// \brief Setup instance, assumes all aliasing objects have been constructed

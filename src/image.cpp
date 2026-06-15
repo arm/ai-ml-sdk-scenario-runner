@@ -10,6 +10,7 @@
 #include "vulkan_debug_utils.hpp"
 
 #include <cmath>
+#include <utility>
 
 namespace mlsdk::scenariorunner {
 namespace {
@@ -143,6 +144,8 @@ uint32_t calculateMipDimension(uint32_t base, uint32_t level) {
 } // namespace
 
 Image::Image(const ImageInfo &imageInfo) : _imageInfo(imageInfo) {}
+
+Image::Image(ImageInfo &&imageInfo) : _imageInfo(std::move(imageInfo)) {}
 
 void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> memoryManager) {
     _memoryManager = std::move(memoryManager);
