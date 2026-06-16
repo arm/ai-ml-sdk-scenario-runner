@@ -14,6 +14,11 @@
     "dataLicense": "CC0-1.0",
     "hasExtractedLicensingInfos": [
         {
+            "licenseId": "LicenseRef-57f553be-1865-4577-a5d4-6461aad8472a",
+            "extractedText": "Spencer License 97\n==================\n\nCopyright 1992, 1993, 1994, 1997 Henry Spencer. All rights reserved.\nThis software is not subject to any license of the American Telephone and\nTelegraph Company or of the Regents of the University of California.\n\nPermission is granted to anyone to use this software for any purpose on any\ncomputer system, and to alter it and redistribute it, subject to the following\nrestrictions:\n\n1. The author is not responsible for the consequences of use of this software, no\nmatter how awful, even if they arise from flaws in it.\n\n2. The origin of this software must not be misrepresented, either by explicit\nclaim or by omission. Since few users ever read sources, credits must appear in\nthe documentation.\n\n3. Altered versions must be plainly marked as such, and must not be\nmisrepresented as being the original software. Since few users ever read sources,\ncredits must appear in the documentation.\n\n4. This notice may not be removed or altered.",
+            "name": "Spencer License 97"
+        },
+        {
             "licenseId": "LicenseRef-6f1ab4e9-b0ed-4b83-b7bd-aff972ed4db3",
             "extractedText": "Python Imaging Library Software License\n=======================================\n\nThe Python Imaging Library (PIL) is\n\nCopyright © 1997-2011 by Secret Labs AB\nCopyright © 1995-2011 by Fredrik Lundh\n\nPillow is the friendly PIL fork. It is\n\nCopyright © 2010-2018 by Alex Clark and contributors\n\nLike PIL, Pillow is licensed under the open source PIL Software License:\n\nBy obtaining, using, and/or copying this software and/or its associated\ndocumentation, you agree that you have read, understood, and will comply with the\nfollowing terms and conditions:\n\nPermission to use, copy, modify, and distribute this software and its associated\ndocumentation for any purpose and without fee is hereby granted, provided that\nthe above copyright notice appears in all copies, and that both that copyright\nnotice and this permission notice appear in supporting documentation, and that\nthe name of Secret Labs AB or the author not be used in advertising or publicity\npertaining to distribution of the software without specific, written prior\npermission.\n\nSECRET LABS AB AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS\nSOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO\nEVENT SHALL SECRET LABS AB OR THE AUTHOR BE LIABLE FOR ANY SPECIAL, INDIRECT OR\nCONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA\nOR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS\nACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS\nSOFTWARE.",
             "name": "Python Imaging Library Software License"
@@ -78,7 +83,7 @@
             "externalRefs": [
                 {
                     "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/exceptiongroup@1.3.0",
+                    "referenceLocator": "pkg:pypi/exceptiongroup@1.3.1",
                     "referenceType": "purl"
                 },
                 {
@@ -102,7 +107,7 @@
             "licenseDeclared": "MIT",
             "name": "exceptiongroup",
             "supplier": "Organization: pypi",
-            "versionInfo": "1.3.0"
+            "versionInfo": "1.3.1"
         },
         {
             "SPDXID": "SPDXRef-package-fce6259f-49f5-4d19-b10e-5d1b72b32415",
@@ -125,7 +130,7 @@
                 },
                 {
                     "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/execnet@2.1.1",
+                    "referenceLocator": "pkg:pypi/execnet@2.1.2",
                     "referenceType": "purl"
                 }
             ],
@@ -134,7 +139,7 @@
             "licenseDeclared": "MIT",
             "name": "execnet",
             "supplier": "Organization: pypi",
-            "versionInfo": "2.1.1"
+            "versionInfo": "2.1.2"
         },
         {
             "SPDXID": "SPDXRef-package-10f5ab36-ffd4-49fe-b59a-a10d0f0c5a7b",
@@ -200,7 +205,26 @@
             "name": "glslang",
             "copyrightText": "Copyright (c) The Khronos Group Inc.",
             "supplier": "Organization: Khronos Group",
-            "versionInfo": "vulkan-sdk-1.4.341.0"
+            "versionInfo": "vulkan-sdk-1.4.350.0"
+        },
+        {
+            "SPDXID": "SPDXRef-package-edd58207-4b2b-4095-b0a5-cf41f1d9d6dd",
+            "downloadLocation": "NOASSERTION",
+            "externalRefs": [
+                {
+                    "referenceCategory": "OTHER",
+                    "referenceLocator": "edd58207-4b2b-4095-b0a5-cf41f1d9d6dd",
+                    "referenceType": "BlackDuck-Version"
+                }
+            ],
+            "filesAnalyzed": false,
+            "licenseConcluded": "(Apache-2.0)",
+            "licenseDeclared": "(Apache-2.0)",
+            "name": "ai-ml-sdk-vgf-lib",
+            "originator": "Organization: Arm Limited.",
+            "copyrightText": "Copyright (c) Arm Limited",
+            "supplier": "Organization: Arm Limited.",
+            "versionInfo": "ai-ml-sdk-vgf-lib"
         },
         {
             "SPDXID": "SPDXRef-package-a22316c0-1153-40f0-94e4-b7cf02232d85",
@@ -338,7 +362,7 @@
             "externalRefs": [
                 {
                     "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/packaging@25.0",
+                    "referenceLocator": "pkg:pypi/packaging@26.0",
                     "referenceType": "purl"
                 },
                 {
@@ -362,7 +386,7 @@
             "licenseDeclared": "(BSD-3-Clause AND Apache-2.0)",
             "name": "Packaging",
             "supplier": "Organization: pypi",
-            "versionInfo": "25.0"
+            "versionInfo": "26.0"
         },
         {
             "SPDXID": "SPDXRef-package-c09f44fc-54e5-4448-89ba-aa690b673906",
@@ -536,7 +560,7 @@
                 },
                 {
                     "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/attrs@25.4.0",
+                    "referenceLocator": "pkg:pypi/attrs@26.1.0",
                     "referenceType": "purl"
                 },
                 {
@@ -550,7 +574,7 @@
             "licenseDeclared": "MIT",
             "name": "python-attrs",
             "supplier": "Organization: pypi",
-            "versionInfo": "25.4.0"
+            "versionInfo": "26.1.0"
         },
         {
             "SPDXID": "SPDXRef-package-4e35f71e-ae74-42bd-88c9-0d41ac1bba41",
@@ -718,7 +742,7 @@
             "externalRefs": [
                 {
                     "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/rpds-py@0.28.0",
+                    "referenceLocator": "pkg:pypi/rpds-py@0.30.0",
                     "referenceType": "purl"
                 },
                 {
@@ -742,7 +766,7 @@
             "licenseDeclared": "MIT",
             "name": "rpds-py",
             "supplier": "Organization: pypi",
-            "versionInfo": "0.28.0"
+            "versionInfo": "0.30.0"
         },
         {
             "SPDXID": "SPDXRef-package-c5af8272-fb0c-4b55-a344-7330045b54e4",
@@ -770,7 +794,7 @@
             "name": "SPIRV-Headers",
             "supplier": "Organization: Khronos Group",
             "copyrightText": "Copyright (c) The Khronos Group Inc.",
-            "versionInfo": "vulkan-sdk-1.4.328.1"
+            "versionInfo": "8c5559c134abcf432ec59db842404087b9906c1a"
         },
         {
             "SPDXID": "SPDXRef-package-53317521-4f29-449d-b3c8-ae0d339cacd4",
@@ -798,7 +822,7 @@
             "name": "SPIRV-Tools",
             "supplier": "Organization: Khronos Group",
             "copyrightText": "Copyright (c) The Khronos Group Inc.",
-            "versionInfo": "mlsdk-2026.03"
+            "versionInfo": "605a0154c7743ed4239c0eb7f3c61f17ffde4fd0"
         },
         {
             "SPDXID": "SPDXRef-package-7244dee8-6675-4803-84f7-457f0340346c",
@@ -806,7 +830,7 @@
             "externalRefs": [
                 {
                     "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/tomli@2.3.0",
+                    "referenceLocator": "pkg:pypi/tomli@2.4.0",
                     "referenceType": "purl"
                 },
                 {
@@ -830,7 +854,7 @@
             "licenseDeclared": "MIT",
             "name": "tomli",
             "supplier": "Organization: pypi",
-            "versionInfo": "2.3.0"
+            "versionInfo": "2.4.0"
         },
         {
             "SPDXID": "SPDXRef-package-ebe0c66e-2c6c-46fb-b7a2-0b65fb2c4ca8",
@@ -853,11 +877,49 @@
                 }
             ],
             "filesAnalyzed": false,
-            "licenseConcluded": "Apache-2.0",
+            "licenseConcluded": "(MIT OR Apache-2.0)",
             "licenseDeclared": "Apache-2.0",
             "name": "Vulkan-Headers",
             "supplier": "Organization: Khronos Group",
-            "versionInfo": "vulkan-sdk-1.4.341.0"
+            "versionInfo": "vulkan-sdk-1.4.350.0"
+        },
+        {
+            "SPDXID": "SPDXRef-package-4c708758-3e83-4a7d-b53e-107ba1e7e049",
+            "downloadLocation": "NOASSERTION",
+            "externalRefs": [
+                {
+                    "referenceCategory": "OTHER",
+                    "referenceLocator": "04463384-33c6-4d25-920e-30125d55335a",
+                    "referenceType": "BlackDuck-Component"
+                },
+                {
+                    "referenceCategory": "OTHER",
+                    "referenceLocator": "83e652d9-007c-4f4a-bf0e-6eada14f5b0a",
+                    "referenceType": "BlackDuck-ComponentOrigin"
+                },
+                {
+                    "referenceCategory": "OTHER",
+                    "referenceLocator": "4c708758-3e83-4a7d-b53e-107ba1e7e049",
+                    "referenceType": "BlackDuck-ComponentVersion"
+                },
+                {
+                    "referenceCategory": "SECURITY",
+                    "referenceLocator": "cpe:2.3:a:microsoft:directxshadercompiler:v1.9.2602:*:*:*:*:*:*:*",
+                    "referenceType": "cpe23Type"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceLocator": "pkg:github/microsoft/directxshadercompiler@v1.9.2602",
+                    "referenceType": "purl"
+                }
+            ],
+            "filesAnalyzed": false,
+            "licenseConcluded": "(BSD-3-Clause AND LicenseRef-57f553be-1865-4577-a5d4-6461aad8472a AND MIT AND NCSA)",
+            "licenseDeclared": "(BSD-3-Clause AND LicenseRef-57f553be-1865-4577-a5d4-6461aad8472a AND MIT AND NCSA)",
+            "name": "Microsoft/DirectXShaderCompiler",
+            "originator": "Organization: microsoft",
+            "supplier": "Organization: microsoft",
+            "versionInfo": "v1.9.2602"
         },
         {
             "SPDXID": "SPDXRef-package-00c84c86-74bc-4ab5-bdd5-0b788b3b2577",
@@ -1145,6 +1207,16 @@
         {
             "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
             "relationshipType": "DYNAMIC_LINK",
+            "relatedSpdxElement": "SPDXRef-package-edd58207-4b2b-4095-b0a5-cf41f1d9d6dd"
+        },
+        {
+            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
+            "relationshipType": "DYNAMIC_LINK",
+            "relatedSpdxElement": "SPDXRef-package-4c708758-3e83-4a7d-b53e-107ba1e7e049"
+        },
+        {
+            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
+            "relationshipType": "DYNAMIC_LINK",
             "relatedSpdxElement": "SPDXRef-package-c09f44fc-54e5-4448-89ba-aa690b673906"
         },
         {
@@ -1246,6 +1318,16 @@
             "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
             "relationshipType": "DEPENDS_ON",
             "relatedSpdxElement": "SPDXRef-package-d68de693-37ca-4589-a088-91167bd3e408"
+        },
+        {
+            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
+            "relationshipType": "DEPENDS_ON",
+            "relatedSpdxElement": "SPDXRef-package-edd58207-4b2b-4095-b0a5-cf41f1d9d6dd"
+        },
+        {
+            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
+            "relationshipType": "DEPENDS_ON",
+            "relatedSpdxElement": "SPDXRef-package-4c708758-3e83-4a7d-b53e-107ba1e7e049"
         },
         {
             "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
