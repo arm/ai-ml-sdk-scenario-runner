@@ -26,9 +26,9 @@ namespace {
 
 class CapturingResourceCreator final : public IResourceCreator {
   public:
-    void createBuffer(Guid guid, BufferInfo info) override { buffers.push_back({guid, info}); }
-    void createTensor(Guid guid, TensorInfo info) override { tensors.push_back({guid, info}); }
-    void createImage(Guid guid, ImageInfo info) override { images.push_back({guid, info}); }
+    void createBuffer(Guid guid, BufferInfo &&info) override { buffers.push_back({guid, std::move(info)}); }
+    void createTensor(Guid guid, TensorInfo &&info) override { tensors.push_back({guid, std::move(info)}); }
+    void createImage(Guid guid, ImageInfo &&info) override { images.push_back({guid, std::move(info)}); }
 
     std::vector<std::pair<Guid, BufferInfo>> buffers;
     std::vector<std::pair<Guid, TensorInfo>> tensors;

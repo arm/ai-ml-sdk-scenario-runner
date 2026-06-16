@@ -17,9 +17,9 @@ class IResourceCreator {
     virtual ~IResourceCreator() = default;
 
     // Create buffer resource and setup and allocate memory in buffer
-    virtual void createBuffer(Guid guid, BufferInfo info) = 0;
-    virtual void createTensor(Guid guid, TensorInfo info) = 0;
-    virtual void createImage(Guid guid, ImageInfo info) = 0;
+    virtual void createBuffer(Guid guid, BufferInfo &&info) = 0;
+    virtual void createTensor(Guid guid, TensorInfo &&info) = 0;
+    virtual void createImage(Guid guid, ImageInfo &&info) = 0;
 };
 
 /// @brief Interface for accessing resources in an identifier agnostic way. Derived class handle the resource

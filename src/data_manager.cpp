@@ -6,13 +6,21 @@
 #include "data_manager.hpp"
 #include "utils.hpp"
 
+#include <utility>
+
 namespace mlsdk::scenariorunner {
 
-void DataManager::createBuffer(Guid guid, const BufferInfo &info) { _buffers.insert({guid, Buffer(info)}); }
+void DataManager::createBuffer(Guid guid, const BufferInfo &info) { _buffers.emplace(guid, Buffer(info)); }
 
-void DataManager::createTensor(Guid guid, const TensorInfo &info) { _tensors.insert({guid, Tensor(info)}); }
+void DataManager::createBuffer(Guid guid, BufferInfo &&info) { _buffers.emplace(guid, Buffer(std::move(info))); }
 
-void DataManager::createImage(Guid guid, const ImageInfo &info) { _images.insert({guid, Image(info)}); }
+void DataManager::createTensor(Guid guid, const TensorInfo &info) { _tensors.emplace(guid, Tensor(info)); }
+
+void DataManager::createTensor(Guid guid, TensorInfo &&info) { _tensors.emplace(guid, Tensor(std::move(info))); }
+
+void DataManager::createImage(Guid guid, const ImageInfo &info) { _images.emplace(guid, Image(info)); }
+
+void DataManager::createImage(Guid guid, ImageInfo &&info) { _images.emplace(guid, Image(std::move(info))); }
 
 void DataManager::createVgfView(Guid guid, std::string src) {
     _vgfViews.insert({guid, VgfView::createVgfView(std::move(src))});

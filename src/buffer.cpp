@@ -6,12 +6,14 @@
 #include "buffer.hpp"
 #include "utils.hpp"
 #include "vulkan_debug_utils.hpp"
+
 #include <iostream>
+#include <utility>
 
 namespace mlsdk::scenariorunner {
 
-Buffer::Buffer(const BufferInfo &bufferInfo)
-    : _size(bufferInfo.size), _debugName(bufferInfo.debugName), _memoryOffset(bufferInfo.memoryOffset) {}
+Buffer::Buffer(BufferInfo bufferInfo)
+    : _size(bufferInfo.size), _debugName(std::move(bufferInfo.debugName)), _memoryOffset(bufferInfo.memoryOffset) {}
 
 void Buffer::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> memoryManager) {
     _memoryManager = std::move(memoryManager);

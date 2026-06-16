@@ -8,6 +8,8 @@
 #include "utils.hpp"
 #include "vulkan_debug_utils.hpp"
 
+#include <utility>
+
 namespace mlsdk::scenariorunner {
 namespace {
 constexpr vk::TensorTilingARM convertTiling(const Tiling tiling) {
@@ -23,8 +25,8 @@ constexpr vk::TensorTilingARM convertTiling(const Tiling tiling) {
 
 } // namespace
 
-Tensor::Tensor(const TensorInfo &tensorInfo)
-    : _debugName(tensorInfo.debugName), _shape(tensorInfo.shape), _dataType(tensorInfo.format),
+Tensor::Tensor(TensorInfo tensorInfo)
+    : _debugName(std::move(tensorInfo.debugName)), _shape(std::move(tensorInfo.shape)), _dataType(tensorInfo.format),
       _tiling(convertTiling(tensorInfo.tiling)), _memoryOffset(tensorInfo.memoryOffset),
       _isAliasedWithImage(tensorInfo.isAliasedWithImage),
       _descriptorBufferCaptureReplay(tensorInfo.descriptorBufferCaptureReplay) {}

@@ -388,20 +388,20 @@ class Creator final : public IResourceCreator {
     Creator(const Context &ctx, DataManager &dataManager, GroupManager &groupManager)
         : _ctx{ctx}, _dataManager{dataManager}, _groupManager{groupManager} {}
 
-    void createBuffer(Guid guid, BufferInfo info) override {
-        _dataManager.createBuffer(guid, info);
+    void createBuffer(Guid guid, BufferInfo &&info) override {
+        _dataManager.createBuffer(guid, std::move(info));
         _createdResources.push_back({guid, ResourceIdType::Buffer});
     }
 
-    void createTensor(Guid guid, TensorInfo info) override {
+    void createTensor(Guid guid, TensorInfo &&info) override {
         info.isAliasedWithImage = _groupManager.hasAliasOfType(guid, ResourceIdType::Image);
-        _dataManager.createTensor(guid, info);
+        _dataManager.createTensor(guid, std::move(info));
         _createdResources.push_back({guid, ResourceIdType::Tensor});
     }
 
-    void createImage(Guid guid, ImageInfo info) override {
+    void createImage(Guid guid, ImageInfo &&info) override {
         info.isAliased = _groupManager.isAliased(guid);
-        _dataManager.createImage(guid, info);
+        _dataManager.createImage(guid, std::move(info));
         _createdResources.push_back({guid, ResourceIdType::Image});
     }
 

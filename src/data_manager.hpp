@@ -18,8 +18,11 @@ namespace mlsdk::scenariorunner {
 class DataManager {
   public:
     void createBuffer(Guid guid, const BufferInfo &info);
+    void createBuffer(Guid guid, BufferInfo &&info);
     void createTensor(Guid guid, const TensorInfo &info);
+    void createTensor(Guid guid, TensorInfo &&info);
     void createImage(Guid guid, const ImageInfo &info);
+    void createImage(Guid guid, ImageInfo &&info);
     void createRawData(Guid guid, const std::string &debugName, const std::string &src);
     void createVgfView(Guid guid, std::string src);
     void createImageBarrier(Guid guid, const ImageBarrierData &data);

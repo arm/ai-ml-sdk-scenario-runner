@@ -17,7 +17,7 @@ class Tensor {
     /// \brief Constructor
     ///
     /// \param tensorInfo             Tensor info
-    explicit Tensor(const TensorInfo &tensorInfo);
+    explicit Tensor(TensorInfo tensorInfo);
     Tensor() = default;
 
     /// \brief Setup instance, assumes all aliasing objects have been constructed
