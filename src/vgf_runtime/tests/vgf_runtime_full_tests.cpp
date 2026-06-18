@@ -204,6 +204,33 @@ std::string makeAddInt32BuffersVgf() {
     });
 }
 
+std::string makeAddInt32BuffersWithExternalImageVgf() {
+    const auto &code = assembleAddInt32BuffersSpirv();
+    return writeVgf([&](mlsdk::vgflib::Encoder &encoder) {
+        const auto module =
+            encoder.AddModule(mlsdk::vgflib::ModuleType::COMPUTE, "add_int32_buffers_with_image", "main", code);
+
+        const auto firstInput =
+            encoder.AddInputResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_SINT, {10}, {4});
+        const auto secondInput =
+            encoder.AddInputResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_SINT, {10}, {4});
+        const auto imageInput = encoder.AddInputResource(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         VK_FORMAT_R8G8B8A8_SNORM, {1, 2, 2, 4}, {});
+        const auto output = encoder.AddOutputResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_SINT, {10}, {4});
+
+        const auto firstInputBinding = encoder.AddBindingSlot(0, firstInput);
+        const auto secondInputBinding = encoder.AddBindingSlot(1, secondInput);
+        const auto imageInputBinding = encoder.AddBindingSlot(3, imageInput);
+        const auto outputBinding = encoder.AddBindingSlot(2, output);
+        const auto inputSet =
+            encoder.AddDescriptorSetInfo({firstInputBinding, secondInputBinding, imageInputBinding}, 0);
+        const auto outputSet = encoder.AddDescriptorSetInfo({outputBinding}, 1);
+        encoder.AddSegmentInfo(module, "add_int32_buffers_with_external_image_segment", {inputSet, outputSet},
+                               {firstInputBinding, secondInputBinding, imageInputBinding}, {outputBinding}, {},
+                               {10, 1, 1});
+    });
+}
+
 std::string makeDisjointAliasedIntermediateBuffersVgf() {
     const auto &code = assembleAddInt32BuffersSpirv();
     return writeVgf([&](mlsdk::vgflib::Encoder &encoder) {
@@ -339,6 +366,24 @@ std::vector<int32_t> int32WordsFromBytes(const std::vector<int8_t> &bytes, size_
     return result;
 }
 
+struct Image {
+    Image(const vk::raii::PhysicalDevice &physicalDevice, const vk::raii::Device &device)
+        : image(device, vk::ImageCreateInfo({}, vk::ImageType::e2D, vk::Format::eR8G8B8A8Snorm, {2, 2, 1}, 1, 1,
+                                            vk::SampleCountFlagBits::e1, vk::ImageTiling::eOptimal,
+                                            vk::ImageUsageFlagBits::eSampled, vk::SharingMode::eExclusive)) {
+        const auto memoryRequirements = image.getMemoryRequirements();
+        memorySize = memoryRequirements.size;
+        const auto memoryType =
+            findMemoryType(physicalDevice, memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
+        memory = vk::raii::DeviceMemory(device, {memorySize, memoryType});
+        image.bindMemory(*memory, 0);
+    }
+
+    vk::raii::DeviceMemory memory{nullptr};
+    vk::raii::Image image{nullptr};
+    vk::DeviceSize memorySize = 0;
+};
+
 std::string makeOutputAliasedToIntermediateBufferVgf() {
     const auto &code = assembleAddInt32BuffersSpirv();
     return writeVgf([&](mlsdk::vgflib::Encoder &encoder) {
@@ -406,6 +451,45 @@ TEST_F(VgfRuntimeFullTest, RunComputeShaderSegment) {
     session.bindBuffer(outputBuffer.buffer, bindings[2]);
 
     session.configure();
+    session.run();
+
+    EXPECT_EQ(outputBuffer.read(elements), expected);
+}
+
+TEST_F(VgfRuntimeFullTest, RunComputeShaderSegmentWithExternalImageBinding) {
+    constexpr size_t elements = 10;
+    constexpr vk::DeviceSize bufferSize = elements * sizeof(int32_t);
+
+    const auto bytes = makeAddInt32BuffersWithExternalImageVgf();
+    const VGF vgf(bytes.data(), bytes.size());
+
+    Buffer firstInputBuffer(physicalDevice, device, bufferSize);
+    Buffer secondInputBuffer(physicalDevice, device, bufferSize);
+    Buffer outputBuffer(physicalDevice, device, bufferSize);
+    Image imageInput(physicalDevice, device);
+
+    const std::vector<int32_t> firstInput = {1, 2, 3, 4, 5, -6, -7, 8, 9, 10};
+    const std::vector<int32_t> secondInput = {10, 9, 8, 7, 6, 5, 4, -3, -2, -1};
+    std::vector<int32_t> expected(elements);
+    std::transform(firstInput.begin(), firstInput.end(), secondInput.begin(), expected.begin(), std::plus<>());
+
+    firstInputBuffer.write(firstInput);
+    secondInputBuffer.write(secondInput);
+    outputBuffer.write(std::vector<int32_t>(elements, 0));
+
+    Session session(physicalDevice, device, queueFamilyIndex, queue, vgf);
+    const auto bindings = vgf.getDescriptorBindings(0);
+    ASSERT_EQ(bindings.size(), 4);
+    session.bindBuffer(firstInputBuffer.buffer, bindings[0]);
+    session.bindBuffer(secondInputBuffer.buffer, bindings[1]);
+    session.bindImage(imageInput.image, bindings[2], vk::ImageLayout::eUndefined);
+    session.bindBuffer(outputBuffer.buffer, bindings[3]);
+
+    session.configure();
+    session.run();
+
+    EXPECT_EQ(outputBuffer.read(elements), expected);
+
     session.run();
 
     EXPECT_EQ(outputBuffer.read(elements), expected);
@@ -605,6 +689,35 @@ TEST_F(VgfRuntimeFullTest, RunOutputAliasedToIntermediateBuffer) {
 
     EXPECT_EQ(finalOutputBuffer.read(elements), addVectors(firstInput, secondInput));
     EXPECT_EQ(aliasedOutputBuffer.read(elements), addVectors(firstInput, secondInput));
+}
+
+TEST_F(VgfRuntimeFullTest, ConfigureOutputAliasedToIntermediateBufferRequiresMemoryInfo) {
+    constexpr size_t elements = 10;
+    constexpr vk::DeviceSize bufferSize = elements * sizeof(int32_t);
+
+    const auto bytes = makeOutputAliasedToIntermediateBufferVgf();
+    const VGF vgf(bytes.data(), bytes.size());
+    ASSERT_EQ(vgf.getNumSegments(), 2);
+
+    Buffer firstInputBuffer(physicalDevice, device, bufferSize);
+    Buffer secondInputBuffer(physicalDevice, device, bufferSize);
+    Buffer zeroInputBuffer(physicalDevice, device, bufferSize);
+    Buffer aliasedOutputBuffer(physicalDevice, device, bufferSize);
+    Buffer finalOutputBuffer(physicalDevice, device, bufferSize);
+
+    Session session(physicalDevice, device, queueFamilyIndex, queue, vgf);
+    const auto firstSegmentBindings = vgf.getDescriptorBindings(0);
+    ASSERT_EQ(firstSegmentBindings.size(), 3);
+    session.bindBuffer(firstInputBuffer.buffer, firstSegmentBindings[0]);
+    session.bindBuffer(secondInputBuffer.buffer, firstSegmentBindings[1]);
+
+    const auto secondSegmentBindings = vgf.getDescriptorBindings(1);
+    ASSERT_EQ(secondSegmentBindings.size(), 3);
+    session.bindBuffer(aliasedOutputBuffer.buffer, secondSegmentBindings[0]);
+    session.bindBuffer(zeroInputBuffer.buffer, secondSegmentBindings[1]);
+    session.bindBuffer(finalOutputBuffer.buffer, secondSegmentBindings[2]);
+
+    EXPECT_THROW(session.configure(), std::runtime_error);
 }
 
 TEST_F(VgfRuntimeFullTest, RunOutputBufferAliasedToIntermediateTensor) {

@@ -133,6 +133,60 @@ vk::DeviceSize resourceByteSize(const ResourceInfo &resource) {
     return elements;
 }
 
+void validateImageFormat(vk::Format format) {
+    if (format != vk::Format::eR8G8B8A8Snorm) {
+        throw std::runtime_error("Session only supports eR8G8B8A8Snorm VGF image resources");
+    }
+}
+
+vk::Extent3D imageExtent(const ResourceInfo &resource) {
+    validateImageFormat(resource.format);
+    if (resource.shape.size() == 4 && resource.shape[0] == 1 && resource.shape[3] == 4) {
+        return {static_cast<uint32_t>(resource.shape[2]), static_cast<uint32_t>(resource.shape[1]), 1};
+    }
+    throw std::runtime_error("Session only supports 4D NHWC VGF image resources with batch 1 and 4 channels");
+}
+
+vk::ImageLayout imageLayout(vk::DescriptorType descriptorType) {
+    switch (descriptorType) {
+    case vk::DescriptorType::eCombinedImageSampler:
+        return vk::ImageLayout::eShaderReadOnlyOptimal;
+    case vk::DescriptorType::eStorageImage:
+        return vk::ImageLayout::eGeneral;
+    default:
+        throw std::runtime_error("Descriptor type is not an image descriptor");
+    }
+}
+
+vk::ImageUsageFlags imageUsage(vk::DescriptorType descriptorType, bool aliased) {
+    vk::ImageUsageFlags usage{};
+    switch (descriptorType) {
+    case vk::DescriptorType::eCombinedImageSampler:
+        usage |= vk::ImageUsageFlagBits::eSampled;
+        break;
+    case vk::DescriptorType::eStorageImage:
+        usage |= vk::ImageUsageFlagBits::eStorage;
+        break;
+    default:
+        throw std::runtime_error("Descriptor type is not an image descriptor");
+    }
+    if (aliased) {
+        usage |= vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage |
+                 vk::ImageUsageFlagBits::eTensorAliasingARM;
+    }
+    return usage;
+}
+
+vk::AccessFlags2 imageAccess(vgflib::ModuleType type, vk::DescriptorType descriptorType) {
+    if (descriptorType == vk::DescriptorType::eCombinedImageSampler) {
+        return readAccess(type);
+    }
+    if (descriptorType == vk::DescriptorType::eStorageImage) {
+        return readAccess(type) | writeAccess(type);
+    }
+    throw std::runtime_error("Descriptor type is not an image descriptor");
+}
+
 std::string resourceCategoryName(vgflib::ResourceCategory category) {
     switch (category) {
     case vgflib::ResourceCategory::INPUT:
@@ -164,6 +218,16 @@ struct Session::Impl {
         BoundMemoryInfo memory{};
     };
 
+    struct BoundImage {
+        DescriptorBindingInfo binding;
+        vk::Image image{nullptr};
+        vk::raii::ImageView imageView{nullptr};
+        vk::raii::Sampler sampler{nullptr};
+        BoundMemoryInfo memory{};
+        vk::ImageLayout currentLayout = vk::ImageLayout::eUndefined;
+        vk::ImageLayout layout = vk::ImageLayout::eUndefined;
+    };
+
     struct SegmentState {
         // Common members
         vgflib::ModuleType type;
@@ -190,23 +254,32 @@ struct Session::Impl {
     const BoundBuffer *findBoundBuffer(uint32_t resourceIndex) const;
     const BoundTensor *findBoundTensorInAliasGroup(uint32_t aliasGroupId) const;
     const BoundBuffer *findBoundBufferInAliasGroup(uint32_t aliasGroupId) const;
+    const BoundImage *findBoundImage(uint32_t resourceIndex) const;
+    const BoundImage *findBoundImageInAliasGroup(uint32_t aliasGroupId) const;
     void updateDescriptorSets(const std::vector<vk::raii::DescriptorSet> &descriptorSets,
                               const std::vector<DescriptorBindingInfo> &bindings) const;
+    void insertInitialImageLayoutTransitions(vk::raii::CommandBuffer &commandBuffer);
     void insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer, const SegmentState &producer,
                               const SegmentState &consumer) const;
     void configureSegment(uint32_t segmentIndex);
     void allocateResources();
     vk::raii::TensorARM createIntermediateTensor(const DescriptorBindingInfo &binding) const;
     vk::raii::Buffer createIntermediateBuffer(const DescriptorBindingInfo &binding) const;
+    vk::raii::Image createIntermediateImage(const DescriptorBindingInfo &binding, bool aliased) const;
     void allocateIntermediateTensor(const DescriptorBindingInfo &binding);
     void allocateIntermediateBuffer(const DescriptorBindingInfo &binding);
+    void allocateIntermediateImage(const DescriptorBindingInfo &binding);
     void allocateAliasedResources(const std::vector<DescriptorBindingInfo> &bindings);
     void addBoundTensor(vk::TensorARM tensor, DescriptorBindingInfo binding,
                         BoundMemoryInfo memory = BoundMemoryInfo());
     void addBoundBuffer(vk::Buffer buffer, DescriptorBindingInfo binding, BoundMemoryInfo memory = BoundMemoryInfo());
+    void addBoundImage(vk::Image image, DescriptorBindingInfo binding, BoundMemoryInfo memory = BoundMemoryInfo(),
+                       vk::ImageLayout currentLayout = vk::ImageLayout::eUndefined);
 
     void bindTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInfo binding, BoundMemoryInfo memory);
     void bindBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding, BoundMemoryInfo memory);
+    void bindImage(const vk::raii::Image &image, DescriptorBindingInfo binding, BoundMemoryInfo memory,
+                   vk::ImageLayout currentLayout);
 
     void configure();
 
@@ -222,8 +295,10 @@ struct Session::Impl {
     std::vector<vk::raii::DeviceMemory> ownedMemory;
     std::vector<vk::raii::TensorARM> ownedTensors;
     std::vector<vk::raii::Buffer> ownedBuffers;
+    std::vector<vk::raii::Image> ownedImages;
     std::vector<BoundTensor> boundTensors;
     std::vector<BoundBuffer> boundBuffers;
+    std::vector<BoundImage> boundImages;
     std::vector<SegmentState> segments;
 
     vk::raii::CommandPool commandPool{nullptr};
@@ -278,6 +353,25 @@ const Session::Impl::BoundBuffer *Session::Impl::findBoundBufferInAliasGroup(uin
     return buffer != boundBuffers.rend() ? &*buffer : nullptr;
 }
 
+const Session::Impl::BoundImage *Session::Impl::findBoundImage(uint32_t resourceIndex) const {
+    const auto image = std::find_if(boundImages.rbegin(), boundImages.rend(), [resourceIndex](const auto &boundImage) {
+        return boundImage.binding.resourceIndex == resourceIndex;
+    });
+    if (image == boundImages.rend()) {
+        throw std::runtime_error("No image bound for VGF resource " + std::to_string(resourceIndex));
+    }
+    return &*image;
+}
+
+const Session::Impl::BoundImage *Session::Impl::findBoundImageInAliasGroup(uint32_t aliasGroupId) const {
+    const auto image =
+        std::find_if(boundImages.rbegin(), boundImages.rend(), [this, aliasGroupId](const auto &boundImage) {
+            const auto resource = vgf.getResource(boundImage.binding.resourceIndex);
+            return resource.aliasGroupId.has_value() && *resource.aliasGroupId == aliasGroupId;
+        });
+    return image != boundImages.rend() ? &*image : nullptr;
+}
+
 void Session::Impl::updateDescriptorSets(const std::vector<vk::raii::DescriptorSet> &descriptorSets,
                                          const std::vector<DescriptorBindingInfo> &bindings) const {
     for (const auto &binding : bindings) {
@@ -299,6 +393,17 @@ void Session::Impl::updateDescriptorSets(const std::vector<vk::raii::DescriptorS
             device.updateDescriptorSets(write, nullptr);
             break;
         }
+        case vk::DescriptorType::eCombinedImageSampler:
+        case vk::DescriptorType::eStorageImage: {
+            const auto *const image = findBoundImage(binding.resourceIndex);
+            const vk::DescriptorImageInfo imageInfo(
+                binding.descriptorType == vk::DescriptorType::eCombinedImageSampler ? *image->sampler : vk::Sampler(),
+                *image->imageView, image->layout);
+            const vk::WriteDescriptorSet write(*descriptorSets[binding.set], binding.binding, 0, 1,
+                                               binding.descriptorType, &imageInfo);
+            device.updateDescriptorSets(write, nullptr);
+            break;
+        }
         default:
             throw std::runtime_error("Session does not support descriptor type " +
                                      std::to_string(static_cast<uint32_t>(binding.descriptorType)));
@@ -306,11 +411,63 @@ void Session::Impl::updateDescriptorSets(const std::vector<vk::raii::DescriptorS
     }
 }
 
+void Session::Impl::insertInitialImageLayoutTransitions(vk::raii::CommandBuffer &commandBuffer) {
+    std::vector<vk::ImageMemoryBarrier2> imageBarriers;
+    std::vector<vk::Image> transitionedImages;
+    imageBarriers.reserve(boundImages.size());
+
+    for (auto &boundImage : boundImages) {
+        if (std::find(transitionedImages.begin(), transitionedImages.end(), boundImage.image) !=
+            transitionedImages.end()) {
+            continue;
+        }
+
+        const auto firstConsumer = std::find_if(segments.begin(), segments.end(), [&boundImage](const auto &segment) {
+            return std::any_of(segment.bindings.begin(), segment.bindings.end(), [&boundImage](const auto &binding) {
+                return binding.resourceIndex == boundImage.binding.resourceIndex;
+            });
+        });
+        if (firstConsumer == segments.end()) {
+            throw std::runtime_error("No segment uses VGF image resource " +
+                                     std::to_string(boundImage.binding.resourceIndex));
+        }
+
+        vk::ImageMemoryBarrier2 imageBarrier;
+        imageBarrier.srcStageMask = boundImage.currentLayout == vk::ImageLayout::eUndefined
+                                        ? vk::PipelineStageFlagBits2::eTopOfPipe
+                                        : vk::PipelineStageFlagBits2::eAllCommands;
+        imageBarrier.srcAccessMask = boundImage.currentLayout == vk::ImageLayout::eUndefined
+                                         ? vk::AccessFlags2{}
+                                         : vk::AccessFlagBits2::eMemoryWrite;
+        imageBarrier.dstStageMask = pipelineStage(firstConsumer->type);
+        imageBarrier.dstAccessMask = imageAccess(firstConsumer->type, boundImage.binding.descriptorType);
+        imageBarrier.oldLayout = boundImage.currentLayout;
+        imageBarrier.newLayout = boundImage.layout;
+        imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        imageBarrier.image = boundImage.image;
+        imageBarrier.subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
+        imageBarriers.push_back(imageBarrier);
+        transitionedImages.push_back(boundImage.image);
+        boundImage.currentLayout = boundImage.layout;
+    }
+
+    if (imageBarriers.empty()) {
+        return;
+    }
+
+    vk::DependencyInfo dependencyInfo;
+    dependencyInfo.imageMemoryBarrierCount = static_cast<uint32_t>(imageBarriers.size());
+    dependencyInfo.pImageMemoryBarriers = imageBarriers.data();
+    commandBuffer.pipelineBarrier2(dependencyInfo);
+}
+
 void Session::Impl::insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer, const SegmentState &producer,
                                          const SegmentState &consumer) const {
     std::vector<vk::MemoryBarrier2> memoryBarriers;
     std::vector<vk::TensorMemoryBarrierARM> tensorBarriers;
     std::vector<vk::BufferMemoryBarrier2> bufferBarriers;
+    std::vector<vk::ImageMemoryBarrier2> imageBarriers;
     std::vector<uint32_t> barrierAliasGroupIds;
     std::vector<uint32_t> barrierResourceIndices;
 
@@ -373,13 +530,32 @@ void Session::Impl::insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer,
             barrierResourceIndices.push_back(producerBinding.resourceIndex);
             break;
         }
+        case vk::DescriptorType::eCombinedImageSampler:
+        case vk::DescriptorType::eStorageImage: {
+            const auto *const image = findBoundImage(producerBinding.resourceIndex);
+            vk::ImageMemoryBarrier2 imageBarrier;
+            imageBarrier.srcStageMask = pipelineStage(producer.type);
+            imageBarrier.srcAccessMask = writeAccess(producer.type);
+            imageBarrier.dstStageMask = pipelineStage(consumer.type);
+            imageBarrier.dstAccessMask = readAccess(consumer.type) | writeAccess(consumer.type);
+            imageBarrier.oldLayout = image->layout;
+            imageBarrier.newLayout = image->layout;
+            imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imageBarrier.image = image->image;
+            imageBarrier.subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
+
+            imageBarriers.push_back(imageBarrier);
+            barrierResourceIndices.push_back(producerBinding.resourceIndex);
+            break;
+        }
         default:
             throw std::runtime_error("Session does not support descriptor type " +
                                      std::to_string(static_cast<uint32_t>(producerBinding.descriptorType)));
         }
     }
 
-    if (memoryBarriers.empty() && tensorBarriers.empty() && bufferBarriers.empty()) {
+    if (memoryBarriers.empty() && tensorBarriers.empty() && bufferBarriers.empty() && imageBarriers.empty()) {
         return;
     }
 
@@ -390,6 +566,8 @@ void Session::Impl::insertSegmentBarrier(vk::raii::CommandBuffer &commandBuffer,
     dependencyInfo.pMemoryBarriers = memoryBarriers.data();
     dependencyInfo.bufferMemoryBarrierCount = static_cast<uint32_t>(bufferBarriers.size());
     dependencyInfo.pBufferMemoryBarriers = bufferBarriers.data();
+    dependencyInfo.imageMemoryBarrierCount = static_cast<uint32_t>(imageBarriers.size());
+    dependencyInfo.pImageMemoryBarriers = imageBarriers.data();
     if (!tensorBarriers.empty()) {
         dependencyInfo.pNext = &tensorDependencyInfo;
     }
@@ -404,6 +582,28 @@ void Session::Impl::addBoundTensor(vk::TensorARM tensor, DescriptorBindingInfo b
 
 void Session::Impl::addBoundBuffer(vk::Buffer buffer, DescriptorBindingInfo binding, BoundMemoryInfo memory) {
     boundBuffers.push_back({binding, buffer, memory});
+}
+
+void Session::Impl::addBoundImage(vk::Image image, DescriptorBindingInfo binding, BoundMemoryInfo memory,
+                                  vk::ImageLayout currentLayout) {
+    const auto resource = vgf.getResource(binding.resourceIndex);
+    validateImageFormat(resource.format);
+    const vk::ImageSubresourceRange subresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
+    const vk::ImageViewCreateInfo viewCreateInfo({}, image, vk::ImageViewType::e2D, resource.format, {},
+                                                 subresourceRange);
+
+    vk::raii::Sampler sampler(nullptr);
+    if (binding.descriptorType == vk::DescriptorType::eCombinedImageSampler) {
+        const auto samplerConfig = resource.samplerConfig.value_or(ResourceInfo::SamplerConfig{});
+        const vk::SamplerCreateInfo samplerCreateInfo(
+            {}, samplerConfig.magFilter, samplerConfig.minFilter, vk::SamplerMipmapMode::eNearest,
+            samplerConfig.addressModeU, samplerConfig.addressModeV, vk::SamplerAddressMode::eClampToEdge, 0.0F, false,
+            1.0F, false, vk::CompareOp::eNever, 0.0F, 0.0F, samplerConfig.borderColor);
+        sampler = vk::raii::Sampler(device, samplerCreateInfo);
+    }
+
+    boundImages.push_back({binding, image, vk::raii::ImageView(device, viewCreateInfo), std::move(sampler), memory,
+                           currentLayout, imageLayout(binding.descriptorType)});
 }
 
 void Session::Impl::bindTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInfo binding,
@@ -425,6 +625,16 @@ void Session::Impl::bindBuffer(const vk::raii::Buffer &buffer, DescriptorBinding
     addBoundBuffer(*buffer, binding, memory);
 }
 
+void Session::Impl::bindImage(const vk::raii::Image &image, DescriptorBindingInfo binding, BoundMemoryInfo memory,
+                              vk::ImageLayout currentLayout) {
+    const auto resource = vgf.getResource(binding.resourceIndex);
+    if (resource.category != vgflib::ResourceCategory::INPUT && resource.category != vgflib::ResourceCategory::OUTPUT) {
+        throw std::runtime_error(std::string("VGF ") + resourceCategoryName(resource.category) + " resource " +
+                                 std::to_string(binding.resourceIndex) + " must not be manually bound");
+    }
+    addBoundImage(*image, binding, memory, currentLayout);
+}
+
 vk::raii::TensorARM Session::Impl::createIntermediateTensor(const DescriptorBindingInfo &binding) const {
     const auto resource = vgf.getResource(binding.resourceIndex);
 
@@ -440,6 +650,15 @@ vk::raii::Buffer Session::Impl::createIntermediateBuffer(const DescriptorBinding
     const auto resource = vgf.getResource(binding.resourceIndex);
     return vk::raii::Buffer(
         device, vk::BufferCreateInfo({}, resourceByteSize(resource), vk::BufferUsageFlagBits::eStorageBuffer));
+}
+
+vk::raii::Image Session::Impl::createIntermediateImage(const DescriptorBindingInfo &binding, bool aliased) const {
+    const auto resource = vgf.getResource(binding.resourceIndex);
+    const vk::ImageCreateInfo createInfo({}, vk::ImageType::e2D, resource.format, imageExtent(resource), 1, 1,
+                                         vk::SampleCountFlagBits::e1, vk::ImageTiling::eOptimal,
+                                         imageUsage(binding.descriptorType, aliased), vk::SharingMode::eExclusive, {},
+                                         vk::ImageLayout::eUndefined);
+    return vk::raii::Image(device, createInfo);
 }
 
 void Session::Impl::allocateIntermediateTensor(const DescriptorBindingInfo &binding) {
@@ -467,38 +686,70 @@ void Session::Impl::allocateIntermediateBuffer(const DescriptorBindingInfo &bind
     addBoundBuffer(ownedBuffers.back(), binding);
 }
 
+void Session::Impl::allocateIntermediateImage(const DescriptorBindingInfo &binding) {
+    auto ownedImage = createIntermediateImage(binding, false);
+    const auto memoryRequirements = ownedImage.getMemoryRequirements();
+    const auto memoryType =
+        findMemoryType(physicalDevice, memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
+    ownedMemory.emplace_back(device, vk::MemoryAllocateInfo(memoryRequirements.size, memoryType));
+    ownedImage.bindMemory(*ownedMemory.back(), 0);
+
+    ownedImages.push_back(std::move(ownedImage));
+    addBoundImage(ownedImages.back(), binding, {*ownedMemory.back(), 0, memoryRequirements.size});
+}
+
 void Session::Impl::allocateAliasedResources(const std::vector<DescriptorBindingInfo> &bindings) {
     std::vector<std::pair<DescriptorBindingInfo, vk::raii::TensorARM>> tensors;
     std::vector<std::pair<DescriptorBindingInfo, vk::raii::Buffer>> buffers;
+    std::vector<std::pair<DescriptorBindingInfo, vk::raii::Image>> images;
 
     const auto aliasGroupId = *vgf.getResource(bindings.front().resourceIndex).aliasGroupId;
+
+    std::optional<BoundMemoryInfo> aliasedMemory;
+    auto setAliasedMemory = [&](BoundMemoryInfo memory) {
+        if (memory.memory != nullptr) {
+            aliasedMemory = memory;
+        }
+    };
+    const auto *const aliasedTensor = findBoundTensorInAliasGroup(aliasGroupId);
+    const auto *const aliasedBuffer = findBoundBufferInAliasGroup(aliasGroupId);
+    const auto *const aliasedImage = findBoundImageInAliasGroup(aliasGroupId);
+    if (aliasedTensor != nullptr) {
+        setAliasedMemory(aliasedTensor->memory);
+    }
+    if (aliasedBuffer != nullptr) {
+        setAliasedMemory(aliasedBuffer->memory);
+    }
+    if (aliasedImage != nullptr) {
+        setAliasedMemory(aliasedImage->memory);
+    }
+    const bool hasBoundAlias = aliasedTensor != nullptr || aliasedBuffer != nullptr || aliasedImage != nullptr;
+    const auto requireAliasedMemory = [&](const DescriptorBindingInfo &binding) {
+        if (hasBoundAlias && !aliasedMemory.has_value()) {
+            throw std::runtime_error("Manually bound aliases must provide memory for aliased VGF resource " +
+                                     std::to_string(binding.resourceIndex));
+        }
+    };
 
     uint32_t memoryTypeBits = std::numeric_limits<uint32_t>::max();
     vk::DeviceSize memorySize = 0;
     for (const auto &binding : bindings) {
         if (binding.descriptorType == vk::DescriptorType::eTensorARM) {
-            // Add already bound input/output tensor
-            if (const auto *const aliasedTensor = findBoundTensorInAliasGroup(aliasGroupId)) {
-                addBoundTensor(aliasedTensor->tensor, binding, aliasedTensor->memory);
-                continue;
-            }
             if (binding.resourceCategory != vgflib::ResourceCategory::INTERMEDIATE) {
+                if (aliasedTensor != nullptr) {
+                    addBoundTensor(aliasedTensor->tensor, binding, aliasedTensor->memory);
+                    continue;
+                }
                 throw std::runtime_error("No manually bound tensor for aliased VGF resource " +
                                          std::to_string(binding.resourceIndex));
             }
-            const auto *const aliasedBuffer = findBoundBufferInAliasGroup(aliasGroupId);
+            requireAliasedMemory(binding);
             auto ownedTensor = createIntermediateTensor(binding);
-            // If buffer in alias group already bound
-            if (aliasedBuffer != nullptr) {
-                if (aliasedBuffer->memory.memory == nullptr) {
-                    throw std::runtime_error("Manually bound buffer for aliased VGF resource " +
-                                             std::to_string(aliasedBuffer->binding.resourceIndex) +
-                                             " must include memory info");
-                }
-                device.bindTensorMemoryARM(vk::BindTensorMemoryInfoARM(*ownedTensor, aliasedBuffer->memory.memory,
-                                                                       aliasedBuffer->memory.offset));
+            if (aliasedMemory.has_value()) {
+                device.bindTensorMemoryARM(
+                    vk::BindTensorMemoryInfoARM(*ownedTensor, aliasedMemory->memory, aliasedMemory->offset));
                 ownedTensors.push_back(std::move(ownedTensor));
-                addBoundTensor(*ownedTensors.back(), binding, aliasedBuffer->memory);
+                addBoundTensor(*ownedTensors.back(), binding, *aliasedMemory);
             } else {
                 const auto memoryRequirements =
                     device.getTensorMemoryRequirementsARM(vk::TensorMemoryRequirementsInfoARM(*ownedTensor))
@@ -508,32 +759,47 @@ void Session::Impl::allocateAliasedResources(const std::vector<DescriptorBinding
                 tensors.emplace_back(binding, std::move(ownedTensor));
             }
         } else if (binding.descriptorType == vk::DescriptorType::eStorageBuffer) {
-            // Add already bound input/output buffer
-            if (const auto *const aliasedBuffer = findBoundBufferInAliasGroup(aliasGroupId)) {
-                addBoundBuffer(aliasedBuffer->buffer, binding, aliasedBuffer->memory);
-                continue;
-            }
             if (binding.resourceCategory != vgflib::ResourceCategory::INTERMEDIATE) {
+                if (aliasedBuffer != nullptr) {
+                    addBoundBuffer(aliasedBuffer->buffer, binding, aliasedBuffer->memory);
+                    continue;
+                }
                 throw std::runtime_error("No manually bound buffer for aliased VGF resource " +
                                          std::to_string(binding.resourceIndex));
             }
-            const auto *const aliasedTensor = findBoundTensorInAliasGroup(aliasGroupId);
+            requireAliasedMemory(binding);
             auto ownedBuffer = createIntermediateBuffer(binding);
-            // If tensor in alias group already bound
-            if (aliasedTensor != nullptr) {
-                if (aliasedTensor->memory.memory == nullptr) {
-                    throw std::runtime_error("Manually bound tensor for aliased VGF resource " +
-                                             std::to_string(aliasedTensor->binding.resourceIndex) +
-                                             " must include memory info");
-                }
-                ownedBuffer.bindMemory(aliasedTensor->memory.memory, aliasedTensor->memory.offset);
+            if (aliasedMemory.has_value()) {
+                ownedBuffer.bindMemory(aliasedMemory->memory, aliasedMemory->offset);
                 ownedBuffers.push_back(std::move(ownedBuffer));
-                addBoundBuffer(*ownedBuffers.back(), binding, aliasedTensor->memory);
+                addBoundBuffer(*ownedBuffers.back(), binding, *aliasedMemory);
             } else {
                 const auto memoryRequirements = ownedBuffer.getMemoryRequirements();
                 memoryTypeBits &= memoryRequirements.memoryTypeBits;
                 memorySize = std::max(memorySize, memoryRequirements.size);
                 buffers.emplace_back(binding, std::move(ownedBuffer));
+            }
+        } else if (binding.descriptorType == vk::DescriptorType::eCombinedImageSampler ||
+                   binding.descriptorType == vk::DescriptorType::eStorageImage) {
+            if (binding.resourceCategory != vgflib::ResourceCategory::INTERMEDIATE) {
+                if (aliasedImage != nullptr) {
+                    addBoundImage(aliasedImage->image, binding, aliasedImage->memory, aliasedImage->currentLayout);
+                    continue;
+                }
+                throw std::runtime_error("No manually bound image for aliased VGF resource " +
+                                         std::to_string(binding.resourceIndex));
+            }
+            requireAliasedMemory(binding);
+            auto ownedImage = createIntermediateImage(binding, true);
+            if (aliasedMemory.has_value()) {
+                ownedImage.bindMemory(aliasedMemory->memory, aliasedMemory->offset);
+                ownedImages.push_back(std::move(ownedImage));
+                addBoundImage(*ownedImages.back(), binding, *aliasedMemory);
+            } else {
+                const auto memoryRequirements = ownedImage.getMemoryRequirements();
+                memoryTypeBits &= memoryRequirements.memoryTypeBits;
+                memorySize = std::max(memorySize, memoryRequirements.size);
+                images.emplace_back(binding, std::move(ownedImage));
             }
         } else {
             throw std::runtime_error("Session does not support descriptor type " +
@@ -541,7 +807,7 @@ void Session::Impl::allocateAliasedResources(const std::vector<DescriptorBinding
         }
     }
 
-    if (tensors.empty() && buffers.empty()) {
+    if (tensors.empty() && buffers.empty() && images.empty()) {
         return;
     }
 
@@ -560,6 +826,12 @@ void Session::Impl::allocateAliasedResources(const std::vector<DescriptorBinding
         ownedBuffer.bindMemory(memory, 0);
         ownedBuffers.push_back(std::move(ownedBuffer));
         addBoundBuffer(*ownedBuffers.back(), binding, {*ownedMemory.back(), 0, memorySize});
+    }
+
+    for (auto &[binding, ownedImage] : images) {
+        ownedImage.bindMemory(memory, 0);
+        ownedImages.push_back(std::move(ownedImage));
+        addBoundImage(*ownedImages.back(), binding, {*ownedMemory.back(), 0, memorySize});
     }
 }
 
@@ -598,6 +870,10 @@ void Session::Impl::allocateResources() {
             case vk::DescriptorType::eStorageBuffer:
                 allocateIntermediateBuffer(binding);
                 break;
+            case vk::DescriptorType::eCombinedImageSampler:
+            case vk::DescriptorType::eStorageImage:
+                allocateIntermediateImage(binding);
+                break;
             default:
                 throw std::runtime_error("Session does not support descriptor type " +
                                          std::to_string(static_cast<uint32_t>(binding.descriptorType)));
@@ -620,11 +896,18 @@ void Session::Impl::configureSegment(uint32_t segmentIndex) {
     auto &state = segments.emplace_back();
     state.type = segment.type;
     state.bindings = vgf.getDescriptorBindings(segmentIndex);
+    const auto module = vgf.getSPIRVModule(segment.moduleIndex);
     for (const auto &binding : state.bindings) {
         if (binding.descriptorType != vk::DescriptorType::eStorageBuffer &&
-            binding.descriptorType != vk::DescriptorType::eTensorARM) {
+            binding.descriptorType != vk::DescriptorType::eTensorARM &&
+            binding.descriptorType != vk::DescriptorType::eCombinedImageSampler &&
+            binding.descriptorType != vk::DescriptorType::eStorageImage) {
             throw std::runtime_error("Session does not support descriptor type " +
                                      std::to_string(static_cast<uint32_t>(binding.descriptorType)));
+        }
+        if (binding.descriptorType == vk::DescriptorType::eCombinedImageSampler ||
+            binding.descriptorType == vk::DescriptorType::eStorageImage) {
+            validateImageFormat(vgf.getResource(binding.resourceIndex).format);
         }
     }
 
@@ -643,7 +926,6 @@ void Session::Impl::configureSegment(uint32_t segmentIndex) {
     const vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo({}, descriptorSetLayouts);
     state.pipelineLayout = vk::raii::PipelineLayout(device, pipelineLayoutCreateInfo);
 
-    const auto module = vgf.getSPIRVModule(segment.moduleIndex);
     const vk::ShaderModuleCreateInfo shaderCreateInfo({}, module.code.size() * sizeof(uint32_t), module.code.data());
     state.shaderModule = vk::raii::ShaderModule(device, shaderCreateInfo);
 
@@ -662,16 +944,27 @@ void Session::Impl::configureSegment(uint32_t segmentIndex) {
         state.pipeline = vk::raii::Pipeline(device, pipelineCache, pipelineCreateInfo);
     } else {
         std::vector<vk::TensorDescriptionARM> tensorDescriptions;
+        std::vector<vk::DataGraphPipelineResourceInfoImageLayoutARM> imageLayouts;
         std::vector<vk::DataGraphPipelineResourceInfoARM> resourceInfos;
         tensorDescriptions.reserve(state.bindings.size());
+        imageLayouts.reserve(state.bindings.size());
         resourceInfos.reserve(state.bindings.size());
         for (const auto &binding : state.bindings) {
             const auto resource = vgf.getResource(binding.resourceIndex);
-            tensorDescriptions.emplace_back(vk::TensorTilingARM::eLinear, resource.format,
-                                            static_cast<uint32_t>(resource.shape.size()), resource.shape.data(),
-                                            resource.stride.empty() ? nullptr : resource.stride.data(),
-                                            vk::TensorUsageFlagBitsARM::eDataGraph);
-            resourceInfos.emplace_back(binding.set, binding.binding, 0, &tensorDescriptions.back());
+            const auto tensorTiling = binding.descriptorType == vk::DescriptorType::eCombinedImageSampler ||
+                                              binding.descriptorType == vk::DescriptorType::eStorageImage
+                                          ? vk::TensorTilingARM::eOptimal
+                                          : vk::TensorTilingARM::eLinear;
+            tensorDescriptions.emplace_back(
+                tensorTiling, resource.format, static_cast<uint32_t>(resource.shape.size()), resource.shape.data(),
+                resource.stride.empty() ? nullptr : resource.stride.data(), vk::TensorUsageFlagBitsARM::eDataGraph);
+            if (binding.descriptorType == vk::DescriptorType::eCombinedImageSampler ||
+                binding.descriptorType == vk::DescriptorType::eStorageImage) {
+                imageLayouts.emplace_back(imageLayout(binding.descriptorType), &tensorDescriptions.back());
+                resourceInfos.emplace_back(binding.set, binding.binding, 0, &imageLayouts.back());
+            } else {
+                resourceInfos.emplace_back(binding.set, binding.binding, 0, &tensorDescriptions.back());
+            }
         }
 
         const uint32_t numConstants = vgf.getNumConstants(segmentIndex);
@@ -780,6 +1073,7 @@ void Session::Impl::run() {
     commandBuffer.reset();
 
     commandBuffer.begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+    insertInitialImageLayoutTransitions(commandBuffer);
     for (size_t segmentIndex = 0; segmentIndex < segments.size(); ++segmentIndex) {
         const auto &segment = segments[segmentIndex];
         const auto pipelineBindPoint = bindPoint(segment.type);
@@ -811,6 +1105,15 @@ void Session::bindTensor(const vk::raii::TensorARM &tensor, DescriptorBindingInf
 
 void Session::bindBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding, BoundMemoryInfo memory) {
     impl_->bindBuffer(buffer, binding, memory);
+}
+
+void Session::bindImage(const vk::raii::Image &image, DescriptorBindingInfo binding, BoundMemoryInfo memory) {
+    impl_->bindImage(image, binding, memory, imageLayout(binding.descriptorType));
+}
+
+void Session::bindImage(const vk::raii::Image &image, DescriptorBindingInfo binding, vk::ImageLayout currentLayout,
+                        BoundMemoryInfo memory) {
+    impl_->bindImage(image, binding, memory, currentLayout);
 }
 
 void Session::configure() { impl_->configure(); }

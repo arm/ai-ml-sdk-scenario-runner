@@ -49,6 +49,14 @@ struct DescriptorBindingInfo {
 
 /** @brief Metadata describing a VGF resource entry. */
 struct ResourceInfo {
+    struct SamplerConfig {
+        vk::Filter minFilter = vk::Filter::eNearest;
+        vk::Filter magFilter = vk::Filter::eNearest;
+        vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eClampToEdge;
+        vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eClampToEdge;
+        vk::BorderColor borderColor = vk::BorderColor::eFloatTransparentBlack;
+    };
+
     uint32_t index = 0;
     vgflib::ResourceCategory category = vgflib::ResourceCategory::INPUT;
     std::optional<vk::DescriptorType> descriptorType;
@@ -56,6 +64,7 @@ struct ResourceInfo {
     vgflib::DataView<int64_t> shape;
     vgflib::DataView<int64_t> stride;
     std::optional<uint32_t> aliasGroupId;
+    std::optional<SamplerConfig> samplerConfig;
 };
 
 /** @brief Decoded constant payload and metadata for a segment resource. */
@@ -158,6 +167,20 @@ class Session {
     /** @brief Bind a buffer to the descriptor binding described by @p binding. */
     void bindBuffer(const vk::raii::Buffer &buffer, DescriptorBindingInfo binding,
                     BoundMemoryInfo memory = BoundMemoryInfo());
+
+    /**
+     * @brief Bind an image to the descriptor binding described by @p binding.
+     *
+     * The image is assumed to already be in the layout required by @p binding.
+     * Use the overload with @p currentLayout when the image needs a transition
+     * before the first session dispatch.
+     */
+    void bindImage(const vk::raii::Image &image, DescriptorBindingInfo binding,
+                   BoundMemoryInfo memory = BoundMemoryInfo());
+
+    /** @brief Bind an image and describe its layout before the first session dispatch. */
+    void bindImage(const vk::raii::Image &image, DescriptorBindingInfo binding, vk::ImageLayout currentLayout,
+                   BoundMemoryInfo memory = BoundMemoryInfo());
 
     /** @brief Create the Vulkan objects needed to execute the decoded graph. */
     void configure();
