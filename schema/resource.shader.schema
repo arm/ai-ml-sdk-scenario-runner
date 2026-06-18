@@ -19,7 +19,7 @@
         },
         "type": {
             "type": "string",
-            "enum": ["GLSL", "SPIR-V"]
+            "enum": ["GLSL", "SPIR-V", "HLSL"]
         },
         "include_dirs": {
             "type": "array",
