@@ -10,6 +10,13 @@
         "graph_ref": {
             "type": "string"
         },
+        "push_constants": {
+            "type": "array",
+            "items": {
+                "push_data_ref": "string",
+                "shader_target": "string"
+            }
+        },
         "implicit_barrier": {
             "type": "boolean",
             "default": true

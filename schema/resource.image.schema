@@ -32,6 +32,10 @@
         "dst": {
             "type": "string"
         },
+        "color_attachment": {
+            "type": "boolean",
+            "default": false
+        },
         "mag_filter": {
             "type": "string",
             "enum": ["NEAREST", "LINEAR"]
