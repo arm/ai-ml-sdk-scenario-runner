@@ -51,7 +51,8 @@ bool hasExtension(const std::vector<vk::ExtensionProperties> &extensions, const 
 
 Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue)
     : _gpuDebugMarkersEnabled(scenarioOptions.enableGPUDebugMarkers),
-      _sessionMemoryDumpEnabled(!scenarioOptions.sessionRAMsDumpDir.empty()) {
+      _sessionMemoryDumpEnabled(!scenarioOptions.sessionRAMsDumpDir.empty()),
+      _robustnessFeaturesEnabled(scenarioOptions.enableRobustnessFeatures) {
     // Create instance
     const vk::ApplicationInfo appInfo("Scenario-Runner", 1, nullptr, 0, VK_API_VERSION_1_3);
 
@@ -131,6 +132,12 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         hasExtension(extensions, VK_EXT_SHADER_FLOAT8_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.optical_flow =
         hasExtension(extensions, VK_ARM_DATA_GRAPH_OPTICAL_FLOW_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+    _optionals.robustness2 =
+        hasExtension(extensions, VK_KHR_ROBUSTNESS_2_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+    _optionals.descriptor_indexing =
+        hasExtension(extensions, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+    _optionals.pipeline_robustness =
+        hasExtension(extensions, VK_EXT_PIPELINE_ROBUSTNESS_EXTENSION_NAME, scenarioOptions.disabledExtensions);
 
     // Create device
     const float queuePriority = 1.0f;
@@ -157,7 +164,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features,
         vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR,
         vk::PhysicalDeviceShaderFloat8FeaturesEXT, vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM,
-        vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM>();
+        vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM, vk::PhysicalDeviceRobustness2FeaturesKHR,
+        vk::PhysicalDeviceDescriptorIndexingFeatures, vk::PhysicalDevicePipelineRobustnessFeatures>();
 
     const auto &availableCoreFeatures = availableFeatures.template get<vk::PhysicalDeviceFeatures2>().features;
     const auto &[available11Features, available12Features, available13Features, availableBfloat16, availableFloat8] =
@@ -169,6 +177,9 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         availableFeatures.template get<vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM>();
     const auto &availableDataGraphNeuralAcceleratorStatistics =
         availableFeatures.template get<vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM>();
+    const auto &availableRobustness2 = availableFeatures.template get<vk::PhysicalDeviceRobustness2FeaturesKHR>();
+    const auto &availablePipelineRobustness =
+        availableFeatures.template get<vk::PhysicalDevicePipelineRobustnessFeatures>();
     if (_optionals.optical_flow && !availableDataGraphOpticalFlow.dataGraphOpticalFlow) {
         mlsdk::logging::warning("VK_ARM_data_graph_optical_flow extension is present, but "
                                 "dataGraphOpticalFlow feature is not supported. "
@@ -186,6 +197,12 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         (scenarioOptions.shouldDumpNeuralDebugDatabase() || scenarioOptions.shouldDumpNeuralStatistics())) {
         throw std::runtime_error("Neural Accelerator dump requested, but "
                                  "VK_ARM_data_graph_neural_accelerator_statistics is not supported or enabled");
+    }
+    if (_optionals.pipeline_robustness && !availablePipelineRobustness.pipelineRobustness) {
+        mlsdk::logging::warning("VK_EXT_pipeline_robustness extension is present, but "
+                                "pipelineRobustness feature is not supported. "
+                                "Disabling pipeline robustness support.");
+        _optionals.pipeline_robustness = false;
     }
 
     const bool requiresDynamicRendering = familyQueue == FamilyQueue::Graphics;
@@ -259,6 +276,26 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         featureChain = &bfloat16Feat;
     }
 
+    vk::PhysicalDeviceRobustness2FeaturesKHR robustness2Feat{};
+    if (scenarioOptions.enableRobustnessFeatures && _optionals.robustness2) {
+        robustness2Feat.robustBufferAccess2 = availableRobustness2.robustBufferAccess2;
+        robustness2Feat.robustImageAccess2 = availableRobustness2.robustImageAccess2;
+        robustness2Feat.nullDescriptor = availableRobustness2.nullDescriptor;
+        robustness2Feat.pNext = featureChain;
+        featureChain = &robustness2Feat;
+    }
+
+    if (_optionals.descriptor_indexing) {
+        physicalDev2Feat.descriptorIndexing = available12Features.descriptorIndexing;
+    }
+
+    vk::PhysicalDevicePipelineRobustnessFeatures pipelineRobustnessFeat{};
+    if (scenarioOptions.enableRobustnessFeatures && _optionals.pipeline_robustness) {
+        pipelineRobustnessFeat.pipelineRobustness = availablePipelineRobustness.pipelineRobustness;
+        pipelineRobustnessFeat.pNext = featureChain;
+        featureChain = &pipelineRobustnessFeat;
+    }
+
     vk::PhysicalDeviceFeatures deviceFeat;
     deviceFeat.shaderInt16 = true;
     deviceFeat.shaderInt64 = true;
@@ -296,6 +333,15 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     }
     if (_optionals.optical_flow) {
         vulkanDeviceExtensions.push_back(VK_ARM_DATA_GRAPH_OPTICAL_FLOW_EXTENSION_NAME);
+    }
+    if (_optionals.robustness2) {
+        vulkanDeviceExtensions.push_back(VK_KHR_ROBUSTNESS_2_EXTENSION_NAME);
+    }
+    if (_optionals.descriptor_indexing) {
+        vulkanDeviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+    }
+    if (_optionals.pipeline_robustness) {
+        vulkanDeviceExtensions.push_back(VK_EXT_PIPELINE_ROBUSTNESS_EXTENSION_NAME);
     }
 #ifdef MOLTEN_VK_SUPPORT
     vulkanDeviceExtensions.push_back("VK_KHR_portability_subset");

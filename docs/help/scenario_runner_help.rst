@@ -1,4 +1,4 @@
-Usage: ./scenario-runner [--help] [--version] --scenario VAR [--output VAR] [--profiling-dump-path VAR] [--pipeline-caching] [--clear-pipeline-cache] [--cache-path VAR] [--neural-debug-database-dump-dir VAR] [--fail-on-pipeline-cache-miss] [--emulation-layer-profiling-dump-dir VAR] [--neural-statistics-dump-dir VAR] [--neural-statistics-mode VAR] [--perf-counters-dump-path VAR] [--log-level VAR] [--wait-for-key-stroke-before-run] [--dry-run] [--disable-extension VAR...]... [--enable-gpu-debug-markers] [--session-memory-dump-dir VAR] [--repeat VAR] [--capture-frame] [--pause-on-exit]
+Usage: ./scenario-runner [--help] [--version] --scenario VAR [--output VAR] [--profiling-dump-path VAR] [--pipeline-caching] [--clear-pipeline-cache] [--cache-path VAR] [--neural-debug-database-dump-dir VAR] [--fail-on-pipeline-cache-miss] [--emulation-layer-profiling-dump-dir VAR] [--neural-statistics-dump-dir VAR] [--neural-statistics-mode VAR] [--perf-counters-dump-path VAR] [--log-level VAR] [--wait-for-key-stroke-before-run] [--dry-run] [--disable-extension VAR...]... [--enable-gpu-debug-markers] [--session-memory-dump-dir VAR] [--repeat VAR] [--capture-frame] [--pause-on-exit] [--enable-robustness-features]
 
 Optional arguments:
   -h, --help                            shows help message and exits
@@ -24,3 +24,4 @@ Optional arguments:
   --repeat                              optional repeat count for scenario execution
   --capture-frame                       enable RenderDoc integration for frame capturing
   --pause-on-exit                       pause before exiting
+  --enable-robustness-features          Enable Vulkan's robustness features such as robust buffer access and robust image access

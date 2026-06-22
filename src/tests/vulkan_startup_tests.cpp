@@ -39,7 +39,7 @@ void main()
 //      2. Create and initialize input buffers.
 //      3. Run the shader.
 //      4. Check that the output buffer matches the expected values.
-TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
+void runShader(const ScenarioOptions &scenarioOptions) {
     TempFolder tempFolder("scenario_runner_start_up_tests");
 
     constexpr uint32_t numElements = 10;
@@ -51,7 +51,7 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
     EXPECT_TRUE(spirv.first.empty());
     GlslCompiler::get().save(spirv.second, addShaderSPIRV);
 
-    Context ctx{{}};
+    Context ctx{scenarioOptions};
 
     DataManager dataManager;
     std::vector<float> inDataA(numElements);
@@ -129,5 +129,15 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
         EXPECT_NEAR(expectedOutput[i], output[i], epsilon);
     }
     outputBuf.memoryManager()->unmapStagingBufferMemory();
+}
+
+TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
+    runShader({});
+}
+
+TEST(VulkanStartUp, RunShaderWithRobustnessFeatures) { // cppcheck-suppress syntaxError
+    ScenarioOptions scenarioOptions;
+    scenarioOptions.enableRobustnessFeatures = true;
+    runShader(scenarioOptions);
 }
 } // namespace mlsdk::scenariorunner

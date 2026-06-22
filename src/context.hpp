@@ -23,6 +23,9 @@ struct OptionalExtensions {
     bool shader_bfloat16 = false;
     bool shader_float8 = false;
     bool optical_flow = false;
+    bool robustness2 = false;
+    bool descriptor_indexing = false;
+    bool pipeline_robustness = false;
 };
 
 /// \brief Type of family queue to use
@@ -66,9 +69,14 @@ class Context {
     /// @return Whether graph session memory needs to be dumped
     bool sessionMemoryDumpEnabled() const { return _sessionMemoryDumpEnabled; }
 
+    /// @brief Are robustness features requested?
+    /// @return Whether robustness features should be enabled where supported
+    bool robustnessFeaturesEnabled() const { return _robustnessFeaturesEnabled; }
+
   private:
     bool _gpuDebugMarkersEnabled;
     bool _sessionMemoryDumpEnabled;
+    bool _robustnessFeaturesEnabled;
     vk::raii::Context _ctx;
     vk::raii::Instance _instance{nullptr};
     vk::raii::PhysicalDevice _physicalDev{nullptr};
