@@ -939,6 +939,10 @@ void Scenario::setupCommands() {
             throw std::runtime_error("Unknown CommandType in commands");
         }
     }
+    if (_pipelineCache) {
+        PerfCounterGuard guard(_perfCounters, "Save Pipeline Cache (setup)", "Save Pipeline Cache", false);
+        _pipelineCache->save();
+    }
     // Setup profiling
     if (!_opts.profilingPath.empty() && nQueries != 0) {
         mlsdk::logging::info("Setup profiling");
