@@ -146,6 +146,18 @@ std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<Guid> &co
     return constants;
 }
 
+std::string getDataGraphSegmentProfileName(const DispatchDataGraphData &dispatchDataGraph, const VgfView &vgfView,
+                                           uint32_t segmentIndex) {
+    auto segmentName = vgfView.getSegmentName(segmentIndex);
+    if (segmentName.empty()) {
+        segmentName = vgfView.getModuleName(segmentIndex);
+    }
+    if (segmentName.empty()) {
+        segmentName = "segment_" + std::to_string(segmentIndex);
+    }
+    return dispatchDataGraph.debugName + "/" + segmentName;
+}
+
 std::string resourceType(const std::unique_ptr<ResourceDesc> &resource) {
     switch (resource->resourceType) {
     case ResourceType::Unknown:
@@ -1290,7 +1302,8 @@ void Scenario::createOpticalFlowPipeline(const DispatchOpticalFlowData &dispatch
 void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
                               const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph,
                               uint32_t &nQueries) {
-    const Compute::PipelineCreateArguments args{dispatchDataGraph.debugName, sequenceBindings, _pipelineCache};
+    const auto profileName = getDataGraphSegmentProfileName(dispatchDataGraph, vgfView, segmentIndex);
+    const Compute::PipelineCreateArguments args{profileName, sequenceBindings, _pipelineCache};
     switch (vgfView.getSegmentType(segmentIndex)) {
     case ModuleType::GRAPH: {
         _compute.createPipeline(args, segmentIndex, vgfView, _dataManager, _opts.shouldDumpNeuralStatistics(),

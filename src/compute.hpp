@@ -184,6 +184,12 @@ class Compute {
     struct DataGraphDispatch {
         vk::DataGraphPipelineSessionARM session{nullptr};
         std::optional<OpticalFlowDispatchInfo> dispatchInfo;
+        std::string profileName;
+    };
+
+    struct ComputeDispatchCommand {
+        ComputeDispatch dispatch;
+        std::string profileName;
     };
 
     struct MemoryBarrier {
@@ -217,10 +223,11 @@ class Compute {
 
     struct GraphicsDispatch {
         GraphicsDispatchInfo info;
+        std::string profileName;
     };
 
     using Command =
-        std::variant<BindDescriptorSet, BindPipeline, ComputeDispatch, DataGraphDispatch, GraphicsDispatch,
+        std::variant<BindDescriptorSet, BindPipeline, ComputeDispatchCommand, DataGraphDispatch, GraphicsDispatch,
                      MemoryBarrier, PushConstants, WriteTimestamp, MarkBoundary, PushDebugMarker, PopDebugMarker>;
 
     struct DebugMarker;

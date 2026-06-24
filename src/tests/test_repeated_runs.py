@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import io
+import json
 import os
 
 import numpy as np
@@ -54,6 +55,17 @@ def test_profiling(sdk_tools, numpy_helper):
     sdk_tools.run_scenario(
         "test_shader/chained_shaders.json",
         options=["--repeat=3", "--profiling-dump-path", dump_path],
+    )
+
+    with open(dump_path, encoding="utf-8") as dump_file:
+        profiling_data = json.load(dump_file)
+
+    timestamps = profiling_data["Timestamps"]
+    assert len(timestamps) == 6
+    assert all(
+        timestamp["Command type"] == "ComputeDispatch"
+        and timestamp["Command name"] == "add_shader"
+        for timestamp in timestamps
     )
 
     if os.path.exists(dump_path):
@@ -143,7 +155,32 @@ def test_conv2d_vgf_count(sdk_tools, resources_helper, numpy_helper):
     input = numpy_helper.generate(
         [1, 16, 16, 16], dtype=np.int8, filename="conv2dInput.npy"
     )
-    sdk_tools.run_scenario("test_vgf_graph/conv2d.json", options=["--repeat", "2"])
+    dump_path = os.path.join(os.getcwd(), "conv2dProfilingTest.json")
+    sdk_tools.run_scenario(
+        "test_vgf_graph/conv2d.json",
+        options=["--repeat", "2", "--profiling-dump-path", dump_path],
+    )
+
+    with open(dump_path, encoding="utf-8") as dump_file:
+        profiling_data = json.load(dump_file)
+
+    expected_command_name = "graph_ref/conv2d_graph_segment"
+    timestamps = profiling_data["Timestamps"]
+    memory_usages = profiling_data["Memory Usage"]
+    assert len(timestamps) == 2
+    assert len(memory_usages) == 2
+    assert all(
+        timestamp["Command type"] == "DataGraphDispatch"
+        and timestamp["Command name"] == expected_command_name
+        for timestamp in timestamps
+    )
+    assert all(
+        memory_usage["Command name"] == expected_command_name
+        for memory_usage in memory_usages
+    )
+
+    if os.path.exists(dump_path):
+        os.remove(dump_path)
 
 
 def test_enable_pipeline_cache_repeat_run(

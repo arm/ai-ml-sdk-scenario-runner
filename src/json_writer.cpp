@@ -17,18 +17,19 @@ json _profilingDataJsonOutput;
 
 struct CommandTimestamps {
     CommandTimestamps() = default;
-    CommandTimestamps(const std::string &commandType, const std::vector<uint64_t> &commandTimestamps,
+    CommandTimestamps(const ProfiledCommand &command, const std::vector<uint64_t> &commandTimestamps,
                       const float timestampPeriod, const int iteration = 1)
-        : type(commandType), timestamps(commandTimestamps), period(timestampPeriod), iteration(iteration) {}
+        : command(command), timestamps(commandTimestamps), period(timestampPeriod), iteration(iteration) {}
 
-    std::string type;
+    ProfiledCommand command;
     std::vector<uint64_t> timestamps;
     float period{};
     int iteration{};
 };
 
 void to_json(json &j, const CommandTimestamps &commandTimestamps) {
-    j = json{{"Command type", commandTimestamps.type},
+    j = json{{"Command type", commandTimestamps.command.type},
+             {"Command name", commandTimestamps.command.name},
              {"Cycle count before command", commandTimestamps.timestamps[0]},
              {"Cycle count after command", commandTimestamps.timestamps[1]},
              {"Cycle count for command", commandTimestamps.timestamps[1] - commandTimestamps.timestamps[0]},
@@ -95,8 +96,9 @@ void writePerfCounters(std::vector<PerformanceCounter> &perfCounters, std::files
 }
 
 void writeProfilingData(const std::vector<uint64_t> &timestamps, const float timestampPeriod,
-                        const std::vector<std::string> &profiledCommands, const std::vector<uint64_t> &memoryUsages,
-                        const std::filesystem::path &path, const int iteration, const int repeatCount) {
+                        const std::vector<ProfiledCommand> &profiledCommands,
+                        const std::vector<ProfiledMemoryUsage> &memoryUsages, const std::filesystem::path &path,
+                        const int iteration, const int repeatCount) {
     if (profiledCommands.size() * 2 != timestamps.size()) {
         throw std::runtime_error("Cannot map all timestamps to their respective commands");
     }
@@ -106,7 +108,8 @@ void writeProfilingData(const std::vector<uint64_t> &timestamps, const float tim
     }
     for (size_t idx = 0; idx < memoryUsages.size(); ++idx) {
         _profilingDataJsonOutput["Memory Usage"] += {{"Command type", "DataGraphDispatch"},
-                                                     {"Session memory [bytes]", memoryUsages[idx]},
+                                                     {"Command name", memoryUsages[idx].commandName},
+                                                     {"Session memory [bytes]", memoryUsages[idx].sessionMemoryBytes},
                                                      {"Iteration", iteration}};
     }
     // Check if this is the last iteration

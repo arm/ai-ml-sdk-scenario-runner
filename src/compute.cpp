@@ -320,18 +320,18 @@ void Compute::_addDispatch(const ComputeDispatch &computeDispatch,
                            const std::optional<OpticalFlowDispatchInfo> &dispatchInfo) {
     const auto &pipeline = _pipelines.back();
     if (pipeline.isDataGraphPipeline()) {
-        DataGraphDispatch dispatch{pipeline.session(), std::nullopt};
+        DataGraphDispatch dispatch{pipeline.session(), std::nullopt, pipeline.debugName()};
         if (dispatchInfo.has_value()) {
             dispatch.dispatchInfo = dispatchInfo;
         }
         _commands.emplace_back(dispatch);
     } else {
-        _commands.emplace_back(computeDispatch);
+        _commands.emplace_back(ComputeDispatchCommand{computeDispatch, pipeline.debugName()});
     }
 }
 
 void Compute::_addGraphicsDispatch(const GraphicsDispatchInfo &graphicsDispatch) {
-    _commands.emplace_back(GraphicsDispatch{graphicsDispatch});
+    _commands.emplace_back(GraphicsDispatch{graphicsDispatch, _pipelines.back().debugName()});
 }
 
 void Compute::_addImplicitBarriers() {
@@ -514,10 +514,10 @@ void Compute::_createCmdBuffer() {
             auto &typedCmd = std::get<BindPipeline>(cmd);
             auto bindPoint = _getBindPoint(typedCmd.bindPoint);
             _cmdBufferArray.back().bindPipeline(bindPoint, typedCmd.pipeline);
-        } else if (std::holds_alternative<ComputeDispatch>(cmd)) {
+        } else if (std::holds_alternative<ComputeDispatchCommand>(cmd)) {
             mlsdk::logging::info("Dispatch compute");
-            auto &typedCmd = std::get<ComputeDispatch>(cmd);
-            _cmdBufferArray.back().dispatch(typedCmd.gwcx, typedCmd.gwcy, typedCmd.gwcz);
+            auto &typedCmd = std::get<ComputeDispatchCommand>(cmd);
+            _cmdBufferArray.back().dispatch(typedCmd.dispatch.gwcx, typedCmd.dispatch.gwcy, typedCmd.dispatch.gwcz);
         } else if (std::holds_alternative<DataGraphDispatch>(cmd)) {
             mlsdk::logging::info("Dispatch graph");
             auto &typedCmd = std::get<DataGraphDispatch>(cmd);
@@ -669,20 +669,23 @@ void Compute::writeProfilingFile(const std::filesystem::path &profilingPath, int
     std::vector<uint64_t> timestamps = _queryTimestamps();
     VkPhysicalDeviceLimits physicalDeviceLimits = _ctx.physicalDevice().getProperties().limits;
     float timestampPeriod = physicalDeviceLimits.timestampPeriod;
-    std::vector<std::string> profiledCommands;
+    std::vector<ProfiledCommand> profiledCommands;
     for (const auto &command : _commands) {
-        if (std::holds_alternative<ComputeDispatch>(command)) {
-            profiledCommands.push_back("ComputeDispatch");
+        if (std::holds_alternative<ComputeDispatchCommand>(command)) {
+            const auto &dispatch = std::get<ComputeDispatchCommand>(command);
+            profiledCommands.push_back({"ComputeDispatch", dispatch.profileName});
         } else if (std::holds_alternative<DataGraphDispatch>(command)) {
-            profiledCommands.push_back("DataGraphDispatch");
+            const auto &dispatch = std::get<DataGraphDispatch>(command);
+            profiledCommands.push_back({"DataGraphDispatch", dispatch.profileName});
         } else if (std::holds_alternative<GraphicsDispatch>(command)) {
-            profiledCommands.push_back("GraphicsDispatch");
+            const auto &dispatch = std::get<GraphicsDispatch>(command);
+            profiledCommands.push_back({"GraphicsDispatch", dispatch.profileName});
         }
     }
-    std::vector<uint64_t> memoryUsages;
+    std::vector<ProfiledMemoryUsage> memoryUsages;
     for (const auto &pipeline : _pipelines) {
         if (pipeline.isDataGraphPipeline()) {
-            memoryUsages.push_back(pipeline.getDataGraphPipelineMemoryRequirement());
+            memoryUsages.push_back({pipeline.debugName(), pipeline.getDataGraphPipelineMemoryRequirement()});
         }
     }
     writeProfilingData(timestamps, timestampPeriod, profiledCommands, memoryUsages, profilingPath, iteration,
