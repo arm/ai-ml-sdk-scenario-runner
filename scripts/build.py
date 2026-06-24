@@ -70,6 +70,7 @@ class Builder:
         self.lint = args.lint
         self.install = args.install
         self.emulation_layer = args.emulation_layer
+        self.enable_hlsl_support = args.enable_hlsl_support
         self.enable_rdoc = args.enable_rdoc
         self.renderdoc_path = (
             absolute(args.renderdoc_path) if args.renderdoc_path else ""
@@ -105,7 +106,8 @@ class Builder:
                 cmake_cmd.append(
                     f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_PATH / 'gcc.cmake'}"
                 )
-                cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
+                if self.enable_hlsl_support:
+                    cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
                 return True
 
             if system == "Darwin":
@@ -120,7 +122,8 @@ class Builder:
                     f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_PATH / 'windows-msvc.cmake'}"
                 )
                 cmake_cmd.append("-DMSVC=ON")
-                cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
+                if self.enable_hlsl_support:
+                    cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
                 return True
 
             print(f"Unsupported host platform {system}", file=sys.stderr)
@@ -136,7 +139,8 @@ class Builder:
             cmake_cmd.append(
                 f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_PATH / 'clang.cmake'}"
             )
-            cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
+            if self.enable_hlsl_support:
+                cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
             return True
 
         if self.target_platform == "aarch64":
@@ -393,7 +397,7 @@ class Builder:
                         "--spirv-val",
                         f"{self.install}/bin/spirv-val{exe_ext}",
                     ]
-                    if platform.system() in [
+                    if self.enable_hlsl_support and platform.system() in [
                         "Linux",
                         "Windows",
                     ]:
@@ -416,7 +420,7 @@ class Builder:
                         "--spirv-val",
                         f"{self.build_dir}/spirv-tools/tools/spirv-val{exe_ext}",
                     ]
-                    if platform.system() in [
+                    if self.enable_hlsl_support and platform.system() in [
                         "Linux",
                         "Windows",
                     ]:
@@ -697,6 +701,12 @@ def parse_arguments():
     parser.add_argument(
         "--emulation-layer",
         help="Specifies if emulation layer is used. Default: %(default)s",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--enable-hlsl-support",
+        help=("Enable HLSL to SPIR-V compilation. Default: %(default)s"),
         action="store_true",
         default=False,
     )
