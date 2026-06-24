@@ -463,6 +463,7 @@ struct CommandDataFactory {
         data.computeDispatch.gwcx = dispatchCompute.rangeND[0];
         data.computeDispatch.gwcy = dispatchCompute.rangeND[1];
         data.computeDispatch.gwcz = dispatchCompute.rangeND[2];
+        data.computeDispatch.profileName = dispatchCompute.debugName;
         data.shaderRef = dispatchCompute.shaderRef;
         data.implicitBarrier = dispatchCompute.implicitBarrier;
         data.pushDataRef = dispatchCompute.pushDataRef;
@@ -1290,7 +1291,8 @@ void Scenario::createOpticalFlowPipeline(const DispatchOpticalFlowData &dispatch
 void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
                               const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph,
                               uint32_t &nQueries) {
-    const Compute::PipelineCreateArguments args{dispatchDataGraph.debugName, sequenceBindings, _pipelineCache};
+    const auto profileName = dispatchDataGraph.debugName + "/" + vgfView.getSegmentName(segmentIndex);
+    const Compute::PipelineCreateArguments args{profileName, sequenceBindings, _pipelineCache};
     switch (vgfView.getSegmentType(segmentIndex)) {
     case ModuleType::GRAPH: {
         _compute.createPipeline(args, segmentIndex, vgfView, _dataManager, _opts.shouldDumpNeuralStatistics(),
@@ -1349,7 +1351,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
         auto dispatchShape = vgfView.getDispatchShape(segmentIndex);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
         _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchDataGraph.implicitBarrier,
-                                        {dispatchShape[0], dispatchShape[1], dispatchShape[2]});
+                                        {dispatchShape[0], dispatchShape[1], dispatchShape[2], profileName});
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
         mlsdk::logging::debug("Shader Pipeline: " + vgfView.getModuleName(segmentIndex) + " created");
     } break;

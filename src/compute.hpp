@@ -32,15 +32,25 @@ struct MarkBoundaryData {
     std::vector<Guid> tensors;
 };
 
+/// \brief Image attachment used by a graphics dispatch
 struct GraphicsDispatchAttachment {
     vk::ImageView view;
     vk::Image image;
     vk::ImageLayout layout;
 };
 
+/// \brief Attachment and extent information for a graphics dispatch
 struct GraphicsDispatchInfo {
     std::vector<GraphicsDispatchAttachment> colorAttachments;
     vk::Extent2D extent;
+};
+
+/// \brief Group count for x, y and z
+struct ComputeDispatch {
+    uint32_t gwcx{1};
+    uint32_t gwcy{1};
+    uint32_t gwcz{1};
+    std::string profileName;
 };
 
 /// @brief Compute command orchestrator
@@ -121,7 +131,7 @@ class Compute {
     /// \param opticalFlowDispatchInfo (Optional) Optical flow dispatch info (optical flow flags, mean flow hint).
     void registerPipelineFenced(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
                                 const char *pushConstantData, size_t pushConstantSize, bool implicitBarriers,
-                                ComputeDispatch computeDispatch = {},
+                                const ComputeDispatch &computeDispatch = {},
                                 std::optional<OpticalFlowDispatchInfo> opticalFlowDispatchInfo = std::nullopt);
     void registerPipelineFenced(const DataManager &dataManager, const std::vector<TypedBinding> &bindings,
                                 const char *pushConstantData, size_t pushConstantSize, bool implicitBarriers,
@@ -184,6 +194,7 @@ class Compute {
     struct DataGraphDispatch {
         vk::DataGraphPipelineSessionARM session{nullptr};
         std::optional<OpticalFlowDispatchInfo> dispatchInfo;
+        std::string profileName;
     };
 
     struct MemoryBarrier {
@@ -217,6 +228,7 @@ class Compute {
 
     struct GraphicsDispatch {
         GraphicsDispatchInfo info;
+        std::string profileName;
     };
 
     using Command =

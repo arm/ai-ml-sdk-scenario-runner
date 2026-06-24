@@ -292,6 +292,14 @@ ModuleType VgfView::getSegmentType(uint32_t segmentIndex) const {
     }
 }
 
+std::string VgfView::getSegmentName(uint32_t segmentIndex) const {
+    std::string segmentName(sequenceTableDecoder->getSegmentName(segmentIndex));
+    if (!segmentName.empty()) {
+        return segmentName;
+    }
+    return "segment_" + std::to_string(segmentIndex);
+}
+
 bool VgfView::hasSPVModule(uint32_t segmentIndex) const {
     uint32_t moduleIndex = sequenceTableDecoder->getSegmentModuleIndex(segmentIndex);
     return moduleTableDecoder->hasSPIRVCode(moduleIndex);

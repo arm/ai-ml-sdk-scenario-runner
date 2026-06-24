@@ -169,11 +169,4 @@ struct ShaderInfo {
     std::vector<std::string> includeDirs;
 };
 
-/// \brief Group count for x, y and z
-struct ComputeDispatch {
-    uint32_t gwcx{1};
-    uint32_t gwcy{1};
-    uint32_t gwcz{1};
-};
-
 } // namespace mlsdk::scenariorunner
