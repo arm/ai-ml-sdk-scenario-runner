@@ -282,6 +282,9 @@ class Builder:
                 "-DSCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT=ON"
             )
 
+        if self.package_version:
+            cmake_setup_cmd.append(f"-DML_SDK_PACKAGE_VERSION={self.package_version}")
+
         if not self.setup_platform_build(cmake_setup_cmd):
             return 1
 
