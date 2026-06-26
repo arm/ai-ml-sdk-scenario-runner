@@ -24,6 +24,18 @@ template <typename T, typename U> inline void insertAfter(T *current, U *next) {
     current->pNext = next;
 }
 
+bool makePipelineRobustnessCreateInfo(const Context &ctx, vk::PipelineRobustnessCreateInfo &info) {
+    if (!ctx.robustnessFeaturesEnabled() || !ctx._optionals.pipeline_robustness) {
+        return false;
+    }
+
+    info.storageBuffers = vk::PipelineRobustnessBufferBehavior::eRobustBufferAccess;
+    info.uniformBuffers = vk::PipelineRobustnessBufferBehavior::eRobustBufferAccess;
+    info.vertexInputs = vk::PipelineRobustnessBufferBehavior::eRobustBufferAccess;
+    info.images = vk::PipelineRobustnessImageBehavior::eDeviceDefault;
+    return true;
+}
+
 vk::raii::ShaderModule createShaderModuleFromCode(const Context &ctx, const uint32_t *spvCode, const size_t spvSize) {
     const vk::ShaderModuleCreateInfo shaderCreateInfo({}, spvSize * sizeof(uint32_t), spvCode);
     return vk::raii::ShaderModule(ctx.device(), shaderCreateInfo);
@@ -187,8 +199,12 @@ void Pipeline::computePipelineCommon(const Context &ctx, const ShaderInfo &shade
         vkPipelineCache = pipelineCache->get();
     }
 
-    const vk::ComputePipelineCreateInfo computePipelineCreateInfo(flags, pipelineShaderStageCreateInfo,
-                                                                  *_pipelineLayout, {}, {}, pNext);
+    vk::ComputePipelineCreateInfo computePipelineCreateInfo(flags, pipelineShaderStageCreateInfo, *_pipelineLayout, {},
+                                                            {}, pNext);
+    vk::PipelineRobustnessCreateInfo pipelineRobustnessInfo{};
+    if (makePipelineRobustnessCreateInfo(ctx, pipelineRobustnessInfo)) {
+        insertAfter(&computePipelineCreateInfo, &pipelineRobustnessInfo);
+    }
     _pipeline = vk::raii::Pipeline(ctx.device(), vkPipelineCache, computePipelineCreateInfo);
 
     if (pipelineCache && pipelineCache->failOnCacheMiss() &&
@@ -285,6 +301,11 @@ void Pipeline::graphicsPipelineCommon(const Context &ctx, const ShaderInfo &vert
         &viewportState, &rasterizationState, &multisampleState, nullptr, &colorBlendState, &dynamicState,
         *_pipelineLayout);
     graphicsPipelineCreateInfo.setPNext(&renderingInfo);
+
+    vk::PipelineRobustnessCreateInfo pipelineRobustnessInfo{};
+    if (makePipelineRobustnessCreateInfo(ctx, pipelineRobustnessInfo)) {
+        insertAfter(&renderingInfo, &pipelineRobustnessInfo);
+    }
 
     vk::PipelineCreateFlags flags{};
     const vk::raii::PipelineCache *vkPipelineCache{nullptr};

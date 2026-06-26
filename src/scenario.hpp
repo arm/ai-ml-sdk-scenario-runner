@@ -23,6 +23,7 @@ struct ScenarioOptions {
     bool failOnPipelineCacheMiss{false};
     bool enableGPUDebugMarkers{false};
     bool captureFrame{false};
+    bool enableRobustnessFeatures{false};
     std::filesystem::path pipelineCachePath;
     std::filesystem::path neuralDebugDatabaseDumpDir;
     std::filesystem::path neuralStatisticsDumpDir;

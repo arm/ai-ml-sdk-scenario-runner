@@ -194,6 +194,10 @@ int runScenarioRunner(int argc, const char **argv) {
         // This is needed especially when capturing from RDoc with emulation layers enabled,
         // cause RDoc usually crashes when loading a capture that uses unknown extensions.
         parser.add_argument("--pause-on-exit").help("pause before exiting").default_value(false).implicit_value(true);
+        parser.add_argument("--enable-robustness-features")
+            .help("Enable Vulkan's robustness features such as robust buffer access and robust image access")
+            .default_value(false)
+            .implicit_value(true);
 
         // Main Scenario-Runner CLI execution body
         parser.parse_args(argc, argv);
@@ -314,6 +318,8 @@ int runScenarioRunner(int argc, const char **argv) {
         }
 
         pauseOnExit = parser.get<bool>("--pause-on-exit");
+
+        scenarioOptions.enableRobustnessFeatures = parser.get<bool>("--enable-robustness-features");
 
         ScenarioSpec scenarioSpec(scenarioFile, workDir, outputDir);
         mlsdk::logging::info("Scenario file parsed");

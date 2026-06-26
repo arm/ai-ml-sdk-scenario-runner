@@ -46,6 +46,24 @@ def test_single_shader_execution(
     assert np.array_equal(result, input1 + input2)
 
 
+def test_single_shader_execution_with_robustness_features(
+    sdk_tools,
+    numpy_helper,
+):
+    input1 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferA.npy")
+    input2 = numpy_helper.generate([10], dtype=np.float32, filename="inBufferB.npy")
+
+    sdk_tools.compile_shader("test_shader/add_shader.comp", {"TestType": "float"})
+    sdk_tools.run_scenario(
+        "test_shader/add_shader.json",
+        {"{DATA_SIZE}": str(input1.nbytes)},
+        options=["--enable-robustness-features"],
+    )
+
+    result = numpy_helper.load("outBufferAdd.npy", np.float32)
+    assert np.array_equal(result, input1 + input2)
+
+
 @pytest.mark.parametrize(
     "numpy_type",
     [
