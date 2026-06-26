@@ -67,7 +67,8 @@ struct ResourceInfo {
 
 /** @brief Decoded constant payload and metadata for a segment resource. */
 struct ConstantInfo {
-    uint32_t index = 0;
+    uint32_t graphConstantId = 0;
+    uint32_t constantIndex = 0;
     uint32_t resourceIndex = 0;
     vk::Format format = vk::Format::eUndefined;
     vgflib::DataView<int64_t> shape;

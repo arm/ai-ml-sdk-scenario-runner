@@ -14,10 +14,12 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <string>
+#include <vector>
 
 using namespace mlsdk::scenariorunner;
 namespace vgflib = mlsdk::vgflib;
@@ -56,7 +58,7 @@ std::filesystem::path writeVgfWithTensorInterfaceResources(TempFolder &tempFolde
     encoder->AddModelSequenceInputsOutputs({inputBinding}, {"inputTensor"}, {outputBinding}, {"outputTensor"});
     encoder->AddSegmentInfo(module, "tensor_interface_segment",
                             std::vector<vgflib::DescriptorSetInfoRef>{descriptorSet}, {inputBinding}, {outputBinding},
-                            {}, {1, 1, 1});
+                            std::vector<vgflib::GraphConstantBindingRef>{}, {1, 1, 1});
     encoder->Finish();
 
     const std::string vgfPath = tempFolder.relative("scenario_runner_vgf_view_tensor_interface.vgf").string();
@@ -96,7 +98,8 @@ std::filesystem::path writeVgfWithIntermediateBuffer(TempFolder &tempFolder, vk:
 
     encoder->AddModelSequenceInputsOutputs({}, {}, {}, {});
     encoder->AddSegmentInfo(module, "buffer_size_segment", std::vector<vgflib::DescriptorSetInfoRef>{descriptorSet}, {},
-                            std::vector<vgflib::BindingSlotRef>{binding}, {}, {1, 1, 1});
+                            std::vector<vgflib::BindingSlotRef>{binding},
+                            std::vector<vgflib::GraphConstantBindingRef>{}, {1, 1, 1});
     encoder->Finish();
 
     const std::string vgfPath = tempFolder.relative("scenario_runner_vgf_view_buffer_size.vgf").string();
@@ -121,7 +124,8 @@ std::filesystem::path writeVgfWithSampledIntermediateImage(TempFolder &tempFolde
 
     encoder->AddModelSequenceInputsOutputs({}, {}, {}, {});
     encoder->AddSegmentInfo(module, "sampled_image_segment", std::vector<vgflib::DescriptorSetInfoRef>{descriptorSet},
-                            {}, std::vector<vgflib::BindingSlotRef>{binding}, {}, {1, 1, 1});
+                            {}, std::vector<vgflib::BindingSlotRef>{binding},
+                            std::vector<vgflib::GraphConstantBindingRef>{}, {1, 1, 1});
     encoder->Finish();
 
     const auto suffix = std::to_string(addressModeU) + "_" + std::to_string(addressModeV);

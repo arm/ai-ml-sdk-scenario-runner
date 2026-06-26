@@ -344,8 +344,16 @@ vgflib::DataView<uint32_t> VgfView::getDispatchShape(uint32_t segmentIndex) cons
     return sequenceTableDecoder->getSegmentDispatchShape(segmentIndex);
 }
 
-vgflib::DataView<uint32_t> VgfView::getSegmentConstantIndexes(uint32_t segmentIndex) const {
-    return sequenceTableDecoder->getSegmentConstantIndexes(segmentIndex);
+std::vector<vgflib::GraphConstantBinding> VgfView::getSegmentConstantBindings(uint32_t segmentIndex) const {
+    const auto *handle = sequenceTableDecoder->getSegmentConstantBindingsHandle(segmentIndex);
+    const auto size = sequenceTableDecoder->getGraphConstantBindingsSize(handle);
+
+    std::vector<vgflib::GraphConstantBinding> bindings;
+    bindings.reserve(size);
+    for (uint32_t bindingIdx = 0; bindingIdx < size; ++bindingIdx) {
+        bindings.push_back(sequenceTableDecoder->getGraphConstantBinding(handle, bindingIdx));
+    }
+    return bindings;
 }
 
 vgflib::FormatType VgfView::getConstantFormat(uint32_t constantIndex) const {

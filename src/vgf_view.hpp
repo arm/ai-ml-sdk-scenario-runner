@@ -45,7 +45,7 @@ class VgfView {
     std::string getHLSLModuleCode(uint32_t segmentIndex) const;
     vgflib::DataView<uint32_t> getDispatchShape(uint32_t segmentIndex) const;
 
-    vgflib::DataView<uint32_t> getSegmentConstantIndexes(uint32_t segmentIndex) const;
+    std::vector<vgflib::GraphConstantBinding> getSegmentConstantBindings(uint32_t segmentIndex) const;
     vgflib::FormatType getConstantFormat(uint32_t constantIndex) const;
     int64_t getConstantSparsityDimension(uint32_t constantIndex) const;
     vgflib::DataView<int64_t> getConstantShape(uint32_t constantIndex) const;

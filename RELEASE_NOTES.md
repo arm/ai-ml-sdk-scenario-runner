@@ -6,6 +6,7 @@
 
 ### Build, Packaging & Developer Experience
 
+- Updated Scenario Runner to consume explicit VGF graph constant bindings.
 - Updated Scenario Runner `--version` output to report the package version and include git revision and dependency revision information.
 - Added KosmicKrisp support on Darwin.
 - Added startup logging for Vulkan API and driver versions and common device
