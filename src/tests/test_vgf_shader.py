@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import io
+import json
 import subprocess
 
 import numpy as np
@@ -625,7 +626,24 @@ def test_two_spirv_shader_module_in_vgf_with_shader_substitution(
         [1024], dtype=np.uint8, filename="input.npy", data=[42] * 1024
     )
 
-    sdk_tools.run_scenario("test_vgf_shader/two_shader_module.json")
+    dump_path = resources_helper.get_testenv_path("two_shader_module_profiling.json")
+    sdk_tools.run_scenario(
+        "test_vgf_shader/two_shader_module.json",
+        options=["--profiling-dump-path", dump_path.as_posix()],
+    )
+
+    with open(dump_path, encoding="utf-8") as dump_file:
+        profiling_data = json.load(dump_file)
+
+    timestamps = profiling_data["Timestamps"]
+    assert [timestamp["Command type"] for timestamp in timestamps] == [
+        "ComputeDispatch",
+        "ComputeDispatch",
+    ]
+    assert [timestamp["Command name"] for timestamp in timestamps] == [
+        "vgfGraph/shader_segment0",
+        "vgfGraph/shader_segment1",
+    ]
 
     result = numpy_helper.load("output.npy", np.uint8)
     assert np.array_equal(result, np.add(input, 3))

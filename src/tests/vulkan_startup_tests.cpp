@@ -114,7 +114,8 @@ void runShader(const ScenarioOptions &scenarioOptions) {
     shaderInfo.shaderType = ShaderType::SPIR_V;
     compute.createPipeline(args, shaderInfo);
     bool implicitBarriers = true;
-    compute.registerPipelineFenced(dataManager, bindings, nullptr, 0, implicitBarriers, {numElements, 1, 1});
+    compute.registerPipelineFenced(dataManager, bindings, nullptr, 0, implicitBarriers,
+                                   {numElements, 1, 1, "test_pipeline"});
 
     // Run and wait on fence
     compute.submitAndWaitOnFence();
