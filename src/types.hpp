@@ -42,6 +42,7 @@ enum class MemoryAccess {
     Unknown
 };
 enum class PipelineStage { Graph, Compute, Graphics, All, Unknown };
+enum class PipelineType { Unknown, Compute, GraphCompute, Graphics };
 enum class ImageLayout { General, TensorAliasing, Undefined, Unknown };
 struct SubresourceRange {
     uint32_t baseMipLevel{0};

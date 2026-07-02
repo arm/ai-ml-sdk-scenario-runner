@@ -36,6 +36,15 @@ bool makePipelineRobustnessCreateInfo(const Context &ctx, vk::PipelineRobustness
     return true;
 }
 
+void throwOnPipelineCacheMiss(const vk::raii::Pipeline &pipeline, const std::shared_ptr<PipelineCache> &pipelineCache,
+                              const std::string &pipelineName) {
+    if (pipelineCache && pipelineCache->failOnCacheMiss() &&
+        (!pipelineCache->wasPipelineCacheHit() ||
+         pipeline.getConstructorSuccessCode() == vk::Result::ePipelineCompileRequired)) {
+        throw std::runtime_error("Pipeline cache miss for pipeline: " + pipelineName);
+    }
+}
+
 vk::raii::ShaderModule createShaderModuleFromCode(const Context &ctx, const uint32_t *spvCode, const size_t spvSize) {
     const vk::ShaderModuleCreateInfo shaderCreateInfo({}, spvSize * sizeof(uint32_t), spvCode);
     return vk::raii::ShaderModule(ctx.device(), shaderCreateInfo);
@@ -195,7 +204,7 @@ void Pipeline::computePipelineCommon(const Context &ctx, const ShaderInfo &shade
         if (pipelineCache->failOnCacheMiss()) {
             flags |= vk::PipelineCreateFlagBits::eFailOnPipelineCompileRequired;
         }
-        pNext = pipelineCache->getCacheFeedbackCreateInfo();
+        pNext = pipelineCache->getCacheFeedbackCreateInfo(_type);
         vkPipelineCache = pipelineCache->get();
     }
 
@@ -206,11 +215,7 @@ void Pipeline::computePipelineCommon(const Context &ctx, const ShaderInfo &shade
         insertAfter(&computePipelineCreateInfo, &pipelineRobustnessInfo);
     }
     _pipeline = vk::raii::Pipeline(ctx.device(), vkPipelineCache, computePipelineCreateInfo);
-
-    if (pipelineCache && pipelineCache->failOnCacheMiss() &&
-        _pipeline.getConstructorSuccessCode() == vk::Result::ePipelineCompileRequired) {
-        throw std::runtime_error("Pipeline cache miss for pipeline: " + shaderInfo.debugName);
-    }
+    throwOnPipelineCacheMiss(_pipeline, pipelineCache, shaderInfo.debugName);
 
     trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
 }
@@ -313,12 +318,14 @@ void Pipeline::graphicsPipelineCommon(const Context &ctx, const ShaderInfo &vert
         if (pipelineCache->failOnCacheMiss()) {
             flags |= vk::PipelineCreateFlagBits::eFailOnPipelineCompileRequired;
         }
-        insertAfter(&renderingInfo, pipelineCache->getCacheFeedbackCreateInfo());
+        insertAfter(&renderingInfo, pipelineCache->getCacheFeedbackCreateInfo(_type));
         vkPipelineCache = pipelineCache->get();
     }
     graphicsPipelineCreateInfo.flags = flags;
 
     _pipeline = vk::raii::Pipeline(ctx.device(), vkPipelineCache, graphicsPipelineCreateInfo);
+    throwOnPipelineCacheMiss(_pipeline, pipelineCache, _debugName);
+
     trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
 }
 
@@ -503,7 +510,7 @@ Pipeline::Pipeline(const CommonArguments &args, const DataManager &dataManager, 
         if (args.pipelineCache->failOnCacheMiss()) {
             flags2 |= vk::PipelineCreateFlagBits2KHR::eFailOnPipelineCompileRequired;
         }
-        insertAfter(&opticalFlowCreateInfo, args.pipelineCache->getCacheFeedbackCreateInfo());
+        insertAfter(&opticalFlowCreateInfo, args.pipelineCache->getCacheFeedbackCreateInfo(_type));
         vkPipelineCache = args.pipelineCache->get();
     }
 
@@ -515,6 +522,7 @@ Pipeline::Pipeline(const CommonArguments &args, const DataManager &dataManager, 
     pipelineCreateInfo.setPNext(&singleNodeInfo);
 
     _pipeline = vk::raii::Pipeline(args.ctx.device(), deferredOperation, vkPipelineCache, pipelineCreateInfo);
+    throwOnPipelineCacheMiss(_pipeline, args.pipelineCache, _debugName);
 
     trySetVkRaiiObjectDebugName(args.ctx, _pipeline, _debugName);
 
@@ -685,13 +693,15 @@ void Pipeline::buildDataGraphPipeline(const Context &ctx, const std::string &ent
         if (pipelineCache->failOnCacheMiss()) {
             flags |= vk::PipelineCreateFlagBits2KHR::eFailOnPipelineCompileRequired;
         }
-        insertAfter(&shaderModuleInfo, pipelineCache->getCacheFeedbackCreateInfo());
+        insertAfter(&shaderModuleInfo, pipelineCache->getCacheFeedbackCreateInfo(_type));
         vkPipelineCache = pipelineCache->get();
     }
 
     const vk::DataGraphPipelineCreateInfoARM pipelineCreateInfo(
         flags, *_pipelineLayout, static_cast<uint32_t>(resourceInfos.size()), resourceInfos.data(), &shaderModuleInfo);
     _pipeline = vk::raii::Pipeline(ctx.device(), deferredOperation, vkPipelineCache, pipelineCreateInfo);
+    throwOnPipelineCacheMiss(_pipeline, pipelineCache, _debugName);
+
     trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
 
     initSession(ctx, enableNeuralStatistics, neuralStatisticsMode);

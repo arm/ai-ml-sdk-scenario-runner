@@ -12,6 +12,7 @@
 #include "vulkan/vulkan_raii.hpp"
 
 #include <filesystem>
+#include <vector>
 
 namespace mlsdk::scenariorunner {
 
@@ -22,8 +23,9 @@ class PipelineCache {
     void save();
 
     const vk::raii::PipelineCache *get() const { return &_pipelineCache; }
-    vk::PipelineCreationFeedbackCreateInfo *getCacheFeedbackCreateInfo() { return &_feedbackCreateInfo; }
+    vk::PipelineCreationFeedbackCreateInfo *getCacheFeedbackCreateInfo(PipelineType pipelineType);
     bool failOnCacheMiss() const { return _failOnMiss && _cacheData; }
+    bool wasPipelineCacheHit() const;
 
   private:
     bool isValidPipelineCache(const void *cacheDataPtr, size_t cacheDataSize, uint32_t expectedVendorID,
@@ -33,7 +35,7 @@ class PipelineCache {
     vk::raii::PipelineCache _pipelineCache{nullptr};
     vk::PipelineCreationFeedbackCreateInfo _feedbackCreateInfo;
     vk::PipelineCreationFeedback _feedback;
-    vk::PipelineCreationFeedback _stagedFeedback;
+    std::vector<vk::PipelineCreationFeedback> _stagedFeedback;
     bool _failOnMiss{false};
 };
 
