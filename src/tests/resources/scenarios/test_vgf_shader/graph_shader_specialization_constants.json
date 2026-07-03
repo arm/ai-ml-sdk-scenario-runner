@@ -1,0 +1,43 @@
+{
+    "commands": [
+        {
+            "dispatch_graph": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "output"
+                    }
+                ],
+                "graph_ref": "vgfGraph"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "graph": {
+                "uid": "vgfGraph",
+                "src": "graph_specialization_constants.vgf",
+                "specialization_constants_map": [
+                    {
+                        "shader_target": "write_spec_const",
+                        "specialization_constants": [
+                            {
+                                "id": 0,
+                                "value": 42
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "buffer": {
+                "uid": "output",
+                "shader_access": "writeonly",
+                "size": 4,
+                "dst": "output.npy"
+            }
+        }
+    ]
+}

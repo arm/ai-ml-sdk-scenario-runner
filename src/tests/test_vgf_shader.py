@@ -18,6 +18,8 @@ DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT = 6
 DESCRIPTOR_TYPE_TENSOR_ARM = 1000460000
 VK_FORMAT_R8_SINT = 14
 VK_FORMAT_R16_UINT = 74
+VK_FORMAT_R32_UINT = 98
+VK_FORMAT_R32_SFLOAT = 100
 pretendVulkanHeaderVersion = 123
 
 pytestmark = pytest.mark.vgf_shader
@@ -97,6 +99,127 @@ def _write_two_descriptor_sets_vgf(
     vgfStream = io.FileIO(resources_helper.get_testenv_path(vgf_filename), mode="wb")
     assert encoder.WriteTo(vgfStream)
     vgfStream.close()
+
+
+def _write_graph_push_constants_vgf(resources_helper, vgf_filename: str) -> None:
+    encoder = vgf.CreateEncoder(pretendVulkanHeaderVersion)
+
+    module0 = encoder.AddModule(vgf.ModuleType.Compute, "add_push", "main")
+
+    shaderInput = encoder.AddInputResource(
+        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R32_SFLOAT, [10], []
+    )
+    shaderOutput = encoder.AddOutputResource(
+        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R32_SFLOAT, [10], []
+    )
+
+    shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
+    shaderOutputBinding = encoder.AddBindingSlot(1, shaderOutput)
+    shaderDescSetInfo = encoder.AddDescriptorSetInfo(
+        [shaderInputBinding, shaderOutputBinding]
+    )
+
+    encoder.AddModelSequenceInputsOutputs(
+        [shaderInputBinding],
+        ["shaderInput"],
+        [shaderOutputBinding],
+        ["shaderOutput"],
+    )
+
+    encoder.AddSegmentInfo(
+        module0,
+        "shader_segment",
+        [shaderDescSetInfo],
+        [shaderInputBinding],
+        [shaderOutputBinding],
+        [],
+        [10, 1, 1],
+    )
+
+    encoder.Finish()
+
+    vgfStream = io.FileIO(resources_helper.get_testenv_path(vgf_filename), mode="wb")
+    assert encoder.WriteTo(vgfStream)
+    vgfStream.close()
+
+
+def _write_graph_specialization_constants_vgf(
+    resources_helper, vgf_filename: str, spv: np.ndarray
+) -> None:
+    encoder = vgf.CreateEncoder(pretendVulkanHeaderVersion)
+
+    module0 = encoder.AddModule(vgf.ModuleType.Compute, "write_spec_const", "main", spv)
+
+    shaderOutput = encoder.AddOutputResource(
+        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R32_UINT, [1], []
+    )
+
+    shaderOutputBinding = encoder.AddBindingSlot(0, shaderOutput)
+    shaderDescSetInfo = encoder.AddDescriptorSetInfo([shaderOutputBinding])
+
+    encoder.AddModelSequenceInputsOutputs(
+        [],
+        [],
+        [shaderOutputBinding],
+        ["shaderOutput"],
+    )
+
+    encoder.AddSegmentInfo(
+        module0,
+        "shader_segment",
+        [shaderDescSetInfo],
+        [],
+        [shaderOutputBinding],
+        [],
+        [1, 1, 1],
+    )
+
+    encoder.Finish()
+
+    vgfStream = io.FileIO(resources_helper.get_testenv_path(vgf_filename), mode="wb")
+    assert encoder.WriteTo(vgfStream)
+    vgfStream.close()
+
+
+def test_graph_shader_push_constants(sdk_tools, resources_helper, numpy_helper):
+    sdk_tools.compile_shader(
+        "test_shader/add_shader_with_push_constants.comp",
+        output="graph_push_constants.spv",
+    )
+    _write_graph_push_constants_vgf(resources_helper, "graph_push_constants.vgf")
+
+    input_data = numpy_helper.generate(
+        [10],
+        dtype=np.float32,
+        filename="input.npy",
+        data=[1.0, 2.0, 3.0, 4.0, 5.0, 10.0, 20.0, 30.0, 40.0, 50.0],
+    )
+    push_constants = numpy_helper.generate(
+        [10],
+        dtype=np.float32,
+        filename="data.npy",
+        data=[0.5, 1.5, 2.5, 3.5, 4.5, 5.0, 4.0, 3.0, 2.0, 1.0],
+    )
+
+    sdk_tools.run_scenario("test_vgf_shader/graph_shader_push_constants.json")
+
+    result = numpy_helper.load("output.npy", np.float32)
+    assert np.array_equal(result, input_data + push_constants)
+
+
+def test_embedded_graph_shader_specialization_constants(
+    sdk_tools, resources_helper, numpy_helper
+):
+    spv_file = sdk_tools.compile_shader("test_spec_const/uint_shader.comp")
+    spv = np.fromfile(spv_file, dtype=np.uint32)
+    _write_graph_specialization_constants_vgf(
+        resources_helper, "graph_specialization_constants.vgf", spv
+    )
+
+    sdk_tools.run_scenario("test_vgf_shader/graph_shader_specialization_constants.json")
+
+    result = numpy_helper.load("output.npy", np.uint32)
+    assert np.array_equal(result, np.array([42], dtype=np.uint32))
 
 
 def test_vgf_explicit_descriptor_set_index_is_used(

@@ -146,6 +146,44 @@ std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<Guid> &co
     return constants;
 }
 
+const DataGraphDesc &getDataGraphDesc(const ScenarioSpec &spec, const Guid &guid) {
+    for (const auto &resource : spec.resources) {
+        if (resource->guid == guid) {
+            if (resource->resourceType != ResourceType::DataGraph) {
+                throw std::runtime_error("GUID does not reference a graph resource: " + resource->guidStr);
+            }
+            return static_cast<const DataGraphDesc &>(*resource);
+        }
+    }
+    throw std::runtime_error("Graph resource not found.");
+}
+
+void applyGraphResourceShaderMetadata(ShaderInfo &shaderInfo, const DataGraphDesc &dataGraph,
+                                      const std::string &moduleName) {
+    if (dataGraph.pushConstantsSize > 0) {
+        shaderInfo.pushConstantsSize = dataGraph.pushConstantsSize;
+    }
+
+    const Guid shaderTarget(moduleName);
+    for (const auto &specializationConstantMap : dataGraph.specializationConstantMaps) {
+        if (specializationConstantMap.shaderTarget == shaderTarget) {
+            shaderInfo.specializationConstants = specializationConstantMap.specializationConstants;
+            return;
+        }
+    }
+}
+
+std::optional<Guid> getGraphPushDataRef(const std::vector<PushConstantMap> &pushConstants,
+                                        const std::string &moduleName) {
+    const Guid shaderTarget(moduleName);
+    for (const auto &pushConstant : pushConstants) {
+        if (pushConstant.shaderTarget == shaderTarget) {
+            return pushConstant.pushDataRef;
+        }
+    }
+    return std::nullopt;
+}
+
 std::string resourceType(const std::unique_ptr<ResourceDesc> &resource) {
     switch (resource->resourceType) {
     case ResourceType::Unknown:
@@ -1303,14 +1341,16 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
         mlsdk::logging::debug("Graph Pipeline: " + vgfView.getModuleName(segmentIndex) + " created");
     } break;
     case ModuleType::SHADER: {
+        const auto &dataGraph = getDataGraphDesc(_scenarioSpec, dispatchDataGraph.dataGraphRef);
+        const auto moduleName = vgfView.getModuleName(segmentIndex);
         bool hasSPVModule = vgfView.hasSPVModule(segmentIndex);
         bool hasGLSLModule = vgfView.hasGLSLModule(segmentIndex);
         bool hasHLSLModule = vgfView.hasHLSLModule(segmentIndex);
 
         if (!dispatchDataGraph.shaderSubstitutions.empty()) {
-            auto moduleName = vgfView.getModuleName(segmentIndex);
-            const auto shaderInfo =
+            auto shaderInfo =
                 convert(_scenarioSpec.getSubstitionShader(dispatchDataGraph.shaderSubstitutions, moduleName));
+            applyGraphResourceShaderMetadata(shaderInfo, dataGraph, moduleName);
             _compute.createPipeline(args, shaderInfo);
             if (hasSPVModule || hasGLSLModule || hasHLSLModule) {
                 mlsdk::logging::warning("Performing shader substitution despite shader module containing code");
@@ -1321,6 +1361,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
             shaderInfo.entry = vgfView.getModuleEntryPoint(segmentIndex);
             shaderInfo.shaderType = ShaderType::SPIR_V;
             shaderInfo.stage = ShaderStage::Compute;
+            applyGraphResourceShaderMetadata(shaderInfo, dataGraph, moduleName);
 
             if (hasSPVModule) {
                 auto spv = vgfView.getSPVModuleCode(segmentIndex);
@@ -1350,7 +1391,10 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
 
         auto dispatchShape = vgfView.getDispatchShape(segmentIndex);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
-        _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchDataGraph.implicitBarrier,
+        const auto [pushConstantData, pushConstantSize] =
+            getPushConstantData(getGraphPushDataRef(dispatchDataGraph.pushConstants, moduleName), _dataManager);
+        _compute.registerPipelineFenced(_dataManager, sequenceBindings, pushConstantData, pushConstantSize,
+                                        dispatchDataGraph.implicitBarrier,
                                         {dispatchShape[0], dispatchShape[1], dispatchShape[2], profileName});
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
         mlsdk::logging::debug("Shader Pipeline: " + vgfView.getModuleName(segmentIndex) + " created");

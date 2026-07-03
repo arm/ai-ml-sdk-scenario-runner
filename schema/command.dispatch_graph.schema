@@ -13,8 +13,20 @@
         "push_constants": {
             "type": "array",
             "items": {
-                "push_data_ref": "string",
-                "shader_target": "string"
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "push_data_ref": {
+                        "type": "string"
+                    },
+                    "shader_target": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "push_data_ref",
+                    "shader_target"
+                ]
             }
         },
         "implicit_barrier": {
