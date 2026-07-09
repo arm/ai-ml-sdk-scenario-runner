@@ -1,6 +1,10 @@
 # Scenario Runner — Release Notes
 
 ---
+## Unreleased
+
+### Build, Packaging & Developer Experience
+ - Updated Scenario Runner `--version` output to report the package version and include git revision and dependency revision information
 
 ## Version 0.10.0 – *Optical Flow, VGF Runtime & APK Packaging*
 
