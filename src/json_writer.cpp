@@ -13,7 +13,7 @@ namespace mlsdk::scenariorunner {
 using json = nlohmann::json;
 
 namespace {
-json _profilingDataJsonOutput;
+json _profilingDataJsonOutput = json::object();
 
 struct CommandTimestamps {
     CommandTimestamps() = default;
@@ -95,21 +95,23 @@ void writePerfCounters(std::vector<PerformanceCounter> &perfCounters, std::files
     ostream.close();
 }
 
-void writeProfilingData(const std::vector<uint64_t> &timestamps, const float timestampPeriod,
-                        const std::vector<ProfiledCommand> &profiledCommands,
-                        const std::vector<ProfiledMemoryUsage> &memoryUsages, const std::filesystem::path &path,
+void writeProfilingData(const std::optional<RuntimeProfilingData> &runtimeProfilingData,
+                        const MemoryProfilingData &memoryProfilingData, const std::filesystem::path &path,
                         const int iteration, const int repeatCount) {
-    if (profiledCommands.size() * 2 != timestamps.size()) {
-        throw std::runtime_error("Cannot map all timestamps to their respective commands");
+    if (runtimeProfilingData.has_value()) {
+        const auto &[timestamps, timestampPeriod, commands] = runtimeProfilingData.value();
+        if (commands.size() * 2 != timestamps.size()) {
+            throw std::runtime_error("Cannot map all timestamps to their respective commands");
+        }
+        for (size_t idx = 0, commandIdx = 0; idx < timestamps.size(); idx += 2, ++commandIdx) {
+            _profilingDataJsonOutput["Timestamps"] += CommandTimestamps(
+                commands[commandIdx], {timestamps[idx], timestamps[idx + 1]}, timestampPeriod, iteration);
+        }
     }
-    for (size_t idx = 0, commandIdx = 0; idx < timestamps.size(); idx += 2, ++commandIdx) {
-        _profilingDataJsonOutput["Timestamps"] += CommandTimestamps(
-            profiledCommands[commandIdx], {timestamps[idx], timestamps[idx + 1]}, timestampPeriod, iteration);
-    }
-    for (size_t idx = 0; idx < memoryUsages.size(); ++idx) {
+    for (const auto &memoryUsage : memoryProfilingData.usages) {
         _profilingDataJsonOutput["Memory Usage"] += {{"Command type", "DataGraphDispatch"},
-                                                     {"Command name", memoryUsages[idx].commandName},
-                                                     {"Session memory [bytes]", memoryUsages[idx].sessionMemoryBytes},
+                                                     {"Command name", memoryUsage.commandName},
+                                                     {"Session memory [bytes]", memoryUsage.sessionMemoryBytes},
                                                      {"Iteration", iteration}};
     }
     // Check if this is the last iteration
@@ -117,6 +119,7 @@ void writeProfilingData(const std::vector<uint64_t> &timestamps, const float tim
         std::ofstream dumpFile(path.string());
         dumpFile << _profilingDataJsonOutput.dump(4);
         dumpFile.close();
+        _profilingDataJsonOutput = json::object();
     }
 }
 

@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -23,10 +24,19 @@ struct ProfiledMemoryUsage {
     uint64_t sessionMemoryBytes{};
 };
 
+struct RuntimeProfilingData {
+    std::vector<uint64_t> timestamps;
+    float timestampPeriod{};
+    std::vector<ProfiledCommand> commands;
+};
+
+struct MemoryProfilingData {
+    std::vector<ProfiledMemoryUsage> usages;
+};
+
 void writePerfCounters(std::vector<PerformanceCounter> &perfCounters, std::filesystem::path &path);
 
-void writeProfilingData(const std::vector<uint64_t> &timestamps, float timestampPeriod,
-                        const std::vector<ProfiledCommand> &profiledCommands,
-                        const std::vector<ProfiledMemoryUsage> &memoryUsages, const std::filesystem::path &path,
+void writeProfilingData(const std::optional<RuntimeProfilingData> &runtimeProfilingData,
+                        const MemoryProfilingData &memoryProfilingData, const std::filesystem::path &path,
                         int iteration, int repeatCount);
 } // namespace mlsdk::scenariorunner

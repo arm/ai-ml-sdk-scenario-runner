@@ -13,6 +13,7 @@ add_executable(ScenarioRunnerTests
   image_formats_tests.cpp
   iresource_tests.cpp
   json_parser_tests.cpp
+  json_writer_tests.cpp
   logging_tests.cpp
   perf_counter_tests.cpp
   png_reader_tests.cpp

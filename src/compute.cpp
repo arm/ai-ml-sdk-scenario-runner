@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "compute.hpp"
-#include "json_writer.hpp"
 #include "logging.hpp"
 #include "utils.hpp"
 
@@ -665,31 +664,33 @@ std::vector<uint64_t> Compute::_queryTimestamps() const {
     throw std::runtime_error("Failed to retrieve timestamps, since the query pool is empty");
 }
 
-void Compute::writeProfilingFile(const std::filesystem::path &profilingPath, int iteration, int repeatCount) const {
-    std::vector<uint64_t> timestamps = _queryTimestamps();
-    VkPhysicalDeviceLimits physicalDeviceLimits = _ctx.physicalDevice().getProperties().limits;
-    float timestampPeriod = physicalDeviceLimits.timestampPeriod;
-    std::vector<ProfiledCommand> profiledCommands;
+RuntimeProfilingData Compute::getRuntimeProfilingData() const {
+    RuntimeProfilingData profilingData;
+    profilingData.timestamps = _queryTimestamps();
+    profilingData.timestampPeriod = _ctx.physicalDevice().getProperties().limits.timestampPeriod;
     for (const auto &command : _commands) {
         if (std::holds_alternative<ComputeDispatch>(command)) {
             const auto &dispatch = std::get<ComputeDispatch>(command);
-            profiledCommands.push_back({"ComputeDispatch", dispatch.profileName});
+            profilingData.commands.push_back({"ComputeDispatch", dispatch.profileName});
         } else if (std::holds_alternative<DataGraphDispatch>(command)) {
             const auto &dispatch = std::get<DataGraphDispatch>(command);
-            profiledCommands.push_back({"DataGraphDispatch", dispatch.profileName});
+            profilingData.commands.push_back({"DataGraphDispatch", dispatch.profileName});
         } else if (std::holds_alternative<GraphicsDispatch>(command)) {
             const auto &dispatch = std::get<GraphicsDispatch>(command);
-            profiledCommands.push_back({"GraphicsDispatch", dispatch.profileName});
+            profilingData.commands.push_back({"GraphicsDispatch", dispatch.profileName});
         }
     }
-    std::vector<ProfiledMemoryUsage> memoryUsages;
+    return profilingData;
+}
+
+MemoryProfilingData Compute::getMemoryProfilingData() const {
+    MemoryProfilingData profilingData;
     for (const auto &pipeline : _pipelines) {
         if (pipeline.isDataGraphPipeline()) {
-            memoryUsages.push_back({pipeline.debugName(), pipeline.getDataGraphPipelineMemoryRequirement()});
+            profilingData.usages.push_back({pipeline.debugName(), pipeline.getDataGraphPipelineMemoryRequirement()});
         }
     }
-    writeProfilingData(timestamps, timestampPeriod, profiledCommands, memoryUsages, profilingPath, iteration,
-                       repeatCount);
+    return profilingData;
 }
 
 void Compute::dumpNeuralDebugDatabase(const std::filesystem::path &neuralDebugDatabaseDumpDir) const {
