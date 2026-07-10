@@ -26,6 +26,7 @@ struct OptionalExtensions {
     bool robustness2 = false;
     bool descriptor_indexing = false;
     bool pipeline_robustness = false;
+    bool portability_subset = false;
 };
 
 /// \brief Type of family queue to use

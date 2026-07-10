@@ -66,10 +66,6 @@ if(SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT)
     target_compile_definitions(ScenarioRunnerLib PUBLIC SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT)
 endif()
 
-if(MOLTEN_VK_SUPPORT)
-    target_compile_definitions(ScenarioRunnerLib PRIVATE MOLTEN_VK_SUPPORT)
-endif()
-
 target_compile_options(ScenarioRunnerLib PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
 
 add_subdirectory(tools)
