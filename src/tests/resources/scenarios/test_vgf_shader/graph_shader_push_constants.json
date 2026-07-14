@@ -1,0 +1,71 @@
+{
+    "commands": [
+        {
+            "dispatch_graph": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "input"
+                    },
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "output"
+                    }
+                ],
+                "shader_substitutions": [
+                    {
+                        "shader_ref": "graph_push_constants_shader",
+                        "target": "add_push"
+                    }
+                ],
+                "push_constants": [
+                    {
+                        "push_data_ref": "data",
+                        "shader_target": "add_push"
+                    }
+                ],
+                "graph_ref": "vgfGraph"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "src": "graph_push_constants.spv",
+                "type": "SPIR-V",
+                "uid": "graph_push_constants_shader"
+            }
+        },
+        {
+            "graph": {
+                "uid": "vgfGraph",
+                "src": "graph_push_constants.vgf",
+                "push_constants_size": 40
+            }
+        },
+        {
+            "buffer": {
+                "uid": "input",
+                "shader_access": "readonly",
+                "size": 40,
+                "src": "input.npy"
+            }
+        },
+        {
+            "raw_data": {
+                "uid": "data",
+                "src": "data.npy"
+            }
+        },
+        {
+            "buffer": {
+                "uid": "output",
+                "shader_access": "writeonly",
+                "size": 40,
+                "dst": "output.npy"
+            }
+        }
+    ]
+}
