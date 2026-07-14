@@ -64,21 +64,4 @@ const ShaderDesc &ScenarioSpec::getShaderResource(const Guid &guid) const {
     return *ptr;
 }
 
-const ShaderDesc &ScenarioSpec::getSubstitionShader(const std::vector<ShaderSubstitution> &shaderSubstitutions,
-                                                    const std::string &moduleName) const {
-    uint32_t substitutedShaderIdx = shaderSubstitution(shaderSubstitutions, moduleName);
-    const auto *ptr = dynamic_cast<const ShaderDesc *>(resources.at(substitutedShaderIdx).get());
-    return *ptr;
-}
-
-uint32_t ScenarioSpec::shaderSubstitution(const std::vector<ShaderSubstitution> &shaderSubs,
-                                          const std::string &moduleName) const {
-    for (const auto &shaderSub : shaderSubs) {
-        if (shaderSub.target == moduleName) {
-            return _resourceRefs.at(shaderSub.shaderRef);
-        }
-    }
-    throw std::runtime_error("Could not perform shader substitution");
-}
-
 } // namespace mlsdk::scenariorunner

@@ -29,10 +29,6 @@ struct ScenarioSpec {
     /// Assumes existence of guid.
     const ShaderDesc &getShaderResource(const Guid &guid) const;
 
-    /// Assumes existence of module
-    const ShaderDesc &getSubstitionShader(const std::vector<ShaderSubstitution> &shaderSubstitutions,
-                                          const std::string &moduleName) const;
-
     std::vector<std::unique_ptr<ResourceDesc>> resources;
     std::vector<std::unique_ptr<CommandDesc>> commands;
     // Mark scenario to have compute commands, default is dataGraph
@@ -43,8 +39,6 @@ struct ScenarioSpec {
     std::unordered_map<Guid, uint32_t> _resourceRefs;
     std::filesystem::path _workDir;
     std::filesystem::path _outputDir;
-
-    uint32_t shaderSubstitution(const std::vector<ShaderSubstitution> &shaderSubs, const std::string &moduleName) const;
 };
 
 } // namespace mlsdk::scenariorunner

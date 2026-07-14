@@ -696,6 +696,16 @@ Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
     setupCommands();
 }
 
+const ShaderDesc &Scenario::getSubstitutionShader(const std::vector<ShaderSubstitution> &shaderSubstitutions,
+                                                  const std::string &moduleName) const {
+    for (const auto &shaderSub : shaderSubstitutions) {
+        if (shaderSub.target == moduleName) {
+            return _scenarioSpec.getShaderResource(shaderSub.shaderRef);
+        }
+    }
+    throw std::runtime_error("Could not perform shader substitution");
+}
+
 void Scenario::run(int repeatCount, bool dryRun) {
     std::unique_ptr<FrameCapturer> frameCapturer;
 
@@ -1348,8 +1358,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
         bool hasHLSLModule = vgfView.hasHLSLModule(segmentIndex);
 
         if (!dispatchDataGraph.shaderSubstitutions.empty()) {
-            auto shaderInfo =
-                convert(_scenarioSpec.getSubstitionShader(dispatchDataGraph.shaderSubstitutions, moduleName));
+            auto shaderInfo = convert(getSubstitutionShader(dispatchDataGraph.shaderSubstitutions, moduleName));
             applyGraphResourceShaderMetadata(shaderInfo, dataGraph, moduleName);
             _compute.createPipeline(args, shaderInfo);
             if (hasSPVModule || hasGLSLModule || hasHLSLModule) {
