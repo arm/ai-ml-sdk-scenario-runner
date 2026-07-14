@@ -106,7 +106,7 @@ ResourceInfo VGF::getResource(uint32_t resourceIndex) const {
                           std::nullopt,
                           std::nullopt};
     resource.aliasGroupId = impl_->modelResourceTable->getAliasGroupId(resourceIndex);
-    if (const auto samplerConfig = impl_->modelResourceTable->getSamplerConfigHandle(resourceIndex)) {
+    if (const auto *samplerConfig = impl_->modelResourceTable->getSamplerConfigHandle(resourceIndex)) {
         resource.samplerConfig = ResourceInfo::SamplerConfig{
             vk::Filter(impl_->modelResourceTable->getSamplerConfigMinFilter(samplerConfig)),
             vk::Filter(impl_->modelResourceTable->getSamplerConfigMagFilter(samplerConfig)),

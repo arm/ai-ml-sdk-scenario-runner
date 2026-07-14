@@ -777,8 +777,8 @@ void Scenario::setupResources() {
         switch (resource->resourceType) {
         case ResourceType::Buffer: {
             const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
-            const auto info = resourceInfoFactory.createInfo(*buffer);
-            _dataManager.createBuffer(resource->guid, info);
+            auto info = resourceInfoFactory.createInfo(*buffer);
+            _dataManager.createBuffer(resource->guid, std::move(info));
         } break;
         case ResourceType::RawData: {
             const auto &rawData = reinterpret_cast<const std::unique_ptr<RawDataDesc> &>(resource);
@@ -786,8 +786,8 @@ void Scenario::setupResources() {
         } break;
         case ResourceType::Image: {
             const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
-            const auto info = resourceInfoFactory.createInfo(*image);
-            _dataManager.createImage(resource->guid, info);
+            auto info = resourceInfoFactory.createInfo(*image);
+            _dataManager.createImage(resource->guid, std::move(info));
         } break;
         case ResourceType::DataGraph: {
             const auto &dataGraph = reinterpret_cast<const std::unique_ptr<DataGraphDesc> &>(resource);
@@ -796,8 +796,8 @@ void Scenario::setupResources() {
         } break;
         case ResourceType::Tensor: {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
-            const auto info = resourceInfoFactory.createInfo(*tensor, _opts.captureFrame);
-            _dataManager.createTensor(resource->guid, info);
+            auto info = resourceInfoFactory.createInfo(*tensor, _opts.captureFrame);
+            _dataManager.createTensor(resource->guid, std::move(info));
         } break;
         default:
             // Skip the other types of resources
