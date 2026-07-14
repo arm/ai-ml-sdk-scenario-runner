@@ -75,6 +75,8 @@ class Scenario {
 
     bool hasAliasedOptimalTensors() const;
     void handleAliasedLayoutTransitions();
+    const ShaderDesc &getSubstitutionShader(const std::vector<ShaderSubstitution> &shaderSubstitutions,
+                                            const std::string &moduleName) const;
 
     ScenarioOptions _opts;
     Context _ctx;
