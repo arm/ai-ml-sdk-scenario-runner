@@ -12,6 +12,7 @@
 #include <limits>
 #include <map>
 #include <vector>
+#include <vulkan/vulkan_beta.h>
 
 namespace mlsdk::scenariorunner {
 namespace {
@@ -39,7 +40,7 @@ uint32_t findQueue(const std::vector<vk::QueueFamilyProperties> &queueProps, Fam
 }
 
 bool hasExtension(const std::vector<vk::ExtensionProperties> &extensions, const std::string &extensionName,
-                  const std::vector<std::string> &disabledExtensions) {
+                  const std::vector<std::string> &disabledExtensions = {}) {
     if (std::find(disabledExtensions.begin(), disabledExtensions.end(), extensionName) != disabledExtensions.end()) {
         return false;
     }
@@ -63,17 +64,16 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
 
-#ifdef MOLTEN_VK_SUPPORT
-    enabledExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-    vk::InstanceCreateFlags flags = vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
+    vk::InstanceCreateFlags flags{};
+    const auto instanceExtensions = _ctx.enumerateInstanceExtensionProperties();
+    if (hasExtension(instanceExtensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)) {
+        enabledExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+        flags = vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
+    }
+
     const vk::InstanceCreateInfo instanceInfo(flags, &appInfo, static_cast<uint32_t>(enabledLayers.size()),
                                               enabledLayers.data(), static_cast<uint32_t>(enabledExtensions.size()),
                                               enabledExtensions.data());
-#else
-    const vk::InstanceCreateInfo instanceInfo(
-        vk::InstanceCreateFlags(), &appInfo, static_cast<uint32_t>(enabledLayers.size()), enabledLayers.data(),
-        static_cast<uint32_t>(enabledExtensions.size()), enabledExtensions.data());
-#endif
 
     _instance = vk::raii::Instance(_ctx, instanceInfo);
 
@@ -138,6 +138,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         hasExtension(extensions, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.pipeline_robustness =
         hasExtension(extensions, VK_EXT_PIPELINE_ROBUSTNESS_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+    _optionals.portability_subset =
+        hasExtension(extensions, VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME, scenarioOptions.disabledExtensions);
 
     // Create device
     const float queuePriority = 1.0f;
@@ -343,9 +345,9 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     if (_optionals.pipeline_robustness) {
         vulkanDeviceExtensions.push_back(VK_EXT_PIPELINE_ROBUSTNESS_EXTENSION_NAME);
     }
-#ifdef MOLTEN_VK_SUPPORT
-    vulkanDeviceExtensions.push_back("VK_KHR_portability_subset");
-#endif
+    if (_optionals.portability_subset) {
+        vulkanDeviceExtensions.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
+    }
 
     const vk::DeviceCreateInfo deviceCreateInfo = {
         vk::DeviceCreateFlags(),

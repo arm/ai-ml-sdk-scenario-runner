@@ -4,7 +4,8 @@
 ## Unreleased
 
 ### Build, Packaging & Developer Experience
- - Updated Scenario Runner `--version` output to report the package version and include git revision and dependency revision information
+ - Updated Scenario Runner `--version` output to report the package version and include git revision and dependency revision information.
+ - Added KosmicKrisp support on Darwin.
 
 ## Version 0.10.0 – *Optical Flow, VGF Runtime & APK Packaging*
 
