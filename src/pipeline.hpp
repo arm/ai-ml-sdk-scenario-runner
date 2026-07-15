@@ -98,8 +98,6 @@ class Pipeline {
     }
 
   private:
-    enum class PipelineType { Unknown, Compute, GraphCompute, Graphics };
-
     PipelineType _type{PipelineType::Unknown};
     std::vector<vk::raii::DescriptorSetLayout> _descriptorSetLayouts;
     vk::raii::PipelineLayout _pipelineLayout{nullptr};

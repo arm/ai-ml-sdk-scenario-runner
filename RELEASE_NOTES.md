@@ -7,6 +7,14 @@
  - Updated Scenario Runner `--version` output to report the package version and include git revision and dependency revision information.
  - Added KosmicKrisp support on Darwin.
 
+## Unreleased
+
+### Bug Fixes
+
+- Enforce fail-on-pipeline-cache-miss for all pipeline types. Cache miss detection
+  has also been extended to check pipeline creation feedback, in addition to
+  compile required.
+
 ## Version 0.10.0 – *Optical Flow, VGF Runtime & APK Packaging*
 
 ### Optical Flow Task API

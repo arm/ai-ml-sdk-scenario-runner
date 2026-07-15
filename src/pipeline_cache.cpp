@@ -6,6 +6,7 @@
 #include "pipeline_cache.hpp"
 #include "logging.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 
@@ -68,10 +69,26 @@ PipelineCache::PipelineCache(const Context &ctx, const std::filesystem::path &pi
     }
     _pipelineCache = vk::raii::PipelineCache(ctx.device(), cacheCreateInfo);
 
-    _feedback = vk::PipelineCreationFeedback(vk::PipelineCreationFeedbackFlagBits::eValid, 0);
+    getCacheFeedbackCreateInfo(PipelineType::Unknown);
+}
 
-    _stagedFeedback = vk::PipelineCreationFeedback(vk::PipelineCreationFeedbackFlagBits::eValid, 0);
-    _feedbackCreateInfo = vk::PipelineCreationFeedbackCreateInfo(&_feedback, 1, &_stagedFeedback);
+vk::PipelineCreationFeedbackCreateInfo *PipelineCache::getCacheFeedbackCreateInfo(PipelineType pipelineType) {
+    const uint32_t stageCount = pipelineType == PipelineType::Graphics ? 2 : 1;
+    _feedback = vk::PipelineCreationFeedback(vk::PipelineCreationFeedbackFlagBits::eValid, 0);
+    _stagedFeedback.assign(stageCount, vk::PipelineCreationFeedback(vk::PipelineCreationFeedbackFlagBits::eValid, 0));
+    _feedbackCreateInfo = vk::PipelineCreationFeedbackCreateInfo(
+        &_feedback, static_cast<uint32_t>(_stagedFeedback.size()), _stagedFeedback.data());
+    return &_feedbackCreateInfo;
+}
+
+bool PipelineCache::wasPipelineCacheHit() const {
+    const auto cacheHit = vk::PipelineCreationFeedbackFlagBits::eApplicationPipelineCacheHit;
+    if (static_cast<bool>(_feedback.flags & cacheHit)) {
+        return true;
+    }
+    return std::any_of(_stagedFeedback.begin(), _stagedFeedback.end(), [cacheHit](const auto &stageFeedback) {
+        return static_cast<bool>(stageFeedback.flags & cacheHit);
+    });
 }
 
 void PipelineCache::save() {
