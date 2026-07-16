@@ -160,7 +160,7 @@ void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> mem
             1) {
         throw std::runtime_error("Number of mips exceeds maximum number allowed for the image size");
     }
-    if (_imageInfo.isAliased && _imageInfo.mips > 1) {
+    if (_memoryManager->isShared() && _imageInfo.mips > 1) {
         throw std::runtime_error("A mipped image cannot be aliased");
     }
 
@@ -204,7 +204,7 @@ void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> mem
             if ((featProps.optimalTilingFeatures & requiredFormatFlags) != requiredFormatFlags) {
                 throw std::runtime_error("Tiling type: OPTIMAL is not supported for this formatType");
             }
-            if (_imageInfo.isAliased) {
+            if (_memoryManager->isShared()) {
                 mlsdk::logging::info("Allowing OPTIMAL tiling with aliasing for image");
             }
         }
@@ -223,7 +223,7 @@ void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> mem
 
     _initialLayout = vk::ImageLayout::eUndefined;
 
-    if (_imageInfo.isAliased && _tiling != vk::ImageTiling::eLinear) {
+    if (_memoryManager->isShared() && _tiling != vk::ImageTiling::eLinear) {
         usageFlags |= vk::ImageUsageFlagBits::eTensorAliasingARM;
     }
 

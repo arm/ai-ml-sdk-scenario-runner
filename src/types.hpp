@@ -76,7 +76,6 @@ struct TensorInfo {
     vk::Format format;
     int64_t sparsityDimension{-1};
     bool descriptorBufferCaptureReplay{false};
-    bool isAliasedWithImage{false};
     Tiling tiling{Tiling::Linear};
     uint64_t memoryOffset{};
 };
@@ -105,7 +104,6 @@ struct ImageInfo {
     vk::Format targetFormat;
     bool isInput;
     SamplerSettings samplerSettings;
-    bool isAliased{false};
     uint32_t mips;
     bool isSampled{false};
     bool isStorage{false};

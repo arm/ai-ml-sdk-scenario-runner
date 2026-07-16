@@ -17,7 +17,7 @@ TEST(GroupManager, GroupHandling) {
     GroupManager gm;
     gm.addResourceToGroup(group0, tensor0, ResourceIdType::Tensor);
     ASSERT_EQ(gm.getAliasCount(tensor0), 1U);
-    ASSERT_TRUE(gm.isAliased(tensor0));
+    ASSERT_FALSE(gm.isAliased(tensor0));
     ASSERT_EQ(gm.getAliasCount(image0), 0U);
     ASSERT_FALSE(gm.isAliased(image0));
     ASSERT_FALSE(gm.hasAliasOfType(tensor0, ResourceIdType::Image));
@@ -35,6 +35,7 @@ TEST(GroupManager, GroupHandling) {
     auto mmTensor = gm.getMemoryManager(tensor0);
     auto mmImage = gm.getMemoryManager(image0);
     ASSERT_EQ(mmTensor, mmImage);
+    ASSERT_TRUE(mmTensor->isShared());
 }
 
 TEST(GroupManager, DuplicateResourceRegistrationToDifferentGroupThrows) {

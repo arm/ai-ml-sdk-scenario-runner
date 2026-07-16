@@ -83,7 +83,6 @@ class Tensor {
     vk::TensorTilingARM _tiling{vk::TensorTilingARM::eLinear};
     vk::DeviceSize _size{0};
     uint64_t _memoryOffset{0};
-    bool _isAliasedWithImage{false};
     bool _rankConverted{false};
     bool _descriptorBufferCaptureReplay{false};
 };

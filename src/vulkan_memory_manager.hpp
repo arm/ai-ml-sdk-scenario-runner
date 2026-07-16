@@ -16,6 +16,12 @@ class ResourceMemoryManager {
   public:
     bool isInitalized() const { return _initalized; }
 
+    bool isShared() const { return _isShared; }
+
+    void markShared() { _isShared = true; }
+
+    bool hasImageMetadata() const { return _hasImageMetadata; }
+
     void allocateDeviceMemory(const Context &ctx, vk::MemoryPropertyFlags flags) {
         if (_memSize == 0) {
             throw std::runtime_error("Allocated memory size must be non-zero");
@@ -63,7 +69,10 @@ class ResourceMemoryManager {
 
     void updateFormat(vk::Format format) { _format = format; }
 
-    void updateImageType(vk::ImageType imType) { _imType = imType; }
+    void updateImageType(vk::ImageType imType) {
+        _imType = imType;
+        _hasImageMetadata = true;
+    }
 
     void updateMemType(uint32_t type) { _memType &= type; }
 
@@ -191,6 +200,8 @@ class ResourceMemoryManager {
     uint32_t _memType{UINT32_MAX};
     vk::raii::DeviceMemory _deviceMemory{nullptr};
     bool _initalized{false};
+    bool _isShared{false};
+    bool _hasImageMetadata{false};
     vk::raii::Buffer _stagingBuffer{nullptr};
     vk::raii::DeviceMemory _stagingBufferDeviceMemory{nullptr};
 };
