@@ -9,6 +9,7 @@
 #include "context.hpp"
 #include "data_manager.hpp"
 #include "group_manager.hpp"
+#include "resource_manager.hpp"
 #include "scenario_desc.hpp"
 #include "types.hpp"
 
@@ -80,6 +81,7 @@ class Scenario {
 
     ScenarioOptions _opts;
     Context _ctx;
+    ResourceManager _resources;
     DataManager _dataManager;
     ScenarioSpec &_scenarioSpec;
     std::shared_ptr<PipelineCache> _pipelineCache;
