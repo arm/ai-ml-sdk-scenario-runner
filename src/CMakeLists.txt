@@ -27,6 +27,7 @@ set(SCENARIO_RUNNER_LIB_SOURCES
     pipeline.cpp
     raw_data.cpp
     resource_desc.cpp
+    resource_manager.cpp
     scenario.cpp
     scenario_desc.cpp
     tensor.cpp
