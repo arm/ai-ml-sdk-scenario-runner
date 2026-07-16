@@ -6,6 +6,7 @@
 #pragma once
 
 #include "context.hpp"
+#include "resource_data.hpp"
 #include "resource_desc.hpp"
 #include "types.hpp"
 #include "vulkan_memory_manager.hpp"
@@ -51,6 +52,22 @@ class Buffer {
 
     /// \brief Fills the buffer with zeros
     void fillZero(const Context &ctx) const;
+
+    /// \brief Upload in‑memory data into this buffer (host → device)
+    ///
+    /// Copies the provided bytes to device‑local memory via a staging transfer
+    /// The payload size must exactly match `size()`
+    /// \param ctx   Vulkan context
+    /// \param data  BufferDataView containing bytes for upload
+    void upload(const Context &ctx, const BufferDataView &data) const;
+
+    /// \brief Download buffer contents (device → host)
+    ///
+    /// Reads the current buffer contents into an owned byte vector
+    /// Buffers are untyped; only raw bytes are returned
+    /// \param ctx Vulkan context
+    /// \return BufferData containing a copy of the bytes
+    BufferData download(const Context &ctx) const;
 
     /// \brief Retrieves the buffer data and writes it to a file
     void store(const Context &ctx, const std::string &filename) const;

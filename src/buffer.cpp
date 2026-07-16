@@ -57,7 +57,8 @@ void Buffer::fillFromDescription(const Context &ctx, const BufferDesc &buffer) c
     if (buffer.src.has_value()) {
         MemoryMap mapped(buffer.src.value());
         auto dataPtr = vgfutils::numpy::parse(mapped);
-        fill(ctx, dataPtr.ptr, dataPtr.size());
+        BufferDataView view{dataPtr.ptr, dataPtr.size()};
+        upload(ctx, view);
     } else {
         fillZero(ctx);
     }
@@ -82,13 +83,28 @@ void Buffer::fillZero(const Context &ctx) const {
     _memoryManager->uploadData(ctx, _memoryOffset, size());
 }
 
-void Buffer::store(const Context &ctx, const std::string &filename) const {
-    _memoryManager->downloadData(ctx, _memoryOffset, size());
+void Buffer::upload(const Context &ctx, const BufferDataView &data) const {
+    if (data.size != this->size()) {
+        throw std::runtime_error("Buffer::upload: size mismatch");
+    }
+    fill(ctx, data.data, data.size);
+}
 
+BufferData Buffer::download(const Context &ctx) const {
+    _memoryManager->downloadData(ctx, _memoryOffset, size());
     ScopeExit<void()> onScopeExitRun([&] { _memoryManager->unmapStagingBufferMemory(); });
-    vgfutils::numpy::DataPtr data(
-        reinterpret_cast<const char *>(_memoryManager->mapStagingBufferMemory(_memoryOffset, size())), {size()},
-        vgfutils::numpy::DType('i', 1));
+
+    BufferData bd;
+    bd.data.resize(size());
+    const auto *mapped = static_cast<const char *>(_memoryManager->mapStagingBufferMemory(_memoryOffset, size()));
+    std::memcpy(bd.data.data(), mapped, bd.data.size());
+    return bd;
+}
+
+void Buffer::store(const Context &ctx, const std::string &filename) const {
+    const auto bufferContents = download(ctx);
+    vgfutils::numpy::DataPtr data(bufferContents.data.data(), {static_cast<int64_t>(bufferContents.data.size())},
+                                  vgfutils::numpy::DType('i', 1));
     vgfutils::numpy::write(filename, data);
 }
 
