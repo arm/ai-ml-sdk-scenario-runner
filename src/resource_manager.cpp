@@ -9,9 +9,10 @@
 
 namespace mlsdk::scenariorunner {
 namespace {
-template <typename Id, typename Info> Id addResource(std::vector<Info> &resources, Info info) {
+template <typename Id, typename StoredInfo, typename InputInfo>
+Id addResource(std::vector<StoredInfo> &resources, InputInfo &&info) {
     const Id id{resources.size()};
-    resources.push_back(std::move(info));
+    resources.emplace_back(std::forward<InputInfo>(info));
     return id;
 }
 
@@ -20,13 +21,21 @@ template <typename Info, typename Id> const Info &getResource(const std::vector<
 }
 } // namespace
 
-BufferId ResourceManager::addBuffer(BufferInfo info) { return addResource<BufferId>(_buffers, std::move(info)); }
+BufferId ResourceManager::addBuffer(const BufferInfo &info) { return addResource<BufferId>(_buffers, info); }
 
-ImageId ResourceManager::addImage(ImageInfo info) { return addResource<ImageId>(_images, std::move(info)); }
+BufferId ResourceManager::addBuffer(BufferInfo &&info) { return addResource<BufferId>(_buffers, std::move(info)); }
 
-TensorId ResourceManager::addTensor(TensorInfo info) { return addResource<TensorId>(_tensors, std::move(info)); }
+ImageId ResourceManager::addImage(const ImageInfo &info) { return addResource<ImageId>(_images, info); }
 
-ShaderId ResourceManager::addShader(ShaderInfo info) { return addResource<ShaderId>(_shaders, std::move(info)); }
+ImageId ResourceManager::addImage(ImageInfo &&info) { return addResource<ImageId>(_images, std::move(info)); }
+
+TensorId ResourceManager::addTensor(const TensorInfo &info) { return addResource<TensorId>(_tensors, info); }
+
+TensorId ResourceManager::addTensor(TensorInfo &&info) { return addResource<TensorId>(_tensors, std::move(info)); }
+
+ShaderId ResourceManager::addShader(const ShaderInfo &info) { return addResource<ShaderId>(_shaders, info); }
+
+ShaderId ResourceManager::addShader(ShaderInfo &&info) { return addResource<ShaderId>(_shaders, std::move(info)); }
 
 const BufferInfo &ResourceManager::get(BufferId id) const { return getResource(_buffers, id); }
 

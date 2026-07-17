@@ -14,10 +14,14 @@ namespace mlsdk::scenariorunner {
 
 class ResourceManager {
   public:
-    BufferId addBuffer(BufferInfo info);
-    ImageId addImage(ImageInfo info);
-    TensorId addTensor(TensorInfo info);
-    ShaderId addShader(ShaderInfo info);
+    BufferId addBuffer(const BufferInfo &info);
+    BufferId addBuffer(BufferInfo &&info);
+    ImageId addImage(const ImageInfo &info);
+    ImageId addImage(ImageInfo &&info);
+    TensorId addTensor(const TensorInfo &info);
+    TensorId addTensor(TensorInfo &&info);
+    ShaderId addShader(const ShaderInfo &info);
+    ShaderId addShader(ShaderInfo &&info);
 
     const BufferInfo &get(BufferId id) const;
     const ImageInfo &get(ImageId id) const;
