@@ -371,7 +371,8 @@ Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, co
         constantTensorDescriptions.emplace_back(vk::TensorTilingARM::eLinear, constant.format,
                                                 static_cast<uint32_t>(constant.dims.size()), constant.dims.data(),
                                                 nullptr, vk::TensorUsageFlagBitsARM::eDataGraph);
-        constantInfos.emplace_back(constant.index, constant.data.data(), &constantTensorDescriptions.back());
+        constantInfos.emplace_back(static_cast<uint32_t>(constantInfos.size()), constant.data.data(),
+                                   &constantTensorDescriptions.back());
     }
     graphComputePipelineCommon(args.ctx, shaderInfo, resourceInfos, constantInfos, args.pipelineCache,
                                enableNeuralStatistics, neuralStatisticsMode);
