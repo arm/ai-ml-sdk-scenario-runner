@@ -14,6 +14,7 @@
 #include "types.hpp"
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace mlsdk::scenariorunner {
@@ -76,12 +77,14 @@ class Scenario {
 
     bool hasAliasedOptimalTensors() const;
     void handleAliasedLayoutTransitions();
-    const ShaderDesc &getSubstitutionShader(const std::vector<ShaderSubstitution> &shaderSubstitutions,
+    const ShaderInfo &getShader(const Guid &guid) const;
+    const ShaderInfo &getSubstitutionShader(const std::vector<ShaderSubstitution> &shaderSubstitutions,
                                             const std::string &moduleName) const;
 
     ScenarioOptions _opts;
     Context _ctx;
     ResourceManager _resources;
+    std::unordered_map<Guid, ShaderId> _shaderIds;
     DataManager _dataManager;
     ScenarioSpec &_scenarioSpec;
     std::shared_ptr<PipelineCache> _pipelineCache;

@@ -326,6 +326,18 @@ struct ResourceInfoFactory {
 
         return info;
     }
+
+    ShaderInfo createInfo(const ShaderDesc &shader) const {
+        return {shader.guidStr,
+                shader.entry,
+                shader.pushConstantsSize,
+                shader.specializationConstants,
+                shader.src.value_or(std::string{}),
+                shader.shaderType,
+                shader.stage,
+                shader.buildOpts,
+                shader.includeDirs};
+    }
 };
 
 void fill(const BaseBarrierDesc &barrier, BaseBarrierData &data) {
@@ -626,19 +638,6 @@ struct CommandDataFactory {
     }
 };
 
-ShaderInfo convert(const ShaderDesc &shaderDesc) {
-    ShaderInfo info{shaderDesc.guidStr,
-                    shaderDesc.entry,
-                    shaderDesc.pushConstantsSize,
-                    shaderDesc.specializationConstants,
-                    shaderDesc.src.value_or(std::string{}),
-                    shaderDesc.shaderType,
-                    shaderDesc.stage,
-                    shaderDesc.buildOpts,
-                    shaderDesc.includeDirs};
-    return info;
-}
-
 auto getFamilyQueue(const ScenarioSpec &spec) {
     if (spec.requiresGraphicsFamilyQueue) {
         return FamilyQueue::Graphics;
@@ -696,11 +695,19 @@ Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
     setupCommands();
 }
 
-const ShaderDesc &Scenario::getSubstitutionShader(const std::vector<ShaderSubstitution> &shaderSubstitutions,
+const ShaderInfo &Scenario::getShader(const Guid &guid) const {
+    const auto shader = _shaderIds.find(guid);
+    if (shader == _shaderIds.end()) {
+        throw std::runtime_error("Shader resource not found.");
+    }
+    return _resources.get(shader->second);
+}
+
+const ShaderInfo &Scenario::getSubstitutionShader(const std::vector<ShaderSubstitution> &shaderSubstitutions,
                                                   const std::string &moduleName) const {
     for (const auto &shaderSub : shaderSubstitutions) {
         if (shaderSub.target == moduleName) {
-            return _scenarioSpec.getShaderResource(shaderSub.shaderRef);
+            return getShader(shaderSub.shaderRef);
         }
     }
     throw std::runtime_error("Could not perform shader substitution");
@@ -808,6 +815,11 @@ void Scenario::setupResources() {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
             const auto id = _resources.addTensor(resourceInfoFactory.createInfo(*tensor, _opts.captureFrame));
             _dataManager.createTensor(resource->guid, _resources.get(id));
+        } break;
+        case ResourceType::Shader: {
+            const auto &shader = reinterpret_cast<const std::unique_ptr<ShaderDesc> &>(resource);
+            const auto id = _resources.addShader(resourceInfoFactory.createInfo(*shader));
+            _shaderIds.emplace(resource->guid, id);
         } break;
         default:
             // Skip the other types of resources
@@ -1142,7 +1154,7 @@ std::pair<const char *, size_t> getPushConstantData(const std::optional<Guid> &p
 
 void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries) {
     // Create Compute shader pipeline
-    const auto shaderInfo = convert(_scenarioSpec.getShaderResource(dispatchCompute.shaderRef));
+    const auto &shaderInfo = getShader(dispatchCompute.shaderRef);
     if (!(shaderInfo.stage == ShaderStage::Compute || shaderInfo.stage == ShaderStage::Unknown)) {
         throw std::runtime_error("DispatchCompute requires a compute shader stage");
     }
@@ -1159,8 +1171,8 @@ void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute,
 }
 
 void Scenario::createFragmentPipeline(const DispatchFragmentData &dispatchFragment, uint32_t &nQueries) {
-    const auto vertexShaderInfo = convert(_scenarioSpec.getShaderResource(dispatchFragment.vertexShaderRef));
-    const auto fragmentShaderInfo = convert(_scenarioSpec.getShaderResource(dispatchFragment.fragmentShaderRef));
+    const auto &vertexShaderInfo = getShader(dispatchFragment.vertexShaderRef);
+    const auto &fragmentShaderInfo = getShader(dispatchFragment.fragmentShaderRef);
     if (vertexShaderInfo.stage != ShaderStage::Vertex) {
         throw std::runtime_error("dispatch_fragment vertex_shader_ref must reference a vertex shader");
     }
@@ -1241,27 +1253,14 @@ void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchData
 }
 
 void Scenario::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSpirvGraph, uint32_t &nQueries) {
-    const auto it =
-        std::find_if(_scenarioSpec.resources.begin(), _scenarioSpec.resources.end(),
-                     [&](const auto &resource) { return resource->guid == dispatchSpirvGraph.dataGraphRef; });
-    if (it == _scenarioSpec.resources.end()) {
-        throw std::runtime_error("Shader resource not found.");
-    }
-    const auto &shaderRes = *it;
-    if (shaderRes->resourceType != ResourceType::Shader) {
-        throw std::runtime_error("GUID does not reference a shader resource: " + shaderRes->guidStr);
-    }
-    const auto &shaderDesc = static_cast<const ShaderDesc &>(*shaderRes);
-
-    if (shaderDesc.shaderType != ShaderType::SPIR_V) {
+    const auto &shaderInfo = getShader(dispatchSpirvGraph.dataGraphRef);
+    if (shaderInfo.shaderType != ShaderType::SPIR_V) {
         throw std::runtime_error("Shader resource used to create Graph Pipeline must be of type SPIR-V");
     }
 
-    if (!shaderDesc.src.has_value()) {
-        throw std::runtime_error("Shader resource missing src: " + shaderDesc.guidStr);
+    if (shaderInfo.src.empty()) {
+        throw std::runtime_error("Shader resource missing src: " + shaderInfo.debugName);
     }
-
-    const auto shaderInfo = convert(shaderDesc);
 
     // Validate the bindings
     const auto &sequenceBindings = dispatchSpirvGraph.bindings;
@@ -1358,7 +1357,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
         bool hasHLSLModule = vgfView.hasHLSLModule(segmentIndex);
 
         if (!dispatchDataGraph.shaderSubstitutions.empty()) {
-            auto shaderInfo = convert(getSubstitutionShader(dispatchDataGraph.shaderSubstitutions, moduleName));
+            ShaderInfo shaderInfo = getSubstitutionShader(dispatchDataGraph.shaderSubstitutions, moduleName);
             applyGraphResourceShaderMetadata(shaderInfo, dataGraph, moduleName);
             _compute.createPipeline(args, shaderInfo);
             if (hasSPVModule || hasGLSLModule || hasHLSLModule) {
