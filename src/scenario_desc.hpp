@@ -10,7 +10,7 @@
 
 #include <filesystem>
 #include <memory>
-#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace mlsdk::scenariorunner {
@@ -26,9 +26,6 @@ struct ScenarioSpec {
 
     void addCommand(std::unique_ptr<CommandDesc> command);
 
-    /// Assumes existence of guid.
-    const ShaderDesc &getShaderResource(const Guid &guid) const;
-
     std::vector<std::unique_ptr<ResourceDesc>> resources;
     std::vector<std::unique_ptr<CommandDesc>> commands;
     // Mark scenario to have compute commands, default is dataGraph
@@ -36,7 +33,7 @@ struct ScenarioSpec {
     bool requiresGraphicsFamilyQueue{};
 
   private:
-    std::unordered_map<Guid, uint32_t> _resourceRefs;
+    std::unordered_set<Guid> _resourceGuids;
     std::filesystem::path _workDir;
     std::filesystem::path _outputDir;
 };

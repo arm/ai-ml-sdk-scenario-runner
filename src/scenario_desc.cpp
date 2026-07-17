@@ -29,7 +29,7 @@ ScenarioSpec::ScenarioSpec(const std::filesystem::path &jsonFile, const std::fil
 }
 
 void ScenarioSpec::addResource(std::unique_ptr<ResourceDesc> resource) {
-    if (_resourceRefs.find(resource->guid) != _resourceRefs.end()) {
+    if (!_resourceGuids.insert(resource->guid).second) {
         throw std::runtime_error("Not unique uid: " + resource->guidStr);
     }
     if (resource->src.has_value()) {
@@ -44,7 +44,6 @@ void ScenarioSpec::addResource(std::unique_ptr<ResourceDesc> resource) {
         resource->dst = resolvedPath.string();
     }
 
-    _resourceRefs[resource->guid] = static_cast<uint32_t>(resources.size());
     resources.emplace_back(std::move(resource));
 }
 
@@ -56,12 +55,6 @@ void ScenarioSpec::addCommand(std::unique_ptr<CommandDesc> command) {
         requiresGraphicsFamilyQueue = true;
     }
     commands.emplace_back(std::move(command));
-}
-
-const ShaderDesc &ScenarioSpec::getShaderResource(const Guid &guid) const {
-    uint32_t shaderIndex = _resourceRefs.at(guid);
-    const auto *ptr = dynamic_cast<const ShaderDesc *>(resources.at(shaderIndex).get());
-    return *ptr;
 }
 
 } // namespace mlsdk::scenariorunner
