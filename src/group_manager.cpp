@@ -28,13 +28,13 @@ size_t GroupManager::getAliasCount(const Guid &resource) const {
     return 0;
 }
 
-bool GroupManager::isAliased(const Guid &resource) const { return getAliasCount(resource) > 0; }
+bool GroupManager::isAliased(const Guid &resource) const { return getAliasCount(resource) > 1; }
 
 bool GroupManager::hasAliasOfType(const Guid &resource, ResourceIdType resourceIdType) const {
     if (const auto group = getGroupForResource(resource); group.has_value()) {
         // Group found, look for requested type
-        for (const auto &groupResource : _groupResources.at(*group)) {
-            if (groupResource.second == resourceIdType) {
+        for (const auto &[aliasResource, aliasType] : _groupResources.at(*group)) {
+            if (aliasResource != resource && aliasType == resourceIdType) {
                 return true;
             }
         }
@@ -44,9 +44,13 @@ bool GroupManager::hasAliasOfType(const Guid &resource, ResourceIdType resourceI
 
 std::shared_ptr<ResourceMemoryManager> GroupManager::getMemoryManager(const Guid &resource) {
     if (const auto group = getGroupForResource(resource); group.has_value()) {
-        // Only inserts if not existing
-        const auto result = _groupMemoryManagers.emplace(*group, std::make_shared<ResourceMemoryManager>());
-        return result.first->second;
+        // Create one memory manager per group on first access.
+        const auto [manager, inserted] =
+            _groupMemoryManagers.emplace(*group, std::make_shared<ResourceMemoryManager>());
+        if (inserted && isAliased(resource)) {
+            manager->second->markShared();
+        }
+        return manager->second;
     }
     // Not a group, create new one
     return std::make_shared<ResourceMemoryManager>();

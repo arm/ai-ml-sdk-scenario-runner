@@ -28,7 +28,6 @@ constexpr vk::TensorTilingARM convertTiling(const Tiling tiling) {
 Tensor::Tensor(TensorInfo tensorInfo)
     : _debugName(std::move(tensorInfo.debugName)), _shape(std::move(tensorInfo.shape)), _dataType(tensorInfo.format),
       _tiling(convertTiling(tensorInfo.tiling)), _memoryOffset(tensorInfo.memoryOffset),
-      _isAliasedWithImage(tensorInfo.isAliasedWithImage),
       _descriptorBufferCaptureReplay(tensorInfo.descriptorBufferCaptureReplay) {}
 
 void Tensor::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> memoryManager) {
@@ -47,7 +46,7 @@ void Tensor::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> me
 
     auto rank = static_cast<uint32_t>(_shape.size());
 
-    if (_isAliasedWithImage && _tiling != vk::TensorTilingARM::eOptimal) {
+    if (_memoryManager->hasImageMetadata() && _tiling != vk::TensorTilingARM::eOptimal) {
         /*
           The extension to the spec does not support rank 4 tensors aliasing 2D images. Rank 4 tensor is associated with
           a 3D image. The image type check was added to avoid faults for 2D images due to this spec requirement:

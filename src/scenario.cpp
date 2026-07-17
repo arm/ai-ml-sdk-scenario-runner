@@ -215,8 +215,6 @@ std::string resourceType(const std::unique_ptr<ResourceDesc> &resource) {
 }
 
 struct ResourceInfoFactory {
-    const GroupManager &_groupManager;
-
     BufferInfo createInfo(const BufferDesc &buffer) const {
         BufferInfo info{};
         info.debugName = buffer.guidStr;
@@ -304,7 +302,6 @@ struct ResourceInfoFactory {
             info.memoryOffset = image.memoryGroup->offset;
         }
 
-        info.isAliased = _groupManager.isAliased(image.guid);
         info.isColorAttachment = image.colorAttachment;
         return info;
     }
@@ -315,7 +312,6 @@ struct ResourceInfoFactory {
         if (tensor.memoryGroup.has_value()) {
             info.memoryOffset = tensor.memoryGroup->offset;
         }
-        info.isAliasedWithImage = _groupManager.hasAliasOfType(tensor.guid, ResourceIdType::Image);
         info.format = getVkFormatFromString(tensor.format);
         info.shape.resize(tensor.dims.size());
         std::copy(tensor.dims.begin(), tensor.dims.end(), info.shape.begin());
@@ -432,13 +428,11 @@ class Creator final : public IResourceCreator {
     }
 
     void createTensor(Guid guid, TensorInfo &&info) override {
-        info.isAliasedWithImage = _groupManager.hasAliasOfType(guid, ResourceIdType::Image);
         _dataManager.createTensor(guid, std::move(info));
         _createdResources.push_back({guid, ResourceIdType::Tensor});
     }
 
     void createImage(Guid guid, ImageInfo &&info) override {
-        info.isAliased = _groupManager.isAliased(guid);
         _dataManager.createImage(guid, std::move(info));
         _createdResources.push_back({guid, ResourceIdType::Image});
     }
@@ -782,7 +776,7 @@ void Scenario::setupResources() {
 
     // Setup resource info
     // (Memory for Tensors and Images is allocated in next pass)
-    ResourceInfoFactory resourceInfoFactory{_groupManager};
+    ResourceInfoFactory resourceInfoFactory;
     for (const auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
         case ResourceType::Buffer: {
