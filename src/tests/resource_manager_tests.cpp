@@ -43,8 +43,9 @@ TEST(ResourceManager, PreservesResourceInfo) {
     shader.entry = "main";
     shader.pushConstantsSize = 16;
 
-    const auto shaderId = resources.addShader(std::move(shader));
+    const auto shaderId = resources.addShader(shader);
 
+    EXPECT_EQ(shader.debugName, "shader");
     EXPECT_EQ(resources.get(shaderId).debugName, "shader");
     EXPECT_EQ(resources.get(shaderId).entry, "main");
     EXPECT_EQ(resources.get(shaderId).pushConstantsSize, 16U);
