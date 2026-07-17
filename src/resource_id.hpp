@@ -28,10 +28,14 @@ struct BufferIdTag;
 struct ImageIdTag;
 struct TensorIdTag;
 struct ShaderIdTag;
+struct RawDataIdTag;
+struct DataGraphIdTag;
 
 using BufferId = ResourceId<BufferIdTag>;
 using ImageId = ResourceId<ImageIdTag>;
 using TensorId = ResourceId<TensorIdTag>;
 using ShaderId = ResourceId<ShaderIdTag>;
+using RawDataId = ResourceId<RawDataIdTag>;
+using DataGraphId = ResourceId<DataGraphIdTag>;
 
 } // namespace mlsdk::scenariorunner

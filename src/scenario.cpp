@@ -237,6 +237,12 @@ struct ResourceInfoFactory {
         return info;
     }
 
+    RawDataInfo createInfo(const RawDataDesc &rawData) const { return {rawData.guidStr, rawData.src.value()}; }
+
+    DataGraphInfo createInfo(const DataGraphDesc &dataGraph) const {
+        return {dataGraph.guidStr, dataGraph.src.value()};
+    }
+
     ImageInfo createInfo(const ImageDesc &image) const {
         ImageInfo info{};
         info.debugName = image.guidStr;
@@ -808,7 +814,8 @@ void Scenario::setupResources() {
         } break;
         case ResourceType::RawData: {
             const auto &rawData = reinterpret_cast<const std::unique_ptr<RawDataDesc> &>(resource);
-            _dataManager.createRawData(resource->guid, rawData->guidStr, rawData->src.value());
+            const auto id = _resources.addRawData(resourceInfoFactory.createInfo(*rawData));
+            _dataManager.createRawData(resource->guid, _resources.get(id));
         } break;
         case ResourceType::Image: {
             const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
@@ -818,7 +825,8 @@ void Scenario::setupResources() {
         case ResourceType::DataGraph: {
             const auto &dataGraph = reinterpret_cast<const std::unique_ptr<DataGraphDesc> &>(resource);
             PerfCounterGuard guard(_perfCounters, "Parse VGF: " + dataGraph->guidStr, "Scenario Setup");
-            _dataManager.createVgfView(resource->guid, dataGraph->src.value());
+            const auto id = _resources.addDataGraph(resourceInfoFactory.createInfo(*dataGraph));
+            _dataManager.createVgfView(resource->guid, _resources.get(id));
         } break;
         case ResourceType::Tensor: {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);

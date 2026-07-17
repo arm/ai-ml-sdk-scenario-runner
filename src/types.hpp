@@ -65,6 +65,18 @@ struct BufferInfo {
     uint64_t memoryOffset{};
 };
 
+/// \brief Information needed to load raw data from a file
+struct RawDataInfo {
+    std::string debugName;
+    std::string src;
+};
+
+/// \brief Information needed to load a data graph from a file
+struct DataGraphInfo {
+    std::string debugName;
+    std::string src;
+};
+
 /// \brief Structure that describes N-dimensional data
 ///
 /// \note We don't account for any specialized meta-data like

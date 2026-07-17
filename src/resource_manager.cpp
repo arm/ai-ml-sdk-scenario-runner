@@ -37,6 +37,18 @@ ShaderId ResourceManager::addShader(const ShaderInfo &info) { return addResource
 
 ShaderId ResourceManager::addShader(ShaderInfo &&info) { return addResource<ShaderId>(_shaders, std::move(info)); }
 
+RawDataId ResourceManager::addRawData(const RawDataInfo &info) { return addResource<RawDataId>(_rawData, info); }
+
+RawDataId ResourceManager::addRawData(RawDataInfo &&info) { return addResource<RawDataId>(_rawData, std::move(info)); }
+
+DataGraphId ResourceManager::addDataGraph(const DataGraphInfo &info) {
+    return addResource<DataGraphId>(_dataGraphs, info);
+}
+
+DataGraphId ResourceManager::addDataGraph(DataGraphInfo &&info) {
+    return addResource<DataGraphId>(_dataGraphs, std::move(info));
+}
+
 const BufferInfo &ResourceManager::get(BufferId id) const { return getResource(_buffers, id); }
 
 const ImageInfo &ResourceManager::get(ImageId id) const { return getResource(_images, id); }
@@ -44,5 +56,9 @@ const ImageInfo &ResourceManager::get(ImageId id) const { return getResource(_im
 const TensorInfo &ResourceManager::get(TensorId id) const { return getResource(_tensors, id); }
 
 const ShaderInfo &ResourceManager::get(ShaderId id) const { return getResource(_shaders, id); }
+
+const RawDataInfo &ResourceManager::get(RawDataId id) const { return getResource(_rawData, id); }
+
+const DataGraphInfo &ResourceManager::get(DataGraphId id) const { return getResource(_dataGraphs, id); }
 
 } // namespace mlsdk::scenariorunner
