@@ -22,8 +22,8 @@ void DataManager::createImage(Guid guid, const ImageInfo &info) { _images.emplac
 
 void DataManager::createImage(Guid guid, ImageInfo &&info) { _images.emplace(guid, Image(std::move(info))); }
 
-void DataManager::createVgfView(Guid guid, std::string src) {
-    _vgfViews.insert({guid, VgfView::createVgfView(std::move(src))});
+void DataManager::createVgfView(Guid guid, const DataGraphInfo &info) {
+    _vgfViews.insert({guid, VgfView::createVgfView(info.src)});
 }
 
 void DataManager::createImageBarrier(Guid guid, const ImageBarrierData &data) {
@@ -42,8 +42,8 @@ void DataManager::createBufferBarrier(Guid guid, const BufferBarrierData &data) 
     _bufferBarriers.insert({guid, VulkanBufferBarrier(data)});
 }
 
-void DataManager::createRawData(Guid guid, const std::string &debugName, const std::string &src) {
-    _rawData.insert({guid, RawData(debugName, src)});
+void DataManager::createRawData(Guid guid, const RawDataInfo &info) {
+    _rawData.insert({guid, RawData(info.debugName, info.src)});
 }
 
 bool DataManager::hasBuffer(Guid guid) const { return _buffers.find(guid) != _buffers.end(); }
