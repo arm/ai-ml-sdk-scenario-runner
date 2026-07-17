@@ -46,6 +46,12 @@ void throwOnPipelineCacheMiss(const vk::raii::Pipeline &pipeline, const std::sha
 }
 
 vk::raii::ShaderModule createShaderModuleFromCode(const Context &ctx, const uint32_t *spvCode, const size_t spvSize) {
+    // Validate before creating the shader module
+    spvtools::SpirvTools tools(SPV_ENV_UNIVERSAL_1_6);
+    tools.SetMessageConsumer(SPIRVMessageConsumer);
+    if (!tools.Validate(spvCode, spvSize)) {
+        throw std::runtime_error("Failed to validate SPIR-V module");
+    }
     const vk::ShaderModuleCreateInfo shaderCreateInfo({}, spvSize * sizeof(uint32_t), spvCode);
     return vk::raii::ShaderModule(ctx.device(), shaderCreateInfo);
 }
@@ -53,14 +59,6 @@ vk::raii::ShaderModule createShaderModuleFromCode(const Context &ctx, const uint
 vk::raii::ShaderModule createShaderModule(const Context &ctx, const ShaderInfo &shaderInfo) {
     const std::vector<uint32_t> code = readShaderCode(shaderInfo);
     return createShaderModuleFromCode(ctx, code.data(), code.size());
-}
-
-void validateShaderModule(const uint32_t *spvCode, const size_t spvSize) {
-    spvtools::SpirvTools tools(SPV_ENV_UNIVERSAL_1_6);
-    tools.SetMessageConsumer(SPIRVMessageConsumer);
-    if (!tools.Validate(spvCode, spvSize)) {
-        throw std::runtime_error("Failed to validate SPIR-V module");
-    }
 }
 
 std::vector<vk::DescriptorSetLayout>
@@ -193,9 +191,10 @@ void Pipeline::computePipelineCommon(const Context &ctx, const ShaderInfo &shade
 
     const vk::SpecializationInfo specInfo(static_cast<uint32_t>(specMapEntries.size()), specMapEntries.data(),
                                           specConstValues.size() * specConstValueSize, specConstValues.data());
+    const vk::SpecializationInfo *specInfoPtr = shaderInfo.specializationConstants.empty() ? nullptr : &specInfo;
 
     const vk::PipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(
-        {}, vk::ShaderStageFlagBits::eCompute, *_shader, shaderInfo.entry.c_str(), &specInfo);
+        {}, vk::ShaderStageFlagBits::eCompute, *_shader, shaderInfo.entry.c_str(), specInfoPtr);
 
     vk::PipelineCreateFlags flags{};
     const void *pNext{nullptr};
@@ -334,8 +333,6 @@ Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, co
     : _type{PipelineType::Compute}, _debugName(args.debugName) {
 
     if ((spvCode != nullptr) && (spvSize > 0)) {
-        validateShaderModule(spvCode, spvSize);
-
         _shader = createShaderModuleFromCode(args.ctx, spvCode, spvSize);
         trySetVkRaiiObjectDebugName(args.ctx, _shader, _debugName + " shader");
     } else {
@@ -538,7 +535,6 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, const ShaderInfo &
     // Compile/load SPIR-V code
     const auto spv = readShaderCode(shaderInfo);
     _shader = createShaderModuleFromCode(ctx, spv.data(), spv.size());
-    validateShaderModule(spv.data(), spv.size());
     trySetVkRaiiObjectDebugName(ctx, _shader, _debugName + " shader");
 
     buildDataGraphPipeline(ctx, shaderInfo.entry, resourceInfos, constantInfos, pipelineCache, enableNeuralStatistics,
@@ -589,7 +585,6 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIn
 
     // Compile SPIR-V code
     auto spv = vgfView.getSPVModuleCode(segmentIndex);
-    validateShaderModule(spv.begin(), spv.size());
     _shader = createShaderModuleFromCode(ctx, spv.begin(), spv.size());
     trySetVkRaiiObjectDebugName(ctx, _shader, _debugName + " shader");
 

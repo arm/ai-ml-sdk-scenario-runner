@@ -289,6 +289,9 @@ std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo) {
         if (codeSize < 0) {
             throw std::runtime_error("Failed to get shader file size.");
         }
+        if (codeSize % static_cast<std::streamsize>(sizeof(uint32_t)) != 0) {
+            throw std::runtime_error("SPIR-V shader file size must be a multiple of 4 bytes.");
+        }
         shaderFile.seekg(0);
         std::vector<uint32_t> code(static_cast<size_t>(codeSize) / sizeof(uint32_t), 0);
         shaderFile.read(reinterpret_cast<char *>(code.data()), codeSize);
