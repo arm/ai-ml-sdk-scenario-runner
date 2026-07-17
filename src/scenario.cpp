@@ -24,20 +24,25 @@
 namespace mlsdk::scenariorunner {
 /// \brief Compute data with typed bindings
 struct DispatchComputeData {
+    explicit DispatchComputeData(ShaderId shader) : shader(shader) {}
+
     std::string debugName;
     std::vector<TypedBinding> bindings;
     ComputeDispatch computeDispatch{};
-    Guid shaderRef;
+    ShaderId shader;
     bool implicitBarrier{true};
     std::optional<Guid> pushDataRef;
 };
 
 /// \brief Fragment (graphics) data with typed bindings
 struct DispatchFragmentData {
+    DispatchFragmentData(ShaderId vertexShader, ShaderId fragmentShader)
+        : vertexShader(vertexShader), fragmentShader(fragmentShader) {}
+
     std::string debugName;
     std::vector<TypedBinding> bindings;
-    Guid vertexShaderRef;
-    Guid fragmentShaderRef;
+    ShaderId vertexShader;
+    ShaderId fragmentShader;
     struct Attachment {
         Guid resourceRef;
         std::optional<uint32_t> lod;
@@ -48,19 +53,26 @@ struct DispatchFragmentData {
     std::optional<Guid> pushDataRef;
 };
 
+struct ResolvedShaderSubstitution {
+    ShaderId shader;
+    std::string target;
+};
+
 /// \brief Compute data graph with typed bindings
 struct DispatchDataGraphData {
     Guid dataGraphRef;
     std::string debugName;
     std::vector<TypedBinding> bindings;
     std::vector<PushConstantMap> pushConstants;
-    std::vector<ShaderSubstitution> shaderSubstitutions;
+    std::vector<ResolvedShaderSubstitution> shaderSubstitutions;
     bool implicitBarrier{true};
 };
 
 /// \brief SPIR-V-only data graph with typed bindings and constants
 struct DispatchSpirvGraphData {
-    Guid dataGraphRef;
+    explicit DispatchSpirvGraphData(ShaderId graphShader) : graphShader(graphShader) {}
+
+    ShaderId graphShader;
     std::string debugName;
     std::vector<TypedBinding> bindings;
     std::vector<Guid> graphConstants;
@@ -499,27 +511,34 @@ class Creator final : public IResourceCreator {
 
 struct CommandDataFactory {
     const DataManager &_dataManager;
+    const std::unordered_map<Guid, ShaderId> &_shaderIds;
+
+    ShaderId getShaderId(const Guid &guid) const {
+        const auto shader = _shaderIds.find(guid);
+        if (shader == _shaderIds.end()) {
+            throw std::runtime_error("Shader resource not found.");
+        }
+        return shader->second;
+    }
 
     DispatchComputeData createData(const DispatchComputeDesc &dispatchCompute) {
-        DispatchComputeData data;
+        DispatchComputeData data{getShaderId(dispatchCompute.shaderRef)};
         data.debugName = dispatchCompute.debugName;
         data.bindings = convertBindings(_dataManager, dispatchCompute.bindings);
         data.computeDispatch.gwcx = dispatchCompute.rangeND[0];
         data.computeDispatch.gwcy = dispatchCompute.rangeND[1];
         data.computeDispatch.gwcz = dispatchCompute.rangeND[2];
         data.computeDispatch.profileName = dispatchCompute.debugName;
-        data.shaderRef = dispatchCompute.shaderRef;
         data.implicitBarrier = dispatchCompute.implicitBarrier;
         data.pushDataRef = dispatchCompute.pushDataRef;
         return data;
     }
 
     DispatchFragmentData createData(const DispatchFragmentDesc &dispatchFragment) {
-        DispatchFragmentData data;
+        DispatchFragmentData data{getShaderId(dispatchFragment.vertexShaderRef),
+                                  getShaderId(dispatchFragment.fragmentShaderRef)};
         data.debugName = dispatchFragment.debugName;
         data.bindings = convertBindings(_dataManager, dispatchFragment.bindings);
-        data.vertexShaderRef = dispatchFragment.vertexShaderRef;
-        data.fragmentShaderRef = dispatchFragment.fragmentShaderRef;
         data.colorAttachments.reserve(dispatchFragment.colorAttachments.size());
         for (const auto &attachmentDesc : dispatchFragment.colorAttachments) {
             data.colorAttachments.push_back(
@@ -573,14 +592,16 @@ struct CommandDataFactory {
         data.debugName = dispatchDataGraph.debugName;
         data.bindings = convertBindings(_dataManager, dispatchDataGraph.bindings);
         data.pushConstants = dispatchDataGraph.pushConstants;
-        data.shaderSubstitutions = dispatchDataGraph.shaderSubstitutions;
+        data.shaderSubstitutions.reserve(dispatchDataGraph.shaderSubstitutions.size());
+        for (const auto &substitution : dispatchDataGraph.shaderSubstitutions) {
+            data.shaderSubstitutions.push_back({getShaderId(substitution.shaderRef), substitution.target});
+        }
         data.implicitBarrier = dispatchDataGraph.implicitBarrier;
         return data;
     }
 
     DispatchSpirvGraphData createData(const DispatchSpirvGraphDesc &dispatchSpirvGraph) {
-        DispatchSpirvGraphData data;
-        data.dataGraphRef = dispatchSpirvGraph.dataGraphRef;
+        DispatchSpirvGraphData data{getShaderId(dispatchSpirvGraph.dataGraphRef)};
         data.debugName = dispatchSpirvGraph.debugName;
         data.bindings = convertBindings(_dataManager, dispatchSpirvGraph.bindings);
         data.graphConstants = dispatchSpirvGraph.graphConstants;
@@ -689,19 +710,13 @@ Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
     setupCommands();
 }
 
-const ShaderInfo &Scenario::getShader(const Guid &guid) const {
-    const auto shader = _shaderIds.find(guid);
-    if (shader == _shaderIds.end()) {
-        throw std::runtime_error("Shader resource not found.");
-    }
-    return _resources.get(shader->second);
-}
+const ShaderInfo &Scenario::getShader(ShaderId id) const { return _resources.get(id); }
 
-const ShaderInfo &Scenario::getSubstitutionShader(const std::vector<ShaderSubstitution> &shaderSubstitutions,
+const ShaderInfo &Scenario::getSubstitutionShader(const std::vector<ResolvedShaderSubstitution> &shaderSubstitutions,
                                                   const std::string &moduleName) const {
     for (const auto &shaderSub : shaderSubstitutions) {
         if (shaderSub.target == moduleName) {
-            return getShader(shaderSub.shaderRef);
+            return getShader(shaderSub.shader);
         }
     }
     throw std::runtime_error("Could not perform shader substitution");
@@ -946,7 +961,7 @@ void Scenario::setupCommands() {
     // Setup commands
     mlsdk::logging::info("Setup commands");
 
-    CommandDataFactory factory{_dataManager};
+    CommandDataFactory factory{_dataManager, _shaderIds};
     uint32_t nQueries = 0;
     for (const auto &command : _scenarioSpec.commands) {
         switch (command->commandType) {
@@ -1148,7 +1163,7 @@ std::pair<const char *, size_t> getPushConstantData(const std::optional<Guid> &p
 
 void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries) {
     // Create Compute shader pipeline
-    const auto &shaderInfo = getShader(dispatchCompute.shaderRef);
+    const auto &shaderInfo = getShader(dispatchCompute.shader);
     if (!(shaderInfo.stage == ShaderStage::Compute || shaderInfo.stage == ShaderStage::Unknown)) {
         throw std::runtime_error("DispatchCompute requires a compute shader stage");
     }
@@ -1165,8 +1180,8 @@ void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute,
 }
 
 void Scenario::createFragmentPipeline(const DispatchFragmentData &dispatchFragment, uint32_t &nQueries) {
-    const auto &vertexShaderInfo = getShader(dispatchFragment.vertexShaderRef);
-    const auto &fragmentShaderInfo = getShader(dispatchFragment.fragmentShaderRef);
+    const auto &vertexShaderInfo = getShader(dispatchFragment.vertexShader);
+    const auto &fragmentShaderInfo = getShader(dispatchFragment.fragmentShader);
     if (vertexShaderInfo.stage != ShaderStage::Vertex) {
         throw std::runtime_error("dispatch_fragment vertex_shader_ref must reference a vertex shader");
     }
@@ -1247,7 +1262,7 @@ void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchData
 }
 
 void Scenario::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSpirvGraph, uint32_t &nQueries) {
-    const auto &shaderInfo = getShader(dispatchSpirvGraph.dataGraphRef);
+    const auto &shaderInfo = getShader(dispatchSpirvGraph.graphShader);
     if (shaderInfo.shaderType != ShaderType::SPIR_V) {
         throw std::runtime_error("Shader resource used to create Graph Pipeline must be of type SPIR-V");
     }

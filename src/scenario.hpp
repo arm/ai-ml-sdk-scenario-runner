@@ -46,6 +46,7 @@ struct DispatchDataGraphData;
 struct DispatchSpirvGraphData;
 struct DispatchFragmentData;
 struct DispatchOpticalFlowData;
+struct ResolvedShaderSubstitution;
 
 class Scenario {
   public:
@@ -77,8 +78,8 @@ class Scenario {
 
     bool hasAliasedOptimalTensors() const;
     void handleAliasedLayoutTransitions();
-    const ShaderInfo &getShader(const Guid &guid) const;
-    const ShaderInfo &getSubstitutionShader(const std::vector<ShaderSubstitution> &shaderSubstitutions,
+    const ShaderInfo &getShader(ShaderId id) const;
+    const ShaderInfo &getSubstitutionShader(const std::vector<ResolvedShaderSubstitution> &shaderSubstitutions,
                                             const std::string &moduleName) const;
 
     ScenarioOptions _opts;
