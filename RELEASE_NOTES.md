@@ -11,9 +11,9 @@
 
 ### Bug Fixes
 
-- Enforce fail-on-pipeline-cache-miss for all pipeline types. Cache miss detection
-  has also been extended to check pipeline creation feedback, in addition to
-  compile required.
+- Fixed pipeline-cache miss handling for all pipeline types by checking pipeline
+  creation feedback as well as compile-required results. Data graph pipelines
+  now use the required zero per-stage feedback entries.
 
 ## Version 0.10.0 – *Optical Flow, VGF Runtime & APK Packaging*
 

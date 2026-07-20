@@ -15,6 +15,7 @@ import pytest
 
 
 pytestmark = pytest.mark.pipeline_cache
+PIPELINE_CACHE_HEADER_SIZE = 32
 
 
 def _seed_real_pipeline_cache_file(
@@ -244,8 +245,9 @@ def test_enable_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd)
     assert len(files) == 1 and files[0].suffix == ".cache"
 
     cache_data_first = files[0].read_bytes()
+    assert len(cache_data_first) >= PIPELINE_CACHE_HEADER_SIZE
 
-    # run the second time and see if cache is loaded
+    # Run the second time and verify the cache file is accepted.
     sdk_tools.run_scenario(
         "test_pipeline_cache/enable_pipeline_cache.json",
         options=[
@@ -293,6 +295,53 @@ def test_enable_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd)
 
     cache_data_third = files[0].read_bytes()
     assert len(cache_data_third) > 0
+
+
+@pytest.mark.parametrize(
+    "setup",
+    [
+        pytest.param(_setup_compute_pipeline_cache_miss, id="compute"),
+        pytest.param(
+            _setup_graph_pipeline_cache_miss,
+            marks=pytest.mark.skipif(
+                sys.platform == "win32",
+                reason="The Windows data graph driver does not serialize a reusable pipeline cache payload",
+            ),
+            id="graph_compute",
+        ),
+    ],
+)
+def test_pipeline_cache_hit(sdk_tools, resources_helper, numpy_helper, capfd, setup):
+    scenario, replacements = setup(sdk_tools, resources_helper, numpy_helper)
+    cache_path = resources_helper.get_testenv_path(
+        f"{scenario.replace('/', '_')}_hit_cache"
+    )
+    cache_path.mkdir()
+
+    options = ["--pipeline-caching", "--cache-path", cache_path, "--dry-run"]
+    sdk_tools.run_scenario(scenario, replacements, options=options)
+
+    cache_files = list(cache_path.glob("*.cache"))
+    assert len(cache_files) == 1
+    cache_data = cache_files[0].read_bytes()
+    assert len(cache_data) >= PIPELINE_CACHE_HEADER_SIZE
+    header_size = int.from_bytes(cache_data[:4], byteorder=sys.byteorder)
+    assert header_size == PIPELINE_CACHE_HEADER_SIZE
+    if len(cache_data) == header_size:
+        pytest.skip("Vulkan driver did not serialize a pipeline cache payload")
+
+    capfd.readouterr()
+    sdk_tools.run_scenario(
+        scenario,
+        replacements,
+        options=[*options, "--fail-on-pipeline-cache-miss"],
+    )
+
+    captured = capfd.readouterr()
+    assert "INFO: Pipeline Cache loaded and validated." in captured.out
+    assert "ERROR: Pipeline cache miss for pipeline:" not in (
+        captured.out + captured.err
+    )
 
 
 def test_pipeline_cache_dry_run_precompiles(

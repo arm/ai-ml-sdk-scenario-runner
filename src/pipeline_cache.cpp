@@ -73,7 +73,18 @@ PipelineCache::PipelineCache(const Context &ctx, const std::filesystem::path &pi
 }
 
 vk::PipelineCreationFeedbackCreateInfo *PipelineCache::getCacheFeedbackCreateInfo(PipelineType pipelineType) {
-    const uint32_t stageCount = pipelineType == PipelineType::Graphics ? 2 : 1;
+    uint32_t stageCount = 0;
+    switch (pipelineType) {
+    case PipelineType::Compute:
+        stageCount = 1;
+        break;
+    case PipelineType::Graphics:
+        stageCount = 2;
+        break;
+    case PipelineType::GraphCompute:
+    case PipelineType::Unknown:
+        break;
+    }
     _feedback = vk::PipelineCreationFeedback(vk::PipelineCreationFeedbackFlagBits::eValid, 0);
     _stagedFeedback.assign(stageCount, vk::PipelineCreationFeedback(vk::PipelineCreationFeedbackFlagBits::eValid, 0));
     _feedbackCreateInfo = vk::PipelineCreationFeedbackCreateInfo(
