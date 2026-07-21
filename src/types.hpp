@@ -135,14 +135,13 @@ union Constant {
 
 struct GraphConstantInfo {
     GraphConstantInfo() = default;
-    GraphConstantInfo(const std::string &debugName, vk::Format format, std::vector<int64_t> dims, uint32_t index)
-        : format(format), dims(std::move(dims)), debugName(debugName), index(index) {}
+    GraphConstantInfo(const std::string &debugName, vk::Format format, std::vector<int64_t> dims)
+        : format(format), dims(std::move(dims)), debugName(debugName) {}
 
     vk::Format format{vk::Format::eUndefined};
     std::vector<int64_t> dims;
     std::vector<uint8_t> data;
     std::string debugName;
-    uint32_t index{};
 };
 
 /// \brief Typed binding

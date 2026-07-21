@@ -123,8 +123,7 @@ std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<Guid> &co
             throw std::runtime_error("Graph constant missing src: " + gc->guidStr);
         }
 
-        GraphConstantInfo spec(gc->guidStr, getVkFormatFromString(gc->format), gc->dims,
-                               static_cast<uint32_t>(constants.size()));
+        GraphConstantInfo spec(gc->guidStr, getVkFormatFromString(gc->format), gc->dims);
 
         MemoryMap mapped(gc->src.value());
         const auto constantData = vgfutils::numpy::parse(mapped);
