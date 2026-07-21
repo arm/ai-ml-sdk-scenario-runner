@@ -122,7 +122,7 @@ struct DispatchFragmentDesc : CommandDesc {
  */
 struct PushConstantMap {
     Guid pushDataRef;
-    Guid shaderTarget;
+    std::string shaderTarget;
 };
 
 /**

@@ -32,7 +32,7 @@ struct DispatchComputeData {
     ComputeDispatch computeDispatch{};
     ShaderId shader;
     bool implicitBarrier{true};
-    std::optional<Guid> pushDataRef;
+    std::optional<RawDataId> pushData;
 };
 
 /// \brief Fragment (graphics) data with typed bindings
@@ -51,7 +51,12 @@ struct DispatchFragmentData {
     std::vector<Attachment> colorAttachments;
     std::optional<vk::Extent2D> renderExtent;
     bool implicitBarrier{true};
-    std::optional<Guid> pushDataRef;
+    std::optional<RawDataId> pushData;
+};
+
+struct ResolvedPushConstantMap {
+    RawDataId pushData;
+    std::string shaderTarget;
 };
 
 struct ResolvedShaderSubstitution {
@@ -66,7 +71,7 @@ struct DispatchDataGraphData {
     DataGraphId dataGraph;
     std::string debugName;
     std::vector<TypedBinding> bindings;
-    std::vector<PushConstantMap> pushConstants;
+    std::vector<ResolvedPushConstantMap> pushConstants;
     std::vector<ResolvedShaderSubstitution> shaderSubstitutions;
     bool implicitBarrier{true};
 };
@@ -128,12 +133,11 @@ void applyGraphResourceShaderMetadata(ShaderInfo &shaderInfo, const DataGraphInf
     }
 }
 
-std::optional<Guid> getGraphPushDataRef(const std::vector<PushConstantMap> &pushConstants,
-                                        const std::string &moduleName) {
-    const Guid shaderTarget(moduleName);
+std::optional<RawDataId> getGraphPushData(const std::vector<ResolvedPushConstantMap> &pushConstants,
+                                          const std::string &moduleName) {
     for (const auto &pushConstant : pushConstants) {
-        if (pushConstant.shaderTarget == shaderTarget) {
-            return pushConstant.pushDataRef;
+        if (pushConstant.shaderTarget == moduleName) {
+            return pushConstant.pushData;
         }
     }
     return std::nullopt;
@@ -520,6 +524,13 @@ struct CommandDataFactory {
         return resolveResourceId<DataGraphId>(_resourceIds, guid, "Data graph");
     }
 
+    std::optional<RawDataId> getRawDataId(const std::optional<Guid> &guid) const {
+        if (!guid) {
+            return std::nullopt;
+        }
+        return resolveResourceId<RawDataId>(_resourceIds, *guid, "Raw data");
+    }
+
     DispatchComputeData createData(const DispatchComputeDesc &dispatchCompute) {
         DispatchComputeData data{getShaderId(dispatchCompute.shaderRef)};
         data.debugName = dispatchCompute.debugName;
@@ -529,7 +540,7 @@ struct CommandDataFactory {
         data.computeDispatch.gwcz = dispatchCompute.rangeND[2];
         data.computeDispatch.profileName = dispatchCompute.debugName;
         data.implicitBarrier = dispatchCompute.implicitBarrier;
-        data.pushDataRef = dispatchCompute.pushDataRef;
+        data.pushData = getRawDataId(dispatchCompute.pushDataRef);
         return data;
     }
 
@@ -548,7 +559,7 @@ struct CommandDataFactory {
             data.renderExtent = vk::Extent2D(extent[0], extent[1]);
         }
         data.implicitBarrier = dispatchFragment.implicitBarrier;
-        data.pushDataRef = dispatchFragment.pushDataRef;
+        data.pushData = getRawDataId(dispatchFragment.pushDataRef);
         return data;
     }
 
@@ -589,7 +600,12 @@ struct CommandDataFactory {
         DispatchDataGraphData data{getDataGraphId(dispatchDataGraph.dataGraphRef)};
         data.debugName = dispatchDataGraph.debugName;
         data.bindings = convertBindings(_dataManager, dispatchDataGraph.bindings);
-        data.pushConstants = dispatchDataGraph.pushConstants;
+        data.pushConstants.reserve(dispatchDataGraph.pushConstants.size());
+        for (const auto &pushConstant : dispatchDataGraph.pushConstants) {
+            data.pushConstants.push_back(
+                {resolveResourceId<RawDataId>(_resourceIds, pushConstant.pushDataRef, "Raw data"),
+                 pushConstant.shaderTarget});
+        }
         data.shaderSubstitutions.reserve(dispatchDataGraph.shaderSubstitutions.size());
         for (const auto &substitution : dispatchDataGraph.shaderSubstitutions) {
             data.shaderSubstitutions.push_back({getShaderId(substitution.shaderRef), substitution.target});
@@ -812,7 +828,7 @@ void Scenario::setupResources() {
             const auto &rawData = reinterpret_cast<const std::unique_ptr<RawDataDesc> &>(resource);
             const auto id = _resources.addRawData(resourceInfoFactory.createInfo(*rawData));
             _resourceIds.emplace(resource->guid, id);
-            _dataManager.createRawData(resource->guid, _resources.get(id));
+            _dataManager.createRawData(id, _resources.get(id));
         } break;
         case ResourceType::Image: {
             const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
@@ -1167,10 +1183,10 @@ void Scenario::handleAliasedLayoutTransitions() {
     }
 }
 
-std::pair<const char *, size_t> getPushConstantData(const std::optional<Guid> &pushDataRef,
+std::pair<const char *, size_t> getPushConstantData(const std::optional<RawDataId> &pushData,
                                                     const DataManager &dataManager) {
-    if (pushDataRef) {
-        const auto &rawData = dataManager.getRawData(pushDataRef.value());
+    if (pushData) {
+        const auto &rawData = dataManager.getRawData(pushData.value());
         return std::make_pair(rawData.data(), rawData.size());
     }
     return std::make_pair(nullptr, 0U);
@@ -1187,7 +1203,7 @@ void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute,
     PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + shaderInfo.debugName, "Pipeline Setup");
     _compute.createPipeline(args, shaderInfo);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
-    const auto [pushConstantData, pushConstantSize] = getPushConstantData(dispatchCompute.pushDataRef, _dataManager);
+    const auto [pushConstantData, pushConstantSize] = getPushConstantData(dispatchCompute.pushData, _dataManager);
     _compute.registerPipelineFenced(_dataManager, dispatchCompute.bindings, pushConstantData, pushConstantSize,
                                     dispatchCompute.implicitBarrier, dispatchCompute.computeDispatch);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
@@ -1254,7 +1270,7 @@ void Scenario::createFragmentPipeline(const DispatchFragmentData &dispatchFragme
 
     _compute.createPipeline(args, vertexShaderInfo, fragmentShaderInfo, colorAttachmentFormats);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eColorAttachmentOutput);
-    const auto [pushConstantData, pushConstantSize] = getPushConstantData(dispatchFragment.pushDataRef, _dataManager);
+    const auto [pushConstantData, pushConstantSize] = getPushConstantData(dispatchFragment.pushData, _dataManager);
 
     GraphicsDispatchInfo dispatchInfo{};
     dispatchInfo.colorAttachments = std::move(attachmentInfos);
@@ -1424,7 +1440,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
         auto dispatchShape = vgfView.getDispatchShape(segmentIndex);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
         const auto [pushConstantData, pushConstantSize] =
-            getPushConstantData(getGraphPushDataRef(dispatchDataGraph.pushConstants, moduleName), _dataManager);
+            getPushConstantData(getGraphPushData(dispatchDataGraph.pushConstants, moduleName), _dataManager);
         _compute.registerPipelineFenced(_dataManager, sequenceBindings, pushConstantData, pushConstantSize,
                                         dispatchDataGraph.implicitBarrier,
                                         {dispatchShape[0], dispatchShape[1], dispatchShape[2], profileName});

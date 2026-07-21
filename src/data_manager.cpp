@@ -42,8 +42,8 @@ void DataManager::createBufferBarrier(Guid guid, const BufferBarrierData &data) 
     _bufferBarriers.insert({guid, VulkanBufferBarrier(data)});
 }
 
-void DataManager::createRawData(Guid guid, const RawDataInfo &info) {
-    _rawData.insert({guid, RawData(info.debugName, info.src)});
+void DataManager::createRawData(RawDataId id, const RawDataInfo &info) {
+    _rawData.insert({id, RawData(info.debugName, info.src)});
 }
 
 bool DataManager::hasBuffer(Guid guid) const { return _buffers.find(guid) != _buffers.end(); }
@@ -52,7 +52,7 @@ bool DataManager::hasTensor(Guid guid) const { return _tensors.find(guid) != _te
 
 bool DataManager::hasImage(Guid guid) const { return _images.find(guid) != _images.end(); }
 
-bool DataManager::hasRawData(Guid guid) const { return _rawData.find(guid) != _rawData.end(); }
+bool DataManager::hasRawData(RawDataId id) const { return _rawData.find(id) != _rawData.end(); }
 
 bool DataManager::hasImageBarrier(Guid guid) const { return _imageBarriers.find(guid) != _imageBarriers.end(); }
 
@@ -110,11 +110,11 @@ const Image &DataManager::getImage(const Guid &guid) const {
     return _images.at(guid);
 }
 
-const RawData &DataManager::getRawData(const Guid &guid) const {
-    if (_rawData.find(guid) == _rawData.end()) {
+const RawData &DataManager::getRawData(RawDataId id) const {
+    if (_rawData.find(id) == _rawData.end()) {
         throw std::runtime_error("RawData not found");
     }
-    return _rawData.at(guid);
+    return _rawData.at(id);
 }
 
 const VgfView &DataManager::getVgfView(DataGraphId id) const {
