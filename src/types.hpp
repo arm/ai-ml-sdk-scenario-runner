@@ -71,12 +71,6 @@ struct RawDataInfo {
     std::string src;
 };
 
-/// \brief Information needed to load a data graph from a file
-struct DataGraphInfo {
-    std::string debugName;
-    std::string src;
-};
-
 /// \brief Structure that describes N-dimensional data
 ///
 /// \note We don't account for any specialized meta-data like
@@ -164,6 +158,20 @@ enum class ShaderType {
 struct SpecializationConstant {
     int id{};
     Constant value;
+};
+
+/// \brief Maps specialization constants to a shader within a graph
+struct SpecializationConstantMap {
+    std::vector<SpecializationConstant> specializationConstants;
+    std::string shaderTarget;
+};
+
+/// \brief Information needed to load and configure a data graph
+struct DataGraphInfo {
+    std::string debugName;
+    std::string src;
+    uint32_t pushConstantsSize{};
+    std::vector<SpecializationConstantMap> specializationConstantMaps;
 };
 
 /// \brief ShaderInfo describes a shader.

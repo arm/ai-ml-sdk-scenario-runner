@@ -22,8 +22,8 @@ void DataManager::createImage(Guid guid, const ImageInfo &info) { _images.emplac
 
 void DataManager::createImage(Guid guid, ImageInfo &&info) { _images.emplace(guid, Image(std::move(info))); }
 
-void DataManager::createVgfView(Guid guid, const DataGraphInfo &info) {
-    _vgfViews.insert({guid, VgfView::createVgfView(info.src)});
+void DataManager::createVgfView(DataGraphId id, const DataGraphInfo &info) {
+    _vgfViews.insert({id, VgfView::createVgfView(info.src)});
 }
 
 void DataManager::createImageBarrier(Guid guid, const ImageBarrierData &data) {
@@ -117,11 +117,11 @@ const RawData &DataManager::getRawData(const Guid &guid) const {
     return _rawData.at(guid);
 }
 
-const VgfView &DataManager::getVgfView(const Guid &guid) const {
-    if (_vgfViews.find(guid) == _vgfViews.end()) {
+const VgfView &DataManager::getVgfView(DataGraphId id) const {
+    if (_vgfViews.find(id) == _vgfViews.end()) {
         throw std::runtime_error("Vgf not found");
     }
-    return _vgfViews.at(guid);
+    return _vgfViews.at(id);
 }
 
 const VulkanImageBarrier &DataManager::getImageBarrier(const Guid &guid) const {

@@ -61,7 +61,9 @@ struct ResolvedShaderSubstitution {
 
 /// \brief Compute data graph with typed bindings
 struct DispatchDataGraphData {
-    Guid dataGraphRef;
+    explicit DispatchDataGraphData(DataGraphId dataGraph) : dataGraph(dataGraph) {}
+
+    DataGraphId dataGraph;
     std::string debugName;
     std::vector<TypedBinding> bindings;
     std::vector<PushConstantMap> pushConstants;
@@ -112,27 +114,14 @@ std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<GraphCons
     return constants;
 }
 
-const DataGraphDesc &getDataGraphDesc(const ScenarioSpec &spec, const Guid &guid) {
-    for (const auto &resource : spec.resources) {
-        if (resource->guid == guid) {
-            if (resource->resourceType != ResourceType::DataGraph) {
-                throw std::runtime_error("GUID does not reference a graph resource: " + resource->guidStr);
-            }
-            return static_cast<const DataGraphDesc &>(*resource);
-        }
-    }
-    throw std::runtime_error("Graph resource not found.");
-}
-
-void applyGraphResourceShaderMetadata(ShaderInfo &shaderInfo, const DataGraphDesc &dataGraph,
+void applyGraphResourceShaderMetadata(ShaderInfo &shaderInfo, const DataGraphInfo &dataGraph,
                                       const std::string &moduleName) {
     if (dataGraph.pushConstantsSize > 0) {
         shaderInfo.pushConstantsSize = dataGraph.pushConstantsSize;
     }
 
-    const Guid shaderTarget(moduleName);
     for (const auto &specializationConstantMap : dataGraph.specializationConstantMaps) {
-        if (specializationConstantMap.shaderTarget == shaderTarget) {
+        if (specializationConstantMap.shaderTarget == moduleName) {
             shaderInfo.specializationConstants = specializationConstantMap.specializationConstants;
             return;
         }
@@ -194,7 +183,8 @@ struct ResourceInfoFactory {
     RawDataInfo createInfo(const RawDataDesc &rawData) const { return {rawData.guidStr, rawData.src.value()}; }
 
     DataGraphInfo createInfo(const DataGraphDesc &dataGraph) const {
-        return {dataGraph.guidStr, dataGraph.src.value()};
+        return {dataGraph.guidStr, dataGraph.src.value(), dataGraph.pushConstantsSize,
+                dataGraph.specializationConstantMaps};
     }
 
     GraphConstantInfo createInfo(const GraphConstantDesc &graphConstant) const {
@@ -526,6 +516,10 @@ struct CommandDataFactory {
         return resolveResourceId<GraphConstantResourceId>(_resourceIds, guid, "Graph constant");
     }
 
+    DataGraphId getDataGraphId(const Guid &guid) const {
+        return resolveResourceId<DataGraphId>(_resourceIds, guid, "Data graph");
+    }
+
     DispatchComputeData createData(const DispatchComputeDesc &dispatchCompute) {
         DispatchComputeData data{getShaderId(dispatchCompute.shaderRef)};
         data.debugName = dispatchCompute.debugName;
@@ -592,8 +586,7 @@ struct CommandDataFactory {
     }
 
     DispatchDataGraphData createData(const DispatchDataGraphDesc &dispatchDataGraph) {
-        DispatchDataGraphData data;
-        data.dataGraphRef = dispatchDataGraph.dataGraphRef;
+        DispatchDataGraphData data{getDataGraphId(dispatchDataGraph.dataGraphRef)};
         data.debugName = dispatchDataGraph.debugName;
         data.bindings = convertBindings(_dataManager, dispatchDataGraph.bindings);
         data.pushConstants = dispatchDataGraph.pushConstants;
@@ -832,7 +825,7 @@ void Scenario::setupResources() {
             PerfCounterGuard guard(_perfCounters, "Parse VGF: " + dataGraph->guidStr, "Scenario Setup");
             const auto id = _resources.addDataGraph(resourceInfoFactory.createInfo(*dataGraph));
             _resourceIds.emplace(resource->guid, id);
-            _dataManager.createVgfView(resource->guid, _resources.get(id));
+            _dataManager.createVgfView(id, _resources.get(id));
         } break;
         case ResourceType::Tensor: {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
@@ -864,7 +857,9 @@ void Scenario::setupResources() {
         }
 
         const auto &dispatchDataGraph = static_cast<const DispatchDataGraphDesc &>(*command);
-        const auto &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraphRef);
+        const auto dataGraph =
+            resolveResourceId<DataGraphId>(_resourceIds, dispatchDataGraph.dataGraphRef, "Data graph");
+        const auto &vgfView = _dataManager.getVgfView(dataGraph);
         const auto externalBindings = convertBindings(_dataManager, dispatchDataGraph.bindings);
         // Register aliases before creating resources so setup/allocation sees the complete group membership.
         for (const auto &alias : vgfView.getResourceAliases(externalBindings)) {
@@ -1272,7 +1267,7 @@ void Scenario::createFragmentPipeline(const DispatchFragmentData &dispatchFragme
 }
 
 void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries) {
-    const VgfView &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraphRef);
+    const VgfView &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraph);
     for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
         const auto &sequenceBindings = vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings);
         auto moduleName = vgfView.getModuleName(segmentIndex);
@@ -1379,7 +1374,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
         mlsdk::logging::debug("Graph Pipeline: " + vgfView.getModuleName(segmentIndex) + " created");
     } break;
     case ModuleType::SHADER: {
-        const auto &dataGraph = getDataGraphDesc(_scenarioSpec, dispatchDataGraph.dataGraphRef);
+        const auto &dataGraph = _resources.get(dispatchDataGraph.dataGraph);
         const auto moduleName = vgfView.getModuleName(segmentIndex);
         bool hasSPVModule = vgfView.hasSPVModule(segmentIndex);
         bool hasGLSLModule = vgfView.hasGLSLModule(segmentIndex);

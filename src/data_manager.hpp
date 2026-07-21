@@ -8,6 +8,7 @@
 #include "buffer.hpp"
 #include "image.hpp"
 #include "raw_data.hpp"
+#include "resource_id.hpp"
 #include "tensor.hpp"
 #include "vgf_view.hpp"
 
@@ -24,7 +25,7 @@ class DataManager {
     void createImage(Guid guid, const ImageInfo &info);
     void createImage(Guid guid, ImageInfo &&info);
     void createRawData(Guid guid, const RawDataInfo &info);
-    void createVgfView(Guid guid, const DataGraphInfo &info);
+    void createVgfView(DataGraphId id, const DataGraphInfo &info);
     void createImageBarrier(Guid guid, const ImageBarrierData &data);
     void createTensorBarrier(Guid guid, const TensorBarrierData &data);
     void createMemoryBarrier(Guid guid, const MemoryBarrierData &data);
@@ -47,7 +48,7 @@ class DataManager {
     const Tensor &getTensor(const Guid &guid) const;
     const Image &getImage(const Guid &guid) const;
     const RawData &getRawData(const Guid &guid) const;
-    const VgfView &getVgfView(const Guid &guid) const;
+    const VgfView &getVgfView(DataGraphId id) const;
     const VulkanImageBarrier &getImageBarrier(const Guid &guid) const;
     const VulkanMemoryBarrier &getMemoryBarrier(const Guid &guid) const;
     const VulkanBufferBarrier &getBufferBarrier(const Guid &guid) const;
@@ -62,7 +63,7 @@ class DataManager {
     std::unordered_map<Guid, Tensor> _tensors;
     std::unordered_map<Guid, Image> _images;
     std::unordered_map<Guid, RawData> _rawData;
-    std::unordered_map<Guid, VgfView> _vgfViews;
+    std::unordered_map<DataGraphId, VgfView> _vgfViews;
     std::unordered_map<Guid, VulkanImageBarrier> _imageBarriers;
     std::unordered_map<Guid, VulkanMemoryBarrier> _memoryBarriers;
     std::unordered_map<Guid, VulkanBufferBarrier> _bufferBarriers;

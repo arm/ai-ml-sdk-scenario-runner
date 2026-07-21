@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
 #include <variant>
 
 namespace mlsdk::scenariorunner {
@@ -45,3 +46,9 @@ using TypedResourceId =
     std::variant<BufferId, ImageId, TensorId, ShaderId, RawDataId, DataGraphId, GraphConstantResourceId>;
 
 } // namespace mlsdk::scenariorunner
+
+namespace std {
+template <typename Tag> struct hash<mlsdk::scenariorunner::ResourceId<Tag>> {
+    size_t operator()(mlsdk::scenariorunner::ResourceId<Tag> id) const noexcept { return hash<size_t>{}(id.value()); }
+};
+} // namespace std
