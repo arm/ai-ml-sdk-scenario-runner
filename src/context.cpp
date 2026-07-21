@@ -48,6 +48,13 @@ bool hasExtension(const std::vector<vk::ExtensionProperties> &extensions, const 
         return std::string_view{static_cast<const char *>(ext.extensionName)} == extensionName;
     });
 }
+
+std::string formatVersion(uint32_t version) {
+    return std::to_string(VK_API_VERSION_MAJOR(version)) + '.' + std::to_string(VK_API_VERSION_MINOR(version)) + '.' +
+           std::to_string(VK_API_VERSION_PATCH(version));
+}
+
+std::string_view formatFeature(VkBool32 supported) { return supported == VK_TRUE ? "true" : "false"; }
 } // namespace
 
 Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue)
@@ -174,6 +181,17 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         availableFeatures.template get<vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features,
                                        vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR,
                                        vk::PhysicalDeviceShaderFloat8FeaturesEXT>();
+
+    std::ostringstream deviceCapabilities;
+    deviceCapabilities << "Vulkan device shader capabilities: apiVersion=" << formatVersion(properties.apiVersion)
+                       << ", driverVersion=" << properties.driverVersion
+                       << ", shaderInt64=" << formatFeature(availableCoreFeatures.shaderInt64)
+                       << ", shaderInt8=" << formatFeature(available12Features.shaderInt8)
+                       << ", shaderFloat16=" << formatFeature(available12Features.shaderFloat16)
+                       << ", storageBuffer8BitAccess=" << formatFeature(available12Features.storageBuffer8BitAccess)
+                       << ", storagePushConstant16=" << formatFeature(available11Features.storagePushConstant16)
+                       << ", bufferDeviceAddress=" << formatFeature(available12Features.bufferDeviceAddress);
+    mlsdk::logging::info(deviceCapabilities.str());
 
     const auto &availableDataGraphOpticalFlow =
         availableFeatures.template get<vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM>();
