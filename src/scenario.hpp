@@ -85,7 +85,7 @@ class Scenario {
     ScenarioOptions _opts;
     Context _ctx;
     ResourceManager _resources;
-    std::unordered_map<Guid, ShaderId> _shaderIds;
+    std::unordered_map<Guid, TypedResourceId> _resourceIds;
     DataManager _dataManager;
     ScenarioSpec &_scenarioSpec;
     std::shared_ptr<PipelineCache> _pipelineCache;

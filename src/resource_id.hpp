@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cstddef>
+#include <variant>
 
 namespace mlsdk::scenariorunner {
 
@@ -30,6 +31,7 @@ struct TensorIdTag;
 struct ShaderIdTag;
 struct RawDataIdTag;
 struct DataGraphIdTag;
+struct GraphConstantResourceIdTag;
 
 using BufferId = ResourceId<BufferIdTag>;
 using ImageId = ResourceId<ImageIdTag>;
@@ -37,5 +39,9 @@ using TensorId = ResourceId<TensorIdTag>;
 using ShaderId = ResourceId<ShaderIdTag>;
 using RawDataId = ResourceId<RawDataIdTag>;
 using DataGraphId = ResourceId<DataGraphIdTag>;
+using GraphConstantResourceId = ResourceId<GraphConstantResourceIdTag>;
+
+using TypedResourceId =
+    std::variant<BufferId, ImageId, TensorId, ShaderId, RawDataId, DataGraphId, GraphConstantResourceId>;
 
 } // namespace mlsdk::scenariorunner

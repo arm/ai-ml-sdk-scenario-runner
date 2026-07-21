@@ -27,18 +27,21 @@ TEST(ResourceManager, AssignsIdsIndependentlyPerType) {
     bufferB.debugName = "buffer_b";
     RawDataInfo rawData{"raw_data", "data.npy"};
     DataGraphInfo dataGraph{"data_graph", "graph.vgf"};
+    GraphConstantInfo graphConstant{"constant", vk::Format::eR32Sfloat, {1}};
 
     const auto bufferAId = resources.addBuffer(std::move(bufferA));
     const auto imageId = resources.addImage(std::move(image));
     const auto bufferBId = resources.addBuffer(std::move(bufferB));
     const auto rawDataId = resources.addRawData(std::move(rawData));
     const auto dataGraphId = resources.addDataGraph(std::move(dataGraph));
+    const auto graphConstantId = resources.addGraphConstant(std::move(graphConstant));
 
     EXPECT_EQ(bufferAId.value(), 0U);
     EXPECT_EQ(imageId.value(), 0U);
     EXPECT_EQ(bufferBId.value(), 1U);
     EXPECT_EQ(rawDataId.value(), 0U);
     EXPECT_EQ(dataGraphId.value(), 0U);
+    EXPECT_EQ(graphConstantId.value(), 0U);
 }
 
 TEST(ResourceManager, PreservesResourceInfo) {
@@ -58,11 +61,18 @@ TEST(ResourceManager, PreservesResourceInfo) {
 
     const auto rawDataId = resources.addRawData({"raw_data", "data.npy"});
     const auto dataGraphId = resources.addDataGraph({"data_graph", "graph.vgf"});
+    GraphConstantInfo graphConstant{"constant", vk::Format::eR32Sint, {2}};
+    graphConstant.data = {1, 2, 3, 4, 5, 6, 7, 8};
+    const auto graphConstantId = resources.addGraphConstant(std::move(graphConstant));
 
     EXPECT_EQ(resources.get(rawDataId).debugName, "raw_data");
     EXPECT_EQ(resources.get(rawDataId).src, "data.npy");
     EXPECT_EQ(resources.get(dataGraphId).debugName, "data_graph");
     EXPECT_EQ(resources.get(dataGraphId).src, "graph.vgf");
+    EXPECT_EQ(resources.get(graphConstantId).debugName, "constant");
+    EXPECT_EQ(resources.get(graphConstantId).format, vk::Format::eR32Sint);
+    EXPECT_EQ(resources.get(graphConstantId).dims, std::vector<int64_t>({2}));
+    EXPECT_EQ(resources.get(graphConstantId).data.size(), 8U);
 }
 
 TEST(ResourceManager, RejectsOutOfRangeIds) {
@@ -72,4 +82,5 @@ TEST(ResourceManager, RejectsOutOfRangeIds) {
     EXPECT_THROW(static_cast<void>(resources.get(TensorId{0})), std::out_of_range);
     EXPECT_THROW(static_cast<void>(resources.get(RawDataId{0})), std::out_of_range);
     EXPECT_THROW(static_cast<void>(resources.get(DataGraphId{0})), std::out_of_range);
+    EXPECT_THROW(static_cast<void>(resources.get(GraphConstantResourceId{0})), std::out_of_range);
 }

@@ -49,6 +49,14 @@ DataGraphId ResourceManager::addDataGraph(DataGraphInfo &&info) {
     return addResource<DataGraphId>(_dataGraphs, std::move(info));
 }
 
+GraphConstantResourceId ResourceManager::addGraphConstant(const GraphConstantInfo &info) {
+    return addResource<GraphConstantResourceId>(_graphConstants, info);
+}
+
+GraphConstantResourceId ResourceManager::addGraphConstant(GraphConstantInfo &&info) {
+    return addResource<GraphConstantResourceId>(_graphConstants, std::move(info));
+}
+
 const BufferInfo &ResourceManager::get(BufferId id) const { return getResource(_buffers, id); }
 
 const ImageInfo &ResourceManager::get(ImageId id) const { return getResource(_images, id); }
@@ -60,5 +68,9 @@ const ShaderInfo &ResourceManager::get(ShaderId id) const { return getResource(_
 const RawDataInfo &ResourceManager::get(RawDataId id) const { return getResource(_rawData, id); }
 
 const DataGraphInfo &ResourceManager::get(DataGraphId id) const { return getResource(_dataGraphs, id); }
+
+const GraphConstantInfo &ResourceManager::get(GraphConstantResourceId id) const {
+    return getResource(_graphConstants, id);
+}
 
 } // namespace mlsdk::scenariorunner

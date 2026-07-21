@@ -26,6 +26,8 @@ class ResourceManager {
     RawDataId addRawData(RawDataInfo &&info);
     DataGraphId addDataGraph(const DataGraphInfo &info);
     DataGraphId addDataGraph(DataGraphInfo &&info);
+    GraphConstantResourceId addGraphConstant(const GraphConstantInfo &info);
+    GraphConstantResourceId addGraphConstant(GraphConstantInfo &&info);
 
     const BufferInfo &get(BufferId id) const;
     const ImageInfo &get(ImageId id) const;
@@ -33,6 +35,7 @@ class ResourceManager {
     const ShaderInfo &get(ShaderId id) const;
     const RawDataInfo &get(RawDataId id) const;
     const DataGraphInfo &get(DataGraphId id) const;
+    const GraphConstantInfo &get(GraphConstantResourceId id) const;
 
   private:
     std::vector<BufferInfo> _buffers;
@@ -41,6 +44,7 @@ class ResourceManager {
     std::vector<ShaderInfo> _shaders;
     std::vector<RawDataInfo> _rawData;
     std::vector<DataGraphInfo> _dataGraphs;
+    std::vector<GraphConstantInfo> _graphConstants;
 };
 
 } // namespace mlsdk::scenariorunner
