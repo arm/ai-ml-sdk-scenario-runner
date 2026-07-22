@@ -19,6 +19,7 @@
 #include "vgf-utils/numpy.hpp"
 
 #include <algorithm>
+#include <string_view>
 #include <unordered_set>
 
 namespace mlsdk::scenariorunner {
@@ -75,7 +76,7 @@ struct DispatchSpirvGraphData {
     ShaderId graphShader;
     std::string debugName;
     std::vector<TypedBinding> bindings;
-    std::vector<Guid> graphConstants;
+    std::vector<GraphConstantResourceId> graphConstants;
     bool implicitBarrier{true};
 };
 
@@ -99,59 +100,13 @@ struct DispatchOpticalFlowData {
 };
 
 namespace {
-std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<Guid> &constantUids,
-                                                     const std::vector<std::unique_ptr<ResourceDesc>> &resources) {
+std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<GraphConstantResourceId> &constantIds,
+                                                     const ResourceManager &resources) {
     std::vector<GraphConstantInfo> constants;
-    constants.reserve(constantUids.size());
+    constants.reserve(constantIds.size());
 
-    // Build a quick lookup map from Guid -> GraphConstantDesc*
-    std::unordered_map<Guid, const GraphConstantDesc *> gcMap;
-    gcMap.reserve(resources.size());
-    for (const auto &res : resources) {
-        if (res->resourceType == ResourceType::GraphConstant) {
-            gcMap.emplace(res->guid, static_cast<const GraphConstantDesc *>(res.get()));
-        }
-    }
-
-    for (const auto &uid : constantUids) {
-        auto it = gcMap.find(uid);
-        if (it == gcMap.end()) {
-            throw std::runtime_error("Graph constant not found for provided GUID");
-        }
-        const GraphConstantDesc *gc = it->second;
-        if (!gc->src.has_value()) {
-            throw std::runtime_error("Graph constant missing src: " + gc->guidStr);
-        }
-
-        GraphConstantInfo spec(gc->guidStr, getVkFormatFromString(gc->format), gc->dims);
-
-        MemoryMap mapped(gc->src.value());
-        const auto constantData = vgfutils::numpy::parse(mapped);
-
-        if (constantData.shape.size() == spec.dims.size()) {
-            for (size_t i = 0; i < spec.dims.size(); ++i) {
-                if (spec.dims[i] != constantData.shape[i]) {
-                    throw std::runtime_error("Graph constant dims mismatch for: " + gc->guidStr);
-                }
-            }
-        } else {
-            throw std::runtime_error("Graph constant dims mismatch for: " + gc->guidStr);
-        }
-
-        // Validate that the NumPy payload size matches the declared format and shape
-        const uint64_t expectedDataSize =
-            static_cast<uint64_t>(elementSizeFromVkFormat(spec.format)) * totalElementsFromShape(spec.dims);
-        const auto actualDataSize = static_cast<uint64_t>(constantData.size());
-        if (actualDataSize != expectedDataSize) {
-            throw std::runtime_error("Graph constant size does not match format and dims for: " + gc->guidStr +
-                                     "; expected " + std::to_string(expectedDataSize) + " vs " +
-                                     std::to_string(actualDataSize));
-        }
-
-        spec.data.resize(static_cast<size_t>(actualDataSize));
-        std::memcpy(spec.data.data(), constantData.ptr, static_cast<size_t>(actualDataSize));
-
-        constants.emplace_back(std::move(spec));
+    for (const auto id : constantIds) {
+        constants.emplace_back(resources.get(id));
     }
 
     return constants;
@@ -240,6 +195,39 @@ struct ResourceInfoFactory {
 
     DataGraphInfo createInfo(const DataGraphDesc &dataGraph) const {
         return {dataGraph.guidStr, dataGraph.src.value()};
+    }
+
+    GraphConstantInfo createInfo(const GraphConstantDesc &graphConstant) const {
+        if (!graphConstant.src.has_value()) {
+            throw std::runtime_error("Graph constant missing src: " + graphConstant.guidStr);
+        }
+
+        GraphConstantInfo info(graphConstant.guidStr, getVkFormatFromString(graphConstant.format), graphConstant.dims);
+        MemoryMap mapped(graphConstant.src.value());
+        const auto constantData = vgfutils::numpy::parse(mapped);
+
+        if (constantData.shape.size() != info.dims.size()) {
+            throw std::runtime_error("Graph constant dims mismatch for: " + graphConstant.guidStr);
+        }
+        for (size_t i = 0; i < info.dims.size(); ++i) {
+            if (info.dims[i] != constantData.shape[i]) {
+                throw std::runtime_error("Graph constant dims mismatch for: " + graphConstant.guidStr);
+            }
+        }
+
+        // Validate that the NumPy payload size matches the declared format and shape.
+        const uint64_t expectedDataSize =
+            static_cast<uint64_t>(elementSizeFromVkFormat(info.format)) * totalElementsFromShape(info.dims);
+        const auto actualDataSize = static_cast<uint64_t>(constantData.size());
+        if (actualDataSize != expectedDataSize) {
+            throw std::runtime_error(
+                "Graph constant size does not match format and dims for: " + graphConstant.guidStr + "; expected " +
+                std::to_string(expectedDataSize) + " vs " + std::to_string(actualDataSize));
+        }
+
+        info.data.resize(static_cast<size_t>(actualDataSize));
+        std::memcpy(info.data.data(), constantData.ptr, static_cast<size_t>(actualDataSize));
+        return info;
     }
 
     ImageInfo createInfo(const ImageDesc &image) const {
@@ -514,16 +502,28 @@ class Creator final : public IResourceCreator {
     std::vector<GroupResourceEntry> _createdResources;
 };
 
+template <typename Id>
+Id resolveResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds, const Guid &guid,
+                     std::string_view expectedType) {
+    const auto resource = resourceIds.find(guid);
+    if (resource == resourceIds.end()) {
+        throw std::runtime_error(std::string(expectedType) + " resource not found.");
+    }
+    const auto *id = std::get_if<Id>(&resource->second);
+    if (id == nullptr) {
+        throw std::runtime_error("Resource UID has the wrong type; expected " + std::string(expectedType) + ".");
+    }
+    return *id;
+}
+
 struct CommandDataFactory {
     const DataManager &_dataManager;
-    const std::unordered_map<Guid, ShaderId> &_shaderIds;
+    const std::unordered_map<Guid, TypedResourceId> &_resourceIds;
 
-    ShaderId getShaderId(const Guid &guid) const {
-        const auto shader = _shaderIds.find(guid);
-        if (shader == _shaderIds.end()) {
-            throw std::runtime_error("Shader resource not found.");
-        }
-        return shader->second;
+    ShaderId getShaderId(const Guid &guid) const { return resolveResourceId<ShaderId>(_resourceIds, guid, "Shader"); }
+
+    GraphConstantResourceId getGraphConstantResourceId(const Guid &guid) const {
+        return resolveResourceId<GraphConstantResourceId>(_resourceIds, guid, "Graph constant");
     }
 
     DispatchComputeData createData(const DispatchComputeDesc &dispatchCompute) {
@@ -609,7 +609,10 @@ struct CommandDataFactory {
         DispatchSpirvGraphData data{getShaderId(dispatchSpirvGraph.dataGraphRef)};
         data.debugName = dispatchSpirvGraph.debugName;
         data.bindings = convertBindings(_dataManager, dispatchSpirvGraph.bindings);
-        data.graphConstants = dispatchSpirvGraph.graphConstants;
+        data.graphConstants.reserve(dispatchSpirvGraph.graphConstants.size());
+        for (const auto &graphConstant : dispatchSpirvGraph.graphConstants) {
+            data.graphConstants.push_back(getGraphConstantResourceId(graphConstant));
+        }
         data.implicitBarrier = dispatchSpirvGraph.implicitBarrier;
         return data;
     }
@@ -809,33 +812,43 @@ void Scenario::setupResources() {
         case ResourceType::Buffer: {
             const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
             const auto id = _resources.addBuffer(resourceInfoFactory.createInfo(*buffer));
+            _resourceIds.emplace(resource->guid, id);
             _dataManager.createBuffer(resource->guid, _resources.get(id));
         } break;
         case ResourceType::RawData: {
             const auto &rawData = reinterpret_cast<const std::unique_ptr<RawDataDesc> &>(resource);
             const auto id = _resources.addRawData(resourceInfoFactory.createInfo(*rawData));
+            _resourceIds.emplace(resource->guid, id);
             _dataManager.createRawData(resource->guid, _resources.get(id));
         } break;
         case ResourceType::Image: {
             const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
             const auto id = _resources.addImage(resourceInfoFactory.createInfo(*image));
+            _resourceIds.emplace(resource->guid, id);
             _dataManager.createImage(resource->guid, _resources.get(id));
         } break;
         case ResourceType::DataGraph: {
             const auto &dataGraph = reinterpret_cast<const std::unique_ptr<DataGraphDesc> &>(resource);
             PerfCounterGuard guard(_perfCounters, "Parse VGF: " + dataGraph->guidStr, "Scenario Setup");
             const auto id = _resources.addDataGraph(resourceInfoFactory.createInfo(*dataGraph));
+            _resourceIds.emplace(resource->guid, id);
             _dataManager.createVgfView(resource->guid, _resources.get(id));
         } break;
         case ResourceType::Tensor: {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
             const auto id = _resources.addTensor(resourceInfoFactory.createInfo(*tensor, _opts.captureFrame));
+            _resourceIds.emplace(resource->guid, id);
             _dataManager.createTensor(resource->guid, _resources.get(id));
         } break;
         case ResourceType::Shader: {
             const auto &shader = reinterpret_cast<const std::unique_ptr<ShaderDesc> &>(resource);
             const auto id = _resources.addShader(resourceInfoFactory.createInfo(*shader));
-            _shaderIds.emplace(resource->guid, id);
+            _resourceIds.emplace(resource->guid, id);
+        } break;
+        case ResourceType::GraphConstant: {
+            const auto &graphConstant = reinterpret_cast<const std::unique_ptr<GraphConstantDesc> &>(resource);
+            const auto id = _resources.addGraphConstant(resourceInfoFactory.createInfo(*graphConstant));
+            _resourceIds.emplace(resource->guid, id);
         } break;
         default:
             // Skip the other types of resources
@@ -968,7 +981,7 @@ void Scenario::setupCommands() {
     // Setup commands
     mlsdk::logging::info("Setup commands");
 
-    CommandDataFactory factory{_dataManager, _shaderIds};
+    CommandDataFactory factory{_dataManager, _resourceIds};
     uint32_t nQueries = 0;
     for (const auto &command : _scenarioSpec.commands) {
         switch (command->commandType) {
@@ -1297,7 +1310,7 @@ void Scenario::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSp
         throw std::runtime_error("No resource with this guid found");
     }
 
-    const auto graphConstants = collectGraphConstants(dispatchSpirvGraph.graphConstants, _scenarioSpec.resources);
+    const auto graphConstants = collectGraphConstants(dispatchSpirvGraph.graphConstants, _resources);
 
     // Create pipeline and record DataGraph dispatch
     PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + shaderInfo.debugName, "Pipeline Setup");
