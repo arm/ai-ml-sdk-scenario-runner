@@ -66,15 +66,6 @@ struct BufferDesc : ResourceDesc {
 };
 
 /**
- * @brief SpecializationConstantMap is used to map specialization constants to multiple shaders within a graph
- *
- */
-struct SpecializationConstantMap {
-    std::vector<SpecializationConstant> specializationConstants;
-    Guid shaderTarget;
-};
-
-/**
  * @brief DataGraphDesc describes a DataGraph file.
  *
  */

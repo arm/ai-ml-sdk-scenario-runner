@@ -9,12 +9,20 @@
 
 #include <stdexcept>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 
 using namespace mlsdk::scenariorunner;
 
 static_assert(!std::is_same_v<BufferId, TensorId>);
 static_assert(!std::is_convertible_v<BufferId, TensorId>);
+
+TEST(ResourceId, SupportsUnorderedContainers) {
+    std::unordered_map<BufferId, std::string> buffers;
+    buffers.emplace(BufferId{3}, "buffer");
+
+    EXPECT_EQ(buffers.at(BufferId{3}), "buffer");
+}
 
 TEST(ResourceManager, AssignsIdsIndependentlyPerType) {
     ResourceManager resources;
@@ -26,7 +34,7 @@ TEST(ResourceManager, AssignsIdsIndependentlyPerType) {
     BufferInfo bufferB{};
     bufferB.debugName = "buffer_b";
     RawDataInfo rawData{"raw_data", "data.npy"};
-    DataGraphInfo dataGraph{"data_graph", "graph.vgf"};
+    DataGraphInfo dataGraph{"data_graph", "graph.vgf", 0, {}};
     GraphConstantInfo graphConstant{"constant", vk::Format::eR32Sfloat, {1}};
 
     const auto bufferAId = resources.addBuffer(std::move(bufferA));
@@ -60,7 +68,7 @@ TEST(ResourceManager, PreservesResourceInfo) {
     EXPECT_EQ(resources.get(shaderId).pushConstantsSize, 16U);
 
     const auto rawDataId = resources.addRawData({"raw_data", "data.npy"});
-    const auto dataGraphId = resources.addDataGraph({"data_graph", "graph.vgf"});
+    const auto dataGraphId = resources.addDataGraph({"data_graph", "graph.vgf", 0, {}});
     GraphConstantInfo graphConstant{"constant", vk::Format::eR32Sint, {2}};
     graphConstant.data = {1, 2, 3, 4, 5, 6, 7, 8};
     const auto graphConstantId = resources.addGraphConstant(std::move(graphConstant));
