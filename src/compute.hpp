@@ -6,6 +6,7 @@
 
 #include "context.hpp"
 #include "data_manager.hpp"
+#include "json_writer.hpp"
 #include "perf_counter.hpp"
 #include "pipeline.hpp"
 
@@ -163,8 +164,11 @@ class Compute {
     vk::raii::CommandBuffer &getCommandBuffer();
     void prepareCommandBuffer();
 
-    /// \brief Write profiling data to file
-    void writeProfilingFile(const std::filesystem::path &profilingPath, int iteration, int repeatCount) const;
+    /// \brief Collect runtime timestamp profiling data
+    RuntimeProfilingData getRuntimeProfilingData() const;
+
+    /// \brief Collect data graph pipeline memory usage
+    MemoryProfilingData getMemoryProfilingData() const;
 
     void dumpNeuralDebugDatabase(const std::filesystem::path &neuralDebugDatabaseDumpDir) const;
     void dumpNeuralStatistics(const std::filesystem::path &neuralStatisticsDumpDir,

@@ -752,8 +752,8 @@ void Scenario::run(int repeatCount, bool dryRun) {
                 handleAliasedLayoutTransitions();
             }
             _compute.submitAndWaitOnFence(_perfCounters, i);
-            saveProfilingData(i, repeatCount);
         }
+        saveProfilingData(i, repeatCount, dryRun);
 
         // Skip reset after final run
         if (i + 1 < repeatCount) {
@@ -1441,10 +1441,15 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
     }
 }
 
-void Scenario::saveProfilingData(int iteration, int repeatCount) {
+void Scenario::saveProfilingData(int iteration, int repeatCount, bool dryRun) {
     // Save profiling data
     if (!_opts.profilingPath.empty()) {
-        _compute.writeProfilingFile(_opts.profilingPath, iteration, repeatCount);
+        std::optional<RuntimeProfilingData> runtimeProfilingData;
+        if (!dryRun) {
+            runtimeProfilingData = _compute.getRuntimeProfilingData();
+        }
+        const auto memoryProfilingData = _compute.getMemoryProfilingData();
+        writeProfilingData(runtimeProfilingData, memoryProfilingData, _opts.profilingPath, iteration, repeatCount);
         mlsdk::logging::info("Profiling data stored");
     }
 }

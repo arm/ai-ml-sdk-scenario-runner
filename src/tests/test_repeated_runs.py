@@ -144,6 +144,25 @@ def test_conv2d_vgf_count(sdk_tools, resources_helper, numpy_helper):
     input = numpy_helper.generate(
         [1, 16, 16, 16], dtype=np.int8, filename="conv2dInput.npy"
     )
+    expected_command_name = "graph_ref/conv2d_graph_segment"
+
+    dry_run_dump_path = resources_helper.get_testenv_path(
+        "conv2dDryRunProfilingTest.json"
+    )
+    sdk_tools.run_scenario(
+        "test_vgf_graph/conv2d.json",
+        options=["--dry-run", "--profiling-dump-path", dry_run_dump_path.as_posix()],
+    )
+
+    with open(dry_run_dump_path, encoding="utf-8") as dump_file:
+        dry_run_profiling_data = json.load(dump_file)
+
+    dry_run_memory_usages = dry_run_profiling_data["Memory Usage"]
+    assert "Timestamps" not in dry_run_profiling_data
+    assert len(dry_run_memory_usages) == 1
+    assert dry_run_memory_usages[0]["Command name"] == expected_command_name
+    assert not resources_helper.get_testenv_path("conv2dOutput.npy").exists()
+
     dump_path = os.path.join(os.getcwd(), "conv2dProfilingTest.json")
     sdk_tools.run_scenario(
         "test_vgf_graph/conv2d.json",
@@ -153,7 +172,6 @@ def test_conv2d_vgf_count(sdk_tools, resources_helper, numpy_helper):
     with open(dump_path, encoding="utf-8") as dump_file:
         profiling_data = json.load(dump_file)
 
-    expected_command_name = "graph_ref/conv2d_graph_segment"
     timestamps = profiling_data["Timestamps"]
     memory_usages = profiling_data["Memory Usage"]
     assert len(timestamps) == 2
@@ -170,6 +188,8 @@ def test_conv2d_vgf_count(sdk_tools, resources_helper, numpy_helper):
 
     if os.path.exists(dump_path):
         os.remove(dump_path)
+    if dry_run_dump_path.exists():
+        dry_run_dump_path.unlink()
 
 
 def test_enable_pipeline_cache_repeat_run(

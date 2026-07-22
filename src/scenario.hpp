@@ -71,7 +71,7 @@ class Scenario {
     void setupCommands();
 
     /// \brief Save profiling data to file
-    void saveProfilingData(int iteration, int repeatCount);
+    void saveProfilingData(int iteration, int repeatCount, bool dryRun);
 
     /// \brief Save results of output resources to files
     void saveResults(bool dryRun);

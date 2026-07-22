@@ -11,6 +11,10 @@
 - Added startup logging for Vulkan API and driver versions and common device
   shader capabilities.
 
+### Profiling
+
+- Using --dry-run with --profiling-dump-path now outputs information about pipeline compilation
+
 ### Bug Fixes
 
 - Fixed pipeline-cache miss handling for all pipeline types by checking pipeline
