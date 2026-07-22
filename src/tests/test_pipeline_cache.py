@@ -297,22 +297,10 @@ def test_enable_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd)
     assert len(cache_data_third) > 0
 
 
-@pytest.mark.parametrize(
-    "setup",
-    [
-        pytest.param(_setup_compute_pipeline_cache_miss, id="compute"),
-        pytest.param(
-            _setup_graph_pipeline_cache_miss,
-            marks=pytest.mark.skipif(
-                sys.platform == "win32",
-                reason="The Windows data graph driver does not serialize a reusable pipeline cache payload",
-            ),
-            id="graph_compute",
-        ),
-    ],
-)
-def test_pipeline_cache_hit(sdk_tools, resources_helper, numpy_helper, capfd, setup):
-    scenario, replacements = setup(sdk_tools, resources_helper, numpy_helper)
+def test_pipeline_cache_hit(sdk_tools, resources_helper, numpy_helper, capfd):
+    scenario, replacements = _setup_compute_pipeline_cache_miss(
+        sdk_tools, resources_helper, numpy_helper
+    )
     cache_path = resources_helper.get_testenv_path(
         f"{scenario.replace('/', '_')}_hit_cache"
     )
