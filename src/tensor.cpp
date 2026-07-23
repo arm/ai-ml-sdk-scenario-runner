@@ -159,12 +159,13 @@ void Tensor::fillFromDescription(const Context &ctx, const TensorDesc &desc) con
                                          std::to_string(dataPtr.shape[i]));
             }
         }
-        fill(dataPtr.ptr, dataPtr.size());
+        TensorDataView view{dataPtr.ptr, dataPtr.size(), {}, std::nullopt};
+        view.shape = std::move(dataPtr.shape);
+        upload(ctx, view);
     } else {
         fillZero();
+        _memoryManager->uploadData(ctx, _memoryManager->getSubresourceOffset() + _memoryOffset, _size);
     }
-
-    _memoryManager->uploadData(ctx, _memoryManager->getSubresourceOffset() + _memoryOffset, _size);
 }
 
 void Tensor::fill(const void *data, size_t size) const {
@@ -185,6 +186,36 @@ void Tensor::fillZero() const {
     void *pDeviceMemory = _memoryManager->mapStagingBufferMemory(0, memSize());
     std::memset(pDeviceMemory, 0, memSize());
     _memoryManager->unmapStagingBufferMemory();
+}
+
+void Tensor::upload(const Context &ctx, const TensorDataView &data) const {
+    // Validate shape; allow 0-d input when rank was converted to [1]
+    bool shapesMatch = (data.shape == _shape) || (_rankConverted && data.shape.empty());
+    if (!shapesMatch) {
+        throw std::runtime_error("Tensor::upload: provided shape does not match tensor shape");
+    }
+
+    if (data.format.has_value() && data.format.value() != _dataType) {
+        throw std::runtime_error("Tensor::upload: provided format does not match tensor format");
+    }
+
+    const uint64_t expectedSize = elementSizeFromVkFormat(_dataType) * totalElementsFromShape(_shape);
+    if (data.size != expectedSize) {
+        throw std::runtime_error("Tensor::upload: size does not match logical data size");
+    }
+
+    fill(data.data, data.size);
+    _memoryManager->uploadData(ctx, _memoryManager->getSubresourceOffset() + _memoryOffset, _size);
+}
+
+TensorData Tensor::download(const Context &ctx) const {
+    TensorData tensorData;
+    tensorData.data = getTensorData(ctx);
+    if (!_rankConverted) {
+        tensorData.shape = _shape;
+    }
+    tensorData.format = _dataType;
+    return tensorData;
 }
 
 std::vector<char> Tensor::getTensorData(const Context &ctx) const {
@@ -230,8 +261,8 @@ std::vector<char> Tensor::getTensorData(const Context &ctx) const {
 }
 
 void Tensor::store(const Context &ctx, const std::string &filename) const {
-    const auto data = getTensorData(ctx);
-    const vgfutils::numpy::DataPtr dataPtr(data.data(), _rankConverted ? std::vector<int64_t>(0) : _shape,
+    const auto tensorData = download(ctx);
+    const vgfutils::numpy::DataPtr dataPtr(tensorData.data.data(), _rankConverted ? std::vector<int64_t>(0) : _shape,
                                            getDTypeFromVkFormat(dataType()));
     vgfutils::numpy::write(filename, dataPtr);
 }

@@ -19,6 +19,7 @@ add_executable(ScenarioRunnerTests
   perf_counter_tests.cpp
   png_reader_tests.cpp
   resource_manager_tests.cpp
+  tensor_tests.cpp
   vgf_view_tests.cpp
   vulkan_startup_tests.cpp
 )

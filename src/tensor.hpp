@@ -6,6 +6,7 @@
 #pragma once
 
 #include "context.hpp"
+#include "resource_data.hpp"
 #include "resource_desc.hpp"
 #include "types.hpp"
 #include "vulkan_memory_manager.hpp"
@@ -67,7 +68,17 @@ class Tensor {
     void fill(const void *data, size_t size) const;
     void fillZero() const;
 
-    std::vector<char> getTensorData(const Context &ctx) const;
+    /// \brief Upload in‑memory tensor payload (host -> device)
+    /// Validates byte size, shape, and (when provided) format
+    /// \param ctx   Vulkan context
+    /// \param data  Bytes + shape/format to upload
+    void upload(const Context &ctx, const TensorDataView &data) const;
+
+    /// \brief Download tensor data with shape and format metadata (device -> host)
+    /// \param ctx Vulkan context
+    /// \return TensorData containing bytes + shape + format
+    TensorData download(const Context &ctx) const;
+
     void store(const Context &ctx, const std::string &filename) const;
 
     const std::string &debugName() const;
@@ -85,6 +96,8 @@ class Tensor {
     uint64_t _memoryOffset{0};
     bool _rankConverted{false};
     bool _descriptorBufferCaptureReplay{false};
+
+    std::vector<char> getTensorData(const Context &ctx) const;
 };
 
 } // namespace mlsdk::scenariorunner
