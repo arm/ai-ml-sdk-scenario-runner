@@ -908,7 +908,7 @@ TEST(JsonParser, Commands) {
 
         const auto &pushConstant = commandPtr->pushConstants.at(0);
         ASSERT_TRUE(pushConstant.pushDataRef == Guid("RawData1"));
-        ASSERT_TRUE(pushConstant.shaderTarget == Guid("Shader1"));
+        ASSERT_TRUE(pushConstant.shaderTarget == "Shader1");
     }
 
     {

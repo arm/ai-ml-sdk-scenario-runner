@@ -24,7 +24,7 @@ class DataManager {
     void createTensor(Guid guid, TensorInfo &&info);
     void createImage(Guid guid, const ImageInfo &info);
     void createImage(Guid guid, ImageInfo &&info);
-    void createRawData(Guid guid, const RawDataInfo &info);
+    void createRawData(RawDataId id, const RawDataInfo &info);
     void createVgfView(DataGraphId id, const DataGraphInfo &info);
     void createImageBarrier(Guid guid, const ImageBarrierData &data);
     void createTensorBarrier(Guid guid, const TensorBarrierData &data);
@@ -34,7 +34,7 @@ class DataManager {
     bool hasBuffer(Guid guid) const;
     bool hasTensor(Guid guid) const;
     bool hasImage(Guid guid) const;
-    bool hasRawData(Guid guid) const;
+    bool hasRawData(RawDataId id) const;
     bool hasImageBarrier(Guid guid) const;
     bool hasTensorBarrier(Guid guid) const;
     bool hasMemoryBarrier(Guid guid) const;
@@ -47,7 +47,7 @@ class DataManager {
     const Buffer &getBuffer(const Guid &guid) const;
     const Tensor &getTensor(const Guid &guid) const;
     const Image &getImage(const Guid &guid) const;
-    const RawData &getRawData(const Guid &guid) const;
+    const RawData &getRawData(RawDataId id) const;
     const VgfView &getVgfView(DataGraphId id) const;
     const VulkanImageBarrier &getImageBarrier(const Guid &guid) const;
     const VulkanMemoryBarrier &getMemoryBarrier(const Guid &guid) const;
@@ -62,7 +62,7 @@ class DataManager {
     std::unordered_map<Guid, Buffer> _buffers;
     std::unordered_map<Guid, Tensor> _tensors;
     std::unordered_map<Guid, Image> _images;
-    std::unordered_map<Guid, RawData> _rawData;
+    std::unordered_map<RawDataId, RawData> _rawData;
     std::unordered_map<DataGraphId, VgfView> _vgfViews;
     std::unordered_map<Guid, VulkanImageBarrier> _imageBarriers;
     std::unordered_map<Guid, VulkanMemoryBarrier> _memoryBarriers;
