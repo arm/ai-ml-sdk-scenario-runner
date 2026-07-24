@@ -21,10 +21,8 @@ namespace mlsdk::scenariorunner {
 
 class DataManager;
 
-struct ResourceAlias {
-    Guid group;
-    Guid resource;
-    ResourceIdType resourceType;
+struct VgfResourceCreationResult {
+    std::map<uint32_t, std::vector<MemoryResourceId>> memoryGroups;
 };
 
 class VgfView {
@@ -53,8 +51,8 @@ class VgfView {
 
     std::vector<TypedBinding> resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
                                               const std::vector<TypedBinding> &externalBindings) const;
-    std::vector<ResourceAlias> getResourceAliases(const std::vector<TypedBinding> &externalBindings) const;
-    void createIntermediateResources(IResourceCreator &creator) const;
+    std::optional<uint32_t> getModelResourceAliasGroup(uint32_t bindingId) const;
+    VgfResourceCreationResult createIntermediateResources(IResourceCreator &creator) const;
 
   private:
     // Map of (set, binding) to vgfMrtIndex

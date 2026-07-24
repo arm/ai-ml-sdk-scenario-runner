@@ -28,13 +28,27 @@ namespace {
 
 class CapturingResourceCreator final : public IResourceCreator {
   public:
-    void createBuffer(Guid guid, BufferInfo &&info) override { buffers.push_back({guid, std::move(info)}); }
-    void createTensor(Guid guid, TensorInfo &&info) override { tensors.push_back({guid, std::move(info)}); }
-    void createImage(Guid guid, ImageInfo &&info) override { images.push_back({guid, std::move(info)}); }
+    BufferId createBuffer(BufferInfo &&info) override {
+        const BufferId id{buffers.size()};
+        buffers.push_back(std::move(info));
+        return id;
+    }
 
-    std::vector<std::pair<Guid, BufferInfo>> buffers;
-    std::vector<std::pair<Guid, TensorInfo>> tensors;
-    std::vector<std::pair<Guid, ImageInfo>> images;
+    TensorId createTensor(TensorInfo &&info) override {
+        const TensorId id{tensors.size()};
+        tensors.push_back(std::move(info));
+        return id;
+    }
+
+    ImageId createImage(ImageInfo &&info) override {
+        const ImageId id{images.size()};
+        images.push_back(std::move(info));
+        return id;
+    }
+
+    std::vector<BufferInfo> buffers;
+    std::vector<TensorInfo> tensors;
+    std::vector<ImageInfo> images;
 };
 
 std::filesystem::path writeVgfWithTensorInterfaceResources(TempFolder &tempFolder) {
@@ -108,6 +122,36 @@ std::filesystem::path writeVgfWithIntermediateBuffer(TempFolder &tempFolder, vk:
     return vgfPath;
 }
 
+std::filesystem::path writeVgfWithInputAndIntermediateBuffer(TempFolder &tempFolder) {
+    auto encoder = vgflib::CreateEncoder(123);
+    constexpr uint32_t aliasGroupId = 17;
+    const std::vector<int64_t> shape{1};
+
+    const auto module = encoder->AddModule(vgflib::ModuleType::COMPUTE, "resource_indexes", "main");
+    const auto input = encoder->AddInputResource(vgflib::ToDescriptorType(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
+                                                 vgflib::ToFormatType(VK_FORMAT_R8_UINT), shape, {});
+    const auto intermediate =
+        encoder->AddIntermediateResource(vgflib::ToDescriptorType(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
+                                         vgflib::ToFormatType(VK_FORMAT_R8_UINT), shape, {});
+    encoder->SetAliasGroup(input, aliasGroupId);
+    encoder->SetAliasGroup(intermediate, aliasGroupId);
+    const auto inputBinding = encoder->AddBindingSlot(0, input);
+    const auto intermediateBinding = encoder->AddBindingSlot(1, intermediate);
+    const auto descriptorSet =
+        encoder->AddDescriptorSetInfo(std::vector<vgflib::BindingSlotRef>{inputBinding, intermediateBinding});
+
+    encoder->AddModelSequenceInputsOutputs({inputBinding}, {"input"}, {}, {});
+    encoder->AddSegmentInfo(module, "resource_indexes_segment",
+                            std::vector<vgflib::DescriptorSetInfoRef>{descriptorSet}, {inputBinding},
+                            {intermediateBinding}, std::vector<vgflib::GraphConstantBindingRef>{}, {1, 1, 1});
+    encoder->Finish();
+
+    const std::string vgfPath = tempFolder.relative("scenario_runner_vgf_view_resource_indexes.vgf").string();
+    std::ofstream output(vgfPath, std::ios::binary);
+    encoder->WriteTo(output);
+    return vgfPath;
+}
+
 std::filesystem::path writeVgfWithSampledIntermediateImage(TempFolder &tempFolder, uint32_t addressModeU,
                                                            uint32_t addressModeV) {
     auto encoder = vgflib::CreateEncoder(123);
@@ -145,12 +189,30 @@ TEST(VgfView, IntermediateBufferSizeUsesVgfFormatElementSize) {
     auto view = VgfView::createVgfView(vgfPath.string());
     CapturingResourceCreator creator;
 
-    view.createIntermediateResources(creator);
+    const auto result = view.createIntermediateResources(creator);
 
     ASSERT_EQ(creator.buffers.size(), 1);
-    EXPECT_EQ(creator.buffers.front().second.size, elementCount * sizeof(uint16_t));
+    EXPECT_EQ(creator.buffers.front().size, elementCount * sizeof(uint16_t));
     EXPECT_TRUE(creator.tensors.empty());
     EXPECT_TRUE(creator.images.empty());
+    EXPECT_TRUE(result.memoryGroups.empty());
+}
+
+TEST(VgfView, IntermediateResourceAliasesUseCreatedIds) {
+    TempFolder tempFolder("vgf_view");
+    const auto vgfPath = writeVgfWithInputAndIntermediateBuffer(tempFolder);
+
+    auto view = VgfView::createVgfView(vgfPath.string());
+    CapturingResourceCreator creator;
+
+    const auto result = view.createIntermediateResources(creator);
+
+    ASSERT_EQ(creator.buffers.size(), 1);
+    ASSERT_EQ(result.memoryGroups.size(), 1);
+    ASSERT_EQ(result.memoryGroups.at(17).size(), 1);
+    EXPECT_EQ(std::get<BufferId>(result.memoryGroups.at(17).front()), BufferId{0});
+    EXPECT_EQ(view.getModelResourceAliasGroup(0), 17);
+    EXPECT_THROW(view.getModelResourceAliasGroup(99), std::runtime_error);
 }
 
 TEST(VgfView, IntermediateSampledImageUsesVgfSamplerConfig) {
@@ -161,10 +223,10 @@ TEST(VgfView, IntermediateSampledImageUsesVgfSamplerConfig) {
     auto view = VgfView::createVgfView(vgfPath.string());
     CapturingResourceCreator creator;
 
-    view.createIntermediateResources(creator);
+    const auto result = view.createIntermediateResources(creator);
 
     ASSERT_EQ(creator.images.size(), 1);
-    const auto &samplerSettings = creator.images.front().second.samplerSettings;
+    const auto &samplerSettings = creator.images.front().samplerSettings;
     EXPECT_EQ(samplerSettings.minFilter, FilterMode::Linear);
     EXPECT_EQ(samplerSettings.magFilter, FilterMode::Nearest);
     EXPECT_EQ(samplerSettings.addressModeU, AddressMode::ClampBorder);
@@ -174,6 +236,7 @@ TEST(VgfView, IntermediateSampledImageUsesVgfSamplerConfig) {
     EXPECT_EQ(samplerSettings.mipFilter, FilterMode::Nearest);
     EXPECT_TRUE(creator.buffers.empty());
     EXPECT_TRUE(creator.tensors.empty());
+    EXPECT_TRUE(result.memoryGroups.empty());
 }
 
 TEST(VgfView, IntermediateSampledImageAcceptsDistinctVgfAddressModes) {
@@ -184,13 +247,14 @@ TEST(VgfView, IntermediateSampledImageAcceptsDistinctVgfAddressModes) {
     auto view = VgfView::createVgfView(vgfPath.string());
     CapturingResourceCreator creator;
 
-    view.createIntermediateResources(creator);
+    const auto result = view.createIntermediateResources(creator);
 
     ASSERT_EQ(creator.images.size(), 1);
-    const auto &samplerSettings = creator.images.front().second.samplerSettings;
+    const auto &samplerSettings = creator.images.front().samplerSettings;
     EXPECT_EQ(samplerSettings.addressModeU, AddressMode::Repeat);
     EXPECT_EQ(samplerSettings.addressModeV, AddressMode::ClampEdge);
     EXPECT_EQ(samplerSettings.addressModeW, AddressMode::ClampEdge);
+    EXPECT_TRUE(result.memoryGroups.empty());
 }
 
 TEST(VgfView, ResolveBindingsReportsTensorShapeMismatchWithJsonLine) {

@@ -7,6 +7,7 @@
 #include "buffer.hpp"
 #include "guid.hpp"
 #include "image.hpp"
+#include "resource_id.hpp"
 #include "tensor.hpp"
 
 namespace mlsdk::scenariorunner {
@@ -16,10 +17,9 @@ class IResourceCreator {
   public:
     virtual ~IResourceCreator() = default;
 
-    // Create buffer resource and setup and allocate memory in buffer
-    virtual void createBuffer(Guid guid, BufferInfo &&info) = 0;
-    virtual void createTensor(Guid guid, TensorInfo &&info) = 0;
-    virtual void createImage(Guid guid, ImageInfo &&info) = 0;
+    virtual BufferId createBuffer(BufferInfo &&info) = 0;
+    virtual TensorId createTensor(TensorInfo &&info) = 0;
+    virtual ImageId createImage(ImageInfo &&info) = 0;
 };
 
 /// @brief Interface for accessing resources in an identifier agnostic way. Derived class handle the resource
