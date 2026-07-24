@@ -74,7 +74,8 @@ dependencies required by the ML SDK Scenario Runner in
 The build system must have:
 
 - CMake 3.25 or later.
-- C/C++ 17 compiler: GCC, or optionally Clang on Linux and MSVC on Windows®.
+- C/C++ 17 compiler: GCC or Clang on Linux, Clang on Darwin, or MSVC on
+  Windows®.
 - Python 3.10 or later. Required python libraries for building are listed in
   `tooling-requirements.txt`.
 - Ninja 1.10 or later.
@@ -129,6 +130,20 @@ python "$env:SDK_PATH\sw\scenario-runner\scripts\build.py" -j $cores  `
     --vgf-lib-path "$env:SDK_PATH\sw\vgf-lib" `
     --gtest-path "$env:SDK_PATH\dependencies\googletest"
 ```
+
+To build on Darwin from a Repo tool checkout, first configure the
+[LunarG Vulkan SDK for macOS](https://vulkan.lunarg.com/sdk/home#mac) environment
+according to its documentation, then run:
+
+```bash
+export SDK_PATH=/absolute/path/to/ml-sdk
+python3 "$SDK_PATH/sw/scenario-runner/scripts/build.py" \
+    -j "$(sysctl -n hw.logicalcpu)"
+```
+
+At runtime, use the Vulkan® Loader to select either MoltenVK or KosmicKrisp and
+enable the ML Emulation Layer for Vulkan®. The ML SDK's Darwin support is
+experimental.
 
 To cross compile for AArch64 architecture, you can add the following option:
 
