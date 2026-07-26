@@ -2,7 +2,7 @@
  * SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "../utils.hpp"
+#include "utils.hpp"
 #include <vgf_runtime/runtime.hpp>
 
 #include <gtest/gtest.h>
@@ -20,7 +20,7 @@ namespace {
 
 using namespace mlsdk::vgflib;
 using namespace mlsdk::vgf_runtime;
-using namespace mlsdk::vgf_runtime::test;
+using namespace vgf_runtime::test;
 
 template <typename T, typename U> bool viewEquals(DataView<T> view, std::initializer_list<U> expected) {
     return view.size() == expected.size() &&
@@ -37,7 +37,7 @@ bool pointsInside(const void *ptr, const std::string &buffer) {
 } // namespace
 
 TEST(VGF, DecodesSegmentsModulesBindingsResourcesAndDispatch) {
-    const auto &code = assembleMaxpoolSpirv("maxpool_set0", {0, 0, 0, 1});
+    const auto &code = assembleMaxpool16x16To8x8Spirv("maxpool_set0", {0, 0, 0, 1});
     const auto data = writeVgf([&](Encoder &encoder) {
         const auto module = encoder.AddModule(ModuleType::COMPUTE, "shader", "main", code);
         const auto input = encoder.AddInputResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_SFLOAT, {4}, {4});
@@ -107,7 +107,7 @@ TEST(VGF, DecodesSegmentsModulesBindingsResourcesAndDispatch) {
 }
 
 TEST(VGF, DecodesConstantsSamplersAndFileBackedData) {
-    const auto &code = assembleMaxpoolSpirv("maxpool_set0", {0, 0, 1, 1});
+    const auto &code = assembleMaxpool16x16To8x8Spirv("maxpool_set0", {0, 0, 1, 1});
     const std::array<int32_t, 4> constantData = {1, 2, 3, 4};
     const auto data = writeVgf([&](Encoder &encoder) {
         const auto module = encoder.AddModule(ModuleType::GRAPH, "graph", "main", code);
@@ -160,7 +160,7 @@ TEST(VGF, DecodesConstantsSamplersAndFileBackedData) {
 }
 
 TEST(VGF, DecodesResourceAliasGroups) {
-    const auto &code = assembleMaxpoolSpirv("maxpool_set0", {0, 0, 0, 1});
+    const auto &code = assembleMaxpool16x16To8x8Spirv("maxpool_set0", {0, 0, 0, 1});
     const auto data = writeVgf([&](mlsdk::vgflib::Encoder &encoder) {
         constexpr uint32_t aliasGroup = 17;
         const auto module = encoder.AddModule(mlsdk::vgflib::ModuleType::COMPUTE, "shader", "main", code);

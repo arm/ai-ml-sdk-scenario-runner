@@ -84,6 +84,7 @@ if(SCENARIO_RUNNER_BUILD_TESTS)
     add_executable(vgf_runtime_tests
         tests/utils.hpp
         tests/vgf/session_tests.cpp
+        tests/vgf/utils.hpp
         tests/vgf/workload_tests.cpp
     )
     target_link_libraries(vgf_runtime_tests PRIVATE
