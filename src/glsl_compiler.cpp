@@ -135,11 +135,7 @@ bool GlslCompiler::load(const std::string &fname, std::string &glsl) {
     }
 
     glsl = std::string((std::istreambuf_iterator<char>(ifile)), (std::istreambuf_iterator<char>()));
-    if (ifile.bad()) {
-        return false;
-    }
-
-    return true;
+    return !ifile.bad();
 }
 
 bool GlslCompiler::save(const std::vector<uint32_t> &mod, const std::string &fname) {
