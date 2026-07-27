@@ -32,6 +32,8 @@ TEST(GroupManager, GroupHandling) {
     ASSERT_TRUE(gm.hasAliasOfType(tensor0, ResourceIdType::Image));
     ASSERT_TRUE(gm.hasAliasOfType(image0, ResourceIdType::Tensor));
 
+    ASSERT_THROW(static_cast<void>(gm.getMemoryManager(tensor0)), std::runtime_error);
+    gm.finalize();
     auto mmTensor = gm.getMemoryManager(tensor0);
     auto mmImage = gm.getMemoryManager(image0);
     ASSERT_EQ(mmTensor, mmImage);
@@ -68,4 +70,15 @@ TEST(GroupManager, GroupQueries) {
 
     const auto resources = gm.getResourcesInGroup(group0);
     ASSERT_EQ(resources.size(), 2U);
+}
+
+TEST(GroupManager, FinalizationPreventsFurtherRegistration) {
+    const Guid group("group");
+    GroupManager gm;
+    gm.addResourceToGroup(group, Guid("buffer0"), ResourceIdType::Buffer);
+
+    gm.finalize();
+
+    ASSERT_THROW(gm.addResourceToGroup(group, Guid("buffer1"), ResourceIdType::Buffer), std::runtime_error);
+    ASSERT_THROW(gm.finalize(), std::runtime_error);
 }

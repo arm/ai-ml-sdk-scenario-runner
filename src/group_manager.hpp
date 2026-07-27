@@ -17,6 +17,9 @@ class GroupManager : public IGroupManager {
     /// Create or add resource to group
     void addResourceToGroup(const Guid &group, const Guid &resource, ResourceIdType resourceIdType) override;
 
+    /// Complete group registration and create the shared memory managers.
+    void finalize() override;
+
     /// Return size of group that resource belongs to
     size_t getAliasCount(const Guid &resource) const override;
 
@@ -33,6 +36,7 @@ class GroupManager : public IGroupManager {
     std::vector<GroupResourceEntry> getResourcesInGroup(const Guid &group) const;
 
   private:
+    bool _finalized{false};
     std::unordered_map<Guid, Guid> _resourceToGroup;
     GroupResources _groupResources;
     std::unordered_map<Guid, std::shared_ptr<ResourceMemoryManager>> _groupMemoryManagers;

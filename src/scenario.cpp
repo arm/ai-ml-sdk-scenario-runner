@@ -867,6 +867,7 @@ void Scenario::setupResources() {
         }
         vgfView.createIntermediateResources(vgfResourceCreator);
     }
+    _groupManager.finalize();
 
     // Setup aliasing resources, foundation before accessing tensors
     for (const auto &resource : _scenarioSpec.resources) {
