@@ -11,6 +11,9 @@
 namespace mlsdk::scenariorunner {
 
 void GroupManager::addResourceToGroup(const Guid &group, const Guid &resource, ResourceIdType resourceIdType) {
+    if (_finalized) {
+        throw std::runtime_error("Cannot add resource to memory group after finalization");
+    }
     const auto [resourceIt, inserted] = _resourceToGroup.emplace(resource, group);
     if (!inserted && resourceIt->second != group) {
         throw std::runtime_error("Resource already belongs to a different group");
@@ -18,6 +21,20 @@ void GroupManager::addResourceToGroup(const Guid &group, const Guid &resource, R
     logging::debug("addResourceToGroup count of resources: " + std::to_string(_resourceToGroup.size()) +
                    " added type: " + std::to_string(static_cast<int>(resourceIdType)));
     _groupResources[group].insert({resource, resourceIdType});
+}
+
+void GroupManager::finalize() {
+    if (_finalized) {
+        throw std::runtime_error("Memory groups are already finalized");
+    }
+    for (const auto &[group, resources] : _groupResources) {
+        auto manager = std::make_shared<ResourceMemoryManager>();
+        if (resources.size() > 1) {
+            manager->markShared();
+        }
+        _groupMemoryManagers.emplace(group, std::move(manager));
+    }
+    _finalized = true;
 }
 
 size_t GroupManager::getAliasCount(const Guid &resource) const {
@@ -43,14 +60,11 @@ bool GroupManager::hasAliasOfType(const Guid &resource, ResourceIdType resourceI
 }
 
 std::shared_ptr<ResourceMemoryManager> GroupManager::getMemoryManager(const Guid &resource) {
+    if (!_finalized) {
+        throw std::runtime_error("Memory groups must be finalized before accessing memory managers");
+    }
     if (const auto group = getGroupForResource(resource); group.has_value()) {
-        // Create one memory manager per group on first access.
-        const auto [manager, inserted] =
-            _groupMemoryManagers.emplace(*group, std::make_shared<ResourceMemoryManager>());
-        if (inserted && isAliased(resource)) {
-            manager->second->markShared();
-        }
-        return manager->second;
+        return _groupMemoryManagers.at(*group);
     }
     // Not a group, create new one
     return std::make_shared<ResourceMemoryManager>();

@@ -41,6 +41,7 @@ class IGroupManager {
     virtual ~IGroupManager() = default;
 
     virtual void addResourceToGroup(const Guid &group, const Guid &resource, ResourceIdType resourceIdType) = 0;
+    virtual void finalize() = 0;
     virtual size_t getAliasCount(const Guid &resource) const = 0;
     virtual bool isAliased(const Guid &resource) const = 0;
     virtual bool hasAliasOfType(const Guid &resource, ResourceIdType resourceIdType) const = 0;
