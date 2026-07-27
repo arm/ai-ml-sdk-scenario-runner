@@ -2,7 +2,7 @@
  * SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "../utils.hpp"
+#include "utils.hpp"
 #include <vgf_runtime/runtime.hpp>
 
 #include <gtest/gtest.h>
@@ -21,99 +21,13 @@
 namespace {
 
 using namespace mlsdk::vgf_runtime;
-using namespace mlsdk::vgf_runtime::test;
+using namespace vgf_runtime::test;
 
-class VgfRuntimeFullTest : public ::testing::Test {
-  protected:
-    void SetUp() override {
-        const vk::ApplicationInfo applicationInfo("vgf-runtime-full-test", 1, nullptr, 0, VK_API_VERSION_1_3);
-        instance = vk::raii::Instance(context, vk::InstanceCreateInfo({}, &applicationInfo));
-
-        for (auto &candidate : vk::raii::PhysicalDevices(instance)) {
-            const auto extensions = candidate.enumerateDeviceExtensionProperties();
-            if (!hasExtension(extensions, VK_ARM_DATA_GRAPH_EXTENSION_NAME) ||
-                !hasExtension(extensions, VK_ARM_TENSORS_EXTENSION_NAME)) {
-                continue;
-            }
-            const auto candidateQueueFamilyIndex = findDataGraphQueueFamily(candidate);
-            if (candidateQueueFamilyIndex != UINT32_MAX) {
-                physicalDevice = candidate;
-                queueFamilyIndex = candidateQueueFamilyIndex;
-                break;
-            }
-        }
-        if (queueFamilyIndex == UINT32_MAX) {
-            GTEST_SKIP() << "No Vulkan device with VK_ARM_data_graph, VK_ARM_tensors, and compute queue support";
-        }
-
-        const float queuePriority = 1.0F;
-        const vk::DeviceQueueCreateInfo queueCreateInfo({}, queueFamilyIndex, 1, &queuePriority);
-
-        vk::PhysicalDeviceFeatures deviceFeatures;
-        deviceFeatures.shaderInt16 = true;
-        deviceFeatures.shaderInt64 = true;
-
-        vulkan12Features.storageBuffer8BitAccess = true;
-        vulkan12Features.shaderInt8 = true;
-        vulkan12Features.vulkanMemoryModel = true;
-
-        vulkan13Features.synchronization2 = true;
-        vulkan13Features.maintenance4 = true;
-        vulkan13Features.pipelineCreationCacheControl = true;
-        vulkan13Features.pNext = &vulkan12Features;
-
-        tensorFeatures.tensors = true;
-        tensorFeatures.shaderTensorAccess = true;
-        tensorFeatures.tensorNonPacked = true;
-        tensorFeatures.pNext = &vulkan13Features;
-
-        dataGraphFeatures.dataGraph = true;
-        dataGraphFeatures.dataGraphShaderModule = true;
-        dataGraphFeatures.pNext = &tensorFeatures;
-
-        void *featureChain = &dataGraphFeatures;
-        const auto extensions = physicalDevice.enumerateDeviceExtensionProperties();
-        std::vector<const char *> deviceExtensions = {VK_ARM_DATA_GRAPH_EXTENSION_NAME, VK_ARM_TENSORS_EXTENSION_NAME};
-        if (hasExtension(extensions, VK_EXT_SHADER_REPLICATED_COMPOSITES_EXTENSION_NAME)) {
-            replicatedCompositesFeatures.shaderReplicatedComposites = true;
-            replicatedCompositesFeatures.pNext = featureChain;
-            featureChain = &replicatedCompositesFeatures;
-            deviceExtensions.push_back(VK_EXT_SHADER_REPLICATED_COMPOSITES_EXTENSION_NAME);
-        }
-        device = vk::raii::Device(
-            physicalDevice,
-            {vk::DeviceCreateFlags(), queueCreateInfo, {}, deviceExtensions, &deviceFeatures, featureChain});
-        queue = device.getQueue(queueFamilyIndex, 0);
-    }
-
-    vk::raii::Context context;
-    vk::raii::Instance instance{nullptr};
-    vk::raii::PhysicalDevice physicalDevice{nullptr};
-    vk::raii::Device device{nullptr};
-    vk::raii::Queue queue{nullptr};
-    uint32_t queueFamilyIndex = UINT32_MAX;
-
-    vk::PhysicalDeviceVulkan12Features vulkan12Features;
-    vk::PhysicalDeviceVulkan13Features vulkan13Features;
-    vk::PhysicalDeviceTensorFeaturesARM tensorFeatures;
-    vk::PhysicalDeviceDataGraphFeaturesARM dataGraphFeatures;
-    vk::PhysicalDeviceShaderReplicatedCompositesFeaturesEXT replicatedCompositesFeatures;
-};
-
-std::vector<uint32_t> assembleSecondMaxpoolSpirv() {
-    std::ifstream templateFile(VGF_RUNTIME_MAXPOOL_8X8_TO_4X4_SPVASM);
-    std::string spvasm((std::istreambuf_iterator<char>(templateFile)), {});
-    replaceAll(spvasm, "INPUT_SET", "0");
-    replaceAll(spvasm, "INPUT_BINDING", "0");
-    replaceAll(spvasm, "OUTPUT_SET", "0");
-    replaceAll(spvasm, "OUTPUT_BINDING", "1");
-
-    return assembleSpirv(spvasm);
-}
+class VgfRuntimeFullTest : public RuntimeSessionExecutionTest {};
 
 std::string makeTwoSegmentMaxpoolVgf() {
-    const auto &firstCode = assembleMaxpoolSpirv("maxpool_16x16_to_8x8", {0, 0, 0, 1});
-    const auto &secondCode = assembleSecondMaxpoolSpirv();
+    const auto &firstCode = assembleMaxpool16x16To8x8Spirv("maxpool_16x16_to_8x8", {0, 0, 0, 1});
+    const auto &secondCode = assembleMaxpool8x8To4x4Spirv("maxpool_8x8_to_4x4", {0, 0, 0, 1});
     return writeVgf([&](mlsdk::vgflib::Encoder &encoder) {
         const auto firstModule =
             encoder.AddModule(mlsdk::vgflib::ModuleType::GRAPH, "maxpool_16x16_to_8x8", "main", firstCode);
@@ -140,14 +54,8 @@ std::string makeTwoSegmentMaxpoolVgf() {
     });
 }
 
-std::vector<uint32_t> assembleAddInt32BuffersSpirv() {
-    std::ifstream templateFile(VGF_RUNTIME_ADD_INT32_BUFFERS_SPVASM);
-    std::string spvasm((std::istreambuf_iterator<char>(templateFile)), {});
-    return assembleSpirv(spvasm);
-}
-
 std::string makeOutputBufferAliasedToIntermediateTensorVgf() {
-    const auto &maxpoolCode = assembleSecondMaxpoolSpirv();
+    const auto &maxpoolCode = assembleMaxpool8x8To4x4Spirv("maxpool_8x8_to_4x4", {0, 0, 0, 1});
     const auto &addCode = assembleAddInt32BuffersSpirv();
     return writeVgf([&](mlsdk::vgflib::Encoder &encoder) {
         constexpr uint32_t aliasGroup = 17;
@@ -348,24 +256,6 @@ std::string makeIndependentAliasGroupsVgf() {
     });
 }
 
-std::vector<int32_t> addVectors(const std::vector<int32_t> &lhs, const std::vector<int32_t> &rhs) {
-    std::vector<int32_t> result(lhs.size());
-    std::transform(lhs.begin(), lhs.end(), rhs.begin(), result.begin(), std::plus<>());
-    return result;
-}
-
-std::vector<int32_t> int32WordsFromBytes(const std::vector<int8_t> &bytes, size_t words) {
-    std::vector<int32_t> result(words);
-    for (size_t word = 0; word < words; ++word) {
-        uint32_t value = 0;
-        for (size_t byte = 0; byte < sizeof(int32_t); ++byte) {
-            value |= static_cast<uint32_t>(static_cast<uint8_t>(bytes[word * sizeof(int32_t) + byte])) << (byte * 8);
-        }
-        result[word] = static_cast<int32_t>(value);
-    }
-    return result;
-}
-
 struct Image {
     Image(const vk::raii::PhysicalDevice &physicalDevice, const vk::raii::Device &device)
         : image(device, vk::ImageCreateInfo({}, vk::ImageType::e2D, vk::Format::eR8G8B8A8Snorm, {2, 2, 1}, 1, 1,
@@ -373,8 +263,8 @@ struct Image {
                                             vk::ImageUsageFlagBits::eSampled, vk::SharingMode::eExclusive)) {
         const auto memoryRequirements = image.getMemoryRequirements();
         memorySize = memoryRequirements.size;
-        const auto memoryType =
-            findMemoryType(physicalDevice, memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
+        const auto memoryType = vgf_runtime::detail::vulkan_helpers::findMemoryType(
+            physicalDevice, memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
         memory = vk::raii::DeviceMemory(device, {memorySize, memoryType});
         image.bindMemory(*memory, 0);
     }
