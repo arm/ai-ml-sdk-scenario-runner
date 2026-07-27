@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "utils.hpp"
-#include <vgf_runtime/runtime.hpp>
+#include <vgf_runtime/workload_frontends/vgf.hpp>
 
 #include <gtest/gtest.h>
 #include <vulkan/vulkan_core.h>

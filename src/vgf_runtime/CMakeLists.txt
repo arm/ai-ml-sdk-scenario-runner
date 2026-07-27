@@ -74,7 +74,13 @@ install(TARGETS vgf_runtime
 
 install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/vgf_runtime/runtime.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/vgf_runtime/session.hpp
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/vgf_runtime
+)
+
+install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/vgf_runtime/workload_frontends/vgf.hpp
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/vgf_runtime/workload_frontends
 )
 
 if(SCENARIO_RUNNER_BUILD_TESTS)

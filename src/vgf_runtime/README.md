@@ -4,13 +4,15 @@
 
 ## Public API
 
-The installed public header is:
+The installed public headers are included directly as needed:
 
 ```cpp
-#include <vgf_runtime/runtime.hpp>
+#include <vgf_runtime/workload_frontends/vgf.hpp>
+#include <vgf_runtime/session.hpp>
 ```
 
-That header exposes both `mlsdk::vgf_runtime::VGF` and `mlsdk::vgf_runtime::Session`.
+Those headers expose `mlsdk::vgf_runtime::VGF` and `mlsdk::vgf_runtime::Session`.
+The compatibility header `vgf_runtime/runtime.hpp` includes both split headers.
 
 ## Build-tree usage
 
