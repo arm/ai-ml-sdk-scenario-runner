@@ -5,7 +5,7 @@
 
 add_library(vgf_runtime STATIC
     src/session.cpp
-    src/vgf.cpp
+    src/workload_frontends/vgf.cpp
 )
 
 get_target_property(VGF_RUNTIME_VULKAN_INCLUDE_DIRS Vulkan::Headers INTERFACE_INCLUDE_DIRECTORIES)
@@ -82,9 +82,9 @@ if(SCENARIO_RUNNER_BUILD_TESTS)
     include(CTest)
 
     add_executable(vgf_runtime_tests
-        tests/vgf_runtime_test_utils.hpp
-        tests/vgf_runtime_full_tests.cpp
-        tests/vgf_runtime_vgf_tests.cpp
+        tests/utils.hpp
+        tests/vgf/session_tests.cpp
+        tests/vgf/workload_tests.cpp
     )
     target_link_libraries(vgf_runtime_tests PRIVATE
         GTest::gtest_main

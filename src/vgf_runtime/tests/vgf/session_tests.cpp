@@ -2,7 +2,7 @@
  * SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "vgf_runtime_test_utils.hpp"
+#include "../utils.hpp"
 #include <vgf_runtime/runtime.hpp>
 
 #include <gtest/gtest.h>
