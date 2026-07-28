@@ -306,11 +306,7 @@ bool HlslCompiler::load(const std::string &fname, std::string &hlsl) {
     }
 
     hlsl = std::string((std::istreambuf_iterator<char>(ifile)), (std::istreambuf_iterator<char>()));
-    if (ifile.bad()) {
-        return false;
-    }
-
-    return true;
+    return !ifile.bad();
 }
 
 bool HlslCompiler::save(const std::vector<uint32_t> &mod, const std::string &fname) {

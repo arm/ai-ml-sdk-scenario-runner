@@ -212,7 +212,7 @@ struct ResourceInfoFactory {
         // Validate that the NumPy payload size matches the declared format and shape.
         const uint64_t expectedDataSize =
             static_cast<uint64_t>(elementSizeFromVkFormat(info.format)) * totalElementsFromShape(info.dims);
-        const auto actualDataSize = static_cast<uint64_t>(constantData.size());
+        const auto actualDataSize = constantData.size();
         if (actualDataSize != expectedDataSize) {
             throw std::runtime_error(
                 "Graph constant size does not match format and dims for: " + graphConstant.guidStr + "; expected " +
@@ -1196,8 +1196,9 @@ std::pair<const char *, size_t> getPushConstantData(const std::optional<RawDataI
 void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries) {
     // Create Compute shader pipeline
     const auto &shaderInfo = getShader(dispatchCompute.shader);
-    if (!(shaderInfo.stage == ShaderStage::Compute || shaderInfo.stage == ShaderStage::Unknown)) {
-        throw std::runtime_error("DispatchCompute requires a compute shader stage");
+    if (shaderInfo.stage != ShaderStage::Compute && shaderInfo.stage != ShaderStage::Unknown) {
+        throw std::runtime_error("DispatchCompute requires a compute shader stage, given: " +
+                                 std::to_string(static_cast<int>(shaderInfo.stage)));
     }
     const Compute::PipelineCreateArguments args{dispatchCompute.debugName, dispatchCompute.bindings, _pipelineCache};
 
