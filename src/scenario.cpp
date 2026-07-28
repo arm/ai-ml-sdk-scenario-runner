@@ -438,7 +438,7 @@ class Creator final : public IResourceCreator {
         const Guid guid(info.debugName);
         const auto id = _resources.addBuffer(std::move(info));
         _dataManager.createBuffer(guid, _resources.get(id));
-        _createdResources.push_back({guid, ResourceIdType::Buffer});
+        _createdResources.push_back({guid, id});
         return id;
     }
 
@@ -446,7 +446,7 @@ class Creator final : public IResourceCreator {
         const Guid guid(info.debugName);
         const auto id = _resources.addTensor(std::move(info));
         _dataManager.createTensor(guid, _resources.get(id));
-        _createdResources.push_back({guid, ResourceIdType::Tensor});
+        _createdResources.push_back({guid, id});
         return id;
     }
 
@@ -454,57 +454,51 @@ class Creator final : public IResourceCreator {
         const Guid guid(info.debugName);
         const auto id = _resources.addImage(std::move(info));
         _dataManager.createImage(guid, _resources.get(id));
-        _createdResources.push_back({guid, ResourceIdType::Image});
+        _createdResources.push_back({guid, id});
         return id;
     }
 
     void setupCreatedNonTensorResources() {
-        for (const auto &[guid, type] : _createdResources) {
-            switch (type) {
-            case ResourceIdType::Buffer:
-                _dataManager.getBufferMut(guid).setup(_ctx, _groupManager.getMemoryManager(guid));
-                break;
-            case ResourceIdType::Image:
-                _dataManager.getImageMut(guid).setup(_ctx, _groupManager.getMemoryManager(guid));
-                break;
-            default:
-                break;
+        for (const auto &[guid, id] : _createdResources) {
+            if (std::holds_alternative<BufferId>(id)) {
+                _dataManager.getBufferMut(guid).setup(_ctx, _groupManager.getMemoryManager(id));
+            } else if (std::holds_alternative<ImageId>(id)) {
+                _dataManager.getImageMut(guid).setup(_ctx, _groupManager.getMemoryManager(id));
             }
         }
     }
 
     void setupCreatedTensorResources() {
-        for (const auto &[guid, type] : _createdResources) {
-            if (type == ResourceIdType::Tensor) {
-                _dataManager.getTensorMut(guid).setup(_ctx, _groupManager.getMemoryManager(guid));
+        for (const auto &[guid, id] : _createdResources) {
+            if (std::holds_alternative<TensorId>(id)) {
+                _dataManager.getTensorMut(guid).setup(_ctx, _groupManager.getMemoryManager(id));
             }
         }
     }
 
     void allocateCreatedResources() {
-        for (const auto &[guid, type] : _createdResources) {
-            switch (type) {
-            case ResourceIdType::Buffer:
+        for (const auto &[guid, id] : _createdResources) {
+            if (std::holds_alternative<BufferId>(id)) {
                 _dataManager.getBufferMut(guid).allocateMemory(_ctx);
-                break;
-            case ResourceIdType::Image:
+            } else if (std::holds_alternative<ImageId>(id)) {
                 _dataManager.getImageMut(guid).allocateMemory(_ctx);
-                break;
-            case ResourceIdType::Tensor:
+            } else if (std::holds_alternative<TensorId>(id)) {
                 _dataManager.getTensorMut(guid).allocateMemory(_ctx);
-                break;
-            default:
-                break;
             }
         }
     }
 
   private:
+    struct CreatedResource {
+        Guid guid;
+        MemoryResourceId id;
+    };
+
     const Context &_ctx;
     ResourceManager &_resources;
     DataManager &_dataManager;
     GroupManager &_groupManager;
-    std::vector<GroupResourceEntry> _createdResources;
+    std::vector<CreatedResource> _createdResources;
 };
 
 const TypedResourceId &resolveTypedResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds,
@@ -527,15 +521,24 @@ Id resolveResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceId
     return *id;
 }
 
-GroupResourceEntry getGroupResourceEntry(const ResourceManager &resources, const MemoryResourceId &resourceId) {
-    if (const auto *id = std::get_if<BufferId>(&resourceId)) {
-        return {Guid(resources.get(*id).debugName), ResourceIdType::Buffer};
+template <typename Key>
+MemoryGroupId getOrCreateMemoryGroup(GroupManager &groupManager, std::unordered_map<Key, MemoryGroupId> &memoryGroupIds,
+                                     const Key &key) {
+    const auto existingGroup = memoryGroupIds.find(key);
+    if (existingGroup != memoryGroupIds.end()) {
+        return existingGroup->second;
     }
-    if (const auto *id = std::get_if<ImageId>(&resourceId)) {
-        return {Guid(resources.get(*id).debugName), ResourceIdType::Image};
+    const auto group = groupManager.createMemoryGroup();
+    memoryGroupIds.emplace(key, group);
+    return group;
+}
+
+void registerMemoryGroup(GroupManager &groupManager, std::unordered_map<Guid, MemoryGroupId> &memoryGroupIds,
+                         MemoryResourceId resource, const std::optional<MemoryGroup> &memoryGroup) {
+    if (memoryGroup.has_value()) {
+        const auto group = getOrCreateMemoryGroup(groupManager, memoryGroupIds, memoryGroup->memoryUid);
+        groupManager.addResourceToGroup(group, resource);
     }
-    const auto id = std::get<TensorId>(resourceId);
-    return {Guid(resources.get(id).debugName), ResourceIdType::Tensor};
 }
 
 struct CommandDataFactory {
@@ -828,36 +831,11 @@ void Scenario::run(int repeatCount, bool dryRun) {
 
 void Scenario::setupResources() {
     mlsdk::logging::info("Setup resources, count: " + std::to_string(_scenarioSpec.resources.size()));
-    // Handle memory groups
-    for (const auto &resource : _scenarioSpec.resources) {
-        switch (resource->resourceType) {
-        case ResourceType::Buffer: {
-            const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
-            if (buffer->memoryGroup.has_value()) {
-                _groupManager.addResourceToGroup(buffer->memoryGroup->memoryUid, buffer->guid, ResourceIdType::Buffer);
-            }
-        } break;
-        case ResourceType::Image: {
-            const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
-            if (image->memoryGroup.has_value()) {
-                _groupManager.addResourceToGroup(image->memoryGroup->memoryUid, image->guid, ResourceIdType::Image);
-            }
-        } break;
-        case ResourceType::Tensor: {
-            const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
-            if (tensor->memoryGroup.has_value()) {
-                _groupManager.addResourceToGroup(tensor->memoryGroup->memoryUid, tensor->guid, ResourceIdType::Tensor);
-            }
-        } break;
-        default:
-            // Skip the other types of resources
-            continue;
-        }
-    }
-
     // Setup resource info
     // (Memory for Tensors and Images is allocated in next pass)
     ResourceInfoFactory resourceInfoFactory;
+    std::unordered_map<Guid, MemoryGroupId> jsonMemoryGroupIds;
+
     for (const auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
         case ResourceType::Buffer: {
@@ -865,6 +843,7 @@ void Scenario::setupResources() {
             const auto id = _resources.addBuffer(resourceInfoFactory.createInfo(*buffer));
             _resourceIds.emplace(resource->guid, id);
             _dataManager.createBuffer(resource->guid, _resources.get(id));
+            registerMemoryGroup(_groupManager, jsonMemoryGroupIds, id, buffer->memoryGroup);
         } break;
         case ResourceType::RawData: {
             const auto &rawData = reinterpret_cast<const std::unique_ptr<RawDataDesc> &>(resource);
@@ -877,6 +856,7 @@ void Scenario::setupResources() {
             const auto id = _resources.addImage(resourceInfoFactory.createInfo(*image));
             _resourceIds.emplace(resource->guid, id);
             _dataManager.createImage(resource->guid, _resources.get(id));
+            registerMemoryGroup(_groupManager, jsonMemoryGroupIds, id, image->memoryGroup);
         } break;
         case ResourceType::DataGraph: {
             const auto &dataGraph = reinterpret_cast<const std::unique_ptr<DataGraphDesc> &>(resource);
@@ -890,6 +870,7 @@ void Scenario::setupResources() {
             const auto id = _resources.addTensor(resourceInfoFactory.createInfo(*tensor, _opts.captureFrame));
             _resourceIds.emplace(resource->guid, id);
             _dataManager.createTensor(resource->guid, _resources.get(id));
+            registerMemoryGroup(_groupManager, jsonMemoryGroupIds, id, tensor->memoryGroup);
         } break;
         case ResourceType::Shader: {
             const auto &shader = reinterpret_cast<const std::unique_ptr<ShaderDesc> &>(resource);
@@ -909,6 +890,8 @@ void Scenario::setupResources() {
     }
 
     Creator vgfResourceCreator{_ctx, _resources, _dataManager, _groupManager};
+    std::unordered_map<DataGraphId, std::unordered_map<uint32_t, MemoryGroupId>> vgfMemoryGroupIds;
+
     for (const auto &command : _scenarioSpec.commands) {
         if (command->commandType != CommandType::DispatchDataGraph) {
             continue;
@@ -921,9 +904,10 @@ void Scenario::setupResources() {
         const auto externalBindings = convertBindings(_dataManager, dispatchDataGraph.bindings);
         const auto creationResult = vgfView.createIntermediateResources(vgfResourceCreator);
         for (const auto &[aliasGroupId, resourceIds] : creationResult.memoryGroups) {
+            auto &aliasGroupIds = vgfMemoryGroupIds[dataGraph];
+            const auto group = getOrCreateMemoryGroup(_groupManager, aliasGroupIds, aliasGroupId);
             for (const auto &resourceId : resourceIds) {
-                const auto [resourceGuid, resourceType] = getGroupResourceEntry(_resources, resourceId);
-                _groupManager.addResourceToGroup(Guid(std::to_string(aliasGroupId)), resourceGuid, resourceType);
+                _groupManager.addResourceToGroup(group, resourceId);
             }
         }
 
@@ -934,8 +918,9 @@ void Scenario::setupResources() {
                 continue;
             }
             const auto resourceId = getMemoryResourceId(binding.resourceRef);
-            const auto [resourceGuid, resourceType] = getGroupResourceEntry(_resources, resourceId);
-            _groupManager.addResourceToGroup(Guid(std::to_string(*aliasGroupId)), resourceGuid, resourceType);
+            auto &aliasGroupIds = vgfMemoryGroupIds[dataGraph];
+            const auto group = getOrCreateMemoryGroup(_groupManager, aliasGroupIds, *aliasGroupId);
+            _groupManager.addResourceToGroup(group, resourceId);
         }
     }
     _groupManager.finalize();
@@ -945,11 +930,13 @@ void Scenario::setupResources() {
         switch (resource->resourceType) {
         case ResourceType::Buffer: {
             auto &bufferRef = _dataManager.getBufferMut(resource->guid);
-            bufferRef.setup(_ctx, _groupManager.getMemoryManager(resource->guid));
+            const auto id = resolveResourceId<BufferId>(_resourceIds, resource->guid, "Buffer");
+            bufferRef.setup(_ctx, _groupManager.getMemoryManager(id));
         } break;
         case ResourceType::Image: {
             auto &imageRef = _dataManager.getImageMut(resource->guid);
-            imageRef.setup(_ctx, _groupManager.getMemoryManager(resource->guid));
+            const auto id = resolveResourceId<ImageId>(_resourceIds, resource->guid, "Image");
+            imageRef.setup(_ctx, _groupManager.getMemoryManager(id));
         } break;
         default:
             break; // No action
@@ -961,7 +948,8 @@ void Scenario::setupResources() {
     for (const auto &resource : _scenarioSpec.resources) {
         if (resource->resourceType == ResourceType::Tensor) {
             auto &tensorRef = _dataManager.getTensorMut(resource->guid);
-            tensorRef.setup(_ctx, _groupManager.getMemoryManager(resource->guid));
+            const auto id = resolveResourceId<TensorId>(_resourceIds, resource->guid, "Tensor");
+            tensorRef.setup(_ctx, _groupManager.getMemoryManager(id));
         }
     }
     vgfResourceCreator.setupCreatedTensorResources();
@@ -1005,7 +993,8 @@ void Scenario::setupResources() {
             auto &tensorRec = _dataManager.getTensorMut(tensor->guid);
             tensorRec.allocateMemory(_ctx);
             PerfCounterGuard guard(_perfCounters, "Load Tensor: " + tensor->guidStr, "Scenario Setup");
-            if (tensor->src || !_groupManager.isAliased(tensor->guid)) {
+            const auto id = resolveResourceId<TensorId>(_resourceIds, tensor->guid, "Tensor");
+            if (tensor->src || !_groupManager.isAliased(id)) {
                 tensorRec.fillFromDescription(_ctx, *tensor);
             }
         } break;
@@ -1014,7 +1003,8 @@ void Scenario::setupResources() {
             auto &imageRec = _dataManager.getImageMut(image->guid);
             imageRec.allocateMemory(_ctx);
             PerfCounterGuard guard(_perfCounters, "Load Image: " + image->guidStr, "Scenario Setup");
-            if (image->src || !_groupManager.isAliased(image->guid)) {
+            const auto id = resolveResourceId<ImageId>(_resourceIds, image->guid, "Image");
+            if (image->src || !_groupManager.isAliased(id)) {
                 imageRec.fillFromDescription(_ctx, *image);
             } else {
                 imageRec.transitionLayout(_ctx, vk::ImageLayout::eGeneral);
@@ -1025,7 +1015,8 @@ void Scenario::setupResources() {
             auto &bufferRec = _dataManager.getBufferMut(buffer->guid);
             bufferRec.allocateMemory(_ctx);
             PerfCounterGuard guard(_perfCounters, "Load Buffer: " + buffer->guidStr, "Scenario Setup");
-            if (buffer->src || !_groupManager.isAliased(buffer->guid)) {
+            const auto id = resolveResourceId<BufferId>(_resourceIds, buffer->guid, "Buffer");
+            if (buffer->src || !_groupManager.isAliased(id)) {
                 bufferRec.fillFromDescription(_ctx, *buffer);
             }
         } break;
@@ -1110,9 +1101,9 @@ void Scenario::setupCommands() {
 bool Scenario::hasAliasedOptimalTensors() const {
     // If any tensors in any memgroup have optimal tiling
     for ([[maybe_unused]] const auto &[_, resources] : _groupManager.getGroups()) {
-        for ([[maybe_unused]] const auto &[resource, type] : resources) {
-            if (_dataManager.hasTensor(resource) &&
-                _dataManager.getTensor(resource).tiling() == vk::TensorTilingARM::eOptimal) {
+        for (const auto &resource : resources) {
+            const auto *tensor = std::get_if<TensorId>(&resource);
+            if (tensor != nullptr && _resources.get(*tensor).tiling == Tiling::Optimal) {
                 return true;
             }
         }
@@ -1126,15 +1117,17 @@ void Scenario::handleAliasedLayoutTransitions() {
     for ([[maybe_unused]] const auto &[_, resources] : _groupManager.getGroups()) {
         bool allLinear = true;
         bool allOptimal = true;
-        for ([[maybe_unused]] const auto &[resource, type] : resources) {
-            if (_dataManager.hasTensor(resource)) {
-                if (_dataManager.getTensor(resource).tiling() == vk::TensorTilingARM::eLinear) {
+        for (const auto &resource : resources) {
+            if (const auto *tensor = std::get_if<TensorId>(&resource)) {
+                if (_resources.get(*tensor).tiling == Tiling::Linear) {
                     allOptimal = false;
                 } else {
                     allLinear = false;
                 }
-            } else if (_dataManager.hasImage(resource)) {
-                if (_dataManager.getImage(resource).tiling() == vk::ImageTiling::eLinear) {
+            } else if (const auto *image = std::get_if<ImageId>(&resource)) {
+                const auto tiling =
+                    _resources.get(*image).tiling.value_or(resources.size() > 1 ? Tiling::Linear : Tiling::Optimal);
+                if (tiling == Tiling::Linear) {
                     allOptimal = false;
                 } else {
                     allLinear = false;
@@ -1173,7 +1166,8 @@ void Scenario::handleAliasedLayoutTransitions() {
         //  Tensor → requires image to be in eTensorAliasingARM
         if (resource->resourceType == ResourceType::Tensor) {
             const auto &tensorDesc = static_cast<const TensorDesc &>(*resource);
-            if (_groupManager.getAliasCount(tensorDesc.guid) != 2) {
+            const auto tensorId = resolveResourceId<TensorId>(_resourceIds, tensorDesc.guid, "Tensor");
+            if (_groupManager.getAliasCount(tensorId) != 2) {
                 continue;
             }
             if (!tensorDesc.tiling.has_value()) {
@@ -1189,7 +1183,8 @@ void Scenario::handleAliasedLayoutTransitions() {
                 }
                 const auto &imageDesc = static_cast<const ImageDesc &>(*imageResource);
 
-                if (_groupManager.getAliasCount(imageDesc.guid) != 2) {
+                const auto imageId = resolveResourceId<ImageId>(_resourceIds, imageDesc.guid, "Image");
+                if (_groupManager.getAliasCount(imageId) != 2) {
                     continue;
                 }
                 if (!imageDesc.tiling.has_value()) {
@@ -1215,7 +1210,8 @@ void Scenario::handleAliasedLayoutTransitions() {
                 }
                 const auto &tensorDesc = static_cast<const TensorDesc &>(*tensorResource);
 
-                if (_groupManager.getAliasCount(tensorDesc.guid) != 2) {
+                const auto tensorId = resolveResourceId<TensorId>(_resourceIds, tensorDesc.guid, "Tensor");
+                if (_groupManager.getAliasCount(tensorId) != 2) {
                     continue;
                 }
                 if (!tensorDesc.tiling.has_value()) {

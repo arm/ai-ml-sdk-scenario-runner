@@ -33,6 +33,7 @@ struct ShaderIdTag;
 struct RawDataIdTag;
 struct DataGraphIdTag;
 struct GraphConstantResourceIdTag;
+struct MemoryGroupIdTag;
 
 using BufferId = ResourceId<BufferIdTag>;
 using ImageId = ResourceId<ImageIdTag>;
@@ -41,6 +42,7 @@ using ShaderId = ResourceId<ShaderIdTag>;
 using RawDataId = ResourceId<RawDataIdTag>;
 using DataGraphId = ResourceId<DataGraphIdTag>;
 using GraphConstantResourceId = ResourceId<GraphConstantResourceIdTag>;
+using MemoryGroupId = ResourceId<MemoryGroupIdTag>;
 
 using MemoryResourceId = std::variant<BufferId, ImageId, TensorId>;
 
