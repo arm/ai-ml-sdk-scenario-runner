@@ -13,8 +13,7 @@
 #include <string>
 #include <vector>
 
-namespace vgf_runtime {
-namespace detail {
+namespace vgf_runtime::detail {
 namespace utils {
 
 [[noreturn]] inline void throwNotImplemented(const char *api) {
@@ -53,5 +52,4 @@ inline uint32_t findMemoryType(const vk::raii::PhysicalDevice &physicalDevice, u
 }
 
 } // namespace vulkan_helpers
-} // namespace detail
-} // namespace vgf_runtime
+} // namespace vgf_runtime::detail
