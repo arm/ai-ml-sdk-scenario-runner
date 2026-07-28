@@ -7,7 +7,6 @@
 
 #include "context.hpp"
 #include "resource_data.hpp"
-#include "resource_desc.hpp"
 #include "types.hpp"
 #include "vulkan_memory_manager.hpp"
 
@@ -40,8 +39,6 @@ class Buffer {
     /// \brief Get buffer debug name
     /// \return Debug name associated with the buffer
     const std::string &debugName() const;
-
-    void fillFromDescription(const Context &ctx, const BufferDesc &buffer) const;
 
     /// \brief Fills the buffer with the given data
     ///

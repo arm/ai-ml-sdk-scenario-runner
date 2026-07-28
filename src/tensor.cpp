@@ -147,27 +147,6 @@ void Tensor::allocateMemory(const Context &ctx) {
     trySetVkRaiiObjectDebugName(ctx, _tensorView, _debugName + " view (default)");
 }
 
-void Tensor::fillFromDescription(const Context &ctx, const TensorDesc &desc) const {
-    if (desc.src) {
-        MemoryMap mapped(desc.src.value());
-        auto dataPtr = vgfutils::numpy::parse(mapped);
-
-        for (size_t i = 0; i < desc.dims.size(); ++i) {
-            if (desc.dims[i] != dataPtr.shape[i]) {
-                throw std::runtime_error("Tensor descripton dimension at index " + std::to_string(i) +
-                                         " does not match data shape: " + std::to_string(desc.dims[i]) + " vs " +
-                                         std::to_string(dataPtr.shape[i]));
-            }
-        }
-        TensorDataView view{dataPtr.ptr, dataPtr.size(), {}, std::nullopt};
-        view.shape = std::move(dataPtr.shape);
-        upload(ctx, view);
-    } else {
-        fillZero();
-        _memoryManager->uploadData(ctx, _memoryManager->getSubresourceOffset() + _memoryOffset, _size);
-    }
-}
-
 void Tensor::fill(const void *data, size_t size) const {
     if (size < _size) {
         mlsdk::logging::warning("Tensor data size " + std::to_string(size) +

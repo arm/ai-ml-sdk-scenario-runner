@@ -53,17 +53,6 @@ uint32_t Buffer::size() const { return _size; }
 
 const std::string &Buffer::debugName() const { return _debugName; }
 
-void Buffer::fillFromDescription(const Context &ctx, const BufferDesc &buffer) const {
-    if (buffer.src.has_value()) {
-        MemoryMap mapped(buffer.src.value());
-        auto dataPtr = vgfutils::numpy::parse(mapped);
-        BufferDataView view{dataPtr.ptr, dataPtr.size()};
-        upload(ctx, view);
-    } else {
-        fillZero(ctx);
-    }
-}
-
 void Buffer::fill(const Context &ctx, const void *ptr, size_t size) const {
     if (size != this->size()) {
         throw std::runtime_error("Buffer::fill: size mismatch");

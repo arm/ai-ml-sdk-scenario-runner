@@ -107,6 +107,38 @@ struct DispatchOpticalFlowData {
 };
 
 namespace {
+BufferData loadBufferData(const BufferDesc &desc) {
+    BufferData bufferData;
+    if (!desc.src.has_value()) {
+        bufferData.data.resize(desc.size, 0);
+        return bufferData;
+    }
+
+    MemoryMap mapped(desc.src.value());
+    const auto parsedData = vgfutils::numpy::parse(mapped);
+    bufferData.data.resize(parsedData.size());
+    std::memcpy(bufferData.data.data(), parsedData.ptr, parsedData.size());
+    return bufferData;
+}
+
+TensorData loadTensorData(const TensorDesc &desc, uint64_t expectedSize) {
+    TensorData tensorData;
+    tensorData.shape = desc.dims;
+
+    if (!desc.src.has_value()) {
+        tensorData.data.resize(expectedSize, 0);
+        return tensorData;
+    }
+
+    MemoryMap mapped(desc.src.value());
+    const auto parsedData = vgfutils::numpy::parse(mapped);
+
+    tensorData.data.resize(parsedData.size());
+    std::memcpy(tensorData.data.data(), parsedData.ptr, parsedData.size());
+    tensorData.shape = parsedData.shape;
+    return tensorData;
+}
+
 std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<GraphConstantResourceId> &constantIds,
                                                      const ResourceManager &resources) {
     std::vector<GraphConstantInfo> constants;
@@ -541,6 +573,34 @@ void registerMemoryGroup(GroupManager &groupManager, std::unordered_map<Guid, Me
     }
 }
 
+template <typename Id>
+const Guid &resolveRuntimeResource(const std::unordered_map<Id, Guid> &resourceGuids, Id id,
+                                   std::string_view resourceType, std::string_view operation) {
+    const auto resource = resourceGuids.find(id);
+    if (resource == resourceGuids.end()) {
+        throw std::runtime_error("Scenario::" + std::string(operation) + ": " + std::string(resourceType) +
+                                 " resource not found.");
+    }
+    return resource->second;
+}
+
+template <typename Id>
+Id resolveResourceUid(const std::unordered_map<Guid, TypedResourceId> &resourceIds, std::string_view uid,
+                      std::string_view resourceType, std::string_view operation) {
+    const auto resource = resourceIds.find(Guid(std::string(uid)));
+    if (resource == resourceIds.end()) {
+        throw std::runtime_error("Scenario::" + std::string(operation) + ": resource UID '" + std::string(uid) +
+                                 "' not found.");
+    }
+
+    const auto *id = std::get_if<Id>(&resource->second);
+    if (id == nullptr) {
+        throw std::runtime_error("Scenario::" + std::string(operation) + ": resource UID '" + std::string(uid) +
+                                 "' does not identify a " + std::string(resourceType) + " resource.");
+    }
+    return *id;
+}
+
 struct CommandDataFactory {
     const DataManager &_dataManager;
     const std::unordered_map<Guid, TypedResourceId> &_resourceIds;
@@ -758,6 +818,36 @@ Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
     setupCommands();
 }
 
+Scenario::~Scenario() = default;
+
+BufferId Scenario::getBufferId(std::string_view uid) const {
+    return resolveResourceUid<BufferId>(_resourceIds, uid, "Buffer", "getBufferId");
+}
+
+TensorId Scenario::getTensorId(std::string_view uid) const {
+    return resolveResourceUid<TensorId>(_resourceIds, uid, "Tensor", "getTensorId");
+}
+
+void Scenario::upload(BufferId id, const BufferDataView &data) {
+    const auto &guid = resolveRuntimeResource(_bufferResourceGuids, id, "Buffer", "upload");
+    _dataManager.getBuffer(guid).upload(_ctx, data);
+}
+
+void Scenario::upload(TensorId id, const TensorDataView &data) {
+    const auto &guid = resolveRuntimeResource(_tensorResourceGuids, id, "Tensor", "upload");
+    _dataManager.getTensor(guid).upload(_ctx, data);
+}
+
+BufferData Scenario::download(BufferId id) const {
+    const auto &guid = resolveRuntimeResource(_bufferResourceGuids, id, "Buffer", "download");
+    return _dataManager.getBuffer(guid).download(_ctx);
+}
+
+TensorData Scenario::download(TensorId id) const {
+    const auto &guid = resolveRuntimeResource(_tensorResourceGuids, id, "Tensor", "download");
+    return _dataManager.getTensor(guid).download(_ctx);
+}
+
 const ShaderInfo &Scenario::getShader(ShaderId id) const { return _resources.get(id); }
 
 MemoryResourceId Scenario::getMemoryResourceId(const Guid &guid) const {
@@ -785,48 +875,56 @@ const ShaderInfo &Scenario::getSubstitutionShader(const std::vector<ResolvedShad
 }
 
 void Scenario::run(int repeatCount, bool dryRun) {
-    std::unique_ptr<FrameCapturer> frameCapturer;
-
-    if (_opts.captureFrame) {
-        frameCapturer = std::make_unique<FrameCapturer>();
+    if (repeatCount <= 0) {
+        throw std::invalid_argument("Scenario repeat count must be greater than zero; received " +
+                                    std::to_string(repeatCount) + ".");
     }
 
-    for (int i = 0; i < repeatCount; ++i) {
-        mlsdk::logging::debug("Iteration: " + std::to_string(i));
-        if (i > 0) {
-            _compute.reset();
-        }
-        if (frameCapturer) {
-            frameCapturer->begin();
-        }
-
-        if (!dryRun) {
-            if (hasAliasedOptimalTensors()) {
-                _compute.prepareCommandBuffer();
-                handleAliasedLayoutTransitions();
-            }
-            _compute.submitAndWaitOnFence(_perfCounters, i);
-        }
-        saveProfilingData(i, repeatCount, dryRun);
-
-        // Skip reset after final run
-        if (i + 1 < repeatCount) {
-            for (const auto &resource : _scenarioSpec.resources) {
-                if (resource->resourceType == ResourceType::Image) {
-                    const auto &imageDesc = static_cast<const ImageDesc &>(*resource);
-                    if (imageDesc.tiling.has_value() && imageDesc.tiling.value() == Tiling::Optimal) {
-                        auto &image = _dataManager.getImageMut(imageDesc.guid);
-                        image.resetLayout();
-                    }
-                }
-            }
-        }
-
-        if (frameCapturer) {
-            frameCapturer->end();
-        }
+    for (int iteration = 0; iteration < repeatCount; ++iteration) {
+        mlsdk::logging::debug("Iteration: " + std::to_string(iteration));
+        runIteration(iteration, repeatCount, dryRun);
     }
     saveResults(dryRun);
+}
+
+void Scenario::runIteration(int iteration, int repeatCount, bool dryRun) {
+    if (_opts.captureFrame && !_frameCapturer) {
+        _frameCapturer = std::make_unique<FrameCapturer>();
+    }
+
+    if (_hasRun) {
+        resetForNextRun();
+    }
+    if (_frameCapturer) {
+        _frameCapturer->begin();
+    }
+
+    if (!dryRun) {
+        if (hasAliasedOptimalTensors()) {
+            _compute.prepareCommandBuffer();
+            handleAliasedLayoutTransitions();
+        }
+        _compute.submitAndWaitOnFence(_perfCounters, iteration);
+    }
+    saveProfilingData(iteration, repeatCount, dryRun);
+
+    _hasRun = true;
+
+    if (_frameCapturer) {
+        _frameCapturer->end();
+    }
+}
+
+void Scenario::resetForNextRun() {
+    _compute.reset();
+    for (const auto &resource : _scenarioSpec.resources) {
+        if (resource->resourceType == ResourceType::Image) {
+            const auto &imageDesc = static_cast<const ImageDesc &>(*resource);
+            if (imageDesc.tiling.has_value() && imageDesc.tiling.value() == Tiling::Optimal) {
+                _dataManager.getImageMut(imageDesc.guid).resetLayout();
+            }
+        }
+    }
 }
 
 void Scenario::setupResources() {
@@ -842,6 +940,7 @@ void Scenario::setupResources() {
             const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
             const auto id = _resources.addBuffer(resourceInfoFactory.createInfo(*buffer));
             _resourceIds.emplace(resource->guid, id);
+            _bufferResourceGuids.emplace(id, resource->guid);
             _dataManager.createBuffer(resource->guid, _resources.get(id));
             registerMemoryGroup(_groupManager, jsonMemoryGroupIds, id, buffer->memoryGroup);
         } break;
@@ -869,6 +968,7 @@ void Scenario::setupResources() {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
             const auto id = _resources.addTensor(resourceInfoFactory.createInfo(*tensor, _opts.captureFrame));
             _resourceIds.emplace(resource->guid, id);
+            _tensorResourceGuids.emplace(id, resource->guid);
             _dataManager.createTensor(resource->guid, _resources.get(id));
             registerMemoryGroup(_groupManager, jsonMemoryGroupIds, id, tensor->memoryGroup);
         } break;
@@ -985,23 +1085,44 @@ void Scenario::setupResources() {
         mlsdk::logging::debug(resourceType(resource) + ": " + resource->guidStr + " loaded");
     }
 
-    // Allocate and fill resource memory
-    for (auto &resource : _scenarioSpec.resources) {
+    // Allocate resource memory before loading runtime input data.
+    for (const auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
         case ResourceType::Tensor: {
-            const auto &tensor = reinterpret_cast<std::unique_ptr<TensorDesc> &>(resource);
-            auto &tensorRec = _dataManager.getTensorMut(tensor->guid);
-            tensorRec.allocateMemory(_ctx);
+            const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
+            _dataManager.getTensorMut(tensor->guid).allocateMemory(_ctx);
+        } break;
+        case ResourceType::Image: {
+            const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
+            _dataManager.getImageMut(image->guid).allocateMemory(_ctx);
+        } break;
+        case ResourceType::Buffer: {
+            const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
+            _dataManager.getBufferMut(buffer->guid).allocateMemory(_ctx);
+        } break;
+        default:
+            // Skip the other types of resources
+            continue;
+        }
+    }
+
+    // Preserve description-based CLI initialization by routing it through the
+    // same typed Scenario upload API used by in-memory clients.
+    for (const auto &resource : _scenarioSpec.resources) {
+        switch (resource->resourceType) {
+        case ResourceType::Tensor: {
+            const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
             PerfCounterGuard guard(_perfCounters, "Load Tensor: " + tensor->guidStr, "Scenario Setup");
             const auto id = resolveResourceId<TensorId>(_resourceIds, tensor->guid, "Tensor");
             if (tensor->src || !_groupManager.isAliased(id)) {
-                tensorRec.fillFromDescription(_ctx, *tensor);
+                const auto &tensorResource = _dataManager.getTensor(tensor->guid);
+                const auto tensorData = loadTensorData(*tensor, tensorResource.dataSize());
+                upload(id, {tensorData.data.data(), tensorData.data.size(), tensorData.shape, tensorData.format});
             }
         } break;
         case ResourceType::Image: {
-            const auto &image = reinterpret_cast<std::unique_ptr<ImageDesc> &>(resource);
+            const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
             auto &imageRec = _dataManager.getImageMut(image->guid);
-            imageRec.allocateMemory(_ctx);
             PerfCounterGuard guard(_perfCounters, "Load Image: " + image->guidStr, "Scenario Setup");
             const auto id = resolveResourceId<ImageId>(_resourceIds, image->guid, "Image");
             if (image->src || !_groupManager.isAliased(id)) {
@@ -1011,13 +1132,12 @@ void Scenario::setupResources() {
             }
         } break;
         case ResourceType::Buffer: {
-            const auto &buffer = reinterpret_cast<std::unique_ptr<BufferDesc> &>(resource);
-            auto &bufferRec = _dataManager.getBufferMut(buffer->guid);
-            bufferRec.allocateMemory(_ctx);
+            const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
             PerfCounterGuard guard(_perfCounters, "Load Buffer: " + buffer->guidStr, "Scenario Setup");
             const auto id = resolveResourceId<BufferId>(_resourceIds, buffer->guid, "Buffer");
             if (buffer->src || !_groupManager.isAliased(id)) {
-                bufferRec.fillFromDescription(_ctx, *buffer);
+                const auto bufferData = loadBufferData(*buffer);
+                upload(id, {bufferData.data.data(), bufferData.data.size()});
             }
         } break;
         default:
