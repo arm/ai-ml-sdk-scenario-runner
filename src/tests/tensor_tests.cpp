@@ -9,6 +9,7 @@
 #include "tensor.hpp"
 #include "utils.hpp"
 
+#include <memory>
 #include <numeric>
 #include <vector>
 
@@ -16,12 +17,13 @@
 using namespace mlsdk::scenariorunner;
 
 Tensor &prepareTensor(Context &ctx, DataManager &dm, const Guid &guid, const std::vector<int64_t> &shape,
-                      vk::Format format) {
+                      vk::Format format, uint64_t memoryOffset = 0) {
     TensorInfo info;
     info.debugName = "test_tensor";
     info.shape = shape;
     info.format = format;
     info.tiling = Tiling::Linear;
+    info.memoryOffset = memoryOffset;
     dm.createTensor(guid, info);
     auto &tensor = dm.getTensorMut(guid);
     tensor.setup(ctx);
@@ -158,5 +160,57 @@ TEST(TensorInMemoryTransfer, DownloadReturnsUploadedData) {
     EXPECT_EQ(tensorData.shape, shape);
     ASSERT_TRUE(tensorData.format.has_value());
     EXPECT_EQ(tensorData.format.value(), fmt);
+    EXPECT_EQ(tensorData.data, payload);
+}
+
+TEST(TensorInMemoryTransfer, UploadAndDownloadRespectMemoryOffset) {
+    ScenarioOptions opts{};
+    Context ctx{opts};
+    DataManager dm;
+    const Guid guid("tensor_memory_offset");
+    const std::vector<int64_t> shape{2, 3, 1};
+    const vk::Format format = vk::Format::eR8Uint;
+    constexpr uint64_t memoryOffset = 4096;
+
+    auto &tensor = prepareTensor(ctx, dm, guid, shape, format, memoryOffset);
+    std::vector<char> payload(bytesFor(format, shape));
+    std::iota(payload.begin(), payload.end(), static_cast<char>(1));
+
+    TensorDataView view{payload.data(), payload.size(), shape, format};
+    ASSERT_NO_THROW(tensor.upload(ctx, view));
+
+    const auto tensorData = tensor.download(ctx);
+    EXPECT_EQ(tensorData.data, payload);
+}
+
+TEST(TensorInMemoryTransfer, UploadAndDownloadRespectImageSubresourceOffset) {
+    ScenarioOptions opts{};
+    Context ctx{opts};
+    DataManager dm;
+    const Guid guid("tensor_image_subresource_offset");
+    const std::vector<int64_t> shape{2, 3, 1};
+    const vk::Format format = vk::Format::eR8Uint;
+    constexpr vk::DeviceSize subresourceOffset = 4096;
+
+    auto memoryManager = std::make_shared<ResourceMemoryManager>();
+    // Image::setup records a linear image's VkSubresourceLayout::offset this way.
+    memoryManager->updateSubResourceOffset(subresourceOffset);
+
+    TensorInfo info;
+    info.debugName = "test_tensor_image_subresource_offset";
+    info.shape = shape;
+    info.format = format;
+    info.tiling = Tiling::Linear;
+    dm.createTensor(guid, info);
+
+    auto &tensor = dm.getTensorMut(guid);
+    tensor.setup(ctx, memoryManager);
+    tensor.allocateMemory(ctx);
+
+    std::vector<char> payload(bytesFor(format, shape));
+    std::iota(payload.begin(), payload.end(), static_cast<char>(1));
+    ASSERT_NO_THROW(tensor.upload(ctx, {payload.data(), payload.size(), shape, format}));
+
+    const auto tensorData = tensor.download(ctx);
     EXPECT_EQ(tensorData.data, payload);
 }
