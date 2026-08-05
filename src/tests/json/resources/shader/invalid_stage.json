@@ -1,0 +1,13 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "shader": {
+                "uid": "geometry_shader",
+                "src": "geometry.glsl",
+                "stage": "geometry"
+            }
+        }
+    ]
+}
