@@ -7,6 +7,7 @@
 #include "image.hpp"
 #include "resource_data.hpp"
 #include "scenario.hpp"
+#include "utils.hpp"
 
 #include <numeric>
 #include <vector>
@@ -16,6 +17,20 @@
 using namespace mlsdk::scenariorunner;
 
 namespace {
+size_t packedImageDataSize(const std::vector<int64_t> &shape, vk::Format format, uint32_t mipLevels = 1) {
+    auto width = static_cast<size_t>(shape[1]);
+    auto height = static_cast<size_t>(shape[2]);
+    const auto depth = static_cast<size_t>(shape[3]);
+    const auto elementSize = static_cast<size_t>(elementSizeFromVkFormat(format));
+    size_t size = 0;
+    for (uint32_t mip = 0; mip < mipLevels; ++mip) {
+        size += width * height * depth * elementSize;
+        width = std::max(width / 2, size_t{1});
+        height = std::max(height / 2, size_t{1});
+    }
+    return size;
+}
+
 Image &prepareImage(Context &ctx, DataManager &dataManager, ImageId id, const std::vector<int64_t> &shape,
                     vk::Format format, uint32_t mipLevels = 1) {
     ImageInfo info{};
@@ -45,7 +60,7 @@ TEST(ImageInMemoryTransfer, UploadValidatesMetadataAndSize) {
     const vk::Format format = vk::Format::eR8Uint;
 
     auto &image = prepareImage(ctx, dataManager, imageId, shape, format);
-    std::vector<char> payload(image.baseDataSize(), 0x3c);
+    std::vector<char> payload(packedImageDataSize(shape, format), 0x3c);
 
     EXPECT_THROW(image.upload(ctx, {payload.data(), payload.size(), {1, 2, 2, 1}, format}), std::runtime_error);
     EXPECT_THROW(image.upload(ctx, {payload.data(), payload.size(), shape, vk::Format::eR16Uint}), std::runtime_error);
@@ -63,7 +78,7 @@ TEST(ImageInMemoryTransfer, CanUploadAndDownloadRepeatedly) {
     const vk::Format format = vk::Format::eR8Uint;
 
     auto &image = prepareImage(ctx, dataManager, imageId, shape, format);
-    std::vector<char> firstPayload(image.baseDataSize());
+    std::vector<char> firstPayload(packedImageDataSize(shape, format));
     std::iota(firstPayload.begin(), firstPayload.end(), static_cast<char>(1));
 
     image.transitionLayout(ctx, vk::ImageLayout::eShaderReadOnlyOptimal);
@@ -79,7 +94,7 @@ TEST(ImageInMemoryTransfer, CanUploadAndDownloadRepeatedly) {
     ASSERT_TRUE(firstDownload.format.has_value());
     EXPECT_EQ(firstDownload.format.value(), format);
 
-    std::vector<char> secondPayload(image.baseDataSize());
+    std::vector<char> secondPayload(packedImageDataSize(shape, format));
     std::iota(secondPayload.rbegin(), secondPayload.rend(), static_cast<char>(10));
 
     ASSERT_NO_THROW(image.upload(ctx, {secondPayload.data(), secondPayload.size(), shape, std::nullopt}));
@@ -101,13 +116,13 @@ TEST(ImageInMemoryTransfer, CanUploadCompleteMipChainAndDownloadBaseMip) {
     constexpr uint32_t mipLevels = 3;
 
     auto &image = prepareImage(ctx, dataManager, imageId, shape, format, mipLevels);
-    std::vector<char> payload(image.mipChainDataSize(mipLevels));
+    std::vector<char> payload(packedImageDataSize(shape, format, mipLevels));
     std::iota(payload.begin(), payload.end(), static_cast<char>(1));
 
     ASSERT_NO_THROW(image.upload(ctx, {payload.data(), payload.size(), shape, format, mipLevels}));
     const auto download = image.download(ctx);
 
-    payload.resize(image.baseDataSize());
+    payload.resize(packedImageDataSize(shape, format));
     EXPECT_EQ(download.data, payload);
     EXPECT_EQ(download.shape, shape);
     EXPECT_EQ(download.mipLevels, 1);

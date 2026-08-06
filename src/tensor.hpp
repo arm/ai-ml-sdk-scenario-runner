@@ -34,14 +34,6 @@ class Tensor {
     /// \return The underlying Vulkan tensor view
     const vk::TensorViewARM &tensorView() const;
 
-    /// \brief Get total size of memory object associated with this tensor
-    /// \return Size of memory in bytes
-    uint64_t memSize() const;
-
-    /// \brief Get tensor packed data size in bytes
-    /// \return Size of tensor data in bytes
-    uint64_t dataSize() const;
-
     /// \brief Get tensor dimensions strides
     /// \return dimensions strides
     const std::vector<int64_t> &dimStrides() const;
@@ -82,6 +74,8 @@ class Tensor {
     const std::string &debugName() const;
 
   private:
+    uint64_t dataSize() const;
+
     std::string _debugName;
     vk::raii::TensorARM _tensor{nullptr};
     vk::raii::TensorViewARM _tensorView{nullptr};

@@ -124,11 +124,13 @@ BufferData loadBufferData(const BufferDesc &desc) {
     return bufferData;
 }
 
-TensorData loadTensorData(const TensorDesc &desc, uint64_t expectedSize) {
+TensorData loadTensorData(const TensorDesc &desc) {
     TensorData tensorData;
     tensorData.shape = desc.dims;
 
     if (!desc.src.has_value()) {
+        const auto format = getVkFormatFromString(desc.format);
+        const auto expectedSize = elementSizeFromVkFormat(format) * totalElementsFromShape(desc.dims);
         tensorData.data.resize(expectedSize, 0);
         return tensorData;
     }
@@ -1123,8 +1125,7 @@ void Scenario::setupResources() {
             PerfCounterGuard guard(_perfCounters, "Load Tensor: " + tensor->guidStr, "Scenario Setup");
             const auto id = resolveResourceId<TensorId>(_resourceIds, tensor->guid, "Tensor");
             if (tensor->src || !_groupManager.isAliased(id)) {
-                const auto &tensorResource = _dataManager.getTensor(id);
-                const auto tensorData = loadTensorData(*tensor, tensorResource.dataSize());
+                const auto tensorData = loadTensorData(*tensor);
                 upload(id, {tensorData.data.data(), tensorData.data.size(), tensorData.shape, tensorData.format});
             }
         } break;
