@@ -535,7 +535,7 @@ using namespace mlsdk::scenariorunner;
 TEST(JsonParser, Empty) {
     ASSERT_NO_THROW(ScenarioSpec("{ \"resources\": [], \"commands\": [] }"));
 
-    ASSERT_THROW(ScenarioSpec(""), nlohmann::json_abi_v3_11_3::detail::parse_error);
+    ASSERT_THROW(ScenarioSpec(""), nlohmann::json::parse_error);
 }
 
 TEST(JsonParser, NoCommands) {
@@ -555,7 +555,7 @@ TEST(JsonParser, NoCommands) {
     }
     )"";
 
-    ASSERT_THROW(ScenarioSpec{jsonInput}, nlohmann::json_abi_v3_11_3::detail::out_of_range);
+    ASSERT_THROW(ScenarioSpec{jsonInput}, nlohmann::json::out_of_range);
 }
 
 TEST(JsonParser, NoResources) {
@@ -579,7 +579,7 @@ TEST(JsonParser, NoResources) {
     }
     )"";
 
-    ASSERT_THROW(ScenarioSpec{jsonInput}, nlohmann::json_abi_v3_11_3::detail::out_of_range);
+    ASSERT_THROW(ScenarioSpec{jsonInput}, nlohmann::json::out_of_range);
 }
 
 TEST(JsonParser, UnknownResource) {
@@ -1173,7 +1173,7 @@ TEST(JsonParser, DispatchSpirvGraphMissingBindings) {
     }
     )"_json;
 
-    ASSERT_THROW(MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
+    ASSERT_THROW(MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput), nlohmann::json::out_of_range);
 }
 
 TEST(JsonParser, DispatchSpirvGraphGraphConstantsInvalidType) {
@@ -1405,7 +1405,7 @@ TEST(JsonParser, TensorResourceMissingDims) {
     }
     )"_json;
 
-    ASSERT_THROW(MakeFromJSON<TensorDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
+    ASSERT_THROW(MakeFromJSON<TensorDesc>(jsonInput), nlohmann::json::out_of_range);
 }
 
 TEST(JsonParser, TensorResourceDimsInvalidType) {
@@ -1437,7 +1437,7 @@ TEST(JsonParser, ImageResourceMissingDims) {
     }
     )"_json;
 
-    ASSERT_THROW(MakeFromJSON<ImageDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
+    ASSERT_THROW(MakeFromJSON<ImageDesc>(jsonInput), nlohmann::json::out_of_range);
 }
 
 TEST(JsonParser, ImageResourceDimsInvalidType) {
@@ -1469,7 +1469,7 @@ TEST(JsonParser, MarkBoundaryMissingResources) {
     }
     )"";
 
-    ASSERT_THROW(ScenarioSpec{jsonScenario}, nlohmann::json_abi_v3_11_3::detail::out_of_range);
+    ASSERT_THROW(ScenarioSpec{jsonScenario}, nlohmann::json::out_of_range);
 }
 
 TEST(JsonParser, DispatchComputeMissingRangeND) {
@@ -1488,7 +1488,7 @@ TEST(JsonParser, DispatchComputeMissingRangeND) {
     }
     )"_json;
 
-    ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
+    ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json::out_of_range);
 }
 
 TEST(JsonParser, DispatchComputeRangeNDInvalidType) {
@@ -1521,7 +1521,7 @@ TEST(JsonParser, DispatchComputeMissingBindings) {
     }
     )"_json;
 
-    ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
+    ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json::out_of_range);
 }
 
 TEST(JsonParser, DispatchDataGraphMissingBindings) {
@@ -1533,7 +1533,7 @@ TEST(JsonParser, DispatchDataGraphMissingBindings) {
     }
     )"_json;
 
-    ASSERT_THROW(MakeFromJSON<DispatchDataGraphDesc>(jsonInput), nlohmann::json_abi_v3_11_3::detail::out_of_range);
+    ASSERT_THROW(MakeFromJSON<DispatchDataGraphDesc>(jsonInput), nlohmann::json::out_of_range);
 }
 
 TEST(JsonParser, ImageResource) {
