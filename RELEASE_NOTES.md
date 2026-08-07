@@ -21,6 +21,8 @@
 - Fixed pipeline-cache miss handling for all pipeline types by checking pipeline
   creation feedback as well as compile-required results. Data graph pipelines
   now use the required zero per-stage feedback entries.
+- Fixed tensor staging transfers to respect tensor memory-group and image
+  subresource offsets.
 
 ## Version 0.10.0 – *Optical Flow, VGF Runtime & APK Packaging*
 

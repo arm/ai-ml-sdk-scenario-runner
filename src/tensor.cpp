@@ -169,22 +169,23 @@ void Tensor::fillFromDescription(const Context &ctx, const TensorDesc &desc) con
 }
 
 void Tensor::fill(const void *data, size_t size) const {
-    if (size < memSize()) {
+    if (size < _size) {
         mlsdk::logging::warning("Tensor data size " + std::to_string(size) +
-                                " is different from allocated memory size " + std::to_string(memSize()));
-    } else if (size > memSize()) {
-        const std::string msg = "Allocated Tensor memory is less than data size: " + std::to_string(memSize()) +
-                                " vs " + std::to_string(size);
-        throw std::runtime_error(msg);
+                                " is different from allocated memory size " + std::to_string(_size));
+    } else if (size > _size) {
+        throw std::runtime_error("Allocated Tensor memory is less than data size: " + std::to_string(_size) + " vs " +
+                                 std::to_string(size));
     }
-    void *pDeviceMemory = _memoryManager->mapStagingBufferMemory(0, memSize());
-    std::memcpy(pDeviceMemory, data, size);
+    const auto stagingOffset = _memoryManager->getSubresourceOffset() + _memoryOffset;
+    void *pStagingMemory = _memoryManager->mapStagingBufferMemory(stagingOffset, _size);
+    std::memcpy(pStagingMemory, data, size);
     _memoryManager->unmapStagingBufferMemory();
 }
 
 void Tensor::fillZero() const {
-    void *pDeviceMemory = _memoryManager->mapStagingBufferMemory(0, memSize());
-    std::memset(pDeviceMemory, 0, memSize());
+    const auto stagingOffset = _memoryManager->getSubresourceOffset() + _memoryOffset;
+    void *pStagingMemory = _memoryManager->mapStagingBufferMemory(stagingOffset, _size);
+    std::memset(pStagingMemory, 0, _size);
     _memoryManager->unmapStagingBufferMemory();
 }
 
@@ -229,9 +230,9 @@ std::vector<char> Tensor::getTensorData(const Context &ctx) const {
     const auto dSize = dataSize();
 
     std::vector<char> out;
-    // 2) If padded/tiled (memSize != dataSize) *and* a 4D tensor with strides,
+    // 2) If padded/tiled (_size != dataSize) *and* a 4D tensor with strides,
     //    walk element-by-element using those strides to lay out the data correctly
-    if (memSize() != dSize && _shape.size() == _strides.size() && _shape.size() == 4) {
+    if (_size != dSize && _shape.size() == _strides.size() && _shape.size() == 4) {
         out.reserve(dSize);
         const int64_t elementSize{elementSizeFromVkFormat(dataType())};
         for (int64_t a = 0; a < _shape[0]; ++a) {
@@ -247,9 +248,9 @@ std::vector<char> Tensor::getTensorData(const Context &ctx) const {
             }
         }
     } else {
-        if (memSize() != dataSize()) {
-            mlsdk::logging::warning("Tensor data size " + std::to_string(dataSize()) +
-                                    " is different from allocated memory size " + std::to_string(memSize()));
+        if (_size != dSize) {
+            mlsdk::logging::warning("Tensor data size " + std::to_string(dSize) +
+                                    " is different from allocated memory size " + std::to_string(_size));
         }
 
         // 3) Otherwise data is contiguous: bulk copy
