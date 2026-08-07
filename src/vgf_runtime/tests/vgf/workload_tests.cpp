@@ -115,12 +115,17 @@ TEST(VGF, DecodesConstantsSamplersAndFileBackedData) {
                                                     {4, 4, 1}, {});
         encoder.AddSamplerConfig(image, VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
                                  VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK);
+        const std::array<int32_t, 4> unusedConstantData = {9, 10, 11, 12};
+        const auto unusedConstantResource = encoder.AddConstantResource(VK_FORMAT_R32_SINT, {4}, {});
         const auto constantResource = encoder.AddConstantResource(VK_FORMAT_R32_SINT, {4}, {});
+        encoder.AddConstant(unusedConstantResource, unusedConstantData.data(),
+                            unusedConstantData.size() * sizeof(int32_t), 0);
         const auto constant =
             encoder.AddConstant(constantResource, constantData.data(), constantData.size() * sizeof(int32_t), 1);
         const auto imageBinding = encoder.AddBindingSlot(0, image);
         const auto descriptorSet = encoder.AddDescriptorSetInfo({imageBinding}, 0);
-        encoder.AddSegmentInfo(module, "graph_segment", {descriptorSet}, {imageBinding}, {}, {constant});
+        encoder.AddSegmentInfo(module, "graph_segment", {descriptorSet}, {imageBinding}, {},
+                               {GraphConstantBindingRef{10000, constant}});
     });
 
     const auto path = std::filesystem::current_path() / "vgf_runtime_file_test.vgf";
@@ -134,8 +139,8 @@ TEST(VGF, DecodesConstantsSamplersAndFileBackedData) {
 
     EXPECT_EQ(vgf.getNumSegments(), 1);
     EXPECT_EQ(vgf.getNumSPIRVModules(), 1);
-    EXPECT_EQ(vgf.getNumResources(), 2);
-    EXPECT_EQ(vgf.getNumConstants(), 1);
+    EXPECT_EQ(vgf.getNumResources(), 3);
+    EXPECT_EQ(vgf.getNumConstants(), 2);
     EXPECT_EQ(vgf.getNumConstants(0), 1);
 
     const auto segment = vgf.getSegment(0);
@@ -143,15 +148,16 @@ TEST(VGF, DecodesConstantsSamplersAndFileBackedData) {
     const auto module = vgf.getSPIRVModule(segment.moduleIndex);
     EXPECT_EQ(module.name, "graph");
 
-    const auto constantResource = vgf.getResource(1);
+    const auto constantResource = vgf.getResource(2);
     EXPECT_EQ(constantResource.category, ResourceCategory::CONSTANT);
     EXPECT_FALSE(constantResource.descriptorType.has_value());
     EXPECT_EQ(constantResource.format, vk::Format::eR32Sint);
     EXPECT_TRUE(viewEquals(constantResource.shape, {4}));
 
     const auto constant = vgf.getConstant(0, 0);
-    EXPECT_EQ(constant.index, 0);
-    EXPECT_EQ(constant.resourceIndex, 1);
+    EXPECT_EQ(constant.graphConstantId, 10000);
+    EXPECT_EQ(constant.constantIndex, 1);
+    EXPECT_EQ(constant.resourceIndex, 2);
     EXPECT_EQ(constant.format, vk::Format::eR32Sint);
     EXPECT_TRUE(viewEquals(constant.shape, {4}));
     EXPECT_EQ(constant.sparsityDimension, 1);

@@ -548,17 +548,17 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIn
                                           bool enableNeuralStatistics,
                                           vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
     // Setup constant resource info
-    auto constantIndexes = vgfView.getSegmentConstantIndexes(segmentIndex);
+    const auto &constantBindings = vgfView.getSegmentConstantBindings(segmentIndex);
     std::vector<vk::TensorDescriptionARM> constantTensorDescriptions;
-    constantTensorDescriptions.reserve(constantIndexes.size());
+    constantTensorDescriptions.reserve(constantBindings.size());
 
     std::vector<vk::DataGraphPipelineConstantARM> constantInfos;
-    constantInfos.reserve(constantIndexes.size());
+    constantInfos.reserve(constantBindings.size());
 
     std::vector<vk::DataGraphPipelineConstantTensorSemiStructuredSparsityInfoARM> sparsityInfos;
-    sparsityInfos.reserve(constantIndexes.size());
+    sparsityInfos.reserve(constantBindings.size());
 
-    for (uint32_t constantIndex : constantIndexes) {
+    for (const auto &[graphConstantId, constantIndex] : constantBindings) {
         void *pNext = nullptr;
 
         auto constantData = vgfView.getConstantData(constantIndex);
@@ -581,7 +581,7 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIn
                                                 static_cast<uint32_t>(shape.size()), shape.begin(),
                                                 nullptr, // pStrides
                                                 vk::TensorUsageFlagBitsARM::eDataGraph, pNext);
-        constantInfos.emplace_back(constantIndex, constantData.begin(), &constantTensorDescriptions.back());
+        constantInfos.emplace_back(graphConstantId, constantData.begin(), &constantTensorDescriptions.back());
     }
 
     // Compile SPIR-V code

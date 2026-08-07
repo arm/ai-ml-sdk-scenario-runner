@@ -75,7 +75,8 @@ uint32_t VGF::getNumResources() const { return static_cast<uint32_t>(impl_->mode
 uint32_t VGF::getNumConstants() const { return static_cast<uint32_t>(impl_->constants->size()); }
 
 uint32_t VGF::getNumConstants(uint32_t segmentIndex) const {
-    return static_cast<uint32_t>(impl_->modelSequenceTable->getSegmentConstantIndexes(segmentIndex).size());
+    const auto handle = impl_->modelSequenceTable->getSegmentConstantBindingsHandle(segmentIndex);
+    return static_cast<uint32_t>(impl_->modelSequenceTable->getGraphConstantBindingsSize(handle));
 }
 
 SegmentInfo VGF::getSegment(uint32_t segmentIndex) const {
@@ -118,10 +119,13 @@ ResourceInfo VGF::getResource(uint32_t resourceIndex) const {
 }
 
 ConstantInfo VGF::getConstant(uint32_t segmentIndex, uint32_t index) const {
-    const auto constantIndexes = impl_->modelSequenceTable->getSegmentConstantIndexes(segmentIndex);
-    const uint32_t constantIndex = constantIndexes[index];
+    const auto handle = impl_->modelSequenceTable->getSegmentConstantBindingsHandle(segmentIndex);
+    const auto binding = impl_->modelSequenceTable->getGraphConstantBinding(handle, index);
+    const uint32_t graphConstantId = binding.graphConstantId;
+    const uint32_t constantIndex = binding.constantIndex;
     const uint32_t resourceIndex = impl_->constants->getConstantMrtIndex(constantIndex);
-    return {constantIndex,
+    return {graphConstantId,
+            constantIndex,
             resourceIndex,
             vk::Format(impl_->modelResourceTable->getVkFormat(resourceIndex)),
             impl_->modelResourceTable->getTensorShape(resourceIndex),

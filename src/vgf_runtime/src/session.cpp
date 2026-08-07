@@ -981,7 +981,7 @@ void Session::Impl::configureSegment(uint32_t segmentIndex) {
                                                     static_cast<uint32_t>(constant.shape.size()), constant.shape.data(),
                                                     constant.stride.empty() ? nullptr : constant.stride.data(),
                                                     vk::TensorUsageFlagBitsARM::eDataGraph);
-            constants.emplace_back(constant.index, constant.data.data(), &constantTensorDescriptions.back());
+            constants.emplace_back(constant.graphConstantId, constant.data.data(), &constantTensorDescriptions.back());
         }
 
         const vk::DataGraphPipelineShaderModuleCreateInfoARM shaderModuleInfo(
