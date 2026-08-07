@@ -37,7 +37,7 @@ struct MemoryGroup {
  */
 struct ResourceDesc {
     ResourceDesc() = default;
-    ResourceDesc(ResourceType resourceType, Guid guid, const std::string &guidStr);
+    ResourceDesc(ResourceType resourceType, Guid guid, std::string guidStr);
     const std::optional<std::string> &getSource() const { return src; };
     void setSrc(std::string s) { src = std::move(s); }
     const std::optional<std::string> &getDestination() const { return dst; };

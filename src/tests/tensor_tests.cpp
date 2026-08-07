@@ -17,6 +17,8 @@
 #include <vector>
 
 #include <gtest/gtest.h>
+
+namespace {
 using namespace mlsdk::scenariorunner;
 
 Tensor &prepareTensor(Context &ctx, DataManager &dm, TensorId id, const std::vector<int64_t> &shape, vk::Format format,
@@ -43,6 +45,7 @@ std::vector<std::byte> sequence(size_t size, uint8_t first = 0) {
     std::generate(result.begin(), result.end(), [&first] { return std::byte{first++}; });
     return result;
 }
+} // namespace
 
 TEST(TensorInMemoryTransfer, UploadThrowsOnShapeMismatch) {
     ScenarioOptions opts{};
@@ -92,7 +95,7 @@ TEST(TensorInMemoryTransfer, UploadThrowsOnSizeMismatch) {
     EXPECT_THROW(tensor.upload(ctx, view), std::runtime_error);
 }
 
-TEST(TensorInMemoryTransfer, UploadSucceedsAndPersistsCopy_FormatOptional) {
+TEST(TensorInMemoryTransfer, UploadSucceedsAndPersistsCopyFormatOptional) {
     ScenarioOptions opts{};
     Context ctx{opts};
     DataManager dm;

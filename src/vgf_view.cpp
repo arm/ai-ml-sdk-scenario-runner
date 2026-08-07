@@ -37,7 +37,7 @@ std::string createResourceName(uint32_t index, vgflib::ResourceCategory category
 
 uint32_t bufferElementCount(const vgflib::DataView<int64_t> &shape) {
     return static_cast<uint32_t>(
-        std::abs(std::accumulate(shape.begin(), shape.end(), int64_t(1), std::multiplies<int64_t>())));
+        std::abs(std::accumulate(shape.begin(), shape.end(), int64_t(1), std::multiplies<>())));
 }
 
 uint32_t bufferSize(const vgflib::DataView<int64_t> &shape, vk::Format format) {

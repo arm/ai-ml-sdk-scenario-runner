@@ -8,18 +8,18 @@
 
 #include <fstream>
 #include <iostream>
+#include <utility>
 
 namespace mlsdk::scenariorunner {
 
-ScenarioSpec::ScenarioSpec(const std::string &jsonStr, const std::filesystem::path &workDir,
-                           const std::filesystem::path &outputDir)
-    : _workDir(workDir), _outputDir(outputDir) {
+ScenarioSpec::ScenarioSpec(const std::string &jsonStr, std::filesystem::path workDir, std::filesystem::path outputDir)
+    : _workDir(std::move(workDir)), _outputDir(std::move(outputDir)) {
     readJson(*this, jsonStr);
 }
 
-ScenarioSpec::ScenarioSpec(const std::filesystem::path &jsonFile, const std::filesystem::path &workDir,
-                           const std::filesystem::path &outputDir)
-    : _workDir(workDir), _outputDir(outputDir) {
+ScenarioSpec::ScenarioSpec(const std::filesystem::path &jsonFile, std::filesystem::path workDir,
+                           std::filesystem::path outputDir)
+    : _workDir(std::move(workDir)), _outputDir(std::move(outputDir)) {
     std::ifstream is(jsonFile);
     if (!is) {
         throw std::runtime_error("Error while opening scenario file " + jsonFile.string());

@@ -53,7 +53,7 @@ vk::raii::ShaderModule createShaderModuleFromCode(const Context &ctx, const uint
         throw std::runtime_error("Failed to validate SPIR-V module");
     }
     const vk::ShaderModuleCreateInfo shaderCreateInfo({}, spvSize * sizeof(uint32_t), spvCode);
-    return vk::raii::ShaderModule(ctx.device(), shaderCreateInfo);
+    return {ctx.device(), shaderCreateInfo};
 }
 
 vk::raii::ShaderModule createShaderModule(const Context &ctx, const ShaderInfo &shaderInfo) {
@@ -79,11 +79,11 @@ createPipelineLayout(const Context &ctx, const std::vector<vk::raii::DescriptorS
     if (pushConstantsSize > 0) {
         const vk::PushConstantRange pushConstantRange(pushConstantStages, 0, pushConstantsSize);
         const vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo({}, layouts, pushConstantRange);
-        return vk::raii::PipelineLayout(ctx.device(), pipelineLayoutCreateInfo);
+        return {ctx.device(), pipelineLayoutCreateInfo};
     }
 
     const vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo({}, layouts);
-    return vk::raii::PipelineLayout(ctx.device(), pipelineLayoutCreateInfo);
+    return {ctx.device(), pipelineLayoutCreateInfo};
 }
 
 vk::raii::DescriptorSetLayout createDescriptorSetLayout(const Context &ctx, const std::vector<TypedBinding> &bindings) {
@@ -94,7 +94,7 @@ vk::raii::DescriptorSetLayout createDescriptorSetLayout(const Context &ctx, cons
         descBindings.emplace_back(descBinding);
     }
     const vk::DescriptorSetLayoutCreateInfo descSetLayoutCreateInfo({}, descBindings);
-    return vk::raii::DescriptorSetLayout(ctx.device(), descSetLayoutCreateInfo);
+    return {ctx.device(), descSetLayoutCreateInfo};
 }
 
 std::vector<std::vector<TypedBinding>> splitOutSets(const std::vector<TypedBinding> &allBindings) {
@@ -647,7 +647,7 @@ void Pipeline::initSession(const Context &ctx, bool enableNeuralStatistics,
             auto memoryTypeIdx = findMemoryIdx(ctx, memoryReqs.memoryRequirements.memoryTypeBits, memoryFlags);
 
             vk::MemoryAllocateInfo allocateInfo(memoryReqs.memoryRequirements.size, memoryTypeIdx);
-            _sessionMemory.emplace_back(vk::raii::DeviceMemory(ctx.device(), allocateInfo));
+            _sessionMemory.emplace_back(ctx.device(), allocateInfo);
             _sessionMemoryDataSizes.push_back(memoryReqs.memoryRequirements.size);
 
             if (isNeuralStatisticsBindPoint) {
