@@ -39,7 +39,7 @@ inline std::string makeMaxpoolVgf() {
         const auto inputSet = encoder.AddDescriptorSetInfo({inputBinding}, 0);
         const auto outputSet = encoder.AddDescriptorSetInfo({outputBinding}, 1);
         encoder.AddSegmentInfo(module, "maxpool_graph_segment", {inputSet, outputSet}, {inputBinding}, {outputBinding},
-                               {});
+                               std::vector<mlsdk::vgflib::GraphConstantBindingRef>{});
     });
 }
 
