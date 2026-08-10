@@ -5,7 +5,7 @@
 #include "context.hpp"
 
 #include "logging.hpp"
-#include "scenario.hpp"
+#include "scenario_options.hpp"
 
 #include <iomanip>
 #include <iostream>

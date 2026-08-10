@@ -4,9 +4,10 @@
  */
 
 #include "buffer.hpp"
+#include "context.hpp"
 #include "data_manager.hpp"
 #include "resource_data.hpp"
-#include "scenario.hpp"
+#include "scenario_options.hpp"
 #include <gtest/gtest.h>
 
 #include <numeric>

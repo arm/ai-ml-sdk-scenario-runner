@@ -3,13 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "glsl_compiler.hpp"
 #include "resource_data.hpp"
 #include "scenario.hpp"
 #include "scenario_desc.hpp"
+#include "scenario_options.hpp"
+#include "shader_stage.hpp"
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
+#include <cstring>
+#include <string_view>
 #include <vector>
+
+#include "vgf-utils/temp_folder.hpp"
 
 using namespace mlsdk::scenariorunner;
 
@@ -36,7 +44,28 @@ const std::string scenarioJson = R"(
             ]
         }
     )";
+
+template <typename T> std::vector<char> asBytes(const std::vector<T> &values) {
+    std::vector<char> bytes(values.size() * sizeof(T));
+    std::memcpy(bytes.data(), values.data(), bytes.size());
+    return bytes;
+}
 } // namespace
+
+TEST(IScenario, ScenarioSupportsVirtualDispatch) {
+    ScenarioSpec spec{scenarioJson};
+    spec.useComputeFamilyQueue = true;
+    Scenario scenario{ScenarioOptions{}, spec};
+    IScenario &api = scenario;
+
+    const auto bufferId = api.getBufferId("inBuffer");
+    const std::vector<char> payload{1, 2, 3, 4};
+    api.upload(bufferId, {payload.data(), payload.size()});
+    api.run();
+
+    EXPECT_EQ(api.download(bufferId).data, payload);
+    EXPECT_EQ(api.getTensorId("inTensor"), scenario.getTensorId("inTensor"));
+}
 
 TEST(ScenarioInMemoryTransfer, UploadsAndDownloadsByTypedIdAcrossRuns) {
     ScenarioSpec spec{scenarioJson};
@@ -125,4 +154,110 @@ TEST(ScenarioInMemoryTransfer, RejectsUnknownTypedIds) {
                 "Scenario::getBufferId: resource UID 'inTensor' does not identify a Buffer resource.");
     expectError([&] { static_cast<void>(scenario.getTensorId("inBuffer")); },
                 "Scenario::getTensorId: resource UID 'inBuffer' does not identify a Tensor resource.");
+}
+
+TEST(IScenario, SupportsTensorUploadAndDownload) {
+    ScenarioSpec spec{scenarioJson};
+    spec.useComputeFamilyQueue = true;
+    Scenario scenario{ScenarioOptions{}, spec};
+    IScenario &api = scenario;
+
+    const auto tensorId = api.getTensorId("inTensor");
+    const std::vector<char> payload{1, 2, 3, 4};
+    api.upload(tensorId, {payload.data(), payload.size(), {1, 2, 2, 1}, vk::Format::eR8Sint});
+
+    const auto result = api.download(tensorId);
+    EXPECT_EQ(result.data, payload);
+    EXPECT_EQ(result.shape, (std::vector<int64_t>{1, 2, 2, 1}));
+    ASSERT_TRUE(result.format.has_value());
+    EXPECT_EQ(result.format.value(), vk::Format::eR8Sint);
+}
+
+TEST(IScenario, SupportsRepeatedUploadRunDownload) {
+    ScenarioSpec spec{scenarioJson};
+    spec.useComputeFamilyQueue = true;
+    Scenario scenario{ScenarioOptions{}, spec};
+    IScenario &api = scenario;
+    const auto bufferId = api.getBufferId("inBuffer");
+
+    const std::vector<char> firstPayload{1, 2, 3, 4};
+    api.upload(bufferId, {firstPayload.data(), firstPayload.size()});
+    api.run();
+    EXPECT_EQ(api.download(bufferId).data, firstPayload);
+
+    const std::vector<char> secondPayload{5, 6, 7, 8};
+    api.upload(bufferId, {secondPayload.data(), secondPayload.size()});
+    api.run();
+    EXPECT_EQ(api.download(bufferId).data, secondPayload);
+}
+
+TEST(IScenario, ExecutesCommandWithDifferentInputsAcrossRuns) {
+    constexpr std::string_view shaderSource = R"(
+        #version 450
+        layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+        layout(set = 0, binding = 0) readonly buffer Input { uint values[]; } inputBuffer;
+        layout(set = 0, binding = 1) writeonly buffer Output { uint values[]; } outputBuffer;
+        void main() {
+            outputBuffer.values[gl_GlobalInvocationID.x] = inputBuffer.values[gl_GlobalInvocationID.x] + 1;
+        }
+    )";
+    constexpr std::string_view computeScenarioJson = R"(
+        {
+            "commands": [
+                {
+                    "dispatch_compute": {
+                        "bindings": [
+                            {"id": 0, "set": 0, "resource_ref": "input"},
+                            {"id": 1, "set": 0, "resource_ref": "output"}
+                        ],
+                        "rangeND": [4],
+                        "shader_ref": "increment"
+                    }
+                }
+            ],
+            "resources": [
+                {"shader": {"src": "increment.spv", "type": "SPIR-V", "uid": "increment"}},
+                {"buffer": {"uid": "input", "size": 16, "shader_access": "readonly"}},
+                {"buffer": {"uid": "output", "size": 16, "shader_access": "readwrite"}}
+            ]
+        }
+    )";
+
+    TempFolder tempFolder("iscenario_compute_test");
+    const auto shaderPath = tempFolder.relative("increment.spv");
+    const auto spirv = GlslCompiler::get().compile(std::string{shaderSource}, ShaderStage::Compute);
+    ASSERT_TRUE(spirv.first.empty()) << spirv.first;
+    ASSERT_TRUE(GlslCompiler::get().save(spirv.second, shaderPath.string()));
+
+    ScenarioSpec spec{std::string{computeScenarioJson}, shaderPath.parent_path()};
+    Scenario scenario{ScenarioOptions{}, spec};
+    IScenario &api = scenario;
+    const auto inputId = api.getBufferId("input");
+    const auto outputId = api.getBufferId("output");
+
+    const auto firstInput = asBytes(std::vector<uint32_t>{1, 2, 3, 4});
+    api.upload(inputId, {firstInput.data(), firstInput.size()});
+    api.run();
+    EXPECT_EQ(api.download(outputId).data, asBytes(std::vector<uint32_t>{2, 3, 4, 5}));
+
+    const auto secondInput = asBytes(std::vector<uint32_t>{10, 20, 30, 40});
+    api.upload(inputId, {secondInput.data(), secondInput.size()});
+    api.run();
+    EXPECT_EQ(api.download(outputId).data, asBytes(std::vector<uint32_t>{11, 21, 31, 41}));
+}
+
+TEST(IScenario, RejectsUnknownTypedIds) {
+    ScenarioSpec spec{scenarioJson};
+    spec.useComputeFamilyQueue = true;
+    Scenario scenario{ScenarioOptions{}, spec};
+    IScenario &api = scenario;
+    const std::vector<char> payload(4);
+
+    EXPECT_THROW(api.upload(BufferId{1}, {payload.data(), payload.size()}), std::runtime_error);
+    EXPECT_THROW(api.upload(TensorId{1}, {payload.data(), payload.size(), {1, 2, 2, 1}, vk::Format::eR8Sint}),
+                 std::runtime_error);
+    EXPECT_THROW(api.upload(ImageId{0}, {}), std::runtime_error);
+    EXPECT_THROW(static_cast<void>(api.download(BufferId{1})), std::runtime_error);
+    EXPECT_THROW(static_cast<void>(api.download(TensorId{1})), std::runtime_error);
+    EXPECT_THROW(static_cast<void>(api.download(ImageId{0})), std::runtime_error);
 }

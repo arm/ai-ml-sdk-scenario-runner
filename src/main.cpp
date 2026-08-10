@@ -6,8 +6,10 @@
 #include <argparse/argparse.hpp>
 #include <vgf/logging.hpp>
 
+#include "iscenario.hpp"
 #include "logging.hpp"
 #include "scenario.hpp"
+#include "scenario_options.hpp"
 #include "version.hpp"
 
 #include <chrono>
@@ -16,6 +18,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <vector>
 
@@ -324,12 +327,12 @@ int runScenarioRunner(int argc, const char **argv) {
 
         ScenarioSpec scenarioSpec(scenarioFile, workDir, outputDir);
         mlsdk::logging::info("Scenario file parsed");
-        Scenario scenario(scenarioOptions, scenarioSpec);
+        std::unique_ptr<IScenario> scenario = std::make_unique<Scenario>(scenarioOptions, scenarioSpec);
         if (parser.get<bool>("--wait-for-key-stroke-before-run")) {
             mlsdk::logging::info("Press enter to continue...");
             std::ignore = getchar();
         }
-        scenario.run(repeatCount, dryRun);
+        scenario->run(repeatCount, dryRun);
     } catch (const std::exception &err) {
         mlsdk::logging::error(err.what());
         retval = -1;

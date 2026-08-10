@@ -7,6 +7,7 @@
 #include "image.hpp"
 #include "resource_data.hpp"
 #include "scenario.hpp"
+#include "scenario_options.hpp"
 #include "utils.hpp"
 
 #include <numeric>
@@ -50,6 +51,36 @@ Image &prepareImage(Context &ctx, DataManager &dataManager, ImageId id, const st
     return image;
 }
 } // namespace
+
+TEST(IScenario, ScenarioSupportsImageTransfers) {
+    const std::string scenarioJson = R"(
+        {
+            "commands": [],
+            "resources": [
+                {
+                    "image": {
+                        "uid": "inImage",
+                        "dims": [1, 2, 2, 1],
+                        "format": "VK_FORMAT_R8_UINT",
+                        "shader_access": "readwrite",
+                        "mips": 1
+                    }
+                }
+            ]
+        }
+    )";
+    ScenarioSpec spec{scenarioJson};
+    spec.useComputeFamilyQueue = true;
+    Scenario scenario{ScenarioOptions{}, spec};
+    IScenario &api = scenario;
+    const auto imageId = api.getImageId("inImage");
+    const std::vector<char> payload{1, 2, 3, 4};
+
+    api.upload(imageId, {payload.data(), payload.size(), {1, 2, 2, 1}, vk::Format::eR8Uint});
+    api.run();
+
+    EXPECT_EQ(api.download(imageId).data, payload);
+}
 
 TEST(ImageInMemoryTransfer, UploadValidatesMetadataAndSize) {
     ScenarioOptions opts{};
