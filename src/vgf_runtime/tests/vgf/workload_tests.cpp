@@ -34,6 +34,8 @@ bool pointsInside(const void *ptr, const std::string &buffer) {
     return address >= begin && address < begin + buffer.size();
 }
 
+const std::vector<GraphConstantBindingRef> noGraphConstants;
+
 } // namespace
 
 TEST(VGF, DecodesSegmentsModulesBindingsResourcesAndDispatch) {
@@ -50,8 +52,8 @@ TEST(VGF, DecodesSegmentsModulesBindingsResourcesAndDispatch) {
         const auto intermediateBinding = encoder.AddBindingSlot(7, intermediate);
         const auto descriptorSet = encoder.AddDescriptorSetInfo({inputBinding, outputBinding, intermediateBinding}, 2);
         const auto pushConstantRange = encoder.AddPushConstRange(VK_SHADER_STAGE_COMPUTE_BIT, 0, 16);
-        encoder.AddSegmentInfo(module, "segment", {descriptorSet}, {inputBinding}, {outputBinding}, {}, {1, 2, 3},
-                               {pushConstantRange});
+        encoder.AddSegmentInfo(module, "segment", {descriptorSet}, {inputBinding}, {outputBinding}, noGraphConstants,
+                               {1, 2, 3}, {pushConstantRange});
     });
 
     const VGF vgf(data.data(), data.size());
@@ -183,7 +185,7 @@ TEST(VGF, DecodesResourceAliasGroups) {
         const auto descriptorSet =
             encoder.AddDescriptorSetInfo({inputBinding, tensorAliasBinding, bufferAliasBinding}, 0);
         encoder.AddSegmentInfo(module, "segment", {descriptorSet}, {inputBinding},
-                               {tensorAliasBinding, bufferAliasBinding}, {}, {1, 1, 1});
+                               {tensorAliasBinding, bufferAliasBinding}, noGraphConstants, {1, 1, 1});
     });
 
     const VGF vgf(data.data(), data.size());

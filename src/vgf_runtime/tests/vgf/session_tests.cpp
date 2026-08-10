@@ -25,6 +25,8 @@ using namespace vgf_runtime::test;
 
 class VgfRuntimeFullTest : public RuntimeSessionExecutionTest {};
 
+const std::vector<mlsdk::vgflib::GraphConstantBindingRef> noGraphConstants;
+
 std::string makeTwoSegmentMaxpoolVgf() {
     const auto &firstCode = assembleMaxpool16x16To8x8Spirv("maxpool_16x16_to_8x8", {0, 0, 0, 1});
     const auto &secondCode = assembleMaxpool8x8To4x4Spirv("maxpool_8x8_to_4x4", {0, 0, 0, 1});
@@ -42,7 +44,7 @@ std::string makeTwoSegmentMaxpoolVgf() {
         const auto firstOutputBinding = encoder.AddBindingSlot(1, firstOutput);
         const auto firstDescriptorSet = encoder.AddDescriptorSetInfo({firstInputBinding, firstOutputBinding});
         encoder.AddSegmentInfo(firstModule, "first_graph_segment", {firstDescriptorSet}, {firstInputBinding},
-                               {firstOutputBinding}, {});
+                               {firstOutputBinding}, noGraphConstants);
 
         const auto secondOutput =
             encoder.AddOutputResource(VK_DESCRIPTOR_TYPE_TENSOR_ARM, VK_FORMAT_R8_SINT, {1, 4, 4, 16}, {});
@@ -50,7 +52,7 @@ std::string makeTwoSegmentMaxpoolVgf() {
         const auto secondOutputBinding = encoder.AddBindingSlot(1, secondOutput);
         const auto secondDescriptorSet = encoder.AddDescriptorSetInfo({secondInputBinding, secondOutputBinding});
         encoder.AddSegmentInfo(secondModule, "second_graph_segment", {secondDescriptorSet}, {secondInputBinding},
-                               {secondOutputBinding}, {});
+                               {secondOutputBinding}, noGraphConstants);
     });
 }
 
@@ -79,7 +81,7 @@ std::string makeOutputBufferAliasedToIntermediateTensorVgf() {
         const auto intermediateBinding = encoder.AddBindingSlot(1, intermediate);
         const auto tensorDescriptorSet = encoder.AddDescriptorSetInfo({tensorInputBinding, intermediateBinding}, 0);
         encoder.AddSegmentInfo(maxpoolModule, "write_intermediate_tensor_alias", {tensorDescriptorSet},
-                               {tensorInputBinding}, {intermediateBinding}, {});
+                               {tensorInputBinding}, {intermediateBinding}, noGraphConstants);
 
         const auto aliasedOutputBufferBinding = encoder.AddBindingSlot(0, aliasedOutputBuffer);
         const auto zeroInputBinding = encoder.AddBindingSlot(1, zeroInput);
@@ -87,7 +89,8 @@ std::string makeOutputBufferAliasedToIntermediateTensorVgf() {
         const auto bufferInputSet = encoder.AddDescriptorSetInfo({aliasedOutputBufferBinding, zeroInputBinding}, 0);
         const auto bufferOutputSet = encoder.AddDescriptorSetInfo({finalOutputBinding}, 1);
         encoder.AddSegmentInfo(addModule, "read_bound_output_buffer_alias", {bufferInputSet, bufferOutputSet},
-                               {aliasedOutputBufferBinding, zeroInputBinding}, {finalOutputBinding}, {}, {10, 1, 1});
+                               {aliasedOutputBufferBinding, zeroInputBinding}, {finalOutputBinding}, noGraphConstants,
+                               {10, 1, 1});
     });
 }
 
@@ -108,7 +111,7 @@ std::string makeAddInt32BuffersVgf() {
         const auto inputSet = encoder.AddDescriptorSetInfo({firstInputBinding, secondInputBinding}, 0);
         const auto outputSet = encoder.AddDescriptorSetInfo({outputBinding}, 1);
         encoder.AddSegmentInfo(module, "add_int32_buffers_segment", {inputSet, outputSet},
-                               {firstInputBinding, secondInputBinding}, {outputBinding}, {}, {10, 1, 1});
+                               {firstInputBinding, secondInputBinding}, {outputBinding}, noGraphConstants, {10, 1, 1});
     });
 }
 
@@ -134,8 +137,8 @@ std::string makeAddInt32BuffersWithExternalImageVgf() {
             encoder.AddDescriptorSetInfo({firstInputBinding, secondInputBinding, imageInputBinding}, 0);
         const auto outputSet = encoder.AddDescriptorSetInfo({outputBinding}, 1);
         encoder.AddSegmentInfo(module, "add_int32_buffers_with_external_image_segment", {inputSet, outputSet},
-                               {firstInputBinding, secondInputBinding, imageInputBinding}, {outputBinding}, {},
-                               {10, 1, 1});
+                               {firstInputBinding, secondInputBinding, imageInputBinding}, {outputBinding},
+                               noGraphConstants, {10, 1, 1});
     });
 }
 
@@ -171,8 +174,8 @@ std::string makeDisjointAliasedIntermediateBuffersVgf() {
         const auto firstInputSet = encoder.AddDescriptorSetInfo({firstInputBinding, secondInputBinding}, 0);
         const auto firstOutputSet = encoder.AddDescriptorSetInfo({firstIntermediateOutputBinding}, 1);
         encoder.AddSegmentInfo(module, "write_first_alias", {firstInputSet, firstOutputSet},
-                               {firstInputBinding, secondInputBinding}, {firstIntermediateOutputBinding}, {},
-                               {10, 1, 1});
+                               {firstInputBinding, secondInputBinding}, {firstIntermediateOutputBinding},
+                               noGraphConstants, {10, 1, 1});
 
         const auto firstIntermediateInputBinding = encoder.AddBindingSlot(0, firstIntermediate);
         const auto zeroInputBinding = encoder.AddBindingSlot(1, zeroInput);
@@ -180,7 +183,8 @@ std::string makeDisjointAliasedIntermediateBuffersVgf() {
         const auto secondInputSet = encoder.AddDescriptorSetInfo({firstIntermediateInputBinding, zeroInputBinding}, 0);
         const auto secondOutputSet = encoder.AddDescriptorSetInfo({firstOutputBinding}, 1);
         encoder.AddSegmentInfo(module, "read_first_alias", {secondInputSet, secondOutputSet},
-                               {firstIntermediateInputBinding, zeroInputBinding}, {firstOutputBinding}, {}, {10, 1, 1});
+                               {firstIntermediateInputBinding, zeroInputBinding}, {firstOutputBinding},
+                               noGraphConstants, {10, 1, 1});
 
         const auto thirdInputBinding = encoder.AddBindingSlot(0, thirdInput);
         const auto fourthInputBinding = encoder.AddBindingSlot(1, fourthInput);
@@ -188,8 +192,8 @@ std::string makeDisjointAliasedIntermediateBuffersVgf() {
         const auto thirdInputSet = encoder.AddDescriptorSetInfo({thirdInputBinding, fourthInputBinding}, 0);
         const auto thirdOutputSet = encoder.AddDescriptorSetInfo({secondIntermediateOutputBinding}, 1);
         encoder.AddSegmentInfo(module, "write_second_alias", {thirdInputSet, thirdOutputSet},
-                               {thirdInputBinding, fourthInputBinding}, {secondIntermediateOutputBinding}, {},
-                               {10, 1, 1});
+                               {thirdInputBinding, fourthInputBinding}, {secondIntermediateOutputBinding},
+                               noGraphConstants, {10, 1, 1});
 
         const auto secondIntermediateInputBinding = encoder.AddBindingSlot(0, secondIntermediate);
         const auto repeatedZeroInputBinding = encoder.AddBindingSlot(1, zeroInput);
@@ -198,8 +202,8 @@ std::string makeDisjointAliasedIntermediateBuffersVgf() {
             encoder.AddDescriptorSetInfo({secondIntermediateInputBinding, repeatedZeroInputBinding}, 0);
         const auto fourthOutputSet = encoder.AddDescriptorSetInfo({secondOutputBinding}, 1);
         encoder.AddSegmentInfo(module, "read_second_alias", {fourthInputSet, fourthOutputSet},
-                               {secondIntermediateInputBinding, repeatedZeroInputBinding}, {secondOutputBinding}, {},
-                               {10, 1, 1});
+                               {secondIntermediateInputBinding, repeatedZeroInputBinding}, {secondOutputBinding},
+                               noGraphConstants, {10, 1, 1});
     });
 }
 
@@ -234,7 +238,8 @@ std::string makeIndependentAliasGroupsVgf() {
         const auto firstInputSet = encoder.AddDescriptorSetInfo({firstInputBinding, secondInputBinding}, 0);
         const auto firstOutputSet = encoder.AddDescriptorSetInfo({firstIntermediateBinding}, 1);
         encoder.AddSegmentInfo(module, "write_first_alias_group", {firstInputSet, firstOutputSet},
-                               {firstInputBinding, secondInputBinding}, {firstIntermediateBinding}, {}, {10, 1, 1});
+                               {firstInputBinding, secondInputBinding}, {firstIntermediateBinding}, noGraphConstants,
+                               {10, 1, 1});
 
         const auto thirdInputBinding = encoder.AddBindingSlot(0, thirdInput);
         const auto fourthInputBinding = encoder.AddBindingSlot(1, fourthInput);
@@ -242,7 +247,8 @@ std::string makeIndependentAliasGroupsVgf() {
         const auto secondInputSet = encoder.AddDescriptorSetInfo({thirdInputBinding, fourthInputBinding}, 0);
         const auto secondOutputSet = encoder.AddDescriptorSetInfo({secondIntermediateBinding}, 1);
         encoder.AddSegmentInfo(module, "write_second_alias_group", {secondInputSet, secondOutputSet},
-                               {thirdInputBinding, fourthInputBinding}, {secondIntermediateBinding}, {}, {10, 1, 1});
+                               {thirdInputBinding, fourthInputBinding}, {secondIntermediateBinding}, noGraphConstants,
+                               {10, 1, 1});
 
         const auto firstAliasedOutputBinding = encoder.AddBindingSlot(0, firstAliasedOutput);
         const auto secondAliasedOutputBinding = encoder.AddBindingSlot(1, secondAliasedOutput);
@@ -251,8 +257,8 @@ std::string makeIndependentAliasGroupsVgf() {
             encoder.AddDescriptorSetInfo({firstAliasedOutputBinding, secondAliasedOutputBinding}, 0);
         const auto thirdOutputSet = encoder.AddDescriptorSetInfo({outputBinding}, 1);
         encoder.AddSegmentInfo(module, "read_both_alias_groups", {thirdInputSet, thirdOutputSet},
-                               {firstAliasedOutputBinding, secondAliasedOutputBinding}, {outputBinding}, {},
-                               {10, 1, 1});
+                               {firstAliasedOutputBinding, secondAliasedOutputBinding}, {outputBinding},
+                               noGraphConstants, {10, 1, 1});
     });
 }
 
@@ -299,7 +305,8 @@ std::string makeOutputAliasedToIntermediateBufferVgf() {
         const auto firstInputSet = encoder.AddDescriptorSetInfo({firstInputBinding, secondInputBinding}, 0);
         const auto firstOutputSet = encoder.AddDescriptorSetInfo({intermediateBinding}, 1);
         encoder.AddSegmentInfo(module, "write_intermediate_alias", {firstInputSet, firstOutputSet},
-                               {firstInputBinding, secondInputBinding}, {intermediateBinding}, {}, {10, 1, 1});
+                               {firstInputBinding, secondInputBinding}, {intermediateBinding}, noGraphConstants,
+                               {10, 1, 1});
 
         const auto aliasedOutputInputBinding = encoder.AddBindingSlot(0, aliasedOutput);
         const auto zeroInputBinding = encoder.AddBindingSlot(1, zeroInput);
@@ -307,7 +314,8 @@ std::string makeOutputAliasedToIntermediateBufferVgf() {
         const auto secondInputSet = encoder.AddDescriptorSetInfo({aliasedOutputInputBinding, zeroInputBinding}, 0);
         const auto secondOutputSet = encoder.AddDescriptorSetInfo({finalOutputBinding}, 1);
         encoder.AddSegmentInfo(module, "read_output_alias", {secondInputSet, secondOutputSet},
-                               {aliasedOutputInputBinding, zeroInputBinding}, {finalOutputBinding}, {}, {10, 1, 1});
+                               {aliasedOutputInputBinding, zeroInputBinding}, {finalOutputBinding}, noGraphConstants,
+                               {10, 1, 1});
     });
 }
 
