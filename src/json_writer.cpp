@@ -15,6 +15,10 @@ using json = nlohmann::json;
 namespace {
 json _profilingDataJsonOutput = json::object();
 
+double calculateElapsedTimeInMilliseconds(uint64_t startTimestamp, uint64_t endTimestamp, float timestampPeriod) {
+    return static_cast<double>(endTimestamp - startTimestamp) * static_cast<double>(timestampPeriod) / 1000000.0;
+}
+
 struct CommandTimestamps {
     CommandTimestamps() = default;
     CommandTimestamps(const ProfiledCommand &command, const std::vector<uint64_t> &commandTimestamps,
@@ -34,8 +38,9 @@ void to_json(json &j, const CommandTimestamps &commandTimestamps) {
              {"Cycle count after command", commandTimestamps.timestamps[1]},
              {"Cycle count for command", commandTimestamps.timestamps[1] - commandTimestamps.timestamps[0]},
              {"Timestamp Period", commandTimestamps.period},
-             {"Time for command [ms]", float(commandTimestamps.timestamps[1] - commandTimestamps.timestamps[0]) *
-                                           commandTimestamps.period / 1000000.0f},
+             {"Time for command [ms]",
+              calculateElapsedTimeInMilliseconds(commandTimestamps.timestamps[0], commandTimestamps.timestamps[1],
+                                                 commandTimestamps.period)},
              {"Iteration", commandTimestamps.iteration + 1}};
 }
 
@@ -102,6 +107,12 @@ void writeProfilingData(const std::optional<RuntimeProfilingData> &runtimeProfil
         const auto &[timestamps, timestampPeriod, commands] = runtimeProfilingData.value();
         if (commands.size() * 2 != timestamps.size()) {
             throw std::runtime_error("Cannot map all timestamps to their respective commands");
+        }
+        if (!timestamps.empty()) {
+            const auto totalExecutionTime =
+                calculateElapsedTimeInMilliseconds(timestamps.front(), timestamps.back(), timestampPeriod);
+            _profilingDataJsonOutput["Total execution time [ms]"] =
+                _profilingDataJsonOutput.value("Total execution time [ms]", 0.0) + totalExecutionTime;
         }
         for (size_t idx = 0, commandIdx = 0; idx < timestamps.size(); idx += 2, ++commandIdx) {
             _profilingDataJsonOutput["Timestamps"] += CommandTimestamps(
