@@ -17,6 +17,11 @@
         "src": {
             "type": "string"
         },
+        "stage": {
+            "type": "string",
+            "enum": ["compute", "vertex", "fragment"],
+            "default": "compute"
+        },
         "type": {
             "type": "string",
             "enum": ["GLSL", "SPIR-V", "HLSL"]

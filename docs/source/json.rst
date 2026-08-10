@@ -205,7 +205,7 @@ The ``tensor`` resources have the following properties:
       uid:string, // globally unique identifier for the resource
       dims:[int], // n-length array of sized for an n-dimension tensor
       format:string, // string name of the VkFormat enum.
-      shader_access:enum = (readonly|writeonly|readwrite) // type of access required by the shader/graph
+      shader_access:enum = (readonly|writeonly|readwrite|image_read) // type of access required by the shader/graph
       src:path(default=""), // optional path to the NumPy file to initialize the resource from
       dst:path(default=""), // optional path to the NumPy file to write contents to (post execution of commands)
       memory_group, // optional memory group to share memory object between resources; when used, offset must be aligned to Vulkan® tensor memory alignment
@@ -288,11 +288,18 @@ Runtime.
       src:path, // path to a shader source file
       entry:string(default="main"), // entry point into the shader
       type: enum = (GLSL | SPIR-V | HLSL), // Type of shader source to expect
+      stage: enum(default=compute) = (compute | vertex | fragment), // shader stage
       build_options:string(default=""), // Build options to be used when compiling a GLSL or HLSL shader source
       include_dirs:[string](default=[]), // Shaders include directories
       push_constants_size:int(default=0), // Size in bytes of the push constants used by the shader. Must be a multiple of 4
       specialization_constants: [class specialization_constant](default=), // n-dimension array
   }
+
+If ``stage`` is omitted, the shader is treated as a compute shader. Use
+``vertex`` and ``fragment`` for shader resources referenced by
+``dispatch_fragment``.
+
+.. code-block::
 
   specialization_constant: {
       id: int,    // id of the specialization constant in the shader
@@ -351,10 +358,10 @@ the corresponding dispatch command.
 
   memory_barrier: {
       uid:string, // globally unique identifier for the resource
-      src_access:enum(ACCESS_MEMORY_WRITE|ACCESS_MEMORY_READ|ACCESS_GRAPH_WRITE|ACCESS_GRAPH_READ|ACCESS_COMPUTE_SHADER_WRITE|ACCESS_COMPUTE_SHADER_READ), // memory access type from the source
-      dst_access:enum(ACCESS_MEMORY_WRITE|ACCESS_MEMORY_READ|ACCESS_GRAPH_WRITE|ACCESS_GRAPH_READ|ACCESS_COMPUTE_SHADER_WRITE|ACCESS_COMPUTE_SHADER_READ), // memory access type from the destination
-      src_stage:[enum(GRAPH|COMPUTE|GRAPHICS|ALL)], // source pipeline stages
-      dst_stage:[enum(GRAPH|COMPUTE|GRAPHICS|ALL)], // destination pipeline stages
+      src_access:enum(compute_shader_write|compute_shader_read|graph_write|graph_read|memory_write|memory_read), // memory access type from the source
+      dst_access:enum(compute_shader_write|compute_shader_read|graph_write|graph_read|memory_write|memory_read), // memory access type from the destination
+      src_stage:[enum(graph|compute|graphics|all)], // source pipeline stages
+      dst_stage:[enum(graph|compute|graphics|all)], // destination pipeline stages
   }
 
 .. code-block::
@@ -363,10 +370,10 @@ the corresponding dispatch command.
       uid:string, // globally unique identifier for the resource
       buffer_resource:string, // reference to the buffer resource
       size:int // total size of the buffer affected by this barrier in bytes
-      src_access:enum(ACCESS_MEMORY_WRITE|ACCESS_MEMORY_READ|ACCESS_GRAPH_WRITE|ACCESS_GRAPH_READ|ACCESS_COMPUTE_SHADER_WRITE|ACCESS_COMPUTE_SHADER_READ), // memory access type from the source
-      dst_access:enum(ACCESS_MEMORY_WRITE|ACCESS_MEMORY_READ|ACCESS_GRAPH_WRITE|ACCESS_GRAPH_READ|ACCESS_COMPUTE_SHADER_WRITE|ACCESS_COMPUTE_SHADER_READ), // memory access type from the destination
-      src_stage:[enum(GRAPH|COMPUTE|GRAPHICS|ALL)], // source pipeline stages
-      dst_stage:[enum(GRAPH|COMPUTE|GRAPHICS|ALL)], // destination pipeline stages
+      src_access:enum(compute_shader_write|compute_shader_read|graph_write|graph_read|memory_write|memory_read), // memory access type from the source
+      dst_access:enum(compute_shader_write|compute_shader_read|graph_write|graph_read|memory_write|memory_read), // memory access type from the destination
+      src_stage:[enum(graph|compute|graphics|all)], // source pipeline stages
+      dst_stage:[enum(graph|compute|graphics|all)], // destination pipeline stages
       offset:int(default=0), // the offset in bytes into the backing memory for the buffer affected by this barrier
   }
 
@@ -374,14 +381,14 @@ the corresponding dispatch command.
 
   image_barrier: {
       uid:string, // globally unique identifier for the resource
-      src_access:enum(ACCESS_MEMORY_WRITE|ACCESS_MEMORY_READ|ACCESS_GRAPH_WRITE|ACCESS_GRAPH_READ|ACCESS_COMPUTE_SHADER_WRITE|ACCESS_COMPUTE_SHADER_READ), // memory access type from the source
-      dst_access:enum(ACCESS_MEMORY_WRITE|ACCESS_MEMORY_READ|ACCESS_GRAPH_WRITE|ACCESS_GRAPH_READ|ACCESS_COMPUTE_SHADER_WRITE|ACCESS_COMPUTE_SHADER_READ), // memory access type from the destination
-      old_layout:enum = (IMAGE_LAYOUT_TENSOR_ALIASING|IMAGE_LAYOUT_GENERAL|IMAGE_LAYOUT_UNDEFINED), // the old image layout in an image layout transition
-      new_layout:enum = (IMAGE_LAYOUT_TENSOR_ALIASING|IMAGE_LAYOUT_GENERAL|IMAGE_LAYOUT_UNDEFINED), // the new image layout in an image layout transition
+      src_access:enum(compute_shader_write|compute_shader_read|graph_write|graph_read|memory_write|memory_read), // memory access type from the source
+      dst_access:enum(compute_shader_write|compute_shader_read|graph_write|graph_read|memory_write|memory_read), // memory access type from the destination
+      old_layout:enum = (general|tensor_aliasing|undefined), // the old image layout in an image layout transition
+      new_layout:enum = (general|tensor_aliasing|undefined), // the new image layout in an image layout transition
       image_resource:string, // reference to the image resource
       subresource_range: class subresource_range // the subresource range within the image affected by this barrier
-      src_stage:[enum(GRAPH|COMPUTE|GRAPHICS|ALL)], // source pipeline stages
-      dst_stage:[enum(GRAPH|COMPUTE|GRAPHICS|ALL)], // destination pipeline stages
+      src_stage:[enum(graph|compute|graphics|all)], // source pipeline stages
+      dst_stage:[enum(graph|compute|graphics|all)], // destination pipeline stages
   }
 
 The subresource_range resource maps the image subresources of an image affected by an image barrier:
@@ -400,10 +407,10 @@ The subresource_range resource maps the image subresources of an image affected 
   tensor_barrier: {
       uid:string, // globally unique identifier for the resource
       tensor_resource:string, // reference to the tensor resource
-      src_access:enum(ACCESS_MEMORY_WRITE|ACCESS_MEMORY_READ|ACCESS_GRAPH_WRITE|ACCESS_GRAPH_READ|ACCESS_COMPUTE_SHADER_WRITE|ACCESS_COMPUTE_SHADER_READ), // memory access type from the source
-      dst_access:enum(ACCESS_MEMORY_WRITE|ACCESS_MEMORY_READ|ACCESS_GRAPH_WRITE|ACCESS_GRAPH_READ|ACCESS_COMPUTE_SHADER_WRITE|ACCESS_COMPUTE_SHADER_READ), // memory access type from the destination
-      src_stage:[enum(GRAPH|COMPUTE|GRAPHICS|ALL)], // source pipeline stages
-      dst_stage:[enum(GRAPH|COMPUTE|GRAPHICS|ALL)], // destination pipeline stages
+      src_access:enum(compute_shader_write|compute_shader_read|graph_write|graph_read|memory_write|memory_read), // memory access type from the source
+      dst_access:enum(compute_shader_write|compute_shader_read|graph_write|graph_read|memory_write|memory_read), // memory access type from the destination
+      src_stage:[enum(graph|compute|graphics|all)], // source pipeline stages
+      dst_stage:[enum(graph|compute|graphics|all)], // destination pipeline stages
   }
 
 graph_constant
@@ -466,6 +473,7 @@ The ``dispatch_fragment`` command dispatches a fullscreen fragment pipeline. Thi
 .. code-block::
 
   dispatch_fragment: {
+      debug_name: string(default=fragment_shader_ref), // optional command debug name
       vertex_shader_ref: string, // reference to the vertex shader resource
       fragment_shader_ref: string, // reference to the fragment shader resource
       bindings: [class binding], // bindings accessible to the fragment pipeline

@@ -1,0 +1,27 @@
+{
+    "commands": [
+    ],
+    "resources": [
+        {
+            "shader": {
+                "uid": "compute_shader",
+                "src": "compute.glsl",
+                "stage": "compute"
+            }
+        },
+        {
+            "shader": {
+                "uid": "vertex_shader",
+                "src": "vertex.vert",
+                "stage": "vertex"
+            }
+        },
+        {
+            "shader": {
+                "uid": "fragment_shader",
+                "src": "fragment.frag",
+                "stage": "fragment"
+            }
+        }
+    ]
+}

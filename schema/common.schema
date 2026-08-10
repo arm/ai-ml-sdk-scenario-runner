@@ -37,7 +37,8 @@
             "type": "string",
             "enum": [
                 "general",
-                "tensor_aliasing"
+                "tensor_aliasing",
+                "undefined"
             ]
         },
         "memory_group": {
