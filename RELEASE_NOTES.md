@@ -15,6 +15,7 @@
 ### Profiling
 
 - Using --dry-run with --profiling-dump-path now outputs information about pipeline compilation
+- Add new entry "Total execution time [ms]" in json profiling.
 
 ### Bug Fixes
 

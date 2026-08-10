@@ -46,4 +46,19 @@ TEST(JsonWriter, WritesEmptyObjectWithoutProfilingData) { // cppcheck-suppress s
     EXPECT_TRUE(profilingData.empty());
 }
 
+TEST(JsonWriter, WritesTotalExecutionTimeAcrossIterations) {
+    TempFolder tempFolder("scenario_runner_json_writer_tests");
+    const auto profilingPath = tempFolder.relative("runtime_profiling.json");
+    const std::vector<ProfiledCommand> commands{{"ComputeDispatch", "first"}, {"ComputeDispatch", "second"}};
+
+    writeProfilingData(RuntimeProfilingData{{100, 150, 175, 250}, 2.0f, commands}, {}, profilingPath, 0, 2);
+    writeProfilingData(RuntimeProfilingData{{1000, 1100, 1200, 1400}, 2.0f, commands}, {}, profilingPath, 1, 2);
+
+    std::ifstream dumpFile(profilingPath);
+    const auto profilingData = nlohmann::json::parse(dumpFile);
+
+    ASSERT_TRUE(profilingData.contains("Total execution time [ms]"));
+    EXPECT_DOUBLE_EQ(profilingData["Total execution time [ms]"].get<double>(), 0.0011);
+}
+
 } // namespace mlsdk::scenariorunner
