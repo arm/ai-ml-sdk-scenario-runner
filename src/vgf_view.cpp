@@ -31,7 +31,7 @@ std::string_view categoryToSuffix(vgflib::ResourceCategory category) {
     }
 }
 
-std::string createResourceGuidStr(uint32_t index, vgflib::ResourceCategory category) {
+std::string createResourceName(uint32_t index, vgflib::ResourceCategory category) {
     return std::string("Resource_").append(std::to_string(index)).append(categoryToSuffix(category));
 }
 
@@ -115,23 +115,6 @@ std::optional<uint32_t> findModelInterfaceMrtIndex(const vgflib::ModelSequenceTa
     const auto result = findModelInterfaceResource(decoder, bindingId);
     return result ? std::optional<uint32_t>{result->mrtIndex} : std::nullopt;
 }
-
-ResourceIdType getResourceIdType(vgflib::DescriptorType descriptorType) {
-    switch (vk::DescriptorType(vgflib::ToVkDescriptorType(descriptorType))) {
-    case vk::DescriptorType::eUniformBuffer:
-    case vk::DescriptorType::eStorageBuffer:
-        return ResourceIdType::Buffer;
-    case vk::DescriptorType::eCombinedImageSampler:
-    case vk::DescriptorType::eStorageImage:
-        return ResourceIdType::Image;
-    case vk::DescriptorType::eTensorARM:
-        return ResourceIdType::Tensor;
-    default:
-        throw std::runtime_error("Resource type from VGF file not found");
-    }
-}
-
-Guid createVgfAliasGroupGuid(uint32_t aliasGroupId) { return Guid(std::to_string(aliasGroupId)); }
 
 std::runtime_error unsupportedVgfSamplerValue(const std::string &field, const std::string &value) {
     return std::runtime_error("Unsupported VGF sampler " + field + ": " + value);
@@ -401,7 +384,7 @@ std::pair<std::vector<TypedBinding>, VgfView::MrtIndexes> VgfView::getBindings(u
             const auto expectedType = resourceTableDecoder->getDescriptorType(mrtIndex);
             const auto vkDescriptorType = getVkDescriptorType(expectedType.value_or(DESCRIPTOR_TYPE_UNKNOWN));
             auto bindingId = sequenceTableDecoder->getBindingSlotBinding(handle, slot);
-            auto guidStr = createResourceGuidStr(mrtIndex, resourceTableDecoder->getCategory(mrtIndex));
+            auto guidStr = createResourceName(mrtIndex, resourceTableDecoder->getCategory(mrtIndex));
             TypedBinding binding;
             binding.set = set;
             binding.id = bindingId;
@@ -450,40 +433,12 @@ std::vector<TypedBinding> VgfView::resolveBindings(uint32_t segmentIndex, const 
     return bindings;
 }
 
-std::vector<ResourceAlias> VgfView::getResourceAliases(const std::vector<TypedBinding> &externalBindings) const {
-    std::vector<ResourceAlias> aliases;
-
-    for (const auto &externalBinding : externalBindings) {
-        const auto mrtIndex = findModelInterfaceMrtIndex(*sequenceTableDecoder, externalBinding.id);
-        if (!mrtIndex.has_value()) {
-            continue;
-        }
-
-        const auto aliasGroupId = resourceTableDecoder->getAliasGroupId(*mrtIndex);
-        if (!aliasGroupId.has_value()) {
-            continue;
-        }
-
-        const auto type = resourceTableDecoder->getDescriptorType(*mrtIndex);
-        const auto descriptorType = type.value_or(DESCRIPTOR_TYPE_UNKNOWN);
-        aliases.push_back(
-            {createVgfAliasGroupGuid(*aliasGroupId), externalBinding.resourceRef, getResourceIdType(descriptorType)});
+std::optional<uint32_t> VgfView::getModelResourceAliasGroup(uint32_t bindingId) const {
+    const auto resourceIndex = findModelInterfaceMrtIndex(*sequenceTableDecoder, bindingId);
+    if (!resourceIndex.has_value()) {
+        throw std::runtime_error("No model interface resource found for binding ID " + std::to_string(bindingId));
     }
-
-    size_t numResources = resourceTableDecoder->size();
-    for (uint32_t resourceIndex = 0; resourceIndex < numResources; ++resourceIndex) {
-        auto resourceCategory = resourceTableDecoder->getCategory(resourceIndex);
-        if (resourceCategory == vgflib::ResourceCategory::INTERMEDIATE) {
-            auto guidStr = createResourceGuidStr(resourceIndex, resourceCategory);
-            const Guid guid(guidStr);
-            if (const auto aliasGroupId = resourceTableDecoder->getAliasGroupId(resourceIndex)) {
-                const auto type = resourceTableDecoder->getDescriptorType(resourceIndex);
-                const auto descriptorType = type.value_or(DESCRIPTOR_TYPE_UNKNOWN);
-                aliases.push_back({createVgfAliasGroupGuid(*aliasGroupId), guid, getResourceIdType(descriptorType)});
-            }
-        }
-    }
-    return aliases;
+    return resourceTableDecoder->getAliasGroupId(*resourceIndex);
 }
 
 void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t vgfMrtIndex,
@@ -561,14 +516,19 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
     }
 }
 
-void VgfView::createIntermediateResources(IResourceCreator &creator) const {
-    // Iterate over all VGF Resources, create intermediates
+VgfResourceCreationResult VgfView::createIntermediateResources(IResourceCreator &creator) const {
+    // Iterate over all VGF resources, recording aliases and creating intermediates.
     size_t numResources = resourceTableDecoder->size();
+    VgfResourceCreationResult result;
     for (uint32_t resourceIndex = 0; resourceIndex < numResources; ++resourceIndex) {
         auto resourceCategory = resourceTableDecoder->getCategory(resourceIndex);
         if (resourceCategory == vgflib::ResourceCategory::INTERMEDIATE) {
-            auto guidStr = createResourceGuidStr(resourceIndex, resourceCategory);
-            const Guid guid(guidStr);
+            const auto addResource = [&](MemoryResourceId id) {
+                if (const auto aliasGroupId = resourceTableDecoder->getAliasGroupId(resourceIndex)) {
+                    result.memoryGroups[*aliasGroupId].push_back(id);
+                }
+            };
+            auto debugName = createResourceName(resourceIndex, resourceCategory);
             const auto shape = resourceTableDecoder->getTensorShape(resourceIndex);
             const auto type = resourceTableDecoder->getDescriptorType(resourceIndex);
             const auto descriptorType = type.value_or(DESCRIPTOR_TYPE_UNKNOWN);
@@ -579,24 +539,24 @@ void VgfView::createIntermediateResources(IResourceCreator &creator) const {
                     bufferSize(shape, vk::Format(resourceTableDecoder->getVkFormat(resourceIndex)));
 
                 // Create Scenario Runner buffer resource
-                BufferInfo info{std::move(guidStr), expectedBufferSize};
-                creator.createBuffer(guid, std::move(info));
+                BufferInfo info{std::move(debugName), expectedBufferSize};
+                addResource(creator.createBuffer(std::move(info)));
             } break;
             case DESCRIPTOR_TYPE_TENSOR_ARM: {
                 auto format = resourceTableDecoder->getVkFormat(resourceIndex);
 
-                auto info = TensorInfo{std::move(guidStr), std::vector<int64_t>(shape.begin(), shape.end()),
+                auto info = TensorInfo{std::move(debugName), std::vector<int64_t>(shape.begin(), shape.end()),
                                        vk::Format(format), -1, false};
 
                 // Create Scenario Runner tensor
-                creator.createTensor(guid, std::move(info));
+                addResource(creator.createTensor(std::move(info)));
             } break;
             case DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
             case DESCRIPTOR_TYPE_STORAGE_IMAGE: {
                 auto format = resourceTableDecoder->getVkFormat(resourceIndex);
 
                 ImageInfo info{};
-                info.debugName = std::move(guidStr);
+                info.debugName = std::move(debugName);
                 info.shape = std::vector<int64_t>(shape.begin(), shape.end());
                 info.format = vk::Format(format);
                 info.targetFormat = info.format;
@@ -608,14 +568,15 @@ void VgfView::createIntermediateResources(IResourceCreator &creator) const {
                     applyVgfSamplerConfigIfPresent(*resourceTableDecoder, resourceIndex, info);
                 }
 
-                creator.createImage(guid, std::move(info));
+                addResource(creator.createImage(std::move(info)));
             } break;
             default:
                 throw std::runtime_error("Unknown resource type: " + std::to_string(descriptorType) +
-                                         " read from VGF file for uid: " + guidStr);
+                                         " read from VGF file for resource: " + debugName);
             }
         }
     }
+    return result;
 }
 
 } // namespace mlsdk::scenariorunner

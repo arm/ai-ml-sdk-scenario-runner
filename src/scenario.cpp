@@ -430,22 +430,32 @@ std::vector<TypedBinding> convertBindings(const DataManager &dataManager,
 
 class Creator final : public IResourceCreator {
   public:
-    Creator(const Context &ctx, DataManager &dataManager, GroupManager &groupManager)
-        : _ctx{ctx}, _dataManager{dataManager}, _groupManager{groupManager} {}
+    Creator(const Context &ctx, ResourceManager &resources, DataManager &dataManager, GroupManager &groupManager)
+        : _ctx{ctx}, _resources{resources}, _dataManager{dataManager}, _groupManager{groupManager} {}
 
-    void createBuffer(Guid guid, BufferInfo &&info) override {
-        _dataManager.createBuffer(guid, std::move(info));
+    BufferId createBuffer(BufferInfo &&info) override {
+        // Use the generated resource name as the DataManager key until it accepts typed IDs.
+        const Guid guid(info.debugName);
+        const auto id = _resources.addBuffer(std::move(info));
+        _dataManager.createBuffer(guid, _resources.get(id));
         _createdResources.push_back({guid, ResourceIdType::Buffer});
+        return id;
     }
 
-    void createTensor(Guid guid, TensorInfo &&info) override {
-        _dataManager.createTensor(guid, std::move(info));
+    TensorId createTensor(TensorInfo &&info) override {
+        const Guid guid(info.debugName);
+        const auto id = _resources.addTensor(std::move(info));
+        _dataManager.createTensor(guid, _resources.get(id));
         _createdResources.push_back({guid, ResourceIdType::Tensor});
+        return id;
     }
 
-    void createImage(Guid guid, ImageInfo &&info) override {
-        _dataManager.createImage(guid, std::move(info));
+    ImageId createImage(ImageInfo &&info) override {
+        const Guid guid(info.debugName);
+        const auto id = _resources.addImage(std::move(info));
+        _dataManager.createImage(guid, _resources.get(id));
         _createdResources.push_back({guid, ResourceIdType::Image});
+        return id;
     }
 
     void setupCreatedNonTensorResources() {
@@ -491,23 +501,41 @@ class Creator final : public IResourceCreator {
 
   private:
     const Context &_ctx;
+    ResourceManager &_resources;
     DataManager &_dataManager;
     GroupManager &_groupManager;
     std::vector<GroupResourceEntry> _createdResources;
 };
 
-template <typename Id>
-Id resolveResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds, const Guid &guid,
-                     std::string_view expectedType) {
+const TypedResourceId &resolveTypedResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds,
+                                              const Guid &guid, std::string_view expectedType) {
     const auto resource = resourceIds.find(guid);
     if (resource == resourceIds.end()) {
         throw std::runtime_error(std::string(expectedType) + " resource not found.");
     }
-    const auto *id = std::get_if<Id>(&resource->second);
+    return resource->second;
+}
+
+template <typename Id>
+Id resolveResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds, const Guid &guid,
+                     std::string_view expectedType) {
+    const auto &resourceId = resolveTypedResourceId(resourceIds, guid, expectedType);
+    const auto *id = std::get_if<Id>(&resourceId);
     if (id == nullptr) {
         throw std::runtime_error("Resource UID has the wrong type; expected " + std::string(expectedType) + ".");
     }
     return *id;
+}
+
+GroupResourceEntry getGroupResourceEntry(const ResourceManager &resources, const MemoryResourceId &resourceId) {
+    if (const auto *id = std::get_if<BufferId>(&resourceId)) {
+        return {Guid(resources.get(*id).debugName), ResourceIdType::Buffer};
+    }
+    if (const auto *id = std::get_if<ImageId>(&resourceId)) {
+        return {Guid(resources.get(*id).debugName), ResourceIdType::Image};
+    }
+    const auto id = std::get<TensorId>(resourceId);
+    return {Guid(resources.get(id).debugName), ResourceIdType::Tensor};
 }
 
 struct CommandDataFactory {
@@ -729,6 +757,20 @@ Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
 
 const ShaderInfo &Scenario::getShader(ShaderId id) const { return _resources.get(id); }
 
+MemoryResourceId Scenario::getMemoryResourceId(const Guid &guid) const {
+    const auto &resourceId = resolveTypedResourceId(_resourceIds, guid, "Memory");
+    if (const auto *id = std::get_if<BufferId>(&resourceId)) {
+        return *id;
+    }
+    if (const auto *id = std::get_if<ImageId>(&resourceId)) {
+        return *id;
+    }
+    if (const auto *id = std::get_if<TensorId>(&resourceId)) {
+        return *id;
+    }
+    throw std::runtime_error("Resource UID has the wrong type; expected a memory resource.");
+}
+
 const ShaderInfo &Scenario::getSubstitutionShader(const std::vector<ResolvedShaderSubstitution> &shaderSubstitutions,
                                                   const std::string &moduleName) const {
     for (const auto &shaderSub : shaderSubstitutions) {
@@ -866,7 +908,7 @@ void Scenario::setupResources() {
         mlsdk::logging::debug(resourceType(resource) + ": " + resource->guidStr + " loaded");
     }
 
-    Creator vgfResourceCreator{_ctx, _dataManager, _groupManager};
+    Creator vgfResourceCreator{_ctx, _resources, _dataManager, _groupManager};
     for (const auto &command : _scenarioSpec.commands) {
         if (command->commandType != CommandType::DispatchDataGraph) {
             continue;
@@ -877,11 +919,24 @@ void Scenario::setupResources() {
             resolveResourceId<DataGraphId>(_resourceIds, dispatchDataGraph.dataGraphRef, "Data graph");
         const auto &vgfView = _dataManager.getVgfView(dataGraph);
         const auto externalBindings = convertBindings(_dataManager, dispatchDataGraph.bindings);
-        // Register aliases before creating resources so setup/allocation sees the complete group membership.
-        for (const auto &alias : vgfView.getResourceAliases(externalBindings)) {
-            _groupManager.addResourceToGroup(alias.group, alias.resource, alias.resourceType);
+        const auto creationResult = vgfView.createIntermediateResources(vgfResourceCreator);
+        for (const auto &[aliasGroupId, resourceIds] : creationResult.memoryGroups) {
+            for (const auto &resourceId : resourceIds) {
+                const auto [resourceGuid, resourceType] = getGroupResourceEntry(_resources, resourceId);
+                _groupManager.addResourceToGroup(Guid(std::to_string(aliasGroupId)), resourceGuid, resourceType);
+            }
         }
-        vgfView.createIntermediateResources(vgfResourceCreator);
+
+        // External resources are resolved for each dispatch because bindings may differ.
+        for (const auto &binding : externalBindings) {
+            const auto aliasGroupId = vgfView.getModelResourceAliasGroup(binding.id);
+            if (!aliasGroupId.has_value()) {
+                continue;
+            }
+            const auto resourceId = getMemoryResourceId(binding.resourceRef);
+            const auto [resourceGuid, resourceType] = getGroupResourceEntry(_resources, resourceId);
+            _groupManager.addResourceToGroup(Guid(std::to_string(*aliasGroupId)), resourceGuid, resourceType);
+        }
     }
     _groupManager.finalize();
 

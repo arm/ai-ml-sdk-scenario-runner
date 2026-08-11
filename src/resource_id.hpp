@@ -42,6 +42,8 @@ using RawDataId = ResourceId<RawDataIdTag>;
 using DataGraphId = ResourceId<DataGraphIdTag>;
 using GraphConstantResourceId = ResourceId<GraphConstantResourceIdTag>;
 
+using MemoryResourceId = std::variant<BufferId, ImageId, TensorId>;
+
 using TypedResourceId =
     std::variant<BufferId, ImageId, TensorId, ShaderId, RawDataId, DataGraphId, GraphConstantResourceId>;
 
