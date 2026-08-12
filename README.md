@@ -254,10 +254,17 @@ adb shell am start-foreground-service \
 
 The ML SDK Scenario Runner is available on PyPI as the [ai-ml-sdk-scenario-runner](https://pypi.org/project/ai-ml-sdk-scenario-runner) package.
 
-Install:
+Install the published package:
 
 ```bash
 pip install ai-ml-sdk-scenario-runner
+```
+
+To build and install the host executable from an ML SDK checkout, run from this
+repository root:
+
+```bash
+pip install .
 ```
 
 ## Known Limitations

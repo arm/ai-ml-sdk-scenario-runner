@@ -93,8 +93,11 @@ class Builder:
         if self.package_release_pip:
             self.package_pip = True
 
+        self.pip_install = str(
+            SCENARIO_RUNNER_DIR / "pip_package" / "scenario_runner" / "binaries"
+        )
         if not self.install and self.package_pip:
-            self.install = "pip_install"
+            self.install = self.pip_install
 
         if not self.install and self.package_apk:
             self.install = "apk_install"
@@ -458,21 +461,36 @@ class Builder:
                     )
 
             if self.package_pip:
-                os.makedirs("pip_package/scenario_runner/binaries/", exist_ok=True)
-                shutil.copytree(
-                    self.install,
-                    "pip_package/scenario_runner/binaries/",
-                    dirs_exist_ok=True,
-                )
-                shutil.copyfile("README.md", "pip_package/README.md")
+                if self.install != self.pip_install:
+                    subprocess.run(
+                        [
+                            "cmake",
+                            "--install",
+                            self.build_dir,
+                            "--prefix",
+                            self.pip_install,
+                            "--config",
+                            self.build_type,
+                        ],
+                        check=True,
+                    )
 
-                os.environ[
+                build_env = os.environ.copy()
+                build_env[
                     "SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AI_ML_SDK_SCENARIO_RUNNER"
                 ] = package_version
+                build_env["SCENARIO_RUNNER_SKIP_NATIVE_BUILD"] = "1"
                 result = subprocess.Popen(
-                    [sys.executable, "-m", "build"],
-                    env=os.environ,
-                    cwd="pip_package",
+                    [
+                        sys.executable,
+                        "-m",
+                        "build",
+                        "--outdir",
+                        str(SCENARIO_RUNNER_DIR / "pip_package" / "dist"),
+                        str(SCENARIO_RUNNER_DIR),
+                    ],
+                    env=build_env,
+                    cwd=SCENARIO_RUNNER_DIR,
                 )
                 result.communicate()
 
@@ -535,7 +553,7 @@ class Builder:
 
 
 def get_package_version():
-    pyproject = (SCENARIO_RUNNER_DIR / "pip_package" / "pyproject.toml").read_text()
+    pyproject = (SCENARIO_RUNNER_DIR / "pyproject.toml").read_text()
 
     regex_result = re.search(r'fallback_version\s*=\s*"([^"]+)"', pyproject)
     if not regex_result:
@@ -548,7 +566,7 @@ def get_package_version():
     return f"{base_version}.dev{date_tag}"
 
 
-def parse_arguments():
+def parse_arguments(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--build-dir",
@@ -736,16 +754,19 @@ def parse_arguments():
         default=False,
     )
 
-    if argcomplete:
+    if argcomplete and argv is None:
         argcomplete.autocomplete(parser)
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     return args
 
 
+def build(argv=None):
+    return Builder(parse_arguments(argv)).run()
+
+
 def main():
-    builder = Builder(parse_arguments())
-    sys.exit(builder.run())
+    sys.exit(build())
 
 
 if __name__ == "__main__":
