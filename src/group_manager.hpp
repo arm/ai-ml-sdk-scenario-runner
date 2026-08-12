@@ -7,39 +7,38 @@
 
 #include "scenario_runner.hpp"
 
-#include <set>
 #include <unordered_map>
 
 namespace mlsdk::scenariorunner {
 
 class GroupManager : public IGroupManager {
   public:
-    /// Create or add resource to group
-    void addResourceToGroup(const Guid &group, const Guid &resource, ResourceIdType resourceIdType) override;
+    MemoryGroupId createMemoryGroup() override;
+
+    /// Add resource to group
+    void addResourceToGroup(MemoryGroupId group, MemoryResourceId resource) override;
 
     /// Complete group registration and create the shared memory managers.
     void finalize() override;
 
     /// Return size of group that resource belongs to
-    size_t getAliasCount(const Guid &resource) const override;
+    size_t getAliasCount(MemoryResourceId resource) const override;
 
-    bool isAliased(const Guid &resource) const override;
-
-    ///  Returns true if resource is aliased with any resource of type
-    bool hasAliasOfType(const Guid &resource, ResourceIdType resourceIdType) const override;
+    bool isAliased(MemoryResourceId resource) const override;
 
     // Get memory manager, shared if resource is aliased.
-    std::shared_ptr<ResourceMemoryManager> getMemoryManager(const Guid &resource) override;
+    std::shared_ptr<ResourceMemoryManager> getMemoryManager(MemoryResourceId resource) override;
     const GroupResources &getGroups() const override;
 
-    std::optional<Guid> getGroupForResource(const Guid &resource) const;
-    std::vector<GroupResourceEntry> getResourcesInGroup(const Guid &group) const;
+    std::optional<MemoryGroupId> getGroupForResource(MemoryResourceId resource) const;
+    std::vector<MemoryResourceId> getResourcesInGroup(MemoryGroupId group) const;
 
   private:
     bool _finalized{false};
-    std::unordered_map<Guid, Guid> _resourceToGroup;
+    size_t _nextGroupId{};
+    std::unordered_map<MemoryResourceId, MemoryGroupId> _resourceToGroup;
     GroupResources _groupResources;
-    std::unordered_map<Guid, std::shared_ptr<ResourceMemoryManager>> _groupMemoryManagers;
+    std::unordered_map<MemoryGroupId, std::shared_ptr<ResourceMemoryManager>> _groupMemoryManagers;
 };
 
 } // namespace mlsdk::scenariorunner

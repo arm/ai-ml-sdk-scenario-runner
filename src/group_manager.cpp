@@ -10,17 +10,33 @@
 
 namespace mlsdk::scenariorunner {
 
-void GroupManager::addResourceToGroup(const Guid &group, const Guid &resource, ResourceIdType resourceIdType) {
+MemoryGroupId GroupManager::createMemoryGroup() {
+    if (_finalized) {
+        throw std::runtime_error("Cannot create memory group after finalization");
+    }
+    const MemoryGroupId group{_nextGroupId++};
+    _groupResources.emplace(group, std::vector<MemoryResourceId>{});
+    return group;
+}
+
+void GroupManager::addResourceToGroup(MemoryGroupId group, MemoryResourceId resource) {
     if (_finalized) {
         throw std::runtime_error("Cannot add resource to memory group after finalization");
+    }
+    const auto groupIt = _groupResources.find(group);
+    if (groupIt == _groupResources.end()) {
+        throw std::runtime_error("Memory group does not exist");
     }
     const auto [resourceIt, inserted] = _resourceToGroup.emplace(resource, group);
     if (!inserted && resourceIt->second != group) {
         throw std::runtime_error("Resource already belongs to a different group");
     }
+    if (!inserted) {
+        return;
+    }
     logging::debug("addResourceToGroup count of resources: " + std::to_string(_resourceToGroup.size()) +
-                   " added type: " + std::to_string(static_cast<int>(resourceIdType)));
-    _groupResources[group].insert({resource, resourceIdType});
+                   " added type: " + std::to_string(resource.index()));
+    groupIt->second.push_back(resource);
 }
 
 void GroupManager::finalize() {
@@ -37,7 +53,7 @@ void GroupManager::finalize() {
     _finalized = true;
 }
 
-size_t GroupManager::getAliasCount(const Guid &resource) const {
+size_t GroupManager::getAliasCount(MemoryResourceId resource) const {
     const auto it = _resourceToGroup.find(resource);
     if (it != _resourceToGroup.end()) {
         return _groupResources.at(it->second).size();
@@ -45,21 +61,9 @@ size_t GroupManager::getAliasCount(const Guid &resource) const {
     return 0;
 }
 
-bool GroupManager::isAliased(const Guid &resource) const { return getAliasCount(resource) > 1; }
+bool GroupManager::isAliased(MemoryResourceId resource) const { return getAliasCount(resource) > 1; }
 
-bool GroupManager::hasAliasOfType(const Guid &resource, ResourceIdType resourceIdType) const {
-    if (const auto group = getGroupForResource(resource); group.has_value()) {
-        // Group found, look for requested type
-        for (const auto &[aliasResource, aliasType] : _groupResources.at(*group)) {
-            if (aliasResource != resource && aliasType == resourceIdType) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-std::shared_ptr<ResourceMemoryManager> GroupManager::getMemoryManager(const Guid &resource) {
+std::shared_ptr<ResourceMemoryManager> GroupManager::getMemoryManager(MemoryResourceId resource) {
     if (!_finalized) {
         throw std::runtime_error("Memory groups must be finalized before accessing memory managers");
     }
@@ -70,7 +74,7 @@ std::shared_ptr<ResourceMemoryManager> GroupManager::getMemoryManager(const Guid
     return std::make_shared<ResourceMemoryManager>();
 }
 
-std::optional<Guid> GroupManager::getGroupForResource(const Guid &resource) const {
+std::optional<MemoryGroupId> GroupManager::getGroupForResource(MemoryResourceId resource) const {
     const auto it = _resourceToGroup.find(resource);
     if (it != _resourceToGroup.end()) {
         return it->second;
@@ -80,12 +84,12 @@ std::optional<Guid> GroupManager::getGroupForResource(const Guid &resource) cons
 
 const GroupResources &GroupManager::getGroups() const { return _groupResources; }
 
-std::vector<GroupResourceEntry> GroupManager::getResourcesInGroup(const Guid &group) const {
+std::vector<MemoryResourceId> GroupManager::getResourcesInGroup(MemoryGroupId group) const {
     const auto it = _groupResources.find(group);
     if (it == _groupResources.end()) {
         return {};
     }
-    return {it->second.begin(), it->second.end()};
+    return it->second;
 }
 
 } // namespace mlsdk::scenariorunner

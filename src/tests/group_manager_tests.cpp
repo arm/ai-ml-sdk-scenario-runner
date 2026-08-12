@@ -11,27 +11,22 @@
 using namespace mlsdk::scenariorunner;
 
 TEST(GroupManager, GroupHandling) {
-    const Guid group0("group0");
-    const Guid tensor0("tensor0");
-    const Guid image0("image0");
+    const TensorId tensor0{0};
+    const ImageId image0{0};
+    const ImageId image1{1};
     GroupManager gm;
-    gm.addResourceToGroup(group0, tensor0, ResourceIdType::Tensor);
+    const auto group0 = gm.createMemoryGroup();
+    gm.addResourceToGroup(group0, tensor0);
     ASSERT_EQ(gm.getAliasCount(tensor0), 1U);
     ASSERT_FALSE(gm.isAliased(tensor0));
-    ASSERT_EQ(gm.getAliasCount(image0), 0U);
-    ASSERT_FALSE(gm.isAliased(image0));
-    ASSERT_FALSE(gm.hasAliasOfType(tensor0, ResourceIdType::Image));
-    ASSERT_FALSE(gm.hasAliasOfType(image0, ResourceIdType::Tensor));
-    ASSERT_FALSE(gm.hasAliasOfType(group0, ResourceIdType::Tensor));
+    ASSERT_EQ(gm.getAliasCount(image1), 0U);
+    ASSERT_FALSE(gm.isAliased(image1));
 
-    gm.addResourceToGroup(group0, image0, ResourceIdType::Image);
+    gm.addResourceToGroup(group0, image0);
     ASSERT_EQ(gm.getAliasCount(tensor0), 2U);
     ASSERT_TRUE(gm.isAliased(tensor0));
     ASSERT_EQ(gm.getAliasCount(image0), 2U);
     ASSERT_TRUE(gm.isAliased(image0));
-    ASSERT_TRUE(gm.hasAliasOfType(tensor0, ResourceIdType::Image));
-    ASSERT_TRUE(gm.hasAliasOfType(image0, ResourceIdType::Tensor));
-
     ASSERT_THROW(static_cast<void>(gm.getMemoryManager(tensor0)), std::runtime_error);
     gm.finalize();
     auto mmTensor = gm.getMemoryManager(tensor0);
@@ -41,24 +36,24 @@ TEST(GroupManager, GroupHandling) {
 }
 
 TEST(GroupManager, DuplicateResourceRegistrationToDifferentGroupThrows) {
-    const Guid group0("group0");
-    const Guid group1("group1");
-    const Guid tensor0("tensor0");
+    const TensorId tensor0{0};
     GroupManager gm;
+    const auto group0 = gm.createMemoryGroup();
+    const auto group1 = gm.createMemoryGroup();
 
-    gm.addResourceToGroup(group0, tensor0, ResourceIdType::Tensor);
+    gm.addResourceToGroup(group0, tensor0);
 
-    ASSERT_THROW(gm.addResourceToGroup(group1, tensor0, ResourceIdType::Tensor), std::runtime_error);
+    ASSERT_THROW(gm.addResourceToGroup(group1, tensor0), std::runtime_error);
 }
 
 TEST(GroupManager, GroupQueries) {
-    const Guid group0("group0");
-    const Guid tensor0("tensor0");
-    const Guid image0("image0");
+    const TensorId tensor0{0};
+    const ImageId image0{0};
     GroupManager gm;
+    const auto group0 = gm.createMemoryGroup();
 
-    gm.addResourceToGroup(group0, tensor0, ResourceIdType::Tensor);
-    gm.addResourceToGroup(group0, image0, ResourceIdType::Image);
+    gm.addResourceToGroup(group0, tensor0);
+    gm.addResourceToGroup(group0, image0);
 
     const auto group = gm.getGroupForResource(tensor0);
     ASSERT_TRUE(group.has_value());
@@ -73,12 +68,13 @@ TEST(GroupManager, GroupQueries) {
 }
 
 TEST(GroupManager, FinalizationPreventsFurtherRegistration) {
-    const Guid group("group");
     GroupManager gm;
-    gm.addResourceToGroup(group, Guid("buffer0"), ResourceIdType::Buffer);
+    const auto group = gm.createMemoryGroup();
+    gm.addResourceToGroup(group, BufferId{0});
 
     gm.finalize();
 
-    ASSERT_THROW(gm.addResourceToGroup(group, Guid("buffer1"), ResourceIdType::Buffer), std::runtime_error);
+    ASSERT_THROW(static_cast<void>(gm.createMemoryGroup()), std::runtime_error);
+    ASSERT_THROW(gm.addResourceToGroup(group, BufferId{1}), std::runtime_error);
     ASSERT_THROW(gm.finalize(), std::runtime_error);
 }

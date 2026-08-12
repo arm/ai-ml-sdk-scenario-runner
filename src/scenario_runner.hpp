@@ -5,47 +5,28 @@
 
 #pragma once
 
-#include "guid.hpp"
+#include "resource_id.hpp"
 #include "vulkan_memory_manager.hpp"
 
 #include <memory>
-#include <set>
 #include <unordered_map>
-#include <utility>
+#include <vector>
 
 namespace mlsdk::scenariorunner {
 
-/// All resource types
-enum class ResourceIdType {
-    Unknown,
-    /// These may alias
-    Buffer,
-    Image,
-    Tensor,
-    /// Other resources
-    RawData,
-    Shader,
-    VgfView,
-    BufferBarrier,
-    ImageBarrier,
-    MemoryBarrier,
-    TensorBarrier,
-};
-
-using GroupResourceEntry = std::pair<Guid, ResourceIdType>;
-using GroupResources = std::unordered_map<Guid, std::set<GroupResourceEntry>>;
+using GroupResources = std::unordered_map<MemoryGroupId, std::vector<MemoryResourceId>>;
 
 /// Managing memory groups, all aliasing resources belong to a shared memory manager.
 class IGroupManager {
   public:
     virtual ~IGroupManager() = default;
 
-    virtual void addResourceToGroup(const Guid &group, const Guid &resource, ResourceIdType resourceIdType) = 0;
+    virtual MemoryGroupId createMemoryGroup() = 0;
+    virtual void addResourceToGroup(MemoryGroupId group, MemoryResourceId resource) = 0;
     virtual void finalize() = 0;
-    virtual size_t getAliasCount(const Guid &resource) const = 0;
-    virtual bool isAliased(const Guid &resource) const = 0;
-    virtual bool hasAliasOfType(const Guid &resource, ResourceIdType resourceIdType) const = 0;
-    virtual std::shared_ptr<ResourceMemoryManager> getMemoryManager(const Guid &resource) = 0;
+    virtual size_t getAliasCount(MemoryResourceId resource) const = 0;
+    virtual bool isAliased(MemoryResourceId resource) const = 0;
+    virtual std::shared_ptr<ResourceMemoryManager> getMemoryManager(MemoryResourceId resource) = 0;
     virtual const GroupResources &getGroups() const = 0;
 };
 
