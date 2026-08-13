@@ -16,16 +16,16 @@
 #include <gtest/gtest.h>
 using namespace mlsdk::scenariorunner;
 
-Tensor &prepareTensor(Context &ctx, DataManager &dm, const Guid &guid, const std::vector<int64_t> &shape,
-                      vk::Format format, uint64_t memoryOffset = 0) {
+Tensor &prepareTensor(Context &ctx, DataManager &dm, TensorId id, const std::vector<int64_t> &shape, vk::Format format,
+                      uint64_t memoryOffset = 0) {
     TensorInfo info;
     info.debugName = "test_tensor";
     info.shape = shape;
     info.format = format;
     info.tiling = Tiling::Linear;
     info.memoryOffset = memoryOffset;
-    dm.createTensor(guid, info);
-    auto &tensor = dm.getTensorMut(guid);
+    dm.createTensor(id, info);
+    auto &tensor = dm.getTensorMut(id);
     tensor.setup(ctx);
     tensor.allocateMemory(ctx);
     return tensor;
@@ -39,11 +39,10 @@ TEST(TensorInMemoryTransfer, UploadThrowsOnShapeMismatch) {
     ScenarioOptions opts{};
     Context ctx{opts};
     DataManager dm;
-    const Guid guid("tensor_shape_mismatch");
     const std::vector<int64_t> shape{2, 2};
     const vk::Format fmt = vk::Format::eR8Uint;
 
-    auto &tensor = prepareTensor(ctx, dm, guid, shape, fmt);
+    auto &tensor = prepareTensor(ctx, dm, TensorId{0}, shape, fmt);
     std::vector<char> payload(bytesFor(fmt, shape), 0x3C);
 
     const std::vector<int64_t> wrongShape{2, 3};
@@ -57,11 +56,10 @@ TEST(TensorInMemoryTransfer, UploadThrowsOnIncompatibleFormatWhenProvided) {
     ScenarioOptions opts{};
     Context ctx{opts};
     DataManager dm;
-    const Guid guid("tensor_format_mismatch");
     const std::vector<int64_t> shape{2, 2};
     const vk::Format fmt = vk::Format::eR8Uint;
 
-    auto &tensor = prepareTensor(ctx, dm, guid, shape, fmt);
+    auto &tensor = prepareTensor(ctx, dm, TensorId{0}, shape, fmt);
     std::vector<char> payload(bytesFor(fmt, shape), 0x7F);
 
     TensorDataView view{payload.data(), payload.size(), {}, std::nullopt};
@@ -74,11 +72,10 @@ TEST(TensorInMemoryTransfer, UploadThrowsOnSizeMismatch) {
     ScenarioOptions opts{};
     Context ctx{opts};
     DataManager dm;
-    const Guid guid("tensor_size_mismatch");
     const std::vector<int64_t> shape{2, 2};
     const vk::Format fmt = vk::Format::eR8Uint;
 
-    auto &tensor = prepareTensor(ctx, dm, guid, shape, fmt);
+    auto &tensor = prepareTensor(ctx, dm, TensorId{0}, shape, fmt);
     std::vector<char> small(3, 0x11); // too small by 1 byte
 
     TensorDataView view{small.data(), small.size(), {}, std::nullopt};
@@ -90,11 +87,10 @@ TEST(TensorInMemoryTransfer, UploadSucceedsAndPersistsCopy_FormatOptional) {
     ScenarioOptions opts{};
     Context ctx{opts};
     DataManager dm;
-    const Guid guid("tensor_upload_ok");
     const std::vector<int64_t> shape{3, 2};
     const vk::Format fmt = vk::Format::eR8Uint; // 6 bytes
 
-    auto &tensor = prepareTensor(ctx, dm, guid, shape, fmt);
+    auto &tensor = prepareTensor(ctx, dm, TensorId{0}, shape, fmt);
     std::vector<char> payload(bytesFor(fmt, shape));
     std::iota(payload.begin(), payload.end(), static_cast<char>(1));
     TensorDataView view{payload.data(), payload.size(), {}, std::nullopt};
@@ -119,11 +115,10 @@ TEST(TensorInMemoryTransfer, UploadAcceptsRankConvertedEmptyShape) {
     ScenarioOptions opts{};
     Context ctx{opts};
     DataManager dm;
-    const Guid guid("tensor_rank_converted");
     const std::vector<int64_t> emptyShape{};    // will be converted to [1]
     const vk::Format fmt = vk::Format::eR8Uint; // 1 byte
 
-    auto &tensor = prepareTensor(ctx, dm, guid, emptyShape, fmt);
+    auto &tensor = prepareTensor(ctx, dm, TensorId{0}, emptyShape, fmt);
 
     std::vector<char> payload(1, static_cast<char>(0x5A));
     TensorDataView view{payload.data(), payload.size(), {}, std::nullopt};
@@ -143,11 +138,10 @@ TEST(TensorInMemoryTransfer, DownloadReturnsUploadedData) {
     ScenarioOptions opts{};
     Context ctx{opts};
     DataManager dm;
-    const Guid guid("tensor_download_ok");
     const std::vector<int64_t> shape{2, 3, 1};
     const vk::Format fmt = vk::Format::eR8Uint; // 6 bytes
 
-    auto &tensor = prepareTensor(ctx, dm, guid, shape, fmt);
+    auto &tensor = prepareTensor(ctx, dm, TensorId{0}, shape, fmt);
     std::vector<char> payload(bytesFor(fmt, shape));
     std::iota(payload.begin(), payload.end(), static_cast<char>(0));
     TensorDataView view{payload.data(), payload.size(), {}, std::nullopt};
@@ -167,12 +161,11 @@ TEST(TensorInMemoryTransfer, UploadAndDownloadRespectMemoryOffset) {
     ScenarioOptions opts{};
     Context ctx{opts};
     DataManager dm;
-    const Guid guid("tensor_memory_offset");
     const std::vector<int64_t> shape{2, 3, 1};
     const vk::Format format = vk::Format::eR8Uint;
     constexpr uint64_t memoryOffset = 4096;
 
-    auto &tensor = prepareTensor(ctx, dm, guid, shape, format, memoryOffset);
+    auto &tensor = prepareTensor(ctx, dm, TensorId{0}, shape, format, memoryOffset);
     std::vector<char> payload(bytesFor(format, shape));
     std::iota(payload.begin(), payload.end(), static_cast<char>(1));
 
@@ -187,7 +180,7 @@ TEST(TensorInMemoryTransfer, UploadAndDownloadRespectImageSubresourceOffset) {
     ScenarioOptions opts{};
     Context ctx{opts};
     DataManager dm;
-    const Guid guid("tensor_image_subresource_offset");
+    const TensorId id{0};
     const std::vector<int64_t> shape{2, 3, 1};
     const vk::Format format = vk::Format::eR8Uint;
     constexpr vk::DeviceSize subresourceOffset = 4096;
@@ -201,9 +194,9 @@ TEST(TensorInMemoryTransfer, UploadAndDownloadRespectImageSubresourceOffset) {
     info.shape = shape;
     info.format = format;
     info.tiling = Tiling::Linear;
-    dm.createTensor(guid, info);
+    dm.createTensor(id, info);
 
-    auto &tensor = dm.getTensorMut(guid);
+    auto &tensor = dm.getTensorMut(id);
     tensor.setup(ctx, memoryManager);
     tensor.allocateMemory(ctx);
 

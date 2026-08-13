@@ -66,12 +66,12 @@ void runShader(const ScenarioOptions &scenarioOptions) {
 
     BufferInfo info;
     std::vector<char> data;
-    auto guidA = Guid("inBufferA");
-    auto guidB = Guid("inBufferB");
-    auto guidOut = Guid("outBufferAdd");
+    const BufferId bufferA{0};
+    const BufferId bufferB{1};
+    const BufferId bufferOut{2};
 
-    const auto prepareBuffer = [&ctx, &dataManager](Guid guid, const std::vector<char> &values) {
-        auto &buffer = dataManager.getBufferMut(guid);
+    const auto prepareBuffer = [&ctx, &dataManager](BufferId id, const std::vector<char> &values) {
+        auto &buffer = dataManager.getBufferMut(id);
         buffer.setup(ctx);
         buffer.allocateMemory(ctx);
         buffer.fill(ctx, values.data(), values.size());
@@ -79,28 +79,20 @@ void runShader(const ScenarioOptions &scenarioOptions) {
     info.size = numElements * sizeof(float);
     data.resize(info.size);
     std::memcpy(data.data(), inDataA.data(), info.size);
-    dataManager.createBuffer(guidA, info);
-    prepareBuffer(guidA, data);
+    dataManager.createBuffer(bufferA, info);
+    prepareBuffer(bufferA, data);
     std::memcpy(data.data(), inDataB.data(), info.size);
-    dataManager.createBuffer(guidB, info);
-    prepareBuffer(guidB, data);
+    dataManager.createBuffer(bufferB, info);
+    prepareBuffer(bufferB, data);
     std::memset(data.data(), 0, info.size);
-    dataManager.createBuffer(guidOut, info);
-    prepareBuffer(guidOut, data);
+    dataManager.createBuffer(bufferOut, info);
+    prepareBuffer(bufferOut, data);
 
-    std::vector<TypedBinding> bindings;
-    TypedBinding binding;
-    binding.set = 0;
-    binding.id = 0;
-    binding.resourceRef = guidA;
-    binding.vkDescriptorType = vk::DescriptorType::eStorageBuffer;
-    bindings.push_back(binding);
-    binding.id = 1;
-    binding.resourceRef = guidB;
-    bindings.push_back(binding);
-    binding.id = 2;
-    binding.resourceRef = guidOut;
-    bindings.push_back(binding);
+    const std::vector<TypedBinding> bindings{
+        {0, 0, bufferA, std::nullopt, vk::DescriptorType::eStorageBuffer},
+        {0, 1, bufferB, std::nullopt, vk::DescriptorType::eStorageBuffer},
+        {0, 2, bufferOut, std::nullopt, vk::DescriptorType::eStorageBuffer},
+    };
 
     // Create compute orchestrator to run commands
     Compute compute(ctx);
@@ -121,7 +113,7 @@ void runShader(const ScenarioOptions &scenarioOptions) {
     compute.submitAndWaitOnFence();
 
     // Retrieve results
-    auto &outputBuf = dataManager.getBufferMut(guidOut);
+    auto &outputBuf = dataManager.getBufferMut(bufferOut);
     outputBuf.memoryManager()->downloadData(ctx, 0, info.size);
     float *outputPtr = static_cast<float *>(outputBuf.memoryManager()->mapStagingBufferMemory(0, info.size));
 

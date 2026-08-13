@@ -14,11 +14,11 @@
 
 using namespace mlsdk::scenariorunner;
 
-Buffer &prepareBuffer(Context &ctx, DataManager &dm, const Guid &guid, uint32_t sizeBytes) {
+Buffer &prepareBuffer(Context &ctx, DataManager &dm, BufferId id, uint32_t sizeBytes) {
     BufferInfo info;
     info.size = sizeBytes;
-    dm.createBuffer(guid, info);
-    auto &buf = dm.getBufferMut(guid);
+    dm.createBuffer(id, info);
+    auto &buf = dm.getBufferMut(id);
     buf.setup(ctx);
     buf.allocateMemory(ctx);
     return buf;
@@ -29,8 +29,7 @@ TEST(BufferInMemoryTransfer, UploadThrowsOnSizeMismatch) {
     Context ctx{opts};
     DataManager dm;
 
-    const Guid guid("buf_mismatch");
-    auto &buf = prepareBuffer(ctx, dm, guid, /*sizeBytes*/ 16);
+    auto &buf = prepareBuffer(ctx, dm, BufferId{0}, /*sizeBytes*/ 16);
 
     std::vector<char> small(8, static_cast<char>(0x7B));
     BufferDataView view{small.data(), small.size()};
@@ -42,8 +41,7 @@ TEST(BufferInMemoryTransfer, UploadSucceedsAndPersistsCopy) {
     Context ctx{opts};
     DataManager dm;
 
-    const Guid guid("buf_upload_ok");
-    auto &buf = prepareBuffer(ctx, dm, guid, /*sizeBytes*/ 16);
+    auto &buf = prepareBuffer(ctx, dm, BufferId{0}, /*sizeBytes*/ 16);
 
     std::vector<char> payload(16);
     std::iota(payload.begin(), payload.end(), static_cast<char>(0));
@@ -67,8 +65,7 @@ TEST(BufferInMemoryTransfer, DownloadReturnsUploadedData) {
     Context ctx{opts};
     DataManager dm;
 
-    const Guid guid("buf_download_ok");
-    auto &buf = prepareBuffer(ctx, dm, guid, /*sizeBytes*/ 12);
+    auto &buf = prepareBuffer(ctx, dm, BufferId{0}, /*sizeBytes*/ 12);
 
     std::vector<char> payload(12);
     std::iota(payload.begin(), payload.end(), static_cast<char>(0));

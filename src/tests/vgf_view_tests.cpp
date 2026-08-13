@@ -87,13 +87,13 @@ DataManager makeDataManagerWithTensor(const std::string &uid, std::vector<int64_
     info.debugName = uid;
     info.shape = std::move(shape);
     info.format = format;
-    dataManager.createTensor(Guid(uid), info);
+    dataManager.createTensor(TensorId{0}, info);
     return dataManager;
 }
 
 std::string mismatchMessageFor(const VgfView &view, const DataManager &dataManager, const TypedBinding &binding) {
     try {
-        view.resolveBindings(0, dataManager, std::vector<TypedBinding>{binding});
+        view.resolveBindings(0, dataManager, std::vector<TypedBinding>{binding}, {});
         return {};
     } catch (const std::runtime_error &error) {
         return error.what();
@@ -288,7 +288,7 @@ TEST(VgfView, ResolveBindingsReportsTensorShapeMismatchWithJsonLine) {
 
     auto view = VgfView::createVgfView(vgfPath.string());
     const auto dataManager = makeDataManagerWithTensor("inputTensor", {1, 16, 16, 3}, vk::Format::eR8Sint);
-    const TypedBinding binding{0, 0, Guid("inputTensor"), std::nullopt, vk::DescriptorType::eTensorARM};
+    const TypedBinding binding{0, 0, TensorId{0}, std::nullopt, vk::DescriptorType::eTensorARM};
 
     const auto message = mismatchMessageFor(view, dataManager, binding);
     ASSERT_FALSE(message.empty());
@@ -305,7 +305,7 @@ TEST(VgfView, ResolveBindingsReportsTensorFormatMismatchWithJsonLine) {
 
     auto view = VgfView::createVgfView(vgfPath.string());
     const auto dataManager = makeDataManagerWithTensor("outputTensor", {1, 8, 8, 4}, vk::Format::eR16Uint);
-    const TypedBinding binding{0, 1, Guid("outputTensor"), std::nullopt, vk::DescriptorType::eTensorARM};
+    const TypedBinding binding{0, 1, TensorId{0}, std::nullopt, vk::DescriptorType::eTensorARM};
 
     const auto message = mismatchMessageFor(view, dataManager, binding);
     ASSERT_FALSE(message.empty());

@@ -45,7 +45,7 @@ struct DispatchFragmentData {
     ShaderId vertexShader;
     ShaderId fragmentShader;
     struct Attachment {
-        Guid resourceRef;
+        ImageId resource;
         std::optional<uint32_t> lod;
     };
     std::vector<Attachment> colorAttachments;
@@ -89,6 +89,9 @@ struct DispatchSpirvGraphData {
 
 /// \brief Optical flow data graph with typed bindings
 struct DispatchOpticalFlowData {
+    DispatchOpticalFlowData(TypedBinding search, TypedBinding reference, TypedBinding output)
+        : searchImage(search), templateImage(reference), outputImage(output) {}
+
     std::string debugName;
     TypedBinding searchImage;
     TypedBinding templateImage;
@@ -367,6 +370,13 @@ struct ResourceInfoFactory {
     }
 };
 
+template <typename Id>
+Id resolveResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds, const Guid &guid,
+                     std::string_view expectedType);
+
+MemoryResourceId resolveMemoryResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds,
+                                         const Guid &guid);
+
 void fill(const BaseBarrierDesc &barrier, BaseBarrierData &data) {
     data.debugName = barrier.guidStr;
     data.srcAccess = barrier.srcAccess;
@@ -377,18 +387,15 @@ void fill(const BaseBarrierDesc &barrier, BaseBarrierData &data) {
 
 struct BarrierDataFactory {
     const DataManager &_dataManager;
+    const std::unordered_map<Guid, TypedResourceId> &_resourceIds;
 
     ImageBarrierData createInfo(const ImageBarrierDesc &imageBarrier) const {
-        // check the image affected by this barrier exists
-        if (!_dataManager.hasImage(imageBarrier.imageResource)) {
-            throw std::runtime_error("Unknown image ID for image barrier");
-        }
-
+        const auto image = resolveResourceId<ImageId>(_resourceIds, imageBarrier.imageResource, "Image");
         ImageBarrierData data{};
         fill(imageBarrier, data);
         data.oldLayout = imageBarrier.oldLayout;
         data.newLayout = imageBarrier.newLayout;
-        data.image = _dataManager.getImage(imageBarrier.imageResource).image();
+        data.image = _dataManager.getImage(image).image();
         data.imageRange = imageBarrier.imageRange;
         return data;
     }
@@ -400,18 +407,20 @@ struct BarrierDataFactory {
     }
 
     TensorBarrierData createInfo(const TensorBarrierDesc &tensorBarrier) const {
+        const auto tensor = resolveResourceId<TensorId>(_resourceIds, tensorBarrier.tensorResource, "Tensor");
         TensorBarrierData data{};
         fill(tensorBarrier, data);
-        data.tensor = _dataManager.getTensor(tensorBarrier.tensorResource).tensor();
+        data.tensor = _dataManager.getTensor(tensor).tensor();
         return data;
     }
 
     BufferBarrierData createInfo(const BufferBarrierDesc &bufferBarrier) const {
+        const auto buffer = resolveResourceId<BufferId>(_resourceIds, bufferBarrier.bufferResource, "Buffer");
         BufferBarrierData data{};
         fill(bufferBarrier, data);
         data.offset = bufferBarrier.offset;
         data.size = bufferBarrier.size;
-        data.buffer = _dataManager.getBuffer(bufferBarrier.bufferResource).buffer();
+        data.buffer = _dataManager.getBuffer(buffer).buffer();
         return data;
     }
 };
@@ -427,15 +436,24 @@ constexpr vk::DescriptorType convertDescriptorType(const DescriptorType descript
     }
 }
 
-vk::DescriptorType getResourceDescriptorType(const DataManager &dataManager, const Guid &guid) {
-    if (dataManager.hasBuffer(guid)) {
+vk::DescriptorType getResourceDescriptorType(const DataManager &dataManager, const MemoryResourceId &resource) {
+    if (const auto *buffer = std::get_if<BufferId>(&resource)) {
+        if (!dataManager.hasBuffer(*buffer)) {
+            throw std::runtime_error("Buffer resource not found");
+        }
         return vk::DescriptorType::eStorageBuffer;
     }
-    if (dataManager.hasTensor(guid)) {
+    if (const auto *tensor = std::get_if<TensorId>(&resource)) {
+        if (!dataManager.hasTensor(*tensor)) {
+            throw std::runtime_error("Tensor resource not found");
+        }
         return vk::DescriptorType::eTensorARM;
     }
-    if (dataManager.hasImage(guid)) {
-        if (dataManager.getImage(guid).isSampled()) {
+    if (const auto *image = std::get_if<ImageId>(&resource)) {
+        if (!dataManager.hasImage(*image)) {
+            throw std::runtime_error("Image resource not found");
+        }
+        if (dataManager.getImage(*image).isSampled()) {
             return vk::DescriptorType::eCombinedImageSampler;
         }
         return vk::DescriptorType::eStorageImage;
@@ -443,19 +461,22 @@ vk::DescriptorType getResourceDescriptorType(const DataManager &dataManager, con
     throw std::runtime_error("Invalid resource descriptor type");
 }
 
-TypedBinding convertBinding(const DataManager &dataManager, const BindingDesc &binding) {
+TypedBinding convertBinding(const DataManager &dataManager,
+                            const std::unordered_map<Guid, TypedResourceId> &resourceIds, const BindingDesc &binding) {
+    const auto resource = resolveMemoryResourceId(resourceIds, binding.resourceRef);
     const auto vkType = binding.descriptorType == DescriptorType::Auto
-                            ? getResourceDescriptorType(dataManager, binding.resourceRef)
+                            ? getResourceDescriptorType(dataManager, resource)
                             : convertDescriptorType(binding.descriptorType);
-    return {binding.set, binding.id, binding.resourceRef, binding.lod, vkType};
+    return {binding.set, binding.id, resource, binding.lod, vkType};
 }
 
 std::vector<TypedBinding> convertBindings(const DataManager &dataManager,
+                                          const std::unordered_map<Guid, TypedResourceId> &resourceIds,
                                           const std::vector<BindingDesc> &bindingDescs) {
     std::vector<TypedBinding> bindings;
     bindings.reserve(bindingDescs.size());
     for (const auto &binding : bindingDescs) {
-        bindings.push_back(convertBinding(dataManager, binding));
+        bindings.push_back(convertBinding(dataManager, resourceIds, binding));
     }
     return bindings;
 }
@@ -466,71 +487,62 @@ class Creator final : public IResourceCreator {
         : _ctx{ctx}, _resources{resources}, _dataManager{dataManager}, _groupManager{groupManager} {}
 
     BufferId createBuffer(BufferInfo &&info) override {
-        // Use the generated resource name as the DataManager key until it accepts typed IDs.
-        const Guid guid(info.debugName);
         const auto id = _resources.addBuffer(std::move(info));
-        _dataManager.createBuffer(guid, _resources.get(id));
-        _createdResources.push_back({guid, id});
+        _dataManager.createBuffer(id, _resources.get(id));
+        _createdResources.push_back(id);
         return id;
     }
 
     TensorId createTensor(TensorInfo &&info) override {
-        const Guid guid(info.debugName);
         const auto id = _resources.addTensor(std::move(info));
-        _dataManager.createTensor(guid, _resources.get(id));
-        _createdResources.push_back({guid, id});
+        _dataManager.createTensor(id, _resources.get(id));
+        _createdResources.push_back(id);
         return id;
     }
 
     ImageId createImage(ImageInfo &&info) override {
-        const Guid guid(info.debugName);
         const auto id = _resources.addImage(std::move(info));
-        _dataManager.createImage(guid, _resources.get(id));
-        _createdResources.push_back({guid, id});
+        _dataManager.createImage(id, _resources.get(id));
+        _createdResources.push_back(id);
         return id;
     }
 
     void setupCreatedNonTensorResources() {
-        for (const auto &[guid, id] : _createdResources) {
-            if (std::holds_alternative<BufferId>(id)) {
-                _dataManager.getBufferMut(guid).setup(_ctx, _groupManager.getMemoryManager(id));
-            } else if (std::holds_alternative<ImageId>(id)) {
-                _dataManager.getImageMut(guid).setup(_ctx, _groupManager.getMemoryManager(id));
+        for (const auto &id : _createdResources) {
+            if (const auto *buffer = std::get_if<BufferId>(&id)) {
+                _dataManager.getBufferMut(*buffer).setup(_ctx, _groupManager.getMemoryManager(id));
+            } else if (const auto *image = std::get_if<ImageId>(&id)) {
+                _dataManager.getImageMut(*image).setup(_ctx, _groupManager.getMemoryManager(id));
             }
         }
     }
 
     void setupCreatedTensorResources() {
-        for (const auto &[guid, id] : _createdResources) {
-            if (std::holds_alternative<TensorId>(id)) {
-                _dataManager.getTensorMut(guid).setup(_ctx, _groupManager.getMemoryManager(id));
+        for (const auto &id : _createdResources) {
+            if (const auto *tensor = std::get_if<TensorId>(&id)) {
+                _dataManager.getTensorMut(*tensor).setup(_ctx, _groupManager.getMemoryManager(id));
             }
         }
     }
 
     void allocateCreatedResources() {
-        for (const auto &[guid, id] : _createdResources) {
-            if (std::holds_alternative<BufferId>(id)) {
-                _dataManager.getBufferMut(guid).allocateMemory(_ctx);
-            } else if (std::holds_alternative<ImageId>(id)) {
-                _dataManager.getImageMut(guid).allocateMemory(_ctx);
-            } else if (std::holds_alternative<TensorId>(id)) {
-                _dataManager.getTensorMut(guid).allocateMemory(_ctx);
+        for (const auto &id : _createdResources) {
+            if (const auto *buffer = std::get_if<BufferId>(&id)) {
+                _dataManager.getBufferMut(*buffer).allocateMemory(_ctx);
+            } else if (const auto *image = std::get_if<ImageId>(&id)) {
+                _dataManager.getImageMut(*image).allocateMemory(_ctx);
+            } else if (const auto *tensor = std::get_if<TensorId>(&id)) {
+                _dataManager.getTensorMut(*tensor).allocateMemory(_ctx);
             }
         }
     }
 
   private:
-    struct CreatedResource {
-        Guid guid;
-        MemoryResourceId id;
-    };
-
     const Context &_ctx;
     ResourceManager &_resources;
     DataManager &_dataManager;
     GroupManager &_groupManager;
-    std::vector<CreatedResource> _createdResources;
+    std::vector<MemoryResourceId> _createdResources;
 };
 
 const TypedResourceId &resolveTypedResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds,
@@ -553,6 +565,21 @@ Id resolveResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceId
     return *id;
 }
 
+MemoryResourceId resolveMemoryResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds,
+                                         const Guid &guid) {
+    const auto &resourceId = resolveTypedResourceId(resourceIds, guid, "Memory");
+    if (const auto *id = std::get_if<BufferId>(&resourceId)) {
+        return *id;
+    }
+    if (const auto *id = std::get_if<ImageId>(&resourceId)) {
+        return *id;
+    }
+    if (const auto *id = std::get_if<TensorId>(&resourceId)) {
+        return *id;
+    }
+    throw std::runtime_error("Resource UID has the wrong type; expected a memory resource.");
+}
+
 template <typename Key>
 MemoryGroupId getOrCreateMemoryGroup(GroupManager &groupManager, std::unordered_map<Key, MemoryGroupId> &memoryGroupIds,
                                      const Key &key) {
@@ -571,17 +598,6 @@ void registerMemoryGroup(GroupManager &groupManager, std::unordered_map<Guid, Me
         const auto group = getOrCreateMemoryGroup(groupManager, memoryGroupIds, memoryGroup->memoryUid);
         groupManager.addResourceToGroup(group, resource);
     }
-}
-
-template <typename Id>
-const Guid &resolveRuntimeResource(const std::unordered_map<Id, Guid> &resourceGuids, Id id,
-                                   std::string_view resourceType, std::string_view operation) {
-    const auto resource = resourceGuids.find(id);
-    if (resource == resourceGuids.end()) {
-        throw std::runtime_error("Scenario::" + std::string(operation) + ": " + std::string(resourceType) +
-                                 " resource not found.");
-    }
-    return resource->second;
 }
 
 template <typename Id>
@@ -625,7 +641,7 @@ struct CommandDataFactory {
     DispatchComputeData createData(const DispatchComputeDesc &dispatchCompute) {
         DispatchComputeData data{getShaderId(dispatchCompute.shaderRef)};
         data.debugName = dispatchCompute.debugName;
-        data.bindings = convertBindings(_dataManager, dispatchCompute.bindings);
+        data.bindings = convertBindings(_dataManager, _resourceIds, dispatchCompute.bindings);
         data.computeDispatch.gwcx = dispatchCompute.rangeND[0];
         data.computeDispatch.gwcy = dispatchCompute.rangeND[1];
         data.computeDispatch.gwcz = dispatchCompute.rangeND[2];
@@ -639,11 +655,11 @@ struct CommandDataFactory {
         DispatchFragmentData data{getShaderId(dispatchFragment.vertexShaderRef),
                                   getShaderId(dispatchFragment.fragmentShaderRef)};
         data.debugName = dispatchFragment.debugName;
-        data.bindings = convertBindings(_dataManager, dispatchFragment.bindings);
+        data.bindings = convertBindings(_dataManager, _resourceIds, dispatchFragment.bindings);
         data.colorAttachments.reserve(dispatchFragment.colorAttachments.size());
         for (const auto &attachmentDesc : dispatchFragment.colorAttachments) {
             data.colorAttachments.push_back(
-                DispatchFragmentData::Attachment{attachmentDesc.resourceRef, attachmentDesc.lod});
+                {resolveResourceId<ImageId>(_resourceIds, attachmentDesc.resourceRef, "Image"), attachmentDesc.lod});
         }
         if (dispatchFragment.renderExtent) {
             const auto &extent = dispatchFragment.renderExtent.value();
@@ -690,7 +706,7 @@ struct CommandDataFactory {
     DispatchDataGraphData createData(const DispatchDataGraphDesc &dispatchDataGraph) {
         DispatchDataGraphData data{getDataGraphId(dispatchDataGraph.dataGraphRef)};
         data.debugName = dispatchDataGraph.debugName;
-        data.bindings = convertBindings(_dataManager, dispatchDataGraph.bindings);
+        data.bindings = convertBindings(_dataManager, _resourceIds, dispatchDataGraph.bindings);
         data.pushConstants.reserve(dispatchDataGraph.pushConstants.size());
         for (const auto &pushConstant : dispatchDataGraph.pushConstants) {
             data.pushConstants.push_back(
@@ -708,7 +724,7 @@ struct CommandDataFactory {
     DispatchSpirvGraphData createData(const DispatchSpirvGraphDesc &dispatchSpirvGraph) {
         DispatchSpirvGraphData data{getShaderId(dispatchSpirvGraph.dataGraphRef)};
         data.debugName = dispatchSpirvGraph.debugName;
-        data.bindings = convertBindings(_dataManager, dispatchSpirvGraph.bindings);
+        data.bindings = convertBindings(_dataManager, _resourceIds, dispatchSpirvGraph.bindings);
         data.graphConstants.reserve(dispatchSpirvGraph.graphConstants.size());
         for (const auto &graphConstant : dispatchSpirvGraph.graphConstants) {
             data.graphConstants.push_back(getGraphConstantResourceId(graphConstant));
@@ -718,17 +734,16 @@ struct CommandDataFactory {
     }
 
     DispatchOpticalFlowData createData(const DispatchOpticalFlowDesc &dispatchOpticalFlow) {
-        DispatchOpticalFlowData data;
+        DispatchOpticalFlowData data{convertBinding(_dataManager, _resourceIds, dispatchOpticalFlow.searchImage),
+                                     convertBinding(_dataManager, _resourceIds, dispatchOpticalFlow.templateImage),
+                                     convertBinding(_dataManager, _resourceIds, dispatchOpticalFlow.outputImage)};
         data.debugName = dispatchOpticalFlow.debugName;
-
-        data.searchImage = convertBinding(_dataManager, dispatchOpticalFlow.searchImage);
-        data.templateImage = convertBinding(_dataManager, dispatchOpticalFlow.templateImage);
-        data.outputImage = convertBinding(_dataManager, dispatchOpticalFlow.outputImage);
         if (dispatchOpticalFlow.hintMotionVectors.has_value()) {
-            data.hintMotionVectors = convertBinding(_dataManager, dispatchOpticalFlow.hintMotionVectors.value());
+            data.hintMotionVectors =
+                convertBinding(_dataManager, _resourceIds, dispatchOpticalFlow.hintMotionVectors.value());
         }
         if (dispatchOpticalFlow.outputCost.has_value()) {
-            data.outputCost = convertBinding(_dataManager, dispatchOpticalFlow.outputCost.value());
+            data.outputCost = convertBinding(_dataManager, _resourceIds, dispatchOpticalFlow.outputCost.value());
         }
 
         data.width = dispatchOpticalFlow.width;
@@ -747,12 +762,13 @@ struct CommandDataFactory {
 
         for (const auto &resourceRef : markBoundary.resources) {
             const Guid guid(resourceRef);
-            if (_dataManager.hasBuffer(guid)) {
-                data.buffers.emplace_back(guid);
-            } else if (_dataManager.hasImage(guid)) {
-                data.images.emplace_back(guid);
-            } else if (_dataManager.hasTensor(guid)) {
-                data.tensors.emplace_back(guid);
+            const auto &resource = resolveTypedResourceId(_resourceIds, guid, "Memory");
+            if (const auto *buffer = std::get_if<BufferId>(&resource)) {
+                data.buffers.push_back(*buffer);
+            } else if (const auto *image = std::get_if<ImageId>(&resource)) {
+                data.images.push_back(*image);
+            } else if (const auto *tensor = std::get_if<TensorId>(&resource)) {
+                data.tensors.push_back(*tensor);
             } else {
                 throw std::runtime_error("Unsupported resource");
             }
@@ -829,39 +845,37 @@ TensorId Scenario::getTensorId(std::string_view uid) const {
 }
 
 void Scenario::upload(BufferId id, const BufferDataView &data) {
-    const auto &guid = resolveRuntimeResource(_bufferResourceGuids, id, "Buffer", "upload");
-    _dataManager.getBuffer(guid).upload(_ctx, data);
+    if (!_dataManager.hasBuffer(id)) {
+        throw std::runtime_error("Scenario::upload: Buffer resource not found.");
+    }
+    _dataManager.getBuffer(id).upload(_ctx, data);
 }
 
 void Scenario::upload(TensorId id, const TensorDataView &data) {
-    const auto &guid = resolveRuntimeResource(_tensorResourceGuids, id, "Tensor", "upload");
-    _dataManager.getTensor(guid).upload(_ctx, data);
+    if (!_dataManager.hasTensor(id)) {
+        throw std::runtime_error("Scenario::upload: Tensor resource not found.");
+    }
+    _dataManager.getTensor(id).upload(_ctx, data);
 }
 
 BufferData Scenario::download(BufferId id) const {
-    const auto &guid = resolveRuntimeResource(_bufferResourceGuids, id, "Buffer", "download");
-    return _dataManager.getBuffer(guid).download(_ctx);
+    if (!_dataManager.hasBuffer(id)) {
+        throw std::runtime_error("Scenario::download: Buffer resource not found.");
+    }
+    return _dataManager.getBuffer(id).download(_ctx);
 }
 
 TensorData Scenario::download(TensorId id) const {
-    const auto &guid = resolveRuntimeResource(_tensorResourceGuids, id, "Tensor", "download");
-    return _dataManager.getTensor(guid).download(_ctx);
+    if (!_dataManager.hasTensor(id)) {
+        throw std::runtime_error("Scenario::download: Tensor resource not found.");
+    }
+    return _dataManager.getTensor(id).download(_ctx);
 }
 
 const ShaderInfo &Scenario::getShader(ShaderId id) const { return _resources.get(id); }
 
 MemoryResourceId Scenario::getMemoryResourceId(const Guid &guid) const {
-    const auto &resourceId = resolveTypedResourceId(_resourceIds, guid, "Memory");
-    if (const auto *id = std::get_if<BufferId>(&resourceId)) {
-        return *id;
-    }
-    if (const auto *id = std::get_if<ImageId>(&resourceId)) {
-        return *id;
-    }
-    if (const auto *id = std::get_if<TensorId>(&resourceId)) {
-        return *id;
-    }
-    throw std::runtime_error("Resource UID has the wrong type; expected a memory resource.");
+    return resolveMemoryResourceId(_resourceIds, guid);
 }
 
 const ShaderInfo &Scenario::getSubstitutionShader(const std::vector<ResolvedShaderSubstitution> &shaderSubstitutions,
@@ -921,7 +935,8 @@ void Scenario::resetForNextRun() {
         if (resource->resourceType == ResourceType::Image) {
             const auto &imageDesc = static_cast<const ImageDesc &>(*resource);
             if (imageDesc.tiling.has_value() && imageDesc.tiling.value() == Tiling::Optimal) {
-                _dataManager.getImageMut(imageDesc.guid).resetLayout();
+                const auto imageId = resolveResourceId<ImageId>(_resourceIds, imageDesc.guid, "Image");
+                _dataManager.getImageMut(imageId).resetLayout();
             }
         }
     }
@@ -940,8 +955,7 @@ void Scenario::setupResources() {
             const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
             const auto id = _resources.addBuffer(resourceInfoFactory.createInfo(*buffer));
             _resourceIds.emplace(resource->guid, id);
-            _bufferResourceGuids.emplace(id, resource->guid);
-            _dataManager.createBuffer(resource->guid, _resources.get(id));
+            _dataManager.createBuffer(id, _resources.get(id));
             registerMemoryGroup(_groupManager, jsonMemoryGroupIds, id, buffer->memoryGroup);
         } break;
         case ResourceType::RawData: {
@@ -954,7 +968,7 @@ void Scenario::setupResources() {
             const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
             const auto id = _resources.addImage(resourceInfoFactory.createInfo(*image));
             _resourceIds.emplace(resource->guid, id);
-            _dataManager.createImage(resource->guid, _resources.get(id));
+            _dataManager.createImage(id, _resources.get(id));
             registerMemoryGroup(_groupManager, jsonMemoryGroupIds, id, image->memoryGroup);
         } break;
         case ResourceType::DataGraph: {
@@ -968,8 +982,7 @@ void Scenario::setupResources() {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
             const auto id = _resources.addTensor(resourceInfoFactory.createInfo(*tensor, _opts.captureFrame));
             _resourceIds.emplace(resource->guid, id);
-            _tensorResourceGuids.emplace(id, resource->guid);
-            _dataManager.createTensor(resource->guid, _resources.get(id));
+            _dataManager.createTensor(id, _resources.get(id));
             registerMemoryGroup(_groupManager, jsonMemoryGroupIds, id, tensor->memoryGroup);
         } break;
         case ResourceType::Shader: {
@@ -990,6 +1003,7 @@ void Scenario::setupResources() {
     }
 
     Creator vgfResourceCreator{_ctx, _resources, _dataManager, _groupManager};
+    // Per data graph, map VGF alias group IDs to runtime memory group IDs.
     std::unordered_map<DataGraphId, std::unordered_map<uint32_t, MemoryGroupId>> vgfMemoryGroupIds;
 
     for (const auto &command : _scenarioSpec.commands) {
@@ -1001,8 +1015,12 @@ void Scenario::setupResources() {
         const auto dataGraph =
             resolveResourceId<DataGraphId>(_resourceIds, dispatchDataGraph.dataGraphRef, "Data graph");
         const auto &vgfView = _dataManager.getVgfView(dataGraph);
-        const auto externalBindings = convertBindings(_dataManager, dispatchDataGraph.bindings);
-        const auto creationResult = vgfView.createIntermediateResources(vgfResourceCreator);
+        const auto externalBindings = convertBindings(_dataManager, _resourceIds, dispatchDataGraph.bindings);
+        if (_vgfResourceCreationResults.count(dataGraph) == 0) {
+            // cppcheck-suppress stlFindInsert
+            _vgfResourceCreationResults.emplace(dataGraph, vgfView.createIntermediateResources(vgfResourceCreator));
+        }
+        const auto &creationResult = _vgfResourceCreationResults.at(dataGraph);
         for (const auto &[aliasGroupId, resourceIds] : creationResult.memoryGroups) {
             auto &aliasGroupIds = vgfMemoryGroupIds[dataGraph];
             const auto group = getOrCreateMemoryGroup(_groupManager, aliasGroupIds, aliasGroupId);
@@ -1017,7 +1035,7 @@ void Scenario::setupResources() {
             if (!aliasGroupId.has_value()) {
                 continue;
             }
-            const auto resourceId = getMemoryResourceId(binding.resourceRef);
+            const auto resourceId = binding.resource;
             auto &aliasGroupIds = vgfMemoryGroupIds[dataGraph];
             const auto group = getOrCreateMemoryGroup(_groupManager, aliasGroupIds, *aliasGroupId);
             _groupManager.addResourceToGroup(group, resourceId);
@@ -1029,13 +1047,13 @@ void Scenario::setupResources() {
     for (const auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
         case ResourceType::Buffer: {
-            auto &bufferRef = _dataManager.getBufferMut(resource->guid);
             const auto id = resolveResourceId<BufferId>(_resourceIds, resource->guid, "Buffer");
+            auto &bufferRef = _dataManager.getBufferMut(id);
             bufferRef.setup(_ctx, _groupManager.getMemoryManager(id));
         } break;
         case ResourceType::Image: {
-            auto &imageRef = _dataManager.getImageMut(resource->guid);
             const auto id = resolveResourceId<ImageId>(_resourceIds, resource->guid, "Image");
+            auto &imageRef = _dataManager.getImageMut(id);
             imageRef.setup(_ctx, _groupManager.getMemoryManager(id));
         } break;
         default:
@@ -1047,15 +1065,15 @@ void Scenario::setupResources() {
     // Setup tensors, aliasing tensors are dependent on other resources having been constructed
     for (const auto &resource : _scenarioSpec.resources) {
         if (resource->resourceType == ResourceType::Tensor) {
-            auto &tensorRef = _dataManager.getTensorMut(resource->guid);
             const auto id = resolveResourceId<TensorId>(_resourceIds, resource->guid, "Tensor");
+            auto &tensorRef = _dataManager.getTensorMut(id);
             tensorRef.setup(_ctx, _groupManager.getMemoryManager(id));
         }
     }
     vgfResourceCreator.setupCreatedTensorResources();
 
     // Setup barrier resource info, these depend on other resources
-    BarrierDataFactory barrierDataFactory{_dataManager};
+    BarrierDataFactory barrierDataFactory{_dataManager, _resourceIds};
     for (const auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
         case ResourceType::ImageBarrier: {
@@ -1090,15 +1108,18 @@ void Scenario::setupResources() {
         switch (resource->resourceType) {
         case ResourceType::Tensor: {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
-            _dataManager.getTensorMut(tensor->guid).allocateMemory(_ctx);
+            const auto id = resolveResourceId<TensorId>(_resourceIds, tensor->guid, "Tensor");
+            _dataManager.getTensorMut(id).allocateMemory(_ctx);
         } break;
         case ResourceType::Image: {
             const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
-            _dataManager.getImageMut(image->guid).allocateMemory(_ctx);
+            const auto id = resolveResourceId<ImageId>(_resourceIds, image->guid, "Image");
+            _dataManager.getImageMut(id).allocateMemory(_ctx);
         } break;
         case ResourceType::Buffer: {
             const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
-            _dataManager.getBufferMut(buffer->guid).allocateMemory(_ctx);
+            const auto id = resolveResourceId<BufferId>(_resourceIds, buffer->guid, "Buffer");
+            _dataManager.getBufferMut(id).allocateMemory(_ctx);
         } break;
         default:
             // Skip the other types of resources
@@ -1115,16 +1136,16 @@ void Scenario::setupResources() {
             PerfCounterGuard guard(_perfCounters, "Load Tensor: " + tensor->guidStr, "Scenario Setup");
             const auto id = resolveResourceId<TensorId>(_resourceIds, tensor->guid, "Tensor");
             if (tensor->src || !_groupManager.isAliased(id)) {
-                const auto &tensorResource = _dataManager.getTensor(tensor->guid);
+                const auto &tensorResource = _dataManager.getTensor(id);
                 const auto tensorData = loadTensorData(*tensor, tensorResource.dataSize());
                 upload(id, {tensorData.data.data(), tensorData.data.size(), tensorData.shape, tensorData.format});
             }
         } break;
         case ResourceType::Image: {
             const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
-            auto &imageRec = _dataManager.getImageMut(image->guid);
             PerfCounterGuard guard(_perfCounters, "Load Image: " + image->guidStr, "Scenario Setup");
             const auto id = resolveResourceId<ImageId>(_resourceIds, image->guid, "Image");
+            auto &imageRec = _dataManager.getImageMut(id);
             if (image->src || !_groupManager.isAliased(id)) {
                 imageRec.fillFromDescription(_ctx, *image);
             } else {
@@ -1311,7 +1332,7 @@ void Scenario::handleAliasedLayoutTransitions() {
                     continue;
                 }
 
-                auto &image = _dataManager.getImageMut(imageDesc.guid);
+                auto &image = _dataManager.getImageMut(imageId);
                 if (image.getImageLayout() != vk::ImageLayout::eTensorAliasingARM) {
                     image.addTransitionLayoutCommand(_compute.getCommandBuffer(), vk::ImageLayout::eTensorAliasingARM);
                 }
@@ -1320,6 +1341,7 @@ void Scenario::handleAliasedLayoutTransitions() {
             //  Image → transition back from alias layout
         } else if (resource->resourceType == ResourceType::Image) {
             const auto &imageDesc = static_cast<const ImageDesc &>(*resource);
+            const auto imageId = resolveResourceId<ImageId>(_resourceIds, imageDesc.guid, "Image");
             if (!imageDesc.tiling.has_value() || imageDesc.tiling.value() != Tiling::Optimal) {
                 continue;
             }
@@ -1341,7 +1363,7 @@ void Scenario::handleAliasedLayoutTransitions() {
                     continue;
                 }
 
-                auto &image = _dataManager.getImageMut(imageDesc.guid);
+                auto &image = _dataManager.getImageMut(imageId);
                 vk::ImageLayout targetLayout = vk::ImageLayout::eGeneral;
                 if (imageDesc.shaderAccess == ShaderAccessType::ReadOnly) {
                     targetLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
@@ -1404,7 +1426,7 @@ void Scenario::createFragmentPipeline(const DispatchFragmentData &dispatchFragme
 
     std::optional<vk::Extent2D> targetExtent = dispatchFragment.renderExtent;
     for (const auto &attachmentSpec : dispatchFragment.colorAttachments) {
-        const auto &colorImage = _dataManager.getImage(attachmentSpec.resourceRef);
+        const auto &colorImage = _dataManager.getImage(attachmentSpec.resource);
         const auto &imageInfo = colorImage.getInfo();
         const auto &shape = colorImage.shape();
         if (shape.size() < 3) {
@@ -1458,7 +1480,9 @@ void Scenario::createFragmentPipeline(const DispatchFragmentData &dispatchFragme
 void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries) {
     const VgfView &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraph);
     for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
-        const auto &sequenceBindings = vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings);
+        const auto &intermediates = _vgfResourceCreationResults.at(dispatchDataGraph.dataGraph).intermediateResources;
+        const auto &sequenceBindings =
+            vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings, intermediates);
         auto moduleName = vgfView.getModuleName(segmentIndex);
         PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + moduleName, "Pipeline Setup");
         createPipeline(segmentIndex, sequenceBindings, vgfView, dispatchDataGraph, nQueries);
@@ -1478,13 +1502,13 @@ void Scenario::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSp
     // Validate the bindings
     const auto &sequenceBindings = dispatchSpirvGraph.bindings;
     for (const auto &binding : sequenceBindings) {
-        if (_dataManager.hasTensor(binding.resourceRef)) {
+        if (std::holds_alternative<TensorId>(binding.resource)) {
             if (binding.vkDescriptorType != vk::DescriptorType::eTensorARM) {
                 throw std::runtime_error("DataGraph tensor binding must use a tensor descriptor");
             }
             continue;
         }
-        if (_dataManager.hasImage(binding.resourceRef)) {
+        if (std::holds_alternative<ImageId>(binding.resource)) {
             if ((binding.vkDescriptorType != vk::DescriptorType::eStorageImage) &&
                 (binding.vkDescriptorType != vk::DescriptorType::eCombinedImageSampler)) {
                 throw std::runtime_error("DataGraph image binding must use an image descriptor");
@@ -1663,19 +1687,22 @@ void Scenario::saveResults(bool dryRun) {
         for (const auto &resourceDesc : _scenarioSpec.resources) {
             const auto &dst = resourceDesc->getDestination();
             if (dst.has_value()) {
-                const auto &guid = resourceDesc->guid;
                 switch (resourceDesc->resourceType) {
                 case ResourceType::Buffer:
-                    _dataManager.getBuffer(guid).store(_ctx, dst.value());
+                    _dataManager.getBuffer(resolveResourceId<BufferId>(_resourceIds, resourceDesc->guid, "Buffer"))
+                        .store(_ctx, dst.value());
                     break;
                 case ResourceType::Tensor:
-                    _dataManager.getTensor(guid).store(_ctx, dst.value());
+                    _dataManager.getTensor(resolveResourceId<TensorId>(_resourceIds, resourceDesc->guid, "Tensor"))
+                        .store(_ctx, dst.value());
                     break;
                 case ResourceType::Image:
-                    _dataManager.getImageMut(guid).store(_ctx, dst.value());
+                    _dataManager.getImageMut(resolveResourceId<ImageId>(_resourceIds, resourceDesc->guid, "Image"))
+                        .store(_ctx, dst.value());
                     break;
                 default:
-                    throw std::runtime_error("Resource not found");
+                    throw std::runtime_error("Output destination is not supported for " + resourceType(resourceDesc) +
+                                             " resource " + resourceDesc->guidStr);
                 }
                 mlsdk::logging::debug(resourceType(resourceDesc) + " " + resourceDesc->guidStr + " output stored");
             }

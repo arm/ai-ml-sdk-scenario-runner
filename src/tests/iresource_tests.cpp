@@ -10,11 +10,23 @@
 
 using namespace mlsdk::scenariorunner;
 
+TEST(DataManager, MissingTypedResourceThrowsRuntimeError) {
+    DataManager dataManager;
+    const auto &constDataManager = dataManager;
+
+    EXPECT_THROW(dataManager.getBufferMut(BufferId{0}), std::runtime_error);
+    EXPECT_THROW(dataManager.getImageMut(ImageId{0}), std::runtime_error);
+    EXPECT_THROW(dataManager.getTensorMut(TensorId{0}), std::runtime_error);
+    EXPECT_THROW(constDataManager.getBuffer(BufferId{0}), std::runtime_error);
+    EXPECT_THROW(constDataManager.getImage(ImageId{0}), std::runtime_error);
+    EXPECT_THROW(constDataManager.getTensor(TensorId{0}), std::runtime_error);
+}
+
 TEST(DataManagerResourceViewer, HasResources) {
     DataManager dm;
 
     {
-        const Guid tensor("tensor");
+        const TensorId tensor{0};
         DataManagerResourceViewer viewer(dm, tensor);
         ASSERT_FALSE(viewer.hasBuffer());
         ASSERT_FALSE(viewer.hasImage());
@@ -25,7 +37,7 @@ TEST(DataManagerResourceViewer, HasResources) {
     }
 
     {
-        const Guid buffer("buffer");
+        const BufferId buffer{0};
         dm.createBuffer(buffer, BufferInfo{});
         DataManagerResourceViewer viewer(dm, buffer);
         ASSERT_TRUE(viewer.hasBuffer());
@@ -37,7 +49,7 @@ TEST(DataManagerResourceViewer, HasResources) {
     }
 
     {
-        const Guid image("image");
+        const ImageId image{0};
         dm.createImage(image, ImageInfo{});
         DataManagerResourceViewer viewer(dm, image);
         ASSERT_FALSE(viewer.hasBuffer());

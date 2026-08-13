@@ -261,7 +261,7 @@ void Compute::_registerPipelineFencedCommon(const DataManager &dataManager, cons
         _addDescriptorSets(baseDescriptorSetIdxGlobal, binding.set, poolSizes, pipeline);
 
         const auto &descSet = *_descriptorSets[baseDescriptorSetIdxGlobal + binding.set];
-        const DataManagerResourceViewer resourceViewer(dataManager, binding.resourceRef);
+        const DataManagerResourceViewer resourceViewer(dataManager, binding.resource);
         _updateDescriptorSets(descSet, binding, resourceViewer);
     }
 

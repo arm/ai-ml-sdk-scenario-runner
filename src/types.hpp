@@ -4,7 +4,7 @@
  */
 #pragma once
 
-#include "guid.hpp"
+#include "resource_id.hpp"
 #include "shader_stage.hpp"
 
 #include "vulkan/vulkan_raii.hpp"
@@ -142,7 +142,7 @@ struct GraphConstantInfo {
 struct TypedBinding {
     uint32_t set{};
     uint32_t id{};
-    Guid resourceRef;
+    MemoryResourceId resource;
     std::optional<uint32_t> lod;
     vk::DescriptorType vkDescriptorType{};
 };

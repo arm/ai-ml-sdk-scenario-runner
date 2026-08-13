@@ -18,12 +18,12 @@ namespace mlsdk::scenariorunner {
 
 class DataManager {
   public:
-    void createBuffer(Guid guid, const BufferInfo &info);
-    void createBuffer(Guid guid, BufferInfo &&info);
-    void createTensor(Guid guid, const TensorInfo &info);
-    void createTensor(Guid guid, TensorInfo &&info);
-    void createImage(Guid guid, const ImageInfo &info);
-    void createImage(Guid guid, ImageInfo &&info);
+    void createBuffer(BufferId id, const BufferInfo &info);
+    void createBuffer(BufferId id, BufferInfo &&info);
+    void createTensor(TensorId id, const TensorInfo &info);
+    void createTensor(TensorId id, TensorInfo &&info);
+    void createImage(ImageId id, const ImageInfo &info);
+    void createImage(ImageId id, ImageInfo &&info);
     void createRawData(RawDataId id, const RawDataInfo &info);
     void createVgfView(DataGraphId id, const DataGraphInfo &info);
     void createImageBarrier(Guid guid, const ImageBarrierData &data);
@@ -31,22 +31,22 @@ class DataManager {
     void createMemoryBarrier(Guid guid, const MemoryBarrierData &data);
     void createBufferBarrier(Guid guid, const BufferBarrierData &data);
 
-    bool hasBuffer(Guid guid) const;
-    bool hasTensor(Guid guid) const;
-    bool hasImage(Guid guid) const;
+    bool hasBuffer(BufferId id) const;
+    bool hasTensor(TensorId id) const;
+    bool hasImage(ImageId id) const;
     bool hasRawData(RawDataId id) const;
     bool hasImageBarrier(Guid guid) const;
     bool hasTensorBarrier(Guid guid) const;
     bool hasMemoryBarrier(Guid guid) const;
     bool hasBufferBarrier(Guid guid) const;
 
-    Buffer &getBufferMut(const Guid &guid);
-    Tensor &getTensorMut(const Guid &guid);
-    Image &getImageMut(const Guid &guid);
+    Buffer &getBufferMut(BufferId id);
+    Tensor &getTensorMut(TensorId id);
+    Image &getImageMut(ImageId id);
 
-    const Buffer &getBuffer(const Guid &guid) const;
-    const Tensor &getTensor(const Guid &guid) const;
-    const Image &getImage(const Guid &guid) const;
+    const Buffer &getBuffer(BufferId id) const;
+    const Tensor &getTensor(TensorId id) const;
+    const Image &getImage(ImageId id) const;
     const RawData &getRawData(RawDataId id) const;
     const VgfView &getVgfView(DataGraphId id) const;
     const VulkanImageBarrier &getImageBarrier(const Guid &guid) const;
@@ -59,9 +59,9 @@ class DataManager {
     uint32_t numImages() const;
 
   private:
-    std::unordered_map<Guid, Buffer> _buffers;
-    std::unordered_map<Guid, Tensor> _tensors;
-    std::unordered_map<Guid, Image> _images;
+    std::unordered_map<BufferId, Buffer> _buffers;
+    std::unordered_map<TensorId, Tensor> _tensors;
+    std::unordered_map<ImageId, Image> _images;
     std::unordered_map<RawDataId, RawData> _rawData;
     std::unordered_map<DataGraphId, VgfView> _vgfViews;
     std::unordered_map<Guid, VulkanImageBarrier> _imageBarriers;

@@ -9,18 +9,28 @@
 #include <utility>
 
 namespace mlsdk::scenariorunner {
+namespace {
+template <typename Resources, typename Id>
+decltype(auto) getResource(Resources &resources, Id id, const char *errorMessage) {
+    const auto resource = resources.find(id);
+    if (resource == resources.end()) {
+        throw std::runtime_error(errorMessage);
+    }
+    return (resource->second);
+}
+} // namespace
 
-void DataManager::createBuffer(Guid guid, const BufferInfo &info) { _buffers.emplace(guid, Buffer(info)); }
+void DataManager::createBuffer(BufferId id, const BufferInfo &info) { _buffers.emplace(id, Buffer(info)); }
 
-void DataManager::createBuffer(Guid guid, BufferInfo &&info) { _buffers.emplace(guid, Buffer(std::move(info))); }
+void DataManager::createBuffer(BufferId id, BufferInfo &&info) { _buffers.emplace(id, Buffer(std::move(info))); }
 
-void DataManager::createTensor(Guid guid, const TensorInfo &info) { _tensors.emplace(guid, Tensor(info)); }
+void DataManager::createTensor(TensorId id, const TensorInfo &info) { _tensors.emplace(id, Tensor(info)); }
 
-void DataManager::createTensor(Guid guid, TensorInfo &&info) { _tensors.emplace(guid, Tensor(std::move(info))); }
+void DataManager::createTensor(TensorId id, TensorInfo &&info) { _tensors.emplace(id, Tensor(std::move(info))); }
 
-void DataManager::createImage(Guid guid, const ImageInfo &info) { _images.emplace(guid, Image(info)); }
+void DataManager::createImage(ImageId id, const ImageInfo &info) { _images.emplace(id, Image(info)); }
 
-void DataManager::createImage(Guid guid, ImageInfo &&info) { _images.emplace(guid, Image(std::move(info))); }
+void DataManager::createImage(ImageId id, ImageInfo &&info) { _images.emplace(id, Image(std::move(info))); }
 
 void DataManager::createVgfView(DataGraphId id, const DataGraphInfo &info) {
     _vgfViews.insert({id, VgfView::createVgfView(info.src)});
@@ -46,11 +56,11 @@ void DataManager::createRawData(RawDataId id, const RawDataInfo &info) {
     _rawData.insert({id, RawData(info.debugName, info.src)});
 }
 
-bool DataManager::hasBuffer(Guid guid) const { return _buffers.find(guid) != _buffers.end(); }
+bool DataManager::hasBuffer(BufferId id) const { return _buffers.find(id) != _buffers.end(); }
 
-bool DataManager::hasTensor(Guid guid) const { return _tensors.find(guid) != _tensors.end(); }
+bool DataManager::hasTensor(TensorId id) const { return _tensors.find(id) != _tensors.end(); }
 
-bool DataManager::hasImage(Guid guid) const { return _images.find(guid) != _images.end(); }
+bool DataManager::hasImage(ImageId id) const { return _images.find(id) != _images.end(); }
 
 bool DataManager::hasRawData(RawDataId id) const { return _rawData.find(id) != _rawData.end(); }
 
@@ -68,47 +78,17 @@ uint32_t DataManager::numTensors() const { return static_cast<uint32_t>(_tensors
 
 uint32_t DataManager::numImages() const { return static_cast<uint32_t>(_images.size()); }
 
-Buffer &DataManager::getBufferMut(const Guid &guid) {
-    if (_buffers.find(guid) == _buffers.end()) {
-        throw std::runtime_error("Buffer not found");
-    }
-    return _buffers[guid];
-}
+Buffer &DataManager::getBufferMut(BufferId id) { return getResource(_buffers, id, "Buffer not found"); }
 
-Tensor &DataManager::getTensorMut(const Guid &guid) {
-    if (_tensors.find(guid) == _tensors.end()) {
-        throw std::runtime_error("Tensor not found");
-    }
-    return _tensors[guid];
-}
+Tensor &DataManager::getTensorMut(TensorId id) { return getResource(_tensors, id, "Tensor not found"); }
 
-Image &DataManager::getImageMut(const Guid &guid) {
-    if (_images.find(guid) == _images.end()) {
-        throw std::runtime_error("Image not found");
-    }
-    return _images[guid];
-}
+Image &DataManager::getImageMut(ImageId id) { return getResource(_images, id, "Image not found"); }
 
-const Buffer &DataManager::getBuffer(const Guid &guid) const {
-    if (_buffers.find(guid) == _buffers.end()) {
-        throw std::runtime_error("Buffer not found");
-    }
-    return _buffers.at(guid);
-}
+const Buffer &DataManager::getBuffer(BufferId id) const { return getResource(_buffers, id, "Buffer not found"); }
 
-const Tensor &DataManager::getTensor(const Guid &guid) const {
-    if (_tensors.find(guid) == _tensors.end()) {
-        throw std::runtime_error("Tensor not found");
-    }
-    return _tensors.at(guid);
-}
+const Tensor &DataManager::getTensor(TensorId id) const { return getResource(_tensors, id, "Tensor not found"); }
 
-const Image &DataManager::getImage(const Guid &guid) const {
-    if (_images.find(guid) == _images.end()) {
-        throw std::runtime_error("Image not found");
-    }
-    return _images.at(guid);
-}
+const Image &DataManager::getImage(ImageId id) const { return getResource(_images, id, "Image not found"); }
 
 const RawData &DataManager::getRawData(RawDataId id) const {
     if (_rawData.find(id) == _rawData.end()) {
