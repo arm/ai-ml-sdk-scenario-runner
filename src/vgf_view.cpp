@@ -80,6 +80,29 @@ std::string formatShape(const std::vector<int64_t> &shape) {
     return s;
 }
 
+std::vector<int64_t> getScenarioImageShape(const vgflib::DataView<int64_t> &vgfShape, vk::Format format) {
+    if (vgfShape.size() != 3 && vgfShape.size() != 4) {
+        throw std::runtime_error("VGF image resources must have shape [H, W, C] or [1, H, W, C]");
+    }
+
+    const auto heightIndex = static_cast<uint32_t>(vgfShape.size() - 3);
+    if (vgfShape.size() == 4 && vgfShape[0] != 1) {
+        throw std::runtime_error("VGF image resources must have a batch size of 1");
+    }
+
+    const auto channels = vgfShape[heightIndex + 2];
+    const auto formatChannels = static_cast<int64_t>(numComponentsFromVkFormat(format));
+    if (channels != formatChannels) {
+        throw std::runtime_error("VGF image channel count " + std::to_string(channels) +
+                                 " does not match format component count " + std::to_string(formatChannels));
+    }
+
+    // VGF stores the logical HWC or NHWC shape for all views of a value,
+    // including aliased tensor and image resources. Convert it to ImageInfo's
+    // [N, W, H, depth] layout; the image channel count is encoded in the format.
+    return {1, vgfShape[heightIndex + 1], vgfShape[heightIndex], 1};
+}
+
 struct ModelInterfaceLookup {
     uint32_t mrtIndex;
     bool isOutput;
@@ -495,7 +518,7 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
         const auto &actualImageShape = image.shape();
 
         auto dims = resourceTableDecoder->getTensorShape(vgfMrtIndex);
-        const std::vector<int64_t> expectedImageShape(dims.begin(), dims.end());
+        const auto expectedImageShape = getScenarioImageShape(dims, vk::Format(format));
         if (actualImageShape != expectedImageShape) {
             throw std::runtime_error(getVgfContext() + " has shape " + formatShape(expectedImageShape) +
                                      " but scenario image '" + image.debugName() + "' has shape " +
@@ -557,7 +580,7 @@ VgfResourceCreationResult VgfView::createIntermediateResources(IResourceCreator 
 
                 ImageInfo info{};
                 info.debugName = std::move(debugName);
-                info.shape = std::vector<int64_t>(shape.begin(), shape.end());
+                info.shape = getScenarioImageShape(shape, vk::Format(format));
                 info.format = vk::Format(format);
                 info.targetFormat = info.format;
                 info.isInput = false;
