@@ -24,6 +24,8 @@
   now use the required zero per-stage feedback entries.
 - Fixed tensor staging transfers to respect tensor memory-group and image
   subresource offsets.
+- Fixed VGF image shape handling for custom shaders, preventing swapped image
+  extents and invalid depth values.
 
 ## Version 0.10.0 – *Optical Flow, VGF Runtime & APK Packaging*
 

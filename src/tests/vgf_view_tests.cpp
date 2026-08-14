@@ -153,10 +153,10 @@ std::filesystem::path writeVgfWithInputAndIntermediateBuffer(TempFolder &tempFol
 }
 
 std::filesystem::path writeVgfWithSampledIntermediateImage(TempFolder &tempFolder, uint32_t addressModeU,
-                                                           uint32_t addressModeV) {
+                                                           uint32_t addressModeV,
+                                                           const std::vector<int64_t> &shape = {1, 16, 8, 4}) {
     auto encoder = vgflib::CreateEncoder(123);
 
-    const std::vector<int64_t> shape{16, 16, 1, 1};
     const auto module = encoder->AddModule(vgflib::ModuleType::COMPUTE, "sampled_image", "main");
     const auto image =
         encoder->AddIntermediateResource(vgflib::ToDescriptorType(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER),
@@ -226,6 +226,7 @@ TEST(VgfView, IntermediateSampledImageUsesVgfSamplerConfig) {
     const auto result = view.createIntermediateResources(creator);
 
     ASSERT_EQ(creator.images.size(), 1);
+    EXPECT_EQ(creator.images.front().shape, (std::vector<int64_t>{1, 8, 16, 1}));
     const auto &samplerSettings = creator.images.front().samplerSettings;
     EXPECT_EQ(samplerSettings.minFilter, FilterMode::Linear);
     EXPECT_EQ(samplerSettings.magFilter, FilterMode::Nearest);
@@ -255,6 +256,30 @@ TEST(VgfView, IntermediateSampledImageAcceptsDistinctVgfAddressModes) {
     EXPECT_EQ(samplerSettings.addressModeV, AddressMode::ClampEdge);
     EXPECT_EQ(samplerSettings.addressModeW, AddressMode::ClampEdge);
     EXPECT_TRUE(result.memoryGroups.empty());
+}
+
+TEST(VgfView, IntermediateSampledImageRejectsInvalidVgfShapes) {
+    TempFolder tempFolder("vgf_view");
+    const std::vector<std::pair<std::vector<int64_t>, std::string>> invalidShapes{
+        {{16, 8}, "VGF image resources must have shape [H, W, C] or [1, H, W, C]"},
+        {{2, 16, 8, 4}, "VGF image resources must have a batch size of 1"},
+        {{1, 16, 8, 3}, "VGF image channel count 3 does not match format component count 4"},
+    };
+
+    for (const auto &[shape, expectedMessage] : invalidShapes) {
+        const auto vgfPath = writeVgfWithSampledIntermediateImage(tempFolder, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+                                                                  VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, shape);
+
+        auto view = VgfView::createVgfView(vgfPath.string());
+        CapturingResourceCreator creator;
+
+        try {
+            view.createIntermediateResources(creator);
+            FAIL() << "Expected invalid VGF image shape to be rejected";
+        } catch (const std::runtime_error &error) {
+            EXPECT_EQ(error.what(), expectedMessage);
+        }
+    }
 }
 
 TEST(VgfView, ResolveBindingsReportsTensorShapeMismatchWithJsonLine) {
