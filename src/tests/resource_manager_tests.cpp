@@ -83,6 +83,22 @@ TEST(ResourceManager, PreservesResourceInfo) {
     EXPECT_EQ(resources.get(graphConstantId).data.size(), 8U);
 }
 
+TEST(ResourceManager, IteratesTypedIdsWithResourceInfo) {
+    ResourceManager resources;
+    resources.addBuffer({"first", 4, 0});
+    resources.addBuffer({"second", 8, 0});
+
+    std::vector<BufferId> ids;
+    std::vector<std::string> names;
+    for (const auto [id, info] : resources.buffers()) {
+        ids.push_back(id);
+        names.push_back(info.debugName);
+    }
+
+    EXPECT_EQ(ids, (std::vector<BufferId>{BufferId{0}, BufferId{1}}));
+    EXPECT_EQ(names, (std::vector<std::string>{"first", "second"}));
+}
+
 TEST(ResourceManager, RejectsOutOfRangeIds) {
     const ResourceManager resources;
 
