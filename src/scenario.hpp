@@ -22,6 +22,8 @@
 #include <vector>
 
 namespace mlsdk::scenariorunner {
+class ScenarioBuilder;
+
 /// \brief Options that are passed for configuring a scenario
 struct ScenarioOptions {
     bool enablePipelineCaching{false};
@@ -89,13 +91,13 @@ class Scenario {
                         const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries);
 
     /// \brief Sets up runtime options
+    void buildJsonScenarioData(const ScenarioSpec &scenarioSpec);
+    void resolveCommands(ScenarioBuilder &builder, const ScenarioSpec &scenarioSpec,
+                         const std::unordered_map<Guid, TypedResourceId> &resourceIds);
     void setupResources();
-    void registerResourceInfo();
-    void registerBarrierInfo();
     void createRuntimeResources();
     void createRuntimeBarriers();
     void loadJsonResourceData();
-    void resolveCommands();
     void setupRuntimeCommands();
 
     /// \brief Save profiling data to file

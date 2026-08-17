@@ -6,15 +6,16 @@
 #include "command_types.hpp"
 #include "frame_capturer.hpp"
 #include "glsl_compiler.hpp"
+#include "guid.hpp"
 #ifdef SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT
 #    include "hlsl_compiler.hpp"
 #endif
-#include "guid.hpp"
 #include "image_formats.hpp"
 #include "iresource.hpp"
 #include "json_writer.hpp"
 #include "logging.hpp"
 #include "optical_flow_utils.hpp"
+#include "scenario_builder.hpp"
 #include "utils.hpp"
 
 #include "vgf-utils/numpy.hpp"
@@ -503,11 +504,17 @@ MemoryGroupId getOrCreateMemoryGroup(GroupManager &groupManager, std::unordered_
     return group;
 }
 
-void registerMemoryGroup(GroupManager &groupManager, std::unordered_map<Guid, MemoryGroupId> &memoryGroupIds,
+void registerMemoryGroup(ScenarioBuilder &builder, std::unordered_map<Guid, MemoryGroupId> &memoryGroupIds,
                          MemoryResourceId resource, const std::optional<MemoryGroup> &memoryGroup) {
     if (memoryGroup.has_value()) {
-        const auto group = getOrCreateMemoryGroup(groupManager, memoryGroupIds, memoryGroup->memoryUid);
-        groupManager.addResourceToGroup(group, resource);
+        const auto existingGroup = memoryGroupIds.find(memoryGroup->memoryUid);
+        if (existingGroup != memoryGroupIds.end()) {
+            builder.addResourceToMemoryGroup(existingGroup->second, resource);
+            return;
+        }
+        const auto group = builder.createMemoryGroup();
+        memoryGroupIds.emplace(memoryGroup->memoryUid, group);
+        builder.addResourceToMemoryGroup(group, resource);
     }
 }
 
@@ -728,9 +735,7 @@ void verifyOpticalFlowData(const DataManager &dataManager, const DispatchOptical
 
 Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
     : _opts{opts}, _ctx{opts, getFamilyQueue(scenarioSpec)}, _scenarioSpec(scenarioSpec), _compute(_ctx) {
-    registerResourceInfo();
-    registerBarrierInfo();
-    resolveCommands();
+    buildJsonScenarioData(scenarioSpec);
     setupResources();
     setupRuntimeCommands();
 }
@@ -873,52 +878,51 @@ void Scenario::createRuntimeBarriers() {
     }
 }
 
-void Scenario::registerResourceInfo() {
-    mlsdk::logging::info("Setup resources, count: " + std::to_string(_scenarioSpec.resources.size()));
-    // Setup resource info
-    // (Memory for Tensors and Images is allocated in next pass)
-    ResourceInfoFactory resourceInfoFactory;
-    std::unordered_map<Guid, MemoryGroupId> jsonMemoryGroupIds;
+namespace {
+void registerJsonResourceInfo(ScenarioBuilder &builder, const ScenarioSpec &scenarioSpec,
+                              const ResourceInfoFactory &resourceInfoFactory, bool captureFrame,
+                              std::unordered_map<Guid, MemoryGroupId> &jsonMemoryGroupIds,
+                              std::unordered_map<Guid, TypedResourceId> &resourceIds) {
 
-    for (const auto &resource : _scenarioSpec.resources) {
+    for (const auto &resource : scenarioSpec.resources) {
         switch (resource->resourceType) {
         case ResourceType::Buffer: {
             const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
-            const auto id = _resources.addBuffer(resourceInfoFactory.createInfo(*buffer));
-            _resourceIds.emplace(resource->guid, id);
-            registerMemoryGroup(_groupManager, jsonMemoryGroupIds, id, buffer->memoryGroup);
+            const auto id = builder.addBuffer(resourceInfoFactory.createInfo(*buffer));
+            resourceIds.emplace(resource->guid, id);
+            registerMemoryGroup(builder, jsonMemoryGroupIds, id, buffer->memoryGroup);
         } break;
         case ResourceType::RawData: {
             const auto &rawData = reinterpret_cast<const std::unique_ptr<RawDataDesc> &>(resource);
-            const auto id = _resources.addRawData(resourceInfoFactory.createInfo(*rawData));
-            _resourceIds.emplace(resource->guid, id);
+            const auto id = builder.addRawData(resourceInfoFactory.createInfo(*rawData));
+            resourceIds.emplace(resource->guid, id);
         } break;
         case ResourceType::Image: {
             const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
-            const auto id = _resources.addImage(resourceInfoFactory.createInfo(*image));
-            _resourceIds.emplace(resource->guid, id);
-            registerMemoryGroup(_groupManager, jsonMemoryGroupIds, id, image->memoryGroup);
+            const auto id = builder.addImage(resourceInfoFactory.createInfo(*image));
+            resourceIds.emplace(resource->guid, id);
+            registerMemoryGroup(builder, jsonMemoryGroupIds, id, image->memoryGroup);
         } break;
         case ResourceType::DataGraph: {
             const auto &dataGraph = reinterpret_cast<const std::unique_ptr<DataGraphDesc> &>(resource);
-            const auto id = _resources.addDataGraph(resourceInfoFactory.createInfo(*dataGraph));
-            _resourceIds.emplace(resource->guid, id);
+            const auto id = builder.addDataGraph(resourceInfoFactory.createInfo(*dataGraph));
+            resourceIds.emplace(resource->guid, id);
         } break;
         case ResourceType::Tensor: {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
-            const auto id = _resources.addTensor(resourceInfoFactory.createInfo(*tensor, _opts.captureFrame));
-            _resourceIds.emplace(resource->guid, id);
-            registerMemoryGroup(_groupManager, jsonMemoryGroupIds, id, tensor->memoryGroup);
+            const auto id = builder.addTensor(resourceInfoFactory.createInfo(*tensor, captureFrame));
+            resourceIds.emplace(resource->guid, id);
+            registerMemoryGroup(builder, jsonMemoryGroupIds, id, tensor->memoryGroup);
         } break;
         case ResourceType::Shader: {
             const auto &shader = reinterpret_cast<const std::unique_ptr<ShaderDesc> &>(resource);
-            const auto id = _resources.addShader(resourceInfoFactory.createInfo(*shader));
-            _resourceIds.emplace(resource->guid, id);
+            const auto id = builder.addShader(resourceInfoFactory.createInfo(*shader));
+            resourceIds.emplace(resource->guid, id);
         } break;
         case ResourceType::GraphConstant: {
             const auto &graphConstant = reinterpret_cast<const std::unique_ptr<GraphConstantDesc> &>(resource);
-            const auto id = _resources.addGraphConstant(resourceInfoFactory.createInfo(*graphConstant));
-            _resourceIds.emplace(resource->guid, id);
+            const auto id = builder.addGraphConstant(resourceInfoFactory.createInfo(*graphConstant));
+            resourceIds.emplace(resource->guid, id);
         } break;
         default:
             // Barriers can precede the regular resources they reference, so register them in a second pass.
@@ -928,33 +932,58 @@ void Scenario::registerResourceInfo() {
     }
 }
 
-void Scenario::registerBarrierInfo() {
-    // Resolve barrier references after all regular resources have typed IDs.
-    BarrierInfoFactory barrierInfoFactory{_resourceIds};
-    for (const auto &resource : _scenarioSpec.resources) {
+void registerJsonBarrierInfo(ScenarioBuilder &builder, const ScenarioSpec &scenarioSpec,
+                             std::unordered_map<Guid, TypedResourceId> &resourceIds) {
+    // Barrier descriptions can reference resources declared later in the JSON,
+    // so translate them only after all regular resources have typed IDs.
+    BarrierInfoFactory barrierInfoFactory{resourceIds};
+    for (const auto &resource : scenarioSpec.resources) {
         switch (resource->resourceType) {
         case ResourceType::ImageBarrier: {
-            const auto &barrier = reinterpret_cast<const std::unique_ptr<ImageBarrierDesc> &>(resource);
-            _resourceIds.emplace(resource->guid, _resources.addImageBarrier(barrierInfoFactory.createInfo(*barrier)));
+            const auto &imageBarrier = reinterpret_cast<const std::unique_ptr<ImageBarrierDesc> &>(resource);
+            const auto id = builder.addImageBarrier(barrierInfoFactory.createInfo(*imageBarrier));
+            resourceIds.emplace(resource->guid, id);
         } break;
         case ResourceType::MemoryBarrier: {
-            const auto &barrier = reinterpret_cast<const std::unique_ptr<MemoryBarrierDesc> &>(resource);
-            _resourceIds.emplace(resource->guid, _resources.addMemoryBarrier(barrierInfoFactory.createInfo(*barrier)));
+            const auto &memoryBarrier = reinterpret_cast<const std::unique_ptr<MemoryBarrierDesc> &>(resource);
+            const auto id = builder.addMemoryBarrier(barrierInfoFactory.createInfo(*memoryBarrier));
+            resourceIds.emplace(resource->guid, id);
         } break;
         case ResourceType::TensorBarrier: {
-            const auto &barrier = reinterpret_cast<const std::unique_ptr<TensorBarrierDesc> &>(resource);
-            _resourceIds.emplace(resource->guid, _resources.addTensorBarrier(barrierInfoFactory.createInfo(*barrier)));
+            const auto &tensorBarrier = reinterpret_cast<const std::unique_ptr<TensorBarrierDesc> &>(resource);
+            const auto id = builder.addTensorBarrier(barrierInfoFactory.createInfo(*tensorBarrier));
+            resourceIds.emplace(resource->guid, id);
         } break;
         case ResourceType::BufferBarrier: {
-            const auto &barrier = reinterpret_cast<const std::unique_ptr<BufferBarrierDesc> &>(resource);
-            _resourceIds.emplace(resource->guid, _resources.addBufferBarrier(barrierInfoFactory.createInfo(*barrier)));
+            const auto &bufferBarrier = reinterpret_cast<const std::unique_ptr<BufferBarrierDesc> &>(resource);
+            const auto id = builder.addBufferBarrier(barrierInfoFactory.createInfo(*bufferBarrier));
+            resourceIds.emplace(resource->guid, id);
         } break;
         default:
-            // Regular resources were registered in registerResourceInfo().
+            // Regular resources were registered in the first pass.
             continue;
         }
         mlsdk::logging::debug(resourceType(resource) + ": " + resource->guidStr + " loaded");
     }
+}
+} // namespace
+
+void Scenario::buildJsonScenarioData(const ScenarioSpec &scenarioSpec) {
+    mlsdk::logging::info("Setup resources, count: " + std::to_string(scenarioSpec.resources.size()));
+    ScenarioBuilder builder;
+    ResourceInfoFactory resourceInfoFactory;
+    std::unordered_map<Guid, MemoryGroupId> jsonMemoryGroupIds;
+    std::unordered_map<Guid, TypedResourceId> resourceIds;
+
+    registerJsonResourceInfo(builder, scenarioSpec, resourceInfoFactory, _opts.captureFrame, jsonMemoryGroupIds,
+                             resourceIds);
+    registerJsonBarrierInfo(builder, scenarioSpec, resourceIds);
+    resolveCommands(builder, scenarioSpec, resourceIds);
+    auto buildData = builder.takeBuildData();
+    _resources = std::move(buildData.resources);
+    _resourceIds = std::move(resourceIds);
+    _commands = std::move(buildData.commands);
+    _groupManager = std::move(buildData.groupManager);
 }
 
 void Scenario::setupResources() {
@@ -1074,30 +1103,33 @@ void Scenario::loadJsonResourceData() {
     }
 }
 
-void Scenario::resolveCommands() {
-    CommandDataFactory factory{_resources, _resourceIds};
-    for (const auto &command : _scenarioSpec.commands) {
+void Scenario::resolveCommands(ScenarioBuilder &builder, const ScenarioSpec &scenarioSpec,
+                               const std::unordered_map<Guid, TypedResourceId> &resourceIds) {
+    CommandDataFactory factory{builder._data.resources, resourceIds};
+    for (const auto &command : scenarioSpec.commands) {
         switch (command->commandType) {
         case CommandType::DispatchCompute:
-            _commands.emplace_back(factory.createData(reinterpret_cast<DispatchComputeDesc &>(*command)));
+            builder.addDispatchCompute(factory.createData(reinterpret_cast<const DispatchComputeDesc &>(*command)));
             break;
         case CommandType::DispatchBarrier:
-            _commands.emplace_back(factory.createData(reinterpret_cast<DispatchBarrierDesc &>(*command)));
+            builder.addDispatchBarrier(factory.createData(reinterpret_cast<const DispatchBarrierDesc &>(*command)));
             break;
         case CommandType::DispatchDataGraph:
-            _commands.emplace_back(factory.createData(reinterpret_cast<DispatchDataGraphDesc &>(*command)));
+            builder.addDispatchDataGraph(factory.createData(reinterpret_cast<const DispatchDataGraphDesc &>(*command)));
             break;
         case CommandType::DispatchSpirvGraph:
-            _commands.emplace_back(factory.createData(reinterpret_cast<DispatchSpirvGraphDesc &>(*command)));
+            builder.addDispatchSpirvGraph(
+                factory.createData(reinterpret_cast<const DispatchSpirvGraphDesc &>(*command)));
             break;
         case CommandType::DispatchFragment:
-            _commands.emplace_back(factory.createData(reinterpret_cast<DispatchFragmentDesc &>(*command)));
+            builder.addDispatchFragment(factory.createData(reinterpret_cast<const DispatchFragmentDesc &>(*command)));
             break;
         case CommandType::DispatchOpticalFlow:
-            _commands.emplace_back(factory.createData(reinterpret_cast<DispatchOpticalFlowDesc &>(*command)));
+            builder.addDispatchOpticalFlow(
+                factory.createData(reinterpret_cast<const DispatchOpticalFlowDesc &>(*command)));
             break;
         case CommandType::MarkBoundary:
-            _commands.emplace_back(factory.createData(reinterpret_cast<MarkBoundaryDesc &>(*command)));
+            builder.addMarkBoundary(factory.createData(reinterpret_cast<const MarkBoundaryDesc &>(*command)));
             break;
         default:
             throw std::runtime_error("Unknown CommandType in commands");

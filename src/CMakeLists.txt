@@ -29,6 +29,7 @@ set(SCENARIO_RUNNER_LIB_SOURCES
     resource_desc.cpp
     resource_manager.cpp
     scenario.cpp
+    scenario_builder.cpp
     scenario_desc.cpp
     tensor.cpp
     utils.cpp
