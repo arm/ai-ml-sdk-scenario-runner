@@ -7,7 +7,6 @@
 
 #include "context.hpp"
 #include "resource_data.hpp"
-#include "resource_desc.hpp"
 #include "types.hpp"
 #include "vulkan_memory_manager.hpp"
 
@@ -64,7 +63,6 @@ class Tensor {
 
     void allocateMemory(const Context &ctx);
 
-    void fillFromDescription(const Context &ctx, const TensorDesc &desc) const;
     void fill(const void *data, size_t size) const;
     void fillZero() const;
 

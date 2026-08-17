@@ -8,12 +8,15 @@
 #include "compute.hpp"
 #include "context.hpp"
 #include "data_manager.hpp"
+#include "frame_capturer.hpp"
 #include "group_manager.hpp"
+#include "resource_data.hpp"
 #include "resource_manager.hpp"
 #include "scenario_desc.hpp"
 #include "types.hpp"
 
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -53,10 +56,35 @@ class Scenario {
     /// \brief Constructor
     Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec);
 
-    /// \brief Executes the test case
+    /// \brief Destructor
+    ~Scenario();
+
+    /// \brief Executes the test case one or more times
+    /// \param repeatCount Number of executions; must be greater than zero
+    /// \param dryRun Skip workload execution and output-resource saving
     void run(int repeatCount = 1, bool dryRun = false);
 
+    /// \brief Get a buffer resource ID from its UID
+    BufferId getBufferId(std::string_view uid) const;
+
+    /// \brief Get a tensor resource ID from its UID
+    TensorId getTensorId(std::string_view uid) const;
+
+    /// \brief Upload data to an existing buffer resource
+    void upload(BufferId id, const BufferDataView &data);
+
+    /// \brief Upload data to an existing tensor resource
+    void upload(TensorId id, const TensorDataView &data);
+
+    /// \brief Download data from an existing buffer resource
+    BufferData download(BufferId id) const;
+
+    /// \brief Download data from an existing tensor resource
+    TensorData download(TensorId id) const;
+
   private:
+    void runIteration(int iteration, int repeatCount, bool dryRun);
+
     void createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries);
     void createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries);
     void createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSpirvGraph, uint32_t &nQueries);
@@ -76,6 +104,9 @@ class Scenario {
     /// \brief Save results of output resources to files
     void saveResults(bool dryRun);
 
+    /// \brief Reset transient execution state before another run
+    void resetForNextRun();
+
     bool hasAliasedOptimalTensors() const;
     void handleAliasedLayoutTransitions();
     MemoryResourceId getMemoryResourceId(const Guid &guid) const;
@@ -87,12 +118,16 @@ class Scenario {
     Context _ctx;
     ResourceManager _resources;
     std::unordered_map<Guid, TypedResourceId> _resourceIds;
+    std::unordered_map<BufferId, Guid> _bufferResourceGuids;
+    std::unordered_map<TensorId, Guid> _tensorResourceGuids;
     DataManager _dataManager;
     ScenarioSpec &_scenarioSpec;
     std::shared_ptr<PipelineCache> _pipelineCache;
     Compute _compute;
     std::vector<PerformanceCounter> _perfCounters;
     GroupManager _groupManager;
+    std::unique_ptr<FrameCapturer> _frameCapturer;
+    bool _hasRun{false};
 };
 
 } // namespace mlsdk::scenariorunner

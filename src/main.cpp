@@ -301,7 +301,8 @@ int runScenarioRunner(int argc, const char **argv) {
         if (parser.is_used("--repeat")) {
             repeatCount = parser.get<int>("--repeat");
             if (repeatCount <= 0) {
-                throw std::runtime_error("Expected positive number for repeat");
+                throw std::runtime_error("Repeat count must be greater than zero; received " +
+                                         std::to_string(repeatCount) + ".");
             }
         }
 
