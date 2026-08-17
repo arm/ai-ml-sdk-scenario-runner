@@ -377,51 +377,47 @@ Id resolveResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceId
 MemoryResourceId resolveMemoryResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds,
                                          const Guid &guid);
 
-void fill(const BaseBarrierDesc &barrier, BaseBarrierData &data) {
-    data.debugName = barrier.guidStr;
-    data.srcAccess = barrier.srcAccess;
-    data.dstAccess = barrier.dstAccess;
-    data.srcStages = barrier.srcStages;
-    data.dstStages = barrier.dstStages;
+void fill(const BaseBarrierDesc &barrier, BaseBarrierInfo &info) {
+    info.debugName = barrier.guidStr;
+    info.srcAccess = barrier.srcAccess;
+    info.dstAccess = barrier.dstAccess;
+    info.srcStages = barrier.srcStages;
+    info.dstStages = barrier.dstStages;
 }
 
-struct BarrierDataFactory {
-    const DataManager &_dataManager;
+struct BarrierInfoFactory {
     const std::unordered_map<Guid, TypedResourceId> &_resourceIds;
 
-    ImageBarrierData createInfo(const ImageBarrierDesc &imageBarrier) const {
-        const auto image = resolveResourceId<ImageId>(_resourceIds, imageBarrier.imageResource, "Image");
-        ImageBarrierData data{};
-        fill(imageBarrier, data);
-        data.oldLayout = imageBarrier.oldLayout;
-        data.newLayout = imageBarrier.newLayout;
-        data.image = _dataManager.getImage(image).image();
-        data.imageRange = imageBarrier.imageRange;
-        return data;
+    ImageBarrierInfo createInfo(const ImageBarrierDesc &imageBarrier) const {
+        ImageBarrierInfo info{};
+        fill(imageBarrier, info);
+        info.image = resolveResourceId<ImageId>(_resourceIds, imageBarrier.imageResource, "Image");
+        info.oldLayout = imageBarrier.oldLayout;
+        info.newLayout = imageBarrier.newLayout;
+        info.range = imageBarrier.imageRange;
+        return info;
     }
 
-    MemoryBarrierData createInfo(const MemoryBarrierDesc &memoryBarrier) const {
-        MemoryBarrierData data{};
-        fill(memoryBarrier, data);
-        return data;
+    MemoryBarrierInfo createInfo(const MemoryBarrierDesc &memoryBarrier) const {
+        MemoryBarrierInfo info{};
+        fill(memoryBarrier, info);
+        return info;
     }
 
-    TensorBarrierData createInfo(const TensorBarrierDesc &tensorBarrier) const {
-        const auto tensor = resolveResourceId<TensorId>(_resourceIds, tensorBarrier.tensorResource, "Tensor");
-        TensorBarrierData data{};
-        fill(tensorBarrier, data);
-        data.tensor = _dataManager.getTensor(tensor).tensor();
-        return data;
+    TensorBarrierInfo createInfo(const TensorBarrierDesc &tensorBarrier) const {
+        TensorBarrierInfo info{};
+        fill(tensorBarrier, info);
+        info.tensor = resolveResourceId<TensorId>(_resourceIds, tensorBarrier.tensorResource, "Tensor");
+        return info;
     }
 
-    BufferBarrierData createInfo(const BufferBarrierDesc &bufferBarrier) const {
-        const auto buffer = resolveResourceId<BufferId>(_resourceIds, bufferBarrier.bufferResource, "Buffer");
-        BufferBarrierData data{};
-        fill(bufferBarrier, data);
-        data.offset = bufferBarrier.offset;
-        data.size = bufferBarrier.size;
-        data.buffer = _dataManager.getBuffer(buffer).buffer();
-        return data;
+    BufferBarrierInfo createInfo(const BufferBarrierDesc &bufferBarrier) const {
+        BufferBarrierInfo info{};
+        fill(bufferBarrier, info);
+        info.buffer = resolveResourceId<BufferId>(_resourceIds, bufferBarrier.bufferResource, "Buffer");
+        info.offset = bufferBarrier.offset;
+        info.size = bufferBarrier.size;
+        return info;
     }
 };
 
@@ -673,32 +669,19 @@ struct CommandDataFactory {
     DispatchBarrierData createData(const DispatchBarrierDesc &dispatchBarrier) {
         DispatchBarrierData data;
         for (const auto &ref : dispatchBarrier.bufferBarriersRef) {
-            if (_dataManager.hasBufferBarrier(ref)) {
-                data.bufferBarriers.push_back(ref);
-            } else {
-                throw std::runtime_error("Cannot find Buffer memory barrier");
-            }
+            data.bufferBarriers.push_back(
+                resolveResourceId<BufferBarrierId>(_resourceIds, Guid(ref), "Buffer barrier"));
         }
         for (const auto &ref : dispatchBarrier.imageBarriersRef) {
-            if (_dataManager.hasImageBarrier(ref)) {
-                data.imageBarriers.push_back(ref);
-            } else {
-                throw std::runtime_error("Cannot find Image memory barrier");
-            }
+            data.imageBarriers.push_back(resolveResourceId<ImageBarrierId>(_resourceIds, Guid(ref), "Image barrier"));
         }
         for (const auto &ref : dispatchBarrier.memoryBarriersRef) {
-            if (_dataManager.hasMemoryBarrier(ref)) {
-                data.memoryBarriers.push_back(ref);
-            } else {
-                throw std::runtime_error("Cannot find Memory barrier");
-            }
+            data.memoryBarriers.push_back(
+                resolveResourceId<MemoryBarrierId>(_resourceIds, Guid(ref), "Memory barrier"));
         }
         for (const auto &ref : dispatchBarrier.tensorBarriersRef) {
-            if (_dataManager.hasTensorBarrier(ref)) {
-                data.tensorBarriers.push_back(ref);
-            } else {
-                throw std::runtime_error("Cannot find Tensor memory barrier");
-            }
+            data.tensorBarriers.push_back(
+                resolveResourceId<TensorBarrierId>(_resourceIds, Guid(ref), "Tensor barrier"));
         }
         return data;
     }
@@ -1073,28 +1056,32 @@ void Scenario::setupResources() {
     vgfResourceCreator.setupCreatedTensorResources();
 
     // Setup barrier resource info, these depend on other resources
-    BarrierDataFactory barrierDataFactory{_dataManager, _resourceIds};
+    BarrierInfoFactory barrierInfoFactory{_resourceIds};
     for (const auto &resource : _scenarioSpec.resources) {
         switch (resource->resourceType) {
         case ResourceType::ImageBarrier: {
             const auto &imageBarrier = reinterpret_cast<const std::unique_ptr<ImageBarrierDesc> &>(resource);
-            const auto data = barrierDataFactory.createInfo(*imageBarrier);
-            _dataManager.createImageBarrier(resource->guid, data);
+            const auto id = _resources.addImageBarrier(barrierInfoFactory.createInfo(*imageBarrier));
+            _resourceIds.emplace(resource->guid, id);
+            _dataManager.createImageBarrier(id, _resources.get(id));
         } break;
         case ResourceType::MemoryBarrier: {
             const auto &memoryBarrier = reinterpret_cast<const std::unique_ptr<MemoryBarrierDesc> &>(resource);
-            const auto data = barrierDataFactory.createInfo(*memoryBarrier);
-            _dataManager.createMemoryBarrier(resource->guid, data);
+            const auto id = _resources.addMemoryBarrier(barrierInfoFactory.createInfo(*memoryBarrier));
+            _resourceIds.emplace(resource->guid, id);
+            _dataManager.createMemoryBarrier(id, _resources.get(id));
         } break;
         case ResourceType::TensorBarrier: {
             const auto &tensorBarrier = reinterpret_cast<const std::unique_ptr<TensorBarrierDesc> &>(resource);
-            const auto data = barrierDataFactory.createInfo(*tensorBarrier);
-            _dataManager.createTensorBarrier(resource->guid, data);
+            const auto id = _resources.addTensorBarrier(barrierInfoFactory.createInfo(*tensorBarrier));
+            _resourceIds.emplace(resource->guid, id);
+            _dataManager.createTensorBarrier(id, _resources.get(id));
         } break;
         case ResourceType::BufferBarrier: {
             const auto &bufferBarrier = reinterpret_cast<const std::unique_ptr<BufferBarrierDesc> &>(resource);
-            const auto data = barrierDataFactory.createInfo(*bufferBarrier);
-            _dataManager.createBufferBarrier(resource->guid, data);
+            const auto id = _resources.addBufferBarrier(barrierInfoFactory.createInfo(*bufferBarrier));
+            _resourceIds.emplace(resource->guid, id);
+            _dataManager.createBufferBarrier(id, _resources.get(id));
         } break;
         default:
             // Skip the other types of resources

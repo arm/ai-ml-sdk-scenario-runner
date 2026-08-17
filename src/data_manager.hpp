@@ -26,19 +26,19 @@ class DataManager {
     void createImage(ImageId id, ImageInfo &&info);
     void createRawData(RawDataId id, const RawDataInfo &info);
     void createVgfView(DataGraphId id, const DataGraphInfo &info);
-    void createImageBarrier(Guid guid, const ImageBarrierData &data);
-    void createTensorBarrier(Guid guid, const TensorBarrierData &data);
-    void createMemoryBarrier(Guid guid, const MemoryBarrierData &data);
-    void createBufferBarrier(Guid guid, const BufferBarrierData &data);
+    void createImageBarrier(ImageBarrierId id, const ImageBarrierInfo &info);
+    void createTensorBarrier(TensorBarrierId id, const TensorBarrierInfo &info);
+    void createMemoryBarrier(MemoryBarrierId id, const MemoryBarrierInfo &info);
+    void createBufferBarrier(BufferBarrierId id, const BufferBarrierInfo &info);
 
     bool hasBuffer(BufferId id) const;
     bool hasTensor(TensorId id) const;
     bool hasImage(ImageId id) const;
     bool hasRawData(RawDataId id) const;
-    bool hasImageBarrier(Guid guid) const;
-    bool hasTensorBarrier(Guid guid) const;
-    bool hasMemoryBarrier(Guid guid) const;
-    bool hasBufferBarrier(Guid guid) const;
+    bool hasImageBarrier(ImageBarrierId id) const;
+    bool hasTensorBarrier(TensorBarrierId id) const;
+    bool hasMemoryBarrier(MemoryBarrierId id) const;
+    bool hasBufferBarrier(BufferBarrierId id) const;
 
     Buffer &getBufferMut(BufferId id);
     Tensor &getTensorMut(TensorId id);
@@ -49,10 +49,10 @@ class DataManager {
     const Image &getImage(ImageId id) const;
     const RawData &getRawData(RawDataId id) const;
     const VgfView &getVgfView(DataGraphId id) const;
-    const VulkanImageBarrier &getImageBarrier(const Guid &guid) const;
-    const VulkanMemoryBarrier &getMemoryBarrier(const Guid &guid) const;
-    const VulkanBufferBarrier &getBufferBarrier(const Guid &guid) const;
-    const VulkanTensorBarrier &getTensorBarrier(const Guid &guid) const;
+    const VulkanImageBarrier &getImageBarrier(ImageBarrierId id) const;
+    const VulkanMemoryBarrier &getMemoryBarrier(MemoryBarrierId id) const;
+    const VulkanBufferBarrier &getBufferBarrier(BufferBarrierId id) const;
+    const VulkanTensorBarrier &getTensorBarrier(TensorBarrierId id) const;
 
     uint32_t numBuffers() const;
     uint32_t numTensors() const;
@@ -64,9 +64,9 @@ class DataManager {
     std::unordered_map<ImageId, Image> _images;
     std::unordered_map<RawDataId, RawData> _rawData;
     std::unordered_map<DataGraphId, VgfView> _vgfViews;
-    std::unordered_map<Guid, VulkanImageBarrier> _imageBarriers;
-    std::unordered_map<Guid, VulkanMemoryBarrier> _memoryBarriers;
-    std::unordered_map<Guid, VulkanBufferBarrier> _bufferBarriers;
-    std::unordered_map<Guid, VulkanTensorBarrier> _tensorBarriers;
+    std::unordered_map<ImageBarrierId, VulkanImageBarrier> _imageBarriers;
+    std::unordered_map<MemoryBarrierId, VulkanMemoryBarrier> _memoryBarriers;
+    std::unordered_map<BufferBarrierId, VulkanBufferBarrier> _bufferBarriers;
+    std::unordered_map<TensorBarrierId, VulkanTensorBarrier> _tensorBarriers;
 };
 } // namespace mlsdk::scenariorunner

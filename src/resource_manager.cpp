@@ -57,6 +57,31 @@ GraphConstantResourceId ResourceManager::addGraphConstant(GraphConstantInfo &&in
     return addResource<GraphConstantResourceId>(_graphConstants, std::move(info));
 }
 
+ImageBarrierId ResourceManager::addImageBarrier(const ImageBarrierInfo &info) {
+    return addResource<ImageBarrierId>(_imageBarriers, info);
+}
+ImageBarrierId ResourceManager::addImageBarrier(ImageBarrierInfo &&info) {
+    return addResource<ImageBarrierId>(_imageBarriers, std::move(info));
+}
+BufferBarrierId ResourceManager::addBufferBarrier(const BufferBarrierInfo &info) {
+    return addResource<BufferBarrierId>(_bufferBarriers, info);
+}
+BufferBarrierId ResourceManager::addBufferBarrier(BufferBarrierInfo &&info) {
+    return addResource<BufferBarrierId>(_bufferBarriers, std::move(info));
+}
+TensorBarrierId ResourceManager::addTensorBarrier(const TensorBarrierInfo &info) {
+    return addResource<TensorBarrierId>(_tensorBarriers, info);
+}
+TensorBarrierId ResourceManager::addTensorBarrier(TensorBarrierInfo &&info) {
+    return addResource<TensorBarrierId>(_tensorBarriers, std::move(info));
+}
+MemoryBarrierId ResourceManager::addMemoryBarrier(const MemoryBarrierInfo &info) {
+    return addResource<MemoryBarrierId>(_memoryBarriers, info);
+}
+MemoryBarrierId ResourceManager::addMemoryBarrier(MemoryBarrierInfo &&info) {
+    return addResource<MemoryBarrierId>(_memoryBarriers, std::move(info));
+}
+
 const BufferInfo &ResourceManager::get(BufferId id) const { return getResource(_buffers, id); }
 
 const ImageInfo &ResourceManager::get(ImageId id) const { return getResource(_images, id); }
@@ -72,5 +97,10 @@ const DataGraphInfo &ResourceManager::get(DataGraphId id) const { return getReso
 const GraphConstantInfo &ResourceManager::get(GraphConstantResourceId id) const {
     return getResource(_graphConstants, id);
 }
+
+const ImageBarrierInfo &ResourceManager::get(ImageBarrierId id) const { return getResource(_imageBarriers, id); }
+const BufferBarrierInfo &ResourceManager::get(BufferBarrierId id) const { return getResource(_bufferBarriers, id); }
+const TensorBarrierInfo &ResourceManager::get(TensorBarrierId id) const { return getResource(_tensorBarriers, id); }
+const MemoryBarrierInfo &ResourceManager::get(MemoryBarrierId id) const { return getResource(_memoryBarriers, id); }
 
 } // namespace mlsdk::scenariorunner

@@ -20,10 +20,10 @@ namespace mlsdk::scenariorunner {
 
 /// \brief Typed barriers
 struct DispatchBarrierData {
-    std::vector<Guid> memoryBarriers;
-    std::vector<Guid> imageBarriers;
-    std::vector<Guid> tensorBarriers;
-    std::vector<Guid> bufferBarriers;
+    std::vector<MemoryBarrierId> memoryBarriers;
+    std::vector<ImageBarrierId> imageBarriers;
+    std::vector<TensorBarrierId> tensorBarriers;
+    std::vector<BufferBarrierId> bufferBarriers;
 };
 
 /// \brief Typed resources

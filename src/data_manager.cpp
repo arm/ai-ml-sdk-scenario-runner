@@ -10,6 +10,14 @@
 
 namespace mlsdk::scenariorunner {
 namespace {
+void fill(const BaseBarrierInfo &info, BaseBarrierData &data) {
+    data.debugName = info.debugName;
+    data.srcAccess = info.srcAccess;
+    data.dstAccess = info.dstAccess;
+    data.srcStages = info.srcStages;
+    data.dstStages = info.dstStages;
+}
+
 template <typename Resources, typename Id>
 decltype(auto) getResource(Resources &resources, Id id, const char *errorMessage) {
     const auto resource = resources.find(id);
@@ -36,20 +44,36 @@ void DataManager::createVgfView(DataGraphId id, const DataGraphInfo &info) {
     _vgfViews.insert({id, VgfView::createVgfView(info.src)});
 }
 
-void DataManager::createImageBarrier(Guid guid, const ImageBarrierData &data) {
-    _imageBarriers.insert({guid, VulkanImageBarrier(data)});
+void DataManager::createImageBarrier(ImageBarrierId id, const ImageBarrierInfo &info) {
+    ImageBarrierData data;
+    fill(info, data);
+    data.oldLayout = info.oldLayout;
+    data.newLayout = info.newLayout;
+    data.image = getImage(info.image).image();
+    data.imageRange = info.range;
+    _imageBarriers.insert({id, VulkanImageBarrier(data)});
 }
 
-void DataManager::createTensorBarrier(Guid guid, const TensorBarrierData &data) {
-    _tensorBarriers.insert({guid, VulkanTensorBarrier(data)});
+void DataManager::createTensorBarrier(TensorBarrierId id, const TensorBarrierInfo &info) {
+    TensorBarrierData data;
+    fill(info, data);
+    data.tensor = getTensor(info.tensor).tensor();
+    _tensorBarriers.insert({id, VulkanTensorBarrier(data)});
 }
 
-void DataManager::createMemoryBarrier(Guid guid, const MemoryBarrierData &data) {
-    _memoryBarriers.insert({guid, VulkanMemoryBarrier(data)});
+void DataManager::createMemoryBarrier(MemoryBarrierId id, const MemoryBarrierInfo &info) {
+    MemoryBarrierData data;
+    fill(info, data);
+    _memoryBarriers.insert({id, VulkanMemoryBarrier(data)});
 }
 
-void DataManager::createBufferBarrier(Guid guid, const BufferBarrierData &data) {
-    _bufferBarriers.insert({guid, VulkanBufferBarrier(data)});
+void DataManager::createBufferBarrier(BufferBarrierId id, const BufferBarrierInfo &info) {
+    BufferBarrierData data;
+    fill(info, data);
+    data.buffer = getBuffer(info.buffer).buffer();
+    data.offset = info.offset;
+    data.size = info.size;
+    _bufferBarriers.insert({id, VulkanBufferBarrier(data)});
 }
 
 void DataManager::createRawData(RawDataId id, const RawDataInfo &info) {
@@ -64,13 +88,19 @@ bool DataManager::hasImage(ImageId id) const { return _images.find(id) != _image
 
 bool DataManager::hasRawData(RawDataId id) const { return _rawData.find(id) != _rawData.end(); }
 
-bool DataManager::hasImageBarrier(Guid guid) const { return _imageBarriers.find(guid) != _imageBarriers.end(); }
+bool DataManager::hasImageBarrier(ImageBarrierId id) const { return _imageBarriers.find(id) != _imageBarriers.end(); }
 
-bool DataManager::hasMemoryBarrier(Guid guid) const { return _memoryBarriers.find(guid) != _memoryBarriers.end(); }
+bool DataManager::hasMemoryBarrier(MemoryBarrierId id) const {
+    return _memoryBarriers.find(id) != _memoryBarriers.end();
+}
 
-bool DataManager::hasTensorBarrier(Guid guid) const { return _tensorBarriers.find(guid) != _tensorBarriers.end(); }
+bool DataManager::hasTensorBarrier(TensorBarrierId id) const {
+    return _tensorBarriers.find(id) != _tensorBarriers.end();
+}
 
-bool DataManager::hasBufferBarrier(Guid guid) const { return _bufferBarriers.find(guid) != _bufferBarriers.end(); }
+bool DataManager::hasBufferBarrier(BufferBarrierId id) const {
+    return _bufferBarriers.find(id) != _bufferBarriers.end();
+}
 
 uint32_t DataManager::numBuffers() const { return static_cast<uint32_t>(_buffers.size()); }
 
@@ -104,32 +134,32 @@ const VgfView &DataManager::getVgfView(DataGraphId id) const {
     return _vgfViews.at(id);
 }
 
-const VulkanImageBarrier &DataManager::getImageBarrier(const Guid &guid) const {
-    if (_imageBarriers.find(guid) == _imageBarriers.end()) {
+const VulkanImageBarrier &DataManager::getImageBarrier(ImageBarrierId id) const {
+    if (_imageBarriers.find(id) == _imageBarriers.end()) {
         throw std::runtime_error("Image Barrier not found");
     }
-    return _imageBarriers.at(guid);
+    return _imageBarriers.at(id);
 }
 
-const VulkanTensorBarrier &DataManager::getTensorBarrier(const Guid &guid) const {
-    if (_tensorBarriers.find(guid) == _tensorBarriers.end()) {
+const VulkanTensorBarrier &DataManager::getTensorBarrier(TensorBarrierId id) const {
+    if (_tensorBarriers.find(id) == _tensorBarriers.end()) {
         throw std::runtime_error("Tensor Barrier not found");
     }
-    return _tensorBarriers.at(guid);
+    return _tensorBarriers.at(id);
 }
 
-const VulkanMemoryBarrier &DataManager::getMemoryBarrier(const Guid &guid) const {
-    if (_memoryBarriers.find(guid) == _memoryBarriers.end()) {
+const VulkanMemoryBarrier &DataManager::getMemoryBarrier(MemoryBarrierId id) const {
+    if (_memoryBarriers.find(id) == _memoryBarriers.end()) {
         throw std::runtime_error("Memory Barrier not found");
     }
-    return _memoryBarriers.at(guid);
+    return _memoryBarriers.at(id);
 }
 
-const VulkanBufferBarrier &DataManager::getBufferBarrier(const Guid &guid) const {
-    if (_bufferBarriers.find(guid) == _bufferBarriers.end()) {
+const VulkanBufferBarrier &DataManager::getBufferBarrier(BufferBarrierId id) const {
+    if (_bufferBarriers.find(id) == _bufferBarriers.end()) {
         throw std::runtime_error("Buffer Barrier not found");
     }
-    return _bufferBarriers.at(guid);
+    return _bufferBarriers.at(id);
 }
 
 } // namespace mlsdk::scenariorunner
