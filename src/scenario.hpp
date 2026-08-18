@@ -96,6 +96,11 @@ class Scenario {
 
     /// \brief Sets up runtime options
     void setupResources();
+    void registerResourceInfo();
+    void registerBarrierInfo();
+    void createRuntimeResources();
+    void createRuntimeBarriers();
+    void loadJsonResourceData();
     void setupCommands();
 
     /// \brief Save profiling data to file

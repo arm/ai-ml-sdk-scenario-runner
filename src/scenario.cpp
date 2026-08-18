@@ -838,7 +838,41 @@ void Scenario::resetForNextRun() {
     }
 }
 
-void Scenario::setupResources() {
+void Scenario::createRuntimeResources() {
+    for (const auto &[id, info] : _resources.buffers()) {
+        _dataManager.createBuffer(id, info);
+    }
+    for (const auto &[id, info] : _resources.images()) {
+        _dataManager.createImage(id, info);
+    }
+    for (const auto &[id, info] : _resources.tensors()) {
+        _dataManager.createTensor(id, info);
+    }
+    for (const auto &[id, info] : _resources.rawData()) {
+        _dataManager.createRawData(id, info);
+    }
+    for (const auto &[id, info] : _resources.dataGraphs()) {
+        PerfCounterGuard guard(_perfCounters, "Parse VGF: " + info.debugName, "Scenario Setup");
+        _dataManager.createVgfView(id, info);
+    }
+}
+
+void Scenario::createRuntimeBarriers() {
+    for (const auto &[id, info] : _resources.imageBarriers()) {
+        _dataManager.createImageBarrier(id, info);
+    }
+    for (const auto &[id, info] : _resources.memoryBarriers()) {
+        _dataManager.createMemoryBarrier(id, info);
+    }
+    for (const auto &[id, info] : _resources.tensorBarriers()) {
+        _dataManager.createTensorBarrier(id, info);
+    }
+    for (const auto &[id, info] : _resources.bufferBarriers()) {
+        _dataManager.createBufferBarrier(id, info);
+    }
+}
+
+void Scenario::registerResourceInfo() {
     mlsdk::logging::info("Setup resources, count: " + std::to_string(_scenarioSpec.resources.size()));
     // Setup resource info
     // (Memory for Tensors and Images is allocated in next pass)
@@ -851,34 +885,28 @@ void Scenario::setupResources() {
             const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
             const auto id = _resources.addBuffer(resourceInfoFactory.createInfo(*buffer));
             _resourceIds.emplace(resource->guid, id);
-            _dataManager.createBuffer(id, _resources.get(id));
             registerMemoryGroup(_groupManager, jsonMemoryGroupIds, id, buffer->memoryGroup);
         } break;
         case ResourceType::RawData: {
             const auto &rawData = reinterpret_cast<const std::unique_ptr<RawDataDesc> &>(resource);
             const auto id = _resources.addRawData(resourceInfoFactory.createInfo(*rawData));
             _resourceIds.emplace(resource->guid, id);
-            _dataManager.createRawData(id, _resources.get(id));
         } break;
         case ResourceType::Image: {
             const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
             const auto id = _resources.addImage(resourceInfoFactory.createInfo(*image));
             _resourceIds.emplace(resource->guid, id);
-            _dataManager.createImage(id, _resources.get(id));
             registerMemoryGroup(_groupManager, jsonMemoryGroupIds, id, image->memoryGroup);
         } break;
         case ResourceType::DataGraph: {
             const auto &dataGraph = reinterpret_cast<const std::unique_ptr<DataGraphDesc> &>(resource);
-            PerfCounterGuard guard(_perfCounters, "Parse VGF: " + dataGraph->guidStr, "Scenario Setup");
             const auto id = _resources.addDataGraph(resourceInfoFactory.createInfo(*dataGraph));
             _resourceIds.emplace(resource->guid, id);
-            _dataManager.createVgfView(id, _resources.get(id));
         } break;
         case ResourceType::Tensor: {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
             const auto id = _resources.addTensor(resourceInfoFactory.createInfo(*tensor, _opts.captureFrame));
             _resourceIds.emplace(resource->guid, id);
-            _dataManager.createTensor(id, _resources.get(id));
             registerMemoryGroup(_groupManager, jsonMemoryGroupIds, id, tensor->memoryGroup);
         } break;
         case ResourceType::Shader: {
@@ -892,11 +920,46 @@ void Scenario::setupResources() {
             _resourceIds.emplace(resource->guid, id);
         } break;
         default:
-            // Skip the other types of resources
+            // Barriers can precede the regular resources they reference, so register them in a second pass.
             continue;
         }
         mlsdk::logging::debug(resourceType(resource) + ": " + resource->guidStr + " loaded");
     }
+}
+
+void Scenario::registerBarrierInfo() {
+    // Resolve barrier references after all regular resources have typed IDs.
+    BarrierInfoFactory barrierInfoFactory{_resourceIds};
+    for (const auto &resource : _scenarioSpec.resources) {
+        switch (resource->resourceType) {
+        case ResourceType::ImageBarrier: {
+            const auto &barrier = reinterpret_cast<const std::unique_ptr<ImageBarrierDesc> &>(resource);
+            _resourceIds.emplace(resource->guid, _resources.addImageBarrier(barrierInfoFactory.createInfo(*barrier)));
+        } break;
+        case ResourceType::MemoryBarrier: {
+            const auto &barrier = reinterpret_cast<const std::unique_ptr<MemoryBarrierDesc> &>(resource);
+            _resourceIds.emplace(resource->guid, _resources.addMemoryBarrier(barrierInfoFactory.createInfo(*barrier)));
+        } break;
+        case ResourceType::TensorBarrier: {
+            const auto &barrier = reinterpret_cast<const std::unique_ptr<TensorBarrierDesc> &>(resource);
+            _resourceIds.emplace(resource->guid, _resources.addTensorBarrier(barrierInfoFactory.createInfo(*barrier)));
+        } break;
+        case ResourceType::BufferBarrier: {
+            const auto &barrier = reinterpret_cast<const std::unique_ptr<BufferBarrierDesc> &>(resource);
+            _resourceIds.emplace(resource->guid, _resources.addBufferBarrier(barrierInfoFactory.createInfo(*barrier)));
+        } break;
+        default:
+            // Regular resources were registered in registerResourceInfo().
+            continue;
+        }
+        mlsdk::logging::debug(resourceType(resource) + ": " + resource->guidStr + " loaded");
+    }
+}
+
+void Scenario::setupResources() {
+    registerResourceInfo();
+    registerBarrierInfo();
+    createRuntimeResources();
 
     Creator vgfResourceCreator{_ctx, _resources, _dataManager, _groupManager};
     // Per data graph, map VGF alias group IDs to runtime memory group IDs.
@@ -957,40 +1020,7 @@ void Scenario::setupResources() {
     }
     vgfResourceCreator.setupCreatedTensorResources();
 
-    // Setup barrier resource info, these depend on other resources
-    BarrierInfoFactory barrierInfoFactory{_resourceIds};
-    for (const auto &resource : _scenarioSpec.resources) {
-        switch (resource->resourceType) {
-        case ResourceType::ImageBarrier: {
-            const auto &imageBarrier = reinterpret_cast<const std::unique_ptr<ImageBarrierDesc> &>(resource);
-            const auto id = _resources.addImageBarrier(barrierInfoFactory.createInfo(*imageBarrier));
-            _resourceIds.emplace(resource->guid, id);
-            _dataManager.createImageBarrier(id, _resources.get(id));
-        } break;
-        case ResourceType::MemoryBarrier: {
-            const auto &memoryBarrier = reinterpret_cast<const std::unique_ptr<MemoryBarrierDesc> &>(resource);
-            const auto id = _resources.addMemoryBarrier(barrierInfoFactory.createInfo(*memoryBarrier));
-            _resourceIds.emplace(resource->guid, id);
-            _dataManager.createMemoryBarrier(id, _resources.get(id));
-        } break;
-        case ResourceType::TensorBarrier: {
-            const auto &tensorBarrier = reinterpret_cast<const std::unique_ptr<TensorBarrierDesc> &>(resource);
-            const auto id = _resources.addTensorBarrier(barrierInfoFactory.createInfo(*tensorBarrier));
-            _resourceIds.emplace(resource->guid, id);
-            _dataManager.createTensorBarrier(id, _resources.get(id));
-        } break;
-        case ResourceType::BufferBarrier: {
-            const auto &bufferBarrier = reinterpret_cast<const std::unique_ptr<BufferBarrierDesc> &>(resource);
-            const auto id = _resources.addBufferBarrier(barrierInfoFactory.createInfo(*bufferBarrier));
-            _resourceIds.emplace(resource->guid, id);
-            _dataManager.createBufferBarrier(id, _resources.get(id));
-        } break;
-        default:
-            // Skip the other types of resources
-            continue;
-        }
-        mlsdk::logging::debug(resourceType(resource) + ": " + resource->guidStr + " loaded");
-    }
+    createRuntimeBarriers();
 
     // Allocate resource memory before loading runtime input data.
     for (const auto &entry : _resources.tensors()) {
@@ -1003,6 +1033,11 @@ void Scenario::setupResources() {
         _dataManager.getBufferMut(entry.id).allocateMemory(_ctx);
     }
 
+    loadJsonResourceData();
+    vgfResourceCreator.allocateCreatedResources();
+}
+
+void Scenario::loadJsonResourceData() {
     // Preserve description-based CLI initialization by routing it through the
     // same typed Scenario upload API used by in-memory clients.
     for (const auto &resource : _scenarioSpec.resources) {
@@ -1037,12 +1072,11 @@ void Scenario::setupResources() {
             }
         } break;
         default:
-            // Skip the other types of resources
+            // Only buffers, images, and tensors have JSON-provided runtime data to load.
             continue;
         }
         mlsdk::logging::debug(resourceType(resource) + ": " + resource->guidStr + " loaded");
     }
-    vgfResourceCreator.allocateCreatedResources();
 }
 
 void Scenario::setupCommands() {
