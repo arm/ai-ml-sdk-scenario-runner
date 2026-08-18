@@ -462,7 +462,6 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
         data.resize(baseDataSize());
         std::fill_n(data.begin(), baseDataSize(), 0);
     }
-
     // D32S8 stencil discard case
     if ((_dataType == vk::Format::eR32Sfloat || _dataType == vk::Format::eD32Sfloat) &&
         fileFormat == vk::Format::eD32SfloatS8Uint) {
@@ -485,22 +484,25 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
         }
         data = std::move(bodgeData);
     }
+    uploadData(ctx, data.data(), data.size(), mipmapsFromFile);
+}
 
+void Image::uploadData(const Context &ctx, const void *data, size_t size, uint32_t mipLevels) {
     const auto elementSize = elementSizeFromVkFormat(_dataType);
     const auto baseWidth = static_cast<uint32_t>(_imageInfo.shape[1]);
     const auto baseHeight = static_cast<uint32_t>(_imageInfo.shape[2]);
     const auto depth = static_cast<uint32_t>(_imageInfo.shape[3]);
-    const auto copiedMipLevels = std::min(mipmapsFromFile, _imageInfo.mips);
-    const uint64_t requiredDataSize = mipmapsFromFile > 1 ? mipChainDataSize(copiedMipLevels) : baseDataSize();
-    const bool requireExactSize = mipmapsFromFile <= 1;
-    if (data.size() < requiredDataSize || (requireExactSize && data.size() != requiredDataSize)) {
-        throw std::runtime_error(
-            "Expected image input size " + std::string(requireExactSize ? "to be " : "to be at least ") +
-            std::to_string(requiredDataSize) + ", but got " + std::to_string(data.size()) + " instead");
+    const auto copiedMipLevels = std::min(mipLevels, _imageInfo.mips);
+    const uint64_t requiredDataSize = mipLevels > 1 ? mipChainDataSize(copiedMipLevels) : baseDataSize();
+    const bool requireExactSize = mipLevels <= 1;
+    if (size < requiredDataSize || (requireExactSize && size != requiredDataSize)) {
+        throw std::runtime_error("Expected image input size " +
+                                 std::string(requireExactSize ? "to be " : "to be at least ") +
+                                 std::to_string(requiredDataSize) + ", but got " + std::to_string(size) + " instead");
     }
 
-    void *pBufferDeviceMemory = _memoryManager->mapStagingBufferMemory(0, data.size());
-    std::memcpy(pBufferDeviceMemory, data.data(), data.size());
+    void *pBufferDeviceMemory = _memoryManager->mapStagingBufferMemory(0, size);
+    std::memcpy(pBufferDeviceMemory, data, size);
     _memoryManager->unmapStagingBufferMemory();
 
     // Create Image barrier
@@ -535,7 +537,7 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
 
     cmdBuffer.pipelineBarrier2(vk::DependencyInfo((vk::DependencyFlags)0, memoryBarrier, {}, imageBarrier));
 
-    if (mipmapsFromFile > 1) {
+    if (mipLevels > 1) {
         // All mip levels are present in the file data — copy each level directly from the buffer.
         uint64_t bufferOffset = 0;
         auto mipWidth = baseWidth;
@@ -697,6 +699,33 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     }
 }
 
+void Image::upload(const Context &ctx, const ImageDataView &imageData) {
+    if (imageData.shape != shape()) {
+        throw std::runtime_error("Image::upload: provided shape does not match image shape");
+    }
+    if (imageData.format.has_value() && imageData.format.value() != dataType()) {
+        throw std::runtime_error("Image::upload: provided format does not match image format");
+    }
+    if (imageData.mipLevels == 0 || imageData.mipLevels > _imageInfo.mips) {
+        throw std::runtime_error("Image::upload: mipLevels must be between 1 and " + std::to_string(_imageInfo.mips));
+    }
+    const auto expectedSize = mipChainDataSize(imageData.mipLevels);
+    if (imageData.size != expectedSize) {
+        throw std::runtime_error("Image::upload: expected packed mip data size to be " + std::to_string(expectedSize) +
+                                 ", but got " + std::to_string(imageData.size));
+    }
+    uploadData(ctx, imageData.data, imageData.size, imageData.mipLevels);
+}
+
+ImageData Image::download(const Context &ctx) {
+    ImageData imageData;
+    imageData.data = getImageData(ctx);
+    imageData.shape = shape();
+    imageData.mipLevels = 1;
+    imageData.format = dataType();
+    return imageData;
+}
+
 std::vector<char> Image::getImageData(const Context &ctx) {
     const auto originalLayout = _targetLayout;
     if (_targetLayout != vk::ImageLayout::eGeneral) {
@@ -711,19 +740,19 @@ std::vector<char> Image::getImageData(const Context &ctx) {
     vk::raii::CommandBuffer cmdBuffer = std::move(ctx.device().allocateCommandBuffers(cmdBufferAllocInfo).front());
     const vk::CommandBufferBeginInfo cmdBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
     cmdBuffer.begin(cmdBufferBeginInfo);
+
     vk::BufferImageCopy region{};
-    const vk::Extent3D extent(static_cast<uint32_t>(_imageInfo.shape[1]), static_cast<uint32_t>(_imageInfo.shape[2]),
-                              static_cast<uint32_t>(_imageInfo.shape[3]));
-    const vk::Offset3D offset(0, 0, 0);
     region.bufferOffset = 0;
     region.bufferRowLength = 0;
     region.bufferImageHeight = 0;
-    region.imageSubresource.aspectMask = getImageAspectMaskForVkFormat(_imageInfo.format);
+    region.imageSubresource.aspectMask = getImageAspectMaskForVkFormat(_dataType);
     region.imageSubresource.mipLevel = 0;
     region.imageSubresource.baseArrayLayer = 0;
     region.imageSubresource.layerCount = 1;
-    region.imageOffset = offset;
-    region.imageExtent = extent;
+    region.imageOffset = vk::Offset3D(0, 0, 0);
+    region.imageExtent =
+        vk::Extent3D(static_cast<uint32_t>(_imageInfo.shape[1]), static_cast<uint32_t>(_imageInfo.shape[2]),
+                     static_cast<uint32_t>(_imageInfo.shape[3]));
 
     cmdBuffer.copyImageToBuffer(_image, vk::ImageLayout::eGeneral, _memoryManager->getStagingBuffer(), {region});
     cmdBuffer.end();

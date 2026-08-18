@@ -6,6 +6,7 @@
 #pragma once
 
 #include "context.hpp"
+#include "resource_data.hpp"
 #include "resource_desc.hpp"
 #include "types.hpp"
 #include "vulkan_memory_manager.hpp"
@@ -67,6 +68,14 @@ class Image {
 
     void fillFromDescription(const Context &ctx, const ImageDesc &desc);
 
+    /// \brief Upload packed image data (host -> device)
+    /// Validates byte size, shape, mip count, and (when provided) format. Any configured
+    /// mip levels not supplied by the payload are generated from the supplied levels.
+    void upload(const Context &ctx, const ImageDataView &data);
+
+    /// \brief Download packed base-mip image data (device -> host)
+    ImageData download(const Context &ctx);
+
     void store(const Context &ctx, const std::string &filename);
 
     bool isSampled() const;
@@ -79,6 +88,7 @@ class Image {
     const ImageInfo &getInfo() const { return _imageInfo; }
 
   private:
+    void uploadData(const Context &ctx, const void *data, size_t size, uint32_t mipLevels);
     std::vector<char> getImageData(const Context &ctx);
     uint32_t getFormatMaxMipLevels(const Context &ctx, vk::ImageTiling tiling, vk::ImageUsageFlags usageFlags);
 

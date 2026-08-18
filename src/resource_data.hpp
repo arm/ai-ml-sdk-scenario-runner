@@ -34,4 +34,19 @@ struct TensorData {
     std::optional<vk::Format> format{std::nullopt};
 };
 
+struct ImageDataView {
+    const void *data{nullptr};
+    size_t size{0};
+    std::vector<int64_t> shape;
+    std::optional<vk::Format> format{std::nullopt};
+    uint32_t mipLevels{1};
+};
+
+struct ImageData {
+    std::vector<char> data;
+    std::vector<int64_t> shape;
+    std::optional<vk::Format> format{std::nullopt};
+    uint32_t mipLevels{1};
+};
+
 } // namespace mlsdk::scenariorunner
