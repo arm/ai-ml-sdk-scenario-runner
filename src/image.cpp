@@ -221,8 +221,6 @@ void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> mem
         throw std::runtime_error("The mip level provided is not supported for " + _imageInfo.debugName);
     }
 
-    _initialLayout = vk::ImageLayout::eUndefined;
-
     if (_memoryManager->isShared() && _tiling != vk::ImageTiling::eLinear) {
         usageFlags |= vk::ImageUsageFlagBits::eTensorAliasingARM;
     }
@@ -230,7 +228,8 @@ void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> mem
     const vk::ImageCreateInfo imageCreateInfo(vk::ImageCreateFlags(), vk::ImageType::e2D, _dataType, extent,
                                               /*mipLevels=*/_imageInfo.mips,
                                               /*arrayLayers=*/1, vk::SampleCountFlagBits::e1, _tiling, usageFlags,
-                                              vk::SharingMode::eExclusive, /*queueFamilyIndices=*/{}, _initialLayout);
+                                              vk::SharingMode::eExclusive, /*queueFamilyIndices=*/{},
+                                              /*initialLayout=*/vk::ImageLayout::eUndefined);
     _image = vk::raii::Image(ctx.device(), imageCreateInfo);
 
     trySetVkRaiiObjectDebugName(ctx, _image, _imageInfo.debugName);
@@ -370,7 +369,7 @@ void Image::addTransitionLayoutCommand(vk::raii::CommandBuffer &cmdBuf, vk::Imag
         VK_QUEUE_FAMILY_IGNORED,
         VK_QUEUE_FAMILY_IGNORED,
         *_image,
-        vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, _imageInfo.mips, 0, 1}};
+        vk::ImageSubresourceRange{getImageAspectMaskForVkFormat(_dataType), 0, _imageInfo.mips, 0, 1}};
 
     vk::DependencyInfo depInfo{
         {},            // memoryBarriers (global)
@@ -463,7 +462,6 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
         data.resize(baseDataSize());
         std::fill_n(data.begin(), baseDataSize(), 0);
     }
-    _targetLayout = vk::ImageLayout::eGeneral;
 
     // D32S8 stencil discard case
     if ((_dataType == vk::Format::eR32Sfloat || _dataType == vk::Format::eD32Sfloat) &&
@@ -515,7 +513,7 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
     imageBarrier.dstAccessMask = vk::AccessFlagBits2::eTransferWrite;
     imageBarrier.srcStageMask = vk::PipelineStageFlagBits2::eTopOfPipe;
     imageBarrier.dstStageMask = vk::PipelineStageFlagBits2::eAllTransfer;
-    imageBarrier.oldLayout = _initialLayout;
+    imageBarrier.oldLayout = _targetLayout;
     imageBarrier.newLayout = vk::ImageLayout::eTransferDstOptimal;
     imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -674,14 +672,17 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
         cmdBuffer.pipelineBarrier2(vk::DependencyInfo((vk::DependencyFlags)0, memoryBarrier, {}, imageBarrier));
     }
 
+    const auto finalLayout = _targetLayout == vk::ImageLayout::eUndefined ? vk::ImageLayout::eGeneral : _targetLayout;
     // Transition all mip levels into the target image layout
     imageBarrier.subresourceRange.baseMipLevel = 0;
     imageBarrier.subresourceRange.levelCount = _imageInfo.mips;
     imageBarrier.oldLayout = vk::ImageLayout::eTransferSrcOptimal;
-    imageBarrier.newLayout = _targetLayout;
+    imageBarrier.newLayout = finalLayout;
     imageBarrier.srcStageMask = vk::PipelineStageFlagBits2::eAllTransfer;
     imageBarrier.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
-    imageBarrier.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
+    imageBarrier.dstStageMask = vk::PipelineStageFlagBits2::eAllCommands;
+    imageBarrier.dstAccessMask = accessFlag;
+    _targetLayout = imageBarrier.newLayout;
     cmdBuffer.pipelineBarrier2(vk::DependencyInfo((vk::DependencyFlags)0, memoryBarrier, {}, imageBarrier));
 
     cmdBuffer.end();
@@ -697,6 +698,11 @@ void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
 }
 
 std::vector<char> Image::getImageData(const Context &ctx) {
+    const auto originalLayout = _targetLayout;
+    if (_targetLayout != vk::ImageLayout::eGeneral) {
+        transitionLayout(ctx, vk::ImageLayout::eGeneral);
+    }
+
     // Use staging buffer to get image data
     const vk::CommandPoolCreateInfo cmdPoolCreateInfo({vk::CommandPoolCreateFlagBits::eResetCommandBuffer},
                                                       ctx.familyQueueIdx());
@@ -736,6 +742,9 @@ std::vector<char> Image::getImageData(const Context &ctx) {
     const void *pBufferDeviceMemory = _memoryManager->mapStagingBufferMemory(0, data.size());
     std::memcpy(data.data(), pBufferDeviceMemory, data.size());
     _memoryManager->unmapStagingBufferMemory();
+    if (originalLayout != vk::ImageLayout::eUndefined && originalLayout != vk::ImageLayout::eGeneral) {
+        transitionLayout(ctx, originalLayout);
+    }
     return data;
 }
 
