@@ -89,7 +89,6 @@ class Image {
     ImageInfo _imageInfo{};
     std::shared_ptr<ResourceMemoryManager> _memoryManager;
     std::vector<vk::raii::ImageView> _imageViewMips;
-    vk::ImageLayout _initialLayout{};
     vk::ImageLayout _targetLayout{};
     vk::ImageTiling _tiling{};
 };
