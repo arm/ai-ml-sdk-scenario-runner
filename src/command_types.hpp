@@ -11,6 +11,7 @@
 
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace mlsdk::scenariorunner {
@@ -114,5 +115,11 @@ struct MarkBoundaryData {
     std::vector<ImageId> images;
     std::vector<TensorId> tensors;
 };
+
+namespace detail {
+using ScenarioCommand =
+    std::variant<DispatchComputeData, DispatchFragmentData, DispatchDataGraphData, DispatchSpirvGraphData,
+                 DispatchOpticalFlowData, DispatchBarrierData, MarkBoundaryData>;
+} // namespace detail
 
 } // namespace mlsdk::scenariorunner

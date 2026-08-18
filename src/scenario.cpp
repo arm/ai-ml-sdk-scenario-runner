@@ -25,6 +25,12 @@
 
 namespace mlsdk::scenariorunner {
 namespace {
+template <typename... Functions> struct Overloaded : Functions... {
+    using Functions::operator()...;
+};
+
+template <typename... Functions> Overloaded(Functions...) -> Overloaded<Functions...>;
+
 BufferData loadBufferData(const BufferDesc &desc) {
     BufferData bufferData;
     if (!desc.src.has_value()) {
@@ -349,47 +355,39 @@ constexpr vk::DescriptorType convertDescriptorType(const DescriptorType descript
     }
 }
 
-vk::DescriptorType getResourceDescriptorType(const DataManager &dataManager, const MemoryResourceId &resource) {
-    if (const auto *buffer = std::get_if<BufferId>(&resource)) {
-        if (!dataManager.hasBuffer(*buffer)) {
-            throw std::runtime_error("Buffer resource not found");
-        }
-        return vk::DescriptorType::eStorageBuffer;
-    }
-    if (const auto *tensor = std::get_if<TensorId>(&resource)) {
-        if (!dataManager.hasTensor(*tensor)) {
-            throw std::runtime_error("Tensor resource not found");
-        }
-        return vk::DescriptorType::eTensorARM;
-    }
-    if (const auto *image = std::get_if<ImageId>(&resource)) {
-        if (!dataManager.hasImage(*image)) {
-            throw std::runtime_error("Image resource not found");
-        }
-        if (dataManager.getImage(*image).isSampled()) {
-            return vk::DescriptorType::eCombinedImageSampler;
-        }
-        return vk::DescriptorType::eStorageImage;
-    }
-    throw std::runtime_error("Invalid resource descriptor type");
+vk::DescriptorType getResourceDescriptorType(const ResourceManager &resources, const MemoryResourceId &resource) {
+    const auto getDescriptorType = Overloaded{
+        [&](BufferId id) {
+            (void)resources.get(id);
+            return vk::DescriptorType::eStorageBuffer;
+        },
+        [&](TensorId id) {
+            (void)resources.get(id);
+            return vk::DescriptorType::eTensorARM;
+        },
+        [&](ImageId id) {
+            return resources.get(id).isSampled ? vk::DescriptorType::eCombinedImageSampler
+                                               : vk::DescriptorType::eStorageImage;
+        },
+    };
+    return std::visit(getDescriptorType, resource);
 }
 
-TypedBinding convertBinding(const DataManager &dataManager,
+TypedBinding convertBinding(const ResourceManager &resources,
                             const std::unordered_map<Guid, TypedResourceId> &resourceIds, const BindingDesc &binding) {
     const auto resource = resolveMemoryResourceId(resourceIds, binding.resourceRef);
-    const auto vkType = binding.descriptorType == DescriptorType::Auto
-                            ? getResourceDescriptorType(dataManager, resource)
-                            : convertDescriptorType(binding.descriptorType);
+    const auto vkType = binding.descriptorType == DescriptorType::Auto ? getResourceDescriptorType(resources, resource)
+                                                                       : convertDescriptorType(binding.descriptorType);
     return {binding.set, binding.id, resource, binding.lod, vkType};
 }
 
-std::vector<TypedBinding> convertBindings(const DataManager &dataManager,
+std::vector<TypedBinding> convertBindings(const ResourceManager &resources,
                                           const std::unordered_map<Guid, TypedResourceId> &resourceIds,
                                           const std::vector<BindingDesc> &bindingDescs) {
     std::vector<TypedBinding> bindings;
     bindings.reserve(bindingDescs.size());
     for (const auto &binding : bindingDescs) {
-        bindings.push_back(convertBinding(dataManager, resourceIds, binding));
+        bindings.push_back(convertBinding(resources, resourceIds, binding));
     }
     return bindings;
 }
@@ -531,7 +529,7 @@ Id resolveResourceUid(const std::unordered_map<Guid, TypedResourceId> &resourceI
 }
 
 struct CommandDataFactory {
-    const DataManager &_dataManager;
+    const ResourceManager &_resources;
     const std::unordered_map<Guid, TypedResourceId> &_resourceIds;
 
     ShaderId getShaderId(const Guid &guid) const { return resolveResourceId<ShaderId>(_resourceIds, guid, "Shader"); }
@@ -554,7 +552,7 @@ struct CommandDataFactory {
     DispatchComputeData createData(const DispatchComputeDesc &dispatchCompute) {
         DispatchComputeData data{getShaderId(dispatchCompute.shaderRef)};
         data.debugName = dispatchCompute.debugName;
-        data.bindings = convertBindings(_dataManager, _resourceIds, dispatchCompute.bindings);
+        data.bindings = convertBindings(_resources, _resourceIds, dispatchCompute.bindings);
         data.computeDispatch.gwcx = dispatchCompute.rangeND[0];
         data.computeDispatch.gwcy = dispatchCompute.rangeND[1];
         data.computeDispatch.gwcz = dispatchCompute.rangeND[2];
@@ -568,7 +566,7 @@ struct CommandDataFactory {
         DispatchFragmentData data{getShaderId(dispatchFragment.vertexShaderRef),
                                   getShaderId(dispatchFragment.fragmentShaderRef)};
         data.debugName = dispatchFragment.debugName;
-        data.bindings = convertBindings(_dataManager, _resourceIds, dispatchFragment.bindings);
+        data.bindings = convertBindings(_resources, _resourceIds, dispatchFragment.bindings);
         data.colorAttachments.reserve(dispatchFragment.colorAttachments.size());
         for (const auto &attachmentDesc : dispatchFragment.colorAttachments) {
             data.colorAttachments.push_back(
@@ -606,7 +604,7 @@ struct CommandDataFactory {
     DispatchDataGraphData createData(const DispatchDataGraphDesc &dispatchDataGraph) {
         DispatchDataGraphData data{getDataGraphId(dispatchDataGraph.dataGraphRef)};
         data.debugName = dispatchDataGraph.debugName;
-        data.bindings = convertBindings(_dataManager, _resourceIds, dispatchDataGraph.bindings);
+        data.bindings = convertBindings(_resources, _resourceIds, dispatchDataGraph.bindings);
         data.pushConstants.reserve(dispatchDataGraph.pushConstants.size());
         for (const auto &pushConstant : dispatchDataGraph.pushConstants) {
             data.pushConstants.push_back(
@@ -624,7 +622,7 @@ struct CommandDataFactory {
     DispatchSpirvGraphData createData(const DispatchSpirvGraphDesc &dispatchSpirvGraph) {
         DispatchSpirvGraphData data{getShaderId(dispatchSpirvGraph.dataGraphRef)};
         data.debugName = dispatchSpirvGraph.debugName;
-        data.bindings = convertBindings(_dataManager, _resourceIds, dispatchSpirvGraph.bindings);
+        data.bindings = convertBindings(_resources, _resourceIds, dispatchSpirvGraph.bindings);
         data.graphConstants.reserve(dispatchSpirvGraph.graphConstants.size());
         for (const auto &graphConstant : dispatchSpirvGraph.graphConstants) {
             data.graphConstants.push_back(getGraphConstantResourceId(graphConstant));
@@ -634,16 +632,16 @@ struct CommandDataFactory {
     }
 
     DispatchOpticalFlowData createData(const DispatchOpticalFlowDesc &dispatchOpticalFlow) {
-        DispatchOpticalFlowData data{convertBinding(_dataManager, _resourceIds, dispatchOpticalFlow.searchImage),
-                                     convertBinding(_dataManager, _resourceIds, dispatchOpticalFlow.templateImage),
-                                     convertBinding(_dataManager, _resourceIds, dispatchOpticalFlow.outputImage)};
+        DispatchOpticalFlowData data{convertBinding(_resources, _resourceIds, dispatchOpticalFlow.searchImage),
+                                     convertBinding(_resources, _resourceIds, dispatchOpticalFlow.templateImage),
+                                     convertBinding(_resources, _resourceIds, dispatchOpticalFlow.outputImage)};
         data.debugName = dispatchOpticalFlow.debugName;
         if (dispatchOpticalFlow.hintMotionVectors.has_value()) {
             data.hintMotionVectors =
-                convertBinding(_dataManager, _resourceIds, dispatchOpticalFlow.hintMotionVectors.value());
+                convertBinding(_resources, _resourceIds, dispatchOpticalFlow.hintMotionVectors.value());
         }
         if (dispatchOpticalFlow.outputCost.has_value()) {
-            data.outputCost = convertBinding(_dataManager, _resourceIds, dispatchOpticalFlow.outputCost.value());
+            data.outputCost = convertBinding(_resources, _resourceIds, dispatchOpticalFlow.outputCost.value());
         }
 
         data.width = dispatchOpticalFlow.width;
@@ -730,8 +728,11 @@ void verifyOpticalFlowData(const DataManager &dataManager, const DispatchOptical
 
 Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
     : _opts{opts}, _ctx{opts, getFamilyQueue(scenarioSpec)}, _scenarioSpec(scenarioSpec), _compute(_ctx) {
+    registerResourceInfo();
+    registerBarrierInfo();
+    resolveCommands();
     setupResources();
-    setupCommands();
+    setupRuntimeCommands();
 }
 
 Scenario::~Scenario() = default;
@@ -957,31 +958,25 @@ void Scenario::registerBarrierInfo() {
 }
 
 void Scenario::setupResources() {
-    registerResourceInfo();
-    registerBarrierInfo();
     createRuntimeResources();
 
     Creator vgfResourceCreator{_ctx, _resources, _dataManager, _groupManager};
     // Per data graph, map VGF alias group IDs to runtime memory group IDs.
     std::unordered_map<DataGraphId, std::unordered_map<uint32_t, MemoryGroupId>> vgfMemoryGroupIds;
 
-    for (const auto &command : _scenarioSpec.commands) {
-        if (command->commandType != CommandType::DispatchDataGraph) {
+    for (const auto &command : _commands) {
+        const auto *dispatchDataGraph = std::get_if<DispatchDataGraphData>(&command);
+        if (dispatchDataGraph == nullptr) {
             continue;
         }
-
-        const auto &dispatchDataGraph = static_cast<const DispatchDataGraphDesc &>(*command);
-        const auto dataGraph =
-            resolveResourceId<DataGraphId>(_resourceIds, dispatchDataGraph.dataGraphRef, "Data graph");
-        const auto &vgfView = _dataManager.getVgfView(dataGraph);
-        const auto externalBindings = convertBindings(_dataManager, _resourceIds, dispatchDataGraph.bindings);
-        if (_vgfResourceCreationResults.count(dataGraph) == 0) {
-            // cppcheck-suppress stlFindInsert
-            _vgfResourceCreationResults.emplace(dataGraph, vgfView.createIntermediateResources(vgfResourceCreator));
+        const auto &vgfView = _dataManager.getVgfView(dispatchDataGraph->dataGraph);
+        auto [creationResultIt, created] = _vgfResourceCreationResults.try_emplace(dispatchDataGraph->dataGraph);
+        if (created) {
+            creationResultIt->second = vgfView.createIntermediateResources(vgfResourceCreator);
         }
-        const auto &creationResult = _vgfResourceCreationResults.at(dataGraph);
+        const auto &creationResult = creationResultIt->second;
         for (const auto &[aliasGroupId, resourceIds] : creationResult.memoryGroups) {
-            auto &aliasGroupIds = vgfMemoryGroupIds[dataGraph];
+            auto &aliasGroupIds = vgfMemoryGroupIds[dispatchDataGraph->dataGraph];
             const auto group = getOrCreateMemoryGroup(_groupManager, aliasGroupIds, aliasGroupId);
             for (const auto &resourceId : resourceIds) {
                 _groupManager.addResourceToGroup(group, resourceId);
@@ -989,13 +984,13 @@ void Scenario::setupResources() {
         }
 
         // External resources are resolved for each dispatch because bindings may differ.
-        for (const auto &binding : externalBindings) {
+        for (const auto &binding : dispatchDataGraph->bindings) {
             const auto aliasGroupId = vgfView.getModelResourceAliasGroup(binding.id);
             if (!aliasGroupId.has_value()) {
                 continue;
             }
             const auto resourceId = binding.resource;
-            auto &aliasGroupIds = vgfMemoryGroupIds[dataGraph];
+            auto &aliasGroupIds = vgfMemoryGroupIds[dispatchDataGraph->dataGraph];
             const auto group = getOrCreateMemoryGroup(_groupManager, aliasGroupIds, *aliasGroupId);
             _groupManager.addResourceToGroup(group, resourceId);
         }
@@ -1079,7 +1074,38 @@ void Scenario::loadJsonResourceData() {
     }
 }
 
-void Scenario::setupCommands() {
+void Scenario::resolveCommands() {
+    CommandDataFactory factory{_resources, _resourceIds};
+    for (const auto &command : _scenarioSpec.commands) {
+        switch (command->commandType) {
+        case CommandType::DispatchCompute:
+            _commands.emplace_back(factory.createData(reinterpret_cast<DispatchComputeDesc &>(*command)));
+            break;
+        case CommandType::DispatchBarrier:
+            _commands.emplace_back(factory.createData(reinterpret_cast<DispatchBarrierDesc &>(*command)));
+            break;
+        case CommandType::DispatchDataGraph:
+            _commands.emplace_back(factory.createData(reinterpret_cast<DispatchDataGraphDesc &>(*command)));
+            break;
+        case CommandType::DispatchSpirvGraph:
+            _commands.emplace_back(factory.createData(reinterpret_cast<DispatchSpirvGraphDesc &>(*command)));
+            break;
+        case CommandType::DispatchFragment:
+            _commands.emplace_back(factory.createData(reinterpret_cast<DispatchFragmentDesc &>(*command)));
+            break;
+        case CommandType::DispatchOpticalFlow:
+            _commands.emplace_back(factory.createData(reinterpret_cast<DispatchOpticalFlowDesc &>(*command)));
+            break;
+        case CommandType::MarkBoundary:
+            _commands.emplace_back(factory.createData(reinterpret_cast<MarkBoundaryDesc &>(*command)));
+            break;
+        default:
+            throw std::runtime_error("Unknown CommandType in commands");
+        }
+    }
+}
+
+void Scenario::setupRuntimeCommands() {
     if (_opts.enablePipelineCaching) {
         mlsdk::logging::info("Load Pipeline Cache");
         PerfCounterGuard guard(_perfCounters, "Load Pipeline Cache.", "Load Pipeline Cache");
@@ -1089,53 +1115,27 @@ void Scenario::setupCommands() {
     // Setup commands
     mlsdk::logging::info("Setup commands");
 
-    CommandDataFactory factory{_dataManager, _resourceIds};
     uint32_t nQueries = 0;
-    for (const auto &command : _scenarioSpec.commands) {
-        switch (command->commandType) {
-        case CommandType::DispatchCompute: {
-            const auto &dispatchCompute = reinterpret_cast<DispatchComputeDesc &>(*command);
-            const auto data = factory.createData(dispatchCompute);
-            createComputePipeline(data, nQueries);
-        } break;
-        case CommandType::DispatchBarrier: {
-            const auto &dispatchBarrier = reinterpret_cast<DispatchBarrierDesc &>(*command);
-            const auto data = factory.createData(dispatchBarrier);
-            _compute.registerPipelineBarrier(data, _dataManager);
-        } break;
-        case CommandType::DispatchDataGraph: {
-            const auto &dispatchDataGraph = reinterpret_cast<DispatchDataGraphDesc &>(*command);
-            const auto data = factory.createData(dispatchDataGraph);
-            createDataGraphPipeline(data, nQueries);
-        } break;
-        case CommandType::DispatchSpirvGraph: {
-            const auto &dispatchSpirvGraph = reinterpret_cast<DispatchSpirvGraphDesc &>(*command);
-            const auto data = factory.createData(dispatchSpirvGraph);
-            createSpirvGraphPipeline(data, nQueries);
-        } break;
-        case CommandType::DispatchFragment: {
-            const auto &dispatchFragment = reinterpret_cast<DispatchFragmentDesc &>(*command);
-            const auto data = factory.createData(dispatchFragment);
-            createFragmentPipeline(data, nQueries);
-        } break;
-        case CommandType::DispatchOpticalFlow: {
-            const auto &dispatchOpticalFlow = reinterpret_cast<DispatchOpticalFlowDesc &>(*command);
-            const auto data = factory.createData(dispatchOpticalFlow);
+    const auto setupCommand = Overloaded{
+        [&](const DispatchComputeData &data) { createComputePipeline(data, nQueries); },
+        [&](const DispatchBarrierData &data) { _compute.registerPipelineBarrier(data, _dataManager); },
+        [&](const DispatchDataGraphData &data) { createDataGraphPipeline(data, nQueries); },
+        [&](const DispatchSpirvGraphData &data) { createSpirvGraphPipeline(data, nQueries); },
+        [&](const DispatchFragmentData &data) { createFragmentPipeline(data, nQueries); },
+        [&](const DispatchOpticalFlowData &data) {
             verifyOpticalFlowData(_dataManager, data);
             createOpticalFlowPipeline(data, nQueries);
-        } break;
-        case CommandType::MarkBoundary: {
-            const auto &markBoundary = reinterpret_cast<MarkBoundaryDesc &>(*command);
-            const auto data = factory.createData(markBoundary);
+        },
+        [&](const MarkBoundaryData &data) {
             if (_ctx._optionals.mark_boundary) {
                 _compute.registerMarkBoundary(data, _dataManager);
             } else {
                 mlsdk::logging::warning("Frame boundary extension not present");
             }
-        } break;
-        default:
-            throw std::runtime_error("Unknown CommandType in commands");
-        }
+        },
+    };
+    for (const auto &command : _commands) {
+        std::visit(setupCommand, command);
     }
     if (_pipelineCache) {
         PerfCounterGuard guard(_perfCounters, "Save Pipeline Cache (setup)", "Save Pipeline Cache", false);
@@ -1194,20 +1194,33 @@ void Scenario::handleAliasedLayoutTransitions() {
         }
     }
 
-    // Usage tracking: resolve JSON references before traversing typed resources.
     std::unordered_set<MemoryResourceId> usedResources;
-    for (const auto &cmd : _scenarioSpec.commands) {
-        if (cmd->commandType == CommandType::DispatchCompute) {
-            const auto &compute = static_cast<const DispatchComputeDesc &>(*cmd);
-            for (const auto &binding : compute.bindings) {
-                usedResources.insert(resolveMemoryResourceId(_resourceIds, binding.resourceRef));
-            }
-        } else if (cmd->commandType == CommandType::DispatchDataGraph) {
-            const auto &graph = static_cast<const DispatchDataGraphDesc &>(*cmd);
-            for (const auto &binding : graph.bindings) {
-                usedResources.insert(resolveMemoryResourceId(_resourceIds, binding.resourceRef));
-            }
+    const auto addBindings = [&](const std::vector<TypedBinding> &bindings) {
+        for (const auto &binding : bindings) {
+            usedResources.insert(binding.resource);
         }
+    };
+    const auto addCommandBindings = Overloaded{
+        [&](const DispatchComputeData &dispatch) { addBindings(dispatch.bindings); },
+        [&](const DispatchDataGraphData &dispatch) { addBindings(dispatch.bindings); },
+        [&](const DispatchSpirvGraphData &dispatch) { addBindings(dispatch.bindings); },
+        [&](const DispatchFragmentData &dispatch) { addBindings(dispatch.bindings); },
+        [&](const DispatchOpticalFlowData &dispatch) {
+            usedResources.insert(dispatch.searchImage.resource);
+            usedResources.insert(dispatch.templateImage.resource);
+            usedResources.insert(dispatch.outputImage.resource);
+            if (dispatch.hintMotionVectors) {
+                usedResources.insert(dispatch.hintMotionVectors->resource);
+            }
+            if (dispatch.outputCost) {
+                usedResources.insert(dispatch.outputCost->resource);
+            }
+        },
+        [](const DispatchBarrierData &) {},
+        [](const MarkBoundaryData &) {},
+    };
+    for (const auto &command : _commands) {
+        std::visit(addCommandBindings, command);
     }
 
     for ([[maybe_unused]] const auto &[_, resources] : _groupManager.getGroups()) {
