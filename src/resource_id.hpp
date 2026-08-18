@@ -34,6 +34,10 @@ struct RawDataIdTag;
 struct DataGraphIdTag;
 struct GraphConstantResourceIdTag;
 struct MemoryGroupIdTag;
+struct ImageBarrierIdTag;
+struct BufferBarrierIdTag;
+struct TensorBarrierIdTag;
+struct MemoryBarrierIdTag;
 
 using BufferId = ResourceId<BufferIdTag>;
 using ImageId = ResourceId<ImageIdTag>;
@@ -43,11 +47,16 @@ using RawDataId = ResourceId<RawDataIdTag>;
 using DataGraphId = ResourceId<DataGraphIdTag>;
 using GraphConstantResourceId = ResourceId<GraphConstantResourceIdTag>;
 using MemoryGroupId = ResourceId<MemoryGroupIdTag>;
+using ImageBarrierId = ResourceId<ImageBarrierIdTag>;
+using BufferBarrierId = ResourceId<BufferBarrierIdTag>;
+using TensorBarrierId = ResourceId<TensorBarrierIdTag>;
+using MemoryBarrierId = ResourceId<MemoryBarrierIdTag>;
 
 using MemoryResourceId = std::variant<BufferId, ImageId, TensorId>;
 
 using TypedResourceId =
-    std::variant<BufferId, ImageId, TensorId, ShaderId, RawDataId, DataGraphId, GraphConstantResourceId>;
+    std::variant<BufferId, ImageId, TensorId, ShaderId, RawDataId, DataGraphId, GraphConstantResourceId, ImageBarrierId,
+                 BufferBarrierId, TensorBarrierId, MemoryBarrierId>;
 
 } // namespace mlsdk::scenariorunner
 

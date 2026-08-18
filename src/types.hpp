@@ -187,4 +187,31 @@ struct ShaderInfo {
     std::vector<std::string> includeDirs;
 };
 
+struct BaseBarrierInfo {
+    std::string debugName;
+    MemoryAccess srcAccess{MemoryAccess::Unknown};
+    MemoryAccess dstAccess{MemoryAccess::Unknown};
+    std::vector<PipelineStage> srcStages{PipelineStage::All};
+    std::vector<PipelineStage> dstStages{PipelineStage::All};
+};
+
+struct ImageBarrierInfo : BaseBarrierInfo {
+    ImageId image{0};
+    ImageLayout oldLayout{ImageLayout::Undefined};
+    ImageLayout newLayout{ImageLayout::Undefined};
+    SubresourceRange range;
+};
+
+struct BufferBarrierInfo : BaseBarrierInfo {
+    BufferId buffer{0};
+    uint64_t offset{};
+    uint64_t size{};
+};
+
+struct TensorBarrierInfo : BaseBarrierInfo {
+    TensorId tensor{0};
+};
+
+struct MemoryBarrierInfo : BaseBarrierInfo {};
+
 } // namespace mlsdk::scenariorunner
