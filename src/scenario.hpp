@@ -118,8 +118,7 @@ class Scenario {
     Context _ctx;
     ResourceManager _resources;
     std::unordered_map<Guid, TypedResourceId> _resourceIds;
-    std::unordered_map<BufferId, Guid> _bufferResourceGuids;
-    std::unordered_map<TensorId, Guid> _tensorResourceGuids;
+    std::unordered_map<DataGraphId, VgfResourceCreationResult> _vgfResourceCreationResults;
     DataManager _dataManager;
     ScenarioSpec &_scenarioSpec;
     std::shared_ptr<PipelineCache> _pipelineCache;

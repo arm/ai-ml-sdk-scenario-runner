@@ -392,11 +392,10 @@ vgflib::DataView<uint8_t> VgfView::getConstantData(uint32_t constantIndex) const
     return constantTableDecoder->getConstant(constantIndex);
 }
 
-std::pair<std::vector<TypedBinding>, VgfView::MrtIndexes> VgfView::getBindings(uint32_t segmentIndex) const {
+std::vector<VgfView::VgfBinding> VgfView::getBindings(uint32_t segmentIndex) const {
     // Get segment binding infos
-    std::vector<TypedBinding> bindings;
+    std::vector<VgfBinding> bindings;
     auto descSetSize = sequenceTableDecoder->getSegmentDescriptorSetInfosSize(segmentIndex);
-    MrtIndexes mrtIndexes;
     // For each segment descriptor set entry:
     for (uint32_t descIdx = 0; descIdx < descSetSize; ++descIdx) {
         const uint32_t set = sequenceTableDecoder->getSegmentDescriptorSetIndex(segmentIndex, descIdx);
@@ -407,51 +406,41 @@ std::pair<std::vector<TypedBinding>, VgfView::MrtIndexes> VgfView::getBindings(u
             const auto expectedType = resourceTableDecoder->getDescriptorType(mrtIndex);
             const auto vkDescriptorType = getVkDescriptorType(expectedType.value_or(DESCRIPTOR_TYPE_UNKNOWN));
             auto bindingId = sequenceTableDecoder->getBindingSlotBinding(handle, slot);
-            auto guidStr = createResourceName(mrtIndex, resourceTableDecoder->getCategory(mrtIndex));
-            TypedBinding binding;
-            binding.set = set;
-            binding.id = bindingId;
-            binding.resourceRef = guidStr;
-            binding.vkDescriptorType = vkDescriptorType;
-            bindings.emplace_back(binding);
-            mrtIndexes.insert({{set, bindingId}, mrtIndex});
+            bindings.push_back({set, bindingId, mrtIndex, vkDescriptorType});
         }
     }
 
-    return {std::move(bindings), std::move(mrtIndexes)};
+    return bindings;
 }
 
-std::vector<TypedBinding> VgfView::resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
-                                                   const std::vector<TypedBinding> &externalBindings) const {
-
-    auto [bindings, mrtIndexes] = getBindings(segmentIndex);
-
+std::vector<TypedBinding>
+VgfView::resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
+                         const std::vector<TypedBinding> &externalBindings,
+                         const std::unordered_map<uint32_t, MemoryResourceId> &intermediates) const {
+    // Add model inputs and outputs to the MRT-index mapping created for intermediate resources.
+    auto resolvedResources = intermediates;
     for (const auto &externalBinding : externalBindings) {
-        if (!(dataManager.hasTensor(externalBinding.resourceRef) ||
-              dataManager.hasBuffer(externalBinding.resourceRef) ||
-              dataManager.hasImage(externalBinding.resourceRef))) {
-            throw std::runtime_error("No resource with this guid found");
-        }
-
-        const DataManagerResourceViewer resourceViewer(dataManager, externalBinding.resourceRef);
         const auto interfaceLookup = findModelInterfaceResource(*sequenceTableDecoder, externalBinding.id);
         if (!interfaceLookup.has_value()) {
             continue;
         }
 
-        for (auto &binding : bindings) {
-            auto mrtIndexSearch = mrtIndexes.find({binding.set, binding.id});
-            if (mrtIndexSearch == mrtIndexes.end()) {
-                throw std::runtime_error("No resource found in MRT Table");
-            }
-            const auto segmentMrtIndex = mrtIndexSearch->second;
+        const DataManagerResourceViewer resourceViewer(dataManager, externalBinding.resource);
+        const std::string_view direction = interfaceLookup->isOutput ? "output" : "input";
+        validateResource(resourceViewer, interfaceLookup->mrtIndex, direction, interfaceLookup->slotIndex);
+        resolvedResources.insert_or_assign(interfaceLookup->mrtIndex, externalBinding.resource);
+    }
 
-            if (segmentMrtIndex == interfaceLookup->mrtIndex) {
-                binding.resourceRef = externalBinding.resourceRef;
-                const std::string_view direction = interfaceLookup->isOutput ? "output" : "input";
-                validateResource(resourceViewer, segmentMrtIndex, direction, interfaceLookup->slotIndex);
-            }
+    // Resolve each segment descriptor binding's MRT index to its typed runtime resource ID.
+    const auto vgfBindings = getBindings(segmentIndex);
+    std::vector<TypedBinding> bindings;
+    bindings.reserve(vgfBindings.size());
+    for (const auto &vgfBinding : vgfBindings) {
+        const auto resource = resolvedResources.find(vgfBinding.resourceIndex);
+        if (resource == resolvedResources.end()) {
+            throw std::runtime_error("No resource found for VGF binding");
         }
+        bindings.push_back({vgfBinding.set, vgfBinding.id, resource->second, std::nullopt, vgfBinding.descriptorType});
     }
     return bindings;
 }
@@ -547,6 +536,7 @@ VgfResourceCreationResult VgfView::createIntermediateResources(IResourceCreator 
         auto resourceCategory = resourceTableDecoder->getCategory(resourceIndex);
         if (resourceCategory == vgflib::ResourceCategory::INTERMEDIATE) {
             const auto addResource = [&](MemoryResourceId id) {
+                result.intermediateResources.emplace(resourceIndex, id);
                 if (const auto aliasGroupId = resourceTableDecoder->getAliasGroupId(resourceIndex)) {
                     result.memoryGroups[*aliasGroupId].push_back(id);
                 }

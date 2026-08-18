@@ -28,9 +28,9 @@ struct DispatchBarrierData {
 
 /// \brief Typed resources
 struct MarkBoundaryData {
-    std::vector<Guid> buffers;
-    std::vector<Guid> images;
-    std::vector<Guid> tensors;
+    std::vector<BufferId> buffers;
+    std::vector<ImageId> images;
+    std::vector<TensorId> tensors;
 };
 
 /// \brief Image attachment used by a graphics dispatch

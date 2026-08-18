@@ -102,7 +102,7 @@ std::vector<std::vector<TypedBinding>> splitOutSets(const std::vector<TypedBindi
 
     for (const auto &bindingDesc : allBindings) {
         while (setBindings.size() <= static_cast<size_t>(bindingDesc.set)) {
-            setBindings.emplace_back(0);
+            setBindings.emplace_back();
         }
 
         setBindings[bindingDesc.set].push_back(bindingDesc);
@@ -135,8 +135,8 @@ void makeResourceInfos(const std::vector<TypedBinding> &bindings, const DataMana
     imageLayouts.reserve(imageLayouts.size() + bindings.size());
 
     for (const auto &binding : bindings) {
-        if (dataManager.hasTensor(binding.resourceRef)) {
-            const auto &tensor = dataManager.getTensor(binding.resourceRef);
+        if (const auto *tensorId = std::get_if<TensorId>(&binding.resource)) {
+            const auto &tensor = dataManager.getTensor(*tensorId);
             const auto &shape = tensor.shape();
             const auto &stridesVec = tensor.dimStrides();
             const auto *strides = stridesVec.empty() ? nullptr : stridesVec.data();
@@ -148,8 +148,8 @@ void makeResourceInfos(const std::vector<TypedBinding> &bindings, const DataMana
             continue;
         }
 
-        if (dataManager.hasImage(binding.resourceRef)) {
-            const auto &image = dataManager.getImage(binding.resourceRef);
+        if (const auto *imageId = std::get_if<ImageId>(&binding.resource)) {
+            const auto &image = dataManager.getImage(*imageId);
             const auto &shape = image.shape();
 
             tensorDescriptions.emplace_back(convertImageTiling(image.tiling()), image.dataType(),
@@ -431,8 +431,8 @@ Pipeline::Pipeline(const CommonArguments &args, const DataManager &dataManager, 
     createDescriptorSetLayouts(args.ctx, bindings);
     _pipelineLayout = createPipelineLayout(args.ctx, _descriptorSetLayouts);
 
-    const auto inputFormat = dataManager.getImage(inputSearch.resourceRef).dataType();
-    const auto flowFormat = dataManager.getImage(outputFlow.resourceRef).dataType();
+    const auto inputFormat = dataManager.getImage(std::get<ImageId>(inputSearch.resource)).dataType();
+    const auto flowFormat = dataManager.getImage(std::get<ImageId>(outputFlow.resource)).dataType();
     vk::Format costFormat{};
 
     // We expect all bindings to be images (sampled or storage)
@@ -447,10 +447,11 @@ Pipeline::Pipeline(const CommonArguments &args, const DataManager &dataManager, 
     connections.reserve(bindings.size());
 
     auto addConnection = [&](const TypedBinding &binding, vk::DataGraphPipelineNodeConnectionTypeARM connection) {
-        if (!dataManager.hasImage(binding.resourceRef)) {
+        const auto *imageId = std::get_if<ImageId>(&binding.resource);
+        if (imageId == nullptr || !dataManager.hasImage(*imageId)) {
             throw std::runtime_error("Optical flow pipeline expects image resources for all bindings");
         }
-        const auto layout = dataManager.getImage(binding.resourceRef).getImageLayout();
+        const auto layout = dataManager.getImage(*imageId).getImageLayout();
 
         vk::DataGraphPipelineSingleNodeConnectionARM conn{};
         conn.setSet(static_cast<uint32_t>(binding.set));
@@ -480,7 +481,7 @@ Pipeline::Pipeline(const CommonArguments &args, const DataManager &dataManager, 
     if (outputCost.has_value()) {
         addConnection(outputCost.value(), vk::DataGraphPipelineNodeConnectionTypeARM::eOpticalFlowCost);
         flags |= vk::DataGraphOpticalFlowCreateFlagBitsARM::eEnableCost;
-        costFormat = dataManager.getImage(outputCost.value().resourceRef).dataType();
+        costFormat = dataManager.getImage(std::get<ImageId>(outputCost.value().resource)).dataType();
     }
 
     vk::DataGraphPipelineSingleNodeCreateInfoARM singleNodeInfo{};

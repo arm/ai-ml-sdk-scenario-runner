@@ -40,7 +40,7 @@ class IResourceViewer {
 /// @brief Base implementation for DataManager
 class DataManagerResourceViewer final : public IResourceViewer {
   public:
-    DataManagerResourceViewer(const DataManager &dataManager, Guid resourceRef);
+    DataManagerResourceViewer(const DataManager &dataManager, MemoryResourceId resource);
 
     bool hasBuffer() const override;
     bool hasImage() const override;
@@ -52,7 +52,7 @@ class DataManagerResourceViewer final : public IResourceViewer {
 
   protected:
     const DataManager &_dataManager;
-    Guid _resourceRef;
+    MemoryResourceId _resource;
 };
 
 } // namespace mlsdk::scenariorunner

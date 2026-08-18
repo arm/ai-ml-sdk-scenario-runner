@@ -15,6 +15,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace mlsdk::scenariorunner {
@@ -22,6 +23,9 @@ namespace mlsdk::scenariorunner {
 class DataManager;
 
 struct VgfResourceCreationResult {
+    // VGF model resource table index to the created runtime resource ID.
+    std::unordered_map<uint32_t, MemoryResourceId> intermediateResources;
+    // VGF alias group ID to its created runtime resource IDs. Ordered for deterministic group creation.
     std::map<uint32_t, std::vector<MemoryResourceId>> memoryGroups;
 };
 
@@ -49,16 +53,23 @@ class VgfView {
     vgflib::DataView<int64_t> getConstantShape(uint32_t constantIndex) const;
     vgflib::DataView<uint8_t> getConstantData(uint32_t constantIndex) const;
 
-    std::vector<TypedBinding> resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
-                                              const std::vector<TypedBinding> &externalBindings) const;
+    std::vector<TypedBinding>
+    resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
+                    const std::vector<TypedBinding> &externalBindings,
+                    const std::unordered_map<uint32_t, MemoryResourceId> &intermediates) const;
     std::optional<uint32_t> getModelResourceAliasGroup(uint32_t bindingId) const;
     VgfResourceCreationResult createIntermediateResources(IResourceCreator &creator) const;
 
   private:
-    // Map of (set, binding) to vgfMrtIndex
-    using MrtIndexes = std::map<std::tuple<uint32_t, uint32_t>, uint32_t>;
+    struct VgfBinding {
+        uint32_t set;
+        uint32_t id;
+        // Index into the VGF model resource table.
+        uint32_t resourceIndex;
+        vk::DescriptorType descriptorType;
+    };
 
-    std::pair<std::vector<TypedBinding>, MrtIndexes> getBindings(uint32_t segmentIndex) const;
+    std::vector<VgfBinding> getBindings(uint32_t segmentIndex) const;
     void validateResource(const IResourceViewer &resourceViewer, uint32_t vgfMrtIndex, std::string_view vgfDirection,
                           uint32_t vgfSlotIndex) const;
 

@@ -25,11 +25,12 @@ struct OpticalFlowSelectedExtent {
 
 OpticalFlowSelectedExtent getOpticalFlowSelectedExtent(const DataManager &dataManager, const TypedBinding &binding,
                                                        const char *bindingRole) {
-    if (!dataManager.hasImage(binding.resourceRef)) {
+    const auto *imageId = std::get_if<ImageId>(&binding.resource);
+    if (imageId == nullptr || !dataManager.hasImage(*imageId)) {
         throw std::runtime_error("Optical flow " + std::string(bindingRole) + " binding must reference an image");
     }
 
-    const auto &image = dataManager.getImage(binding.resourceRef);
+    const auto &image = dataManager.getImage(*imageId);
     const auto &shape = image.shape();
     if (shape.size() < 3) {
         throw std::runtime_error("Optical flow " + std::string(bindingRole) + " image must have at least 3 dimensions");
@@ -52,8 +53,8 @@ void verifyOpticalFlowConfig(const DataManager &dataManager, const TypedBinding 
                              const std::optional<TypedBinding> &hintMotionVectorsBinding,
                              const std::optional<TypedBinding> &outputCostBinding, uint32_t width, uint32_t height,
                              OpticalFlowGridSize gridSize) {
-    const auto &searchImage = dataManager.getImage(searchImageBinding.resourceRef);
-    const auto &templateImage = dataManager.getImage(templateImageBinding.resourceRef);
+    const auto &searchImage = dataManager.getImage(std::get<ImageId>(searchImageBinding.resource));
+    const auto &templateImage = dataManager.getImage(std::get<ImageId>(templateImageBinding.resource));
 
     const auto searchExtent = getOpticalFlowSelectedExtent(dataManager, searchImageBinding, "search");
     const auto templateExtent = getOpticalFlowSelectedExtent(dataManager, templateImageBinding, "template");
