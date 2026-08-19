@@ -120,8 +120,6 @@ const vk::TensorViewARM &Tensor::tensorView() const { return *_tensorView; }
 
 uint64_t Tensor::dataSize() const { return elementSizeFromVkFormat(_dataType) * totalElementsFromShape(_shape); }
 
-uint64_t Tensor::memSize() const { return _memoryManager->getMemSize(); }
-
 vk::Format Tensor::dataType() const { return _dataType; }
 
 const std::vector<int64_t> &Tensor::dimStrides() const { return _strides; }

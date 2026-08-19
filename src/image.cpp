@@ -319,8 +319,6 @@ vk::ImageView Image::imageView(uint32_t lod) const {
 
 vk::Sampler Image::sampler() const { return *_sampler; }
 
-uint64_t Image::memSize() const { return _memoryManager->getMemSize(); }
-
 uint64_t Image::baseDataSize() const {
     uint64_t size = elementSizeFromVkFormat(_dataType) * totalElementsFromShape(_imageInfo.shape);
     return size;
