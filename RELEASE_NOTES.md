@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+### API Changes
+
+- Added `IScenario` as the public interface for running scenarios and transferring
+  buffer, image, and tensor data in memory using typed resource IDs.
+- Added `IScenarioBuilder` for registering typed resources and commands and
+  constructing an `IScenario`.
+
 ### Build, Packaging & Developer Experience
 
 - Updated Scenario Runner to consume explicit VGF graph constant bindings.

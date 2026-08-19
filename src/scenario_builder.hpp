@@ -7,6 +7,7 @@
 
 #include "command_types.hpp"
 #include "group_manager.hpp"
+#include "iscenario_builder.hpp"
 #include "resource_manager.hpp"
 
 namespace mlsdk::scenariorunner {
@@ -16,41 +17,48 @@ struct ScenarioBuildData {
     ResourceManager resources;
     GroupManager groupManager;
     std::vector<ScenarioCommand> commands;
+    bool useComputeFamilyQueue{};
+    bool requiresGraphicsFamilyQueue{};
 };
 } // namespace detail
 
-class ScenarioBuilder {
+class ScenarioBuilder : public IScenarioBuilder {
   public:
-    BufferId addBuffer(const BufferInfo &info);
+    ~ScenarioBuilder() override = default;
+
+    BufferId addBuffer(const BufferInfo &info) override;
     BufferId addBuffer(BufferInfo &&info);
-    ImageId addImage(const ImageInfo &info);
+    ImageId addImage(const ImageInfo &info) override;
     ImageId addImage(ImageInfo &&info);
-    TensorId addTensor(const TensorInfo &info);
+    TensorId addTensor(const TensorInfo &info) override;
     TensorId addTensor(TensorInfo &&info);
-    ShaderId addShader(const ShaderInfo &info);
+    ShaderId addShader(const ShaderInfo &info) override;
     ShaderId addShader(ShaderInfo &&info);
-    RawDataId addRawData(const RawDataInfo &info);
+    RawDataId addRawData(const RawDataInfo &info) override;
     RawDataId addRawData(RawDataInfo &&info);
-    DataGraphId addDataGraph(const DataGraphInfo &info);
+    DataGraphId addDataGraph(const DataGraphInfo &info) override;
     DataGraphId addDataGraph(DataGraphInfo &&info);
-    GraphConstantResourceId addGraphConstant(const GraphConstantInfo &info);
+    GraphConstantResourceId addGraphConstant(const GraphConstantInfo &info) override;
     GraphConstantResourceId addGraphConstant(GraphConstantInfo &&info);
 
-    ImageBarrierId addImageBarrier(const ImageBarrierInfo &info);
-    BufferBarrierId addBufferBarrier(const BufferBarrierInfo &info);
-    TensorBarrierId addTensorBarrier(const TensorBarrierInfo &info);
-    MemoryBarrierId addMemoryBarrier(const MemoryBarrierInfo &info);
+    ImageBarrierId addImageBarrier(const ImageBarrierInfo &info) override;
+    BufferBarrierId addBufferBarrier(const BufferBarrierInfo &info) override;
+    TensorBarrierId addTensorBarrier(const TensorBarrierInfo &info) override;
+    MemoryBarrierId addMemoryBarrier(const MemoryBarrierInfo &info) override;
 
-    MemoryGroupId createMemoryGroup();
-    void addResourceToMemoryGroup(MemoryGroupId group, MemoryResourceId resource);
+    MemoryGroupId createMemoryGroup() override;
+    void addResourceToMemoryGroup(MemoryGroupId group, MemoryResourceId resource) override;
 
-    void addDispatchCompute(DispatchComputeData command);
-    void addDispatchFragment(DispatchFragmentData command);
-    void addDispatchDataGraph(DispatchDataGraphData command);
-    void addDispatchSpirvGraph(DispatchSpirvGraphData command);
-    void addDispatchOpticalFlow(DispatchOpticalFlowData command);
-    void addDispatchBarrier(DispatchBarrierData command);
-    void addMarkBoundary(MarkBoundaryData command);
+    void addDispatchCompute(DispatchComputeData command) override;
+    void addDispatchFragment(DispatchFragmentData command) override;
+    void addDispatchDataGraph(DispatchDataGraphData command) override;
+    void addDispatchSpirvGraph(DispatchSpirvGraphData command) override;
+    void addDispatchOpticalFlow(DispatchOpticalFlowData command) override;
+    void addDispatchBarrier(DispatchBarrierData command) override;
+    void addMarkBoundary(MarkBoundaryData command) override;
+
+    std::unique_ptr<IScenario> build(const ScenarioOptions &options) override;
+    std::unique_ptr<IScenario> build(const ScenarioOptions &options, ScenarioSpec &spec) override;
 
   private:
     friend class Scenario;

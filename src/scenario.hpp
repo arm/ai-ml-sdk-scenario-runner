@@ -25,12 +25,12 @@
 
 namespace mlsdk::scenariorunner {
 class ScenarioBuilder;
+namespace detail {
+struct ScenarioBuildData;
+} // namespace detail
 
 class Scenario : public IScenario {
   public:
-    /// \brief Constructor
-    Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec);
-
     /// \brief Destructor
     ~Scenario() override = default;
 
@@ -65,6 +65,11 @@ class Scenario : public IScenario {
     TensorData download(TensorId id) const override;
 
   private:
+    friend class ScenarioBuilder;
+
+    Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec, ScenarioBuilder &builder);
+    Scenario(const ScenarioOptions &opts, detail::ScenarioBuildData buildData);
+
     void runIteration(int iteration, int repeatCount, bool dryRun);
 
     void createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries);
@@ -77,7 +82,7 @@ class Scenario : public IScenario {
                         const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries);
 
     /// \brief Sets up runtime options
-    void buildJsonScenarioData(const ScenarioSpec &scenarioSpec);
+    void buildJsonScenarioData(ScenarioBuilder &builder, const ScenarioSpec &scenarioSpec);
     void resolveCommands(ScenarioBuilder &builder, const ScenarioSpec &scenarioSpec,
                          const std::unordered_map<Guid, TypedResourceId> &resourceIds);
     void setupResources();
@@ -108,7 +113,7 @@ class Scenario : public IScenario {
     std::unordered_map<Guid, TypedResourceId> _resourceIds;
     std::unordered_map<DataGraphId, VgfResourceCreationResult> _vgfResourceCreationResults;
     DataManager _dataManager;
-    ScenarioSpec &_scenarioSpec;
+    const ScenarioSpec *_scenarioSpec{};
     std::vector<detail::ScenarioCommand> _commands;
     std::shared_ptr<PipelineCache> _pipelineCache;
     Compute _compute;

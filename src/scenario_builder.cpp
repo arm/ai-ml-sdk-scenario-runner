@@ -4,6 +4,7 @@
  */
 
 #include "scenario_builder.hpp"
+#include "scenario.hpp"
 #include <stdexcept>
 #include <utility>
 
@@ -145,6 +146,7 @@ void ScenarioBuilder::addDispatchCompute(DispatchComputeData command) {
     if (command.pushData) {
         requireResource(_data.resources, *command.pushData, "Raw data");
     }
+    _data.useComputeFamilyQueue = true;
     _data.commands.emplace_back(std::move(command));
 }
 
@@ -161,6 +163,7 @@ void ScenarioBuilder::addDispatchFragment(DispatchFragmentData command) {
     if (command.pushData) {
         requireResource(_data.resources, *command.pushData, "Raw data");
     }
+    _data.requiresGraphicsFamilyQueue = true;
     _data.commands.emplace_back(std::move(command));
 }
 
@@ -234,6 +237,15 @@ void ScenarioBuilder::addMarkBoundary(MarkBoundaryData command) {
         requireResource(_data.resources, resource, "Tensor");
     }
     _data.commands.emplace_back(std::move(command));
+}
+
+std::unique_ptr<IScenario> ScenarioBuilder::build(const ScenarioOptions &options) {
+    return std::unique_ptr<IScenario>{new Scenario(options, takeBuildData())};
+}
+
+std::unique_ptr<IScenario> ScenarioBuilder::build(const ScenarioOptions &options, ScenarioSpec &spec) {
+    ensureMutable();
+    return std::unique_ptr<IScenario>{new Scenario(options, spec, *this)};
 }
 
 detail::ScenarioBuildData ScenarioBuilder::takeBuildData() {
