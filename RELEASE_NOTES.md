@@ -11,6 +11,8 @@
 - Added KosmicKrisp support on Darwin.
 - Added startup logging for Vulkan API and driver versions and common device
   shader capabilities.
+- Enabled building and installing Scenario Runner, including its native binaries,
+  with `pip install .` from the repository root.
 
 ### Profiling
 
