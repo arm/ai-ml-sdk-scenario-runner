@@ -18,20 +18,8 @@
 
 namespace mlsdk::scenariorunner {
 
-/// \brief Typed barriers
-struct DispatchBarrierData {
-    std::vector<MemoryBarrierId> memoryBarriers;
-    std::vector<ImageBarrierId> imageBarriers;
-    std::vector<TensorBarrierId> tensorBarriers;
-    std::vector<BufferBarrierId> bufferBarriers;
-};
-
-/// \brief Typed resources
-struct MarkBoundaryData {
-    std::vector<BufferId> buffers;
-    std::vector<ImageId> images;
-    std::vector<TensorId> tensors;
-};
+struct DispatchBarrierData;
+struct MarkBoundaryData;
 
 /// \brief Image attachment used by a graphics dispatch
 struct GraphicsDispatchAttachment {

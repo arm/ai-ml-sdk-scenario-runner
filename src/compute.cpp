@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "compute.hpp"
+#include "command_types.hpp"
 #include "logging.hpp"
 #include "utils.hpp"
 
