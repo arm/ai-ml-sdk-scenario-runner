@@ -12,6 +12,38 @@
 
 namespace mlsdk::scenariorunner {
 
+template <typename Id, typename Info> class ResourceEntries {
+  public:
+    struct Entry {
+        Id id;
+        const Info &info;
+    };
+
+    class Iterator {
+      public:
+        Iterator(const std::vector<Info> &resources, size_t index) : _resources{resources}, _index{index} {}
+
+        Entry operator*() const { return {Id{_index}, _resources[_index]}; }
+        Iterator &operator++() {
+            ++_index;
+            return *this;
+        }
+        bool operator!=(const Iterator &other) const { return _index != other._index; }
+
+      private:
+        const std::vector<Info> &_resources;
+        size_t _index;
+    };
+
+    explicit ResourceEntries(const std::vector<Info> &resources) : _resources{resources} {}
+
+    Iterator begin() const { return {_resources, 0}; }
+    Iterator end() const { return {_resources, _resources.size()}; }
+
+  private:
+    const std::vector<Info> &_resources;
+};
+
 class ResourceManager {
   public:
     BufferId addBuffer(const BufferInfo &info);
@@ -48,6 +80,32 @@ class ResourceManager {
     const BufferBarrierInfo &get(BufferBarrierId id) const;
     const TensorBarrierInfo &get(TensorBarrierId id) const;
     const MemoryBarrierInfo &get(MemoryBarrierId id) const;
+
+    ResourceEntries<BufferId, BufferInfo> buffers() const { return ResourceEntries<BufferId, BufferInfo>{_buffers}; }
+    ResourceEntries<ImageId, ImageInfo> images() const { return ResourceEntries<ImageId, ImageInfo>{_images}; }
+    ResourceEntries<TensorId, TensorInfo> tensors() const { return ResourceEntries<TensorId, TensorInfo>{_tensors}; }
+    ResourceEntries<ShaderId, ShaderInfo> shaders() const { return ResourceEntries<ShaderId, ShaderInfo>{_shaders}; }
+    ResourceEntries<RawDataId, RawDataInfo> rawData() const {
+        return ResourceEntries<RawDataId, RawDataInfo>{_rawData};
+    }
+    ResourceEntries<DataGraphId, DataGraphInfo> dataGraphs() const {
+        return ResourceEntries<DataGraphId, DataGraphInfo>{_dataGraphs};
+    }
+    ResourceEntries<GraphConstantResourceId, GraphConstantInfo> graphConstants() const {
+        return ResourceEntries<GraphConstantResourceId, GraphConstantInfo>{_graphConstants};
+    }
+    ResourceEntries<ImageBarrierId, ImageBarrierInfo> imageBarriers() const {
+        return ResourceEntries<ImageBarrierId, ImageBarrierInfo>{_imageBarriers};
+    }
+    ResourceEntries<BufferBarrierId, BufferBarrierInfo> bufferBarriers() const {
+        return ResourceEntries<BufferBarrierId, BufferBarrierInfo>{_bufferBarriers};
+    }
+    ResourceEntries<TensorBarrierId, TensorBarrierInfo> tensorBarriers() const {
+        return ResourceEntries<TensorBarrierId, TensorBarrierInfo>{_tensorBarriers};
+    }
+    ResourceEntries<MemoryBarrierId, MemoryBarrierInfo> memoryBarriers() const {
+        return ResourceEntries<MemoryBarrierId, MemoryBarrierInfo>{_memoryBarriers};
+    }
 
   private:
     std::vector<BufferInfo> _buffers;
