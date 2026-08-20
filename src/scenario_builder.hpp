@@ -9,6 +9,7 @@
 #include "group_manager.hpp"
 #include "iscenario_builder.hpp"
 #include "resource_manager.hpp"
+#include "scenario_resource_io.hpp"
 
 namespace mlsdk::scenariorunner {
 
@@ -17,9 +18,13 @@ struct ScenarioBuildData {
     ResourceManager resources;
     GroupManager groupManager;
     std::vector<ScenarioCommand> commands;
+    std::unordered_map<Guid, TypedResourceId> resourceIds;
+    std::vector<ResourceInitialization> initializations;
+    std::vector<ResourceOutput> outputs;
     bool useComputeFamilyQueue{};
     bool requiresGraphicsFamilyQueue{};
 };
+class ScenarioBuilderAccess;
 } // namespace detail
 
 class ScenarioBuilder : public IScenarioBuilder {
@@ -58,9 +63,9 @@ class ScenarioBuilder : public IScenarioBuilder {
     void addMarkBoundary(MarkBoundaryData command) override;
 
     std::unique_ptr<IScenario> build(const ScenarioOptions &options) override;
-    std::unique_ptr<IScenario> build(const ScenarioOptions &options, ScenarioSpec &spec) override;
 
   private:
+    friend class detail::ScenarioBuilderAccess;
     friend class Scenario;
 
     detail::ScenarioBuildData takeBuildData();
@@ -72,5 +77,13 @@ class ScenarioBuilder : public IScenarioBuilder {
     detail::ScenarioBuildData _data;
     bool _built{};
 };
+
+namespace detail {
+class ScenarioBuilderAccess {
+  public:
+    static ScenarioBuildData &buildData(ScenarioBuilder &builder) { return builder._data; }
+    static ScenarioBuildData takeBuildData(ScenarioBuilder &builder) { return builder.takeBuildData(); }
+};
+} // namespace detail
 
 } // namespace mlsdk::scenariorunner

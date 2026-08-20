@@ -14,8 +14,8 @@
 #include "iscenario.hpp"
 #include "resource_data.hpp"
 #include "resource_manager.hpp"
-#include "scenario_desc.hpp"
 #include "scenario_options.hpp"
+#include "scenario_resource_io.hpp"
 #include "types.hpp"
 
 #include <string>
@@ -25,6 +25,7 @@
 
 namespace mlsdk::scenariorunner {
 class ScenarioBuilder;
+struct ScenarioSpec;
 namespace detail {
 struct ScenarioBuildData;
 } // namespace detail
@@ -70,7 +71,6 @@ class Scenario : public IScenario {
   private:
     friend class ScenarioBuilder;
 
-    Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec, ScenarioBuilder &builder);
     Scenario(const ScenarioOptions &opts, detail::ScenarioBuildData buildData);
 
     void runIteration(int iteration, int repeatCount, bool dryRun);
@@ -84,14 +84,10 @@ class Scenario : public IScenario {
     void createPipeline(uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
                         const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries);
 
-    /// \brief Sets up runtime options
-    void buildJsonScenarioData(ScenarioBuilder &builder, const ScenarioSpec &scenarioSpec);
-    void resolveCommands(ScenarioBuilder &builder, const ScenarioSpec &scenarioSpec,
-                         const std::unordered_map<Guid, TypedResourceId> &resourceIds);
+    void initializeResourceData();
     void setupResources();
     void createRuntimeResources();
     void createRuntimeBarriers();
-    void loadJsonResourceData();
     void setupRuntimeCommands();
 
     /// \brief Save profiling data to file
@@ -116,7 +112,8 @@ class Scenario : public IScenario {
     std::unordered_map<Guid, TypedResourceId> _resourceIds;
     std::unordered_map<DataGraphId, VgfResourceCreationResult> _vgfResourceCreationResults;
     DataManager _dataManager;
-    const ScenarioSpec *_scenarioSpec{};
+    std::vector<detail::ResourceInitialization> _initializations;
+    std::vector<detail::ResourceOutput> _outputs;
     std::vector<detail::ScenarioCommand> _commands;
     std::shared_ptr<PipelineCache> _pipelineCache;
     Compute _compute;

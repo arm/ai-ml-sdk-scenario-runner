@@ -5,14 +5,12 @@
 
 #include "data_manager.hpp"
 #include "image.hpp"
-#include "iscenario_builder.hpp"
 #include "resource_data.hpp"
-#include "scenario_builder.hpp"
 #include "scenario_desc.hpp"
+#include "scenario_json_factory.hpp"
 #include "scenario_options.hpp"
 #include "utils.hpp"
 
-#include <memory>
 #include <numeric>
 #include <vector>
 
@@ -74,8 +72,7 @@ TEST(IScenario, ScenarioSupportsImageTransfers) {
     )";
     ScenarioSpec spec{scenarioJson};
     spec.useComputeFamilyQueue = true;
-    std::unique_ptr<IScenarioBuilder> builder = std::make_unique<ScenarioBuilder>();
-    auto api = builder->build(ScenarioOptions{}, spec);
+    auto api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
     const auto imageId = api->getImageId("inImage");
     const std::vector<char> payload{1, 2, 3, 4};
 

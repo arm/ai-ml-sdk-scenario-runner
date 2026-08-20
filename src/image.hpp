@@ -7,7 +7,6 @@
 
 #include "context.hpp"
 #include "resource_data.hpp"
-#include "resource_desc.hpp"
 #include "types.hpp"
 #include "vulkan_memory_manager.hpp"
 
@@ -53,8 +52,6 @@ class Image {
     void transitionLayout(const Context &ctx, vk::ImageLayout expectedLayout);
     void allocateMemory(const Context &ctx);
     void resetLayout();
-
-    void fillFromDescription(const Context &ctx, const ImageDesc &desc);
 
     /// \brief Upload packed image data (host -> device)
     /// Validates byte size, shape, mip count, and (when provided) format. Any configured

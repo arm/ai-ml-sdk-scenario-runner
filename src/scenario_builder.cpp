@@ -243,11 +243,6 @@ std::unique_ptr<IScenario> ScenarioBuilder::build(const ScenarioOptions &options
     return std::unique_ptr<IScenario>{new Scenario(options, takeBuildData())};
 }
 
-std::unique_ptr<IScenario> ScenarioBuilder::build(const ScenarioOptions &options, ScenarioSpec &spec) {
-    ensureMutable();
-    return std::unique_ptr<IScenario>{new Scenario(options, spec, *this)};
-}
-
 detail::ScenarioBuildData ScenarioBuilder::takeBuildData() {
     ensureMutable();
     _built = true;

@@ -20,6 +20,7 @@ set(SCENARIO_RUNNER_LIB_SOURCES
     image.cpp
     iresource.cpp
     json_reader.cpp
+    scenario_json_factory.cpp
     json_writer.cpp
     logging.cpp
     optical_flow_utils.cpp

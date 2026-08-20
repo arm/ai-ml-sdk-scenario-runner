@@ -6,10 +6,9 @@
 #include <argparse/argparse.hpp>
 #include <vgf/logging.hpp>
 
-#include "iscenario_builder.hpp"
 #include "logging.hpp"
-#include "scenario_builder.hpp"
 #include "scenario_desc.hpp"
+#include "scenario_json_factory.hpp"
 #include "scenario_options.hpp"
 #include "version.hpp"
 
@@ -328,8 +327,7 @@ int runScenarioRunner(int argc, const char **argv) {
 
         ScenarioSpec scenarioSpec(scenarioFile, workDir, outputDir);
         mlsdk::logging::info("Scenario file parsed");
-        std::unique_ptr<IScenarioBuilder> builder = std::make_unique<ScenarioBuilder>();
-        std::unique_ptr<IScenario> scenario = builder->build(scenarioOptions, scenarioSpec);
+        std::unique_ptr<IScenario> scenario = ScenarioJsonFactory::make(scenarioOptions, scenarioSpec);
         if (parser.get<bool>("--wait-for-key-stroke-before-run")) {
             mlsdk::logging::info("Press enter to continue...");
             std::ignore = getchar();

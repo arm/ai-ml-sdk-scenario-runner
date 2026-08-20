@@ -18,8 +18,6 @@
 #include "scenario_builder.hpp"
 #include "utils.hpp"
 
-#include "vgf-utils/numpy.hpp"
-
 #include <algorithm>
 #include <string_view>
 #include <unordered_set>
@@ -31,40 +29,6 @@ template <typename... Functions> struct Overloaded : Functions... {
 };
 
 template <typename... Functions> Overloaded(Functions...) -> Overloaded<Functions...>;
-
-BufferData loadBufferData(const BufferDesc &desc) {
-    BufferData bufferData;
-    if (!desc.src.has_value()) {
-        bufferData.data.resize(desc.size, 0);
-        return bufferData;
-    }
-
-    MemoryMap mapped(desc.src.value());
-    const auto parsedData = vgfutils::numpy::parse(mapped);
-    bufferData.data.resize(parsedData.size());
-    std::memcpy(bufferData.data.data(), parsedData.ptr, parsedData.size());
-    return bufferData;
-}
-
-TensorData loadTensorData(const TensorDesc &desc) {
-    TensorData tensorData;
-    tensorData.shape = desc.dims;
-
-    if (!desc.src.has_value()) {
-        const auto format = getVkFormatFromString(desc.format);
-        const auto expectedSize = elementSizeFromVkFormat(format) * totalElementsFromShape(desc.dims);
-        tensorData.data.resize(expectedSize, 0);
-        return tensorData;
-    }
-
-    MemoryMap mapped(desc.src.value());
-    const auto parsedData = vgfutils::numpy::parse(mapped);
-
-    tensorData.data.resize(parsedData.size());
-    std::memcpy(tensorData.data.data(), parsedData.ptr, parsedData.size());
-    tensorData.shape = parsedData.shape;
-    return tensorData;
-}
 
 std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<GraphConstantResourceId> &constantIds,
                                                      const ResourceManager &resources) {
@@ -100,297 +64,6 @@ std::optional<RawDataId> getGraphPushData(const std::vector<ResolvedPushConstant
         }
     }
     return std::nullopt;
-}
-
-std::string resourceType(const std::unique_ptr<ResourceDesc> &resource) {
-    switch (resource->resourceType) {
-    case ResourceType::Unknown:
-        return "Unknown";
-    case ResourceType::Buffer:
-        return "Buffer";
-    case ResourceType::DataGraph:
-        return "DataGraph";
-    case ResourceType::Shader:
-        return "Shader";
-    case ResourceType::RawData:
-        return "RawData";
-    case ResourceType::Tensor:
-        return "Tensor";
-    case ResourceType::Image:
-        return "Image";
-    case ResourceType::ImageBarrier:
-        return "ImageBarrier";
-    case ResourceType::MemoryBarrier:
-        return "MemoryBarrier";
-    case ResourceType::TensorBarrier:
-        return "TensorBarrier";
-    case ResourceType::BufferBarrier:
-        return "BufferBarrier";
-    case ResourceType::GraphConstant:
-        return "GraphConstant";
-    }
-    throw std::runtime_error("Unknown resource type in ScenarioSpec");
-}
-
-struct ResourceInfoFactory {
-    BufferInfo createInfo(const BufferDesc &buffer) const {
-        BufferInfo info{};
-        info.debugName = buffer.guidStr;
-        info.size = buffer.size;
-        if (buffer.memoryGroup.has_value()) {
-            info.memoryOffset = buffer.memoryGroup->offset;
-        }
-        return info;
-    }
-
-    RawDataInfo createInfo(const RawDataDesc &rawData) const { return {rawData.guidStr, rawData.src.value()}; }
-
-    DataGraphInfo createInfo(const DataGraphDesc &dataGraph) const {
-        return {dataGraph.guidStr, dataGraph.src.value(), dataGraph.pushConstantsSize,
-                dataGraph.specializationConstantMaps};
-    }
-
-    GraphConstantInfo createInfo(const GraphConstantDesc &graphConstant) const {
-        if (!graphConstant.src.has_value()) {
-            throw std::runtime_error("Graph constant missing src: " + graphConstant.guidStr);
-        }
-
-        GraphConstantInfo info(graphConstant.guidStr, getVkFormatFromString(graphConstant.format), graphConstant.dims);
-        MemoryMap mapped(graphConstant.src.value());
-        const auto constantData = vgfutils::numpy::parse(mapped);
-
-        if (constantData.shape.size() != info.dims.size()) {
-            throw std::runtime_error("Graph constant dims mismatch for: " + graphConstant.guidStr);
-        }
-        for (size_t i = 0; i < info.dims.size(); ++i) {
-            if (info.dims[i] != constantData.shape[i]) {
-                throw std::runtime_error("Graph constant dims mismatch for: " + graphConstant.guidStr);
-            }
-        }
-
-        // Validate that the NumPy payload size matches the declared format and shape.
-        const uint64_t expectedDataSize =
-            static_cast<uint64_t>(elementSizeFromVkFormat(info.format)) * totalElementsFromShape(info.dims);
-        const auto actualDataSize = constantData.size();
-        if (actualDataSize != expectedDataSize) {
-            throw std::runtime_error(
-                "Graph constant size does not match format and dims for: " + graphConstant.guidStr + "; expected " +
-                std::to_string(expectedDataSize) + " vs " + std::to_string(actualDataSize));
-        }
-
-        info.data.resize(static_cast<size_t>(actualDataSize));
-        std::memcpy(info.data.data(), constantData.ptr, static_cast<size_t>(actualDataSize));
-        return info;
-    }
-
-    ImageInfo createInfo(const ImageDesc &image) const {
-        ImageInfo info{};
-        info.debugName = image.guidStr;
-        info.targetFormat = getVkFormatFromString(image.format);
-        info.shape.resize(image.dims.size());
-        std::copy(image.dims.begin(), image.dims.end(), info.shape.begin());
-        info.mips = image.mips;
-        // Image sampler settings
-        if (image.minFilter) {
-            info.samplerSettings.minFilter = image.minFilter.value();
-        }
-        if (image.magFilter) {
-            info.samplerSettings.magFilter = image.magFilter.value();
-        }
-        if (image.mipFilter) {
-            info.samplerSettings.mipFilter = image.mipFilter.value();
-        }
-        if (image.borderAddressMode) {
-            info.samplerSettings.addressModeU = image.borderAddressMode.value();
-            info.samplerSettings.addressModeV = image.borderAddressMode.value();
-            info.samplerSettings.addressModeW = image.borderAddressMode.value();
-        }
-        if (image.borderColor) {
-            info.samplerSettings.borderColor = image.borderColor.value();
-        }
-        if (image.customBorderColor) {
-            if (info.samplerSettings.borderColor == BorderColor::FloatCustomEXT) {
-                info.samplerSettings.customBorderColor =
-                    std::get<std::array<float, 4>>(image.customBorderColor.value());
-            } else {
-                info.samplerSettings.customBorderColor = std::get<std::array<int, 4>>(image.customBorderColor.value());
-            }
-        }
-
-        if (image.src) {
-            info.isInput = true;
-            const auto &filename = image.src.value();
-            const auto *handler = getImageFormatHandler(filename);
-            if (handler) {
-                info.format = handler->getFormat(filename);
-            } else {
-                info.format = info.targetFormat;
-            }
-        } else {
-            info.format = info.targetFormat; // Output file does not change type
-            info.isInput = false;
-        }
-
-        if (image.tiling) {
-            info.tiling = image.tiling;
-        }
-
-        switch (image.shaderAccess) {
-        case ShaderAccessType::ReadOnly:
-            info.isSampled = true;
-            break;
-        case ShaderAccessType::WriteOnly:
-        case ShaderAccessType::ImageRead:
-            info.isStorage = true;
-            break;
-        case ShaderAccessType::ReadWrite:
-            info.isSampled = true;
-            info.isStorage = true;
-            break;
-        default:
-            throw std::runtime_error("Unknown shader access type in ScenarioSpec");
-        }
-
-        if (info.targetFormat == vk::Format::eR32Sfloat && info.format == vk::Format::eD32SfloatS8Uint) {
-            // Convert depth type to single channel color type, dropping stencil component
-            info.format = info.targetFormat;
-        }
-
-        if (image.memoryGroup.has_value()) {
-            info.memoryOffset = image.memoryGroup->offset;
-        }
-
-        info.isColorAttachment = image.colorAttachment;
-        return info;
-    }
-
-    TensorInfo createInfo(const TensorDesc &tensor, bool descriptorBufferCaptureReplay) const {
-        TensorInfo info;
-        info.debugName = tensor.guidStr;
-        if (tensor.memoryGroup.has_value()) {
-            info.memoryOffset = tensor.memoryGroup->offset;
-        }
-        info.format = getVkFormatFromString(tensor.format);
-        info.shape.resize(tensor.dims.size());
-        std::copy(tensor.dims.begin(), tensor.dims.end(), info.shape.begin());
-        if (tensor.tiling) {
-            info.tiling = tensor.tiling.value();
-        }
-        info.descriptorBufferCaptureReplay = descriptorBufferCaptureReplay;
-
-        return info;
-    }
-
-    ShaderInfo createInfo(const ShaderDesc &shader) const {
-        return {shader.guidStr,
-                shader.entry,
-                shader.pushConstantsSize,
-                shader.specializationConstants,
-                shader.src.value_or(std::string{}),
-                shader.shaderType,
-                shader.stage,
-                shader.buildOpts,
-                shader.includeDirs};
-    }
-};
-
-template <typename Id>
-Id resolveResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds, const Guid &guid,
-                     std::string_view expectedType);
-
-MemoryResourceId resolveMemoryResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds,
-                                         const Guid &guid);
-
-void fill(const BaseBarrierDesc &barrier, BaseBarrierInfo &info) {
-    info.debugName = barrier.guidStr;
-    info.srcAccess = barrier.srcAccess;
-    info.dstAccess = barrier.dstAccess;
-    info.srcStages = barrier.srcStages;
-    info.dstStages = barrier.dstStages;
-}
-
-struct BarrierInfoFactory {
-    const std::unordered_map<Guid, TypedResourceId> &_resourceIds;
-
-    ImageBarrierInfo createInfo(const ImageBarrierDesc &imageBarrier) const {
-        ImageBarrierInfo info{};
-        fill(imageBarrier, info);
-        info.image = resolveResourceId<ImageId>(_resourceIds, imageBarrier.imageResource, "Image");
-        info.oldLayout = imageBarrier.oldLayout;
-        info.newLayout = imageBarrier.newLayout;
-        info.range = imageBarrier.imageRange;
-        return info;
-    }
-
-    MemoryBarrierInfo createInfo(const MemoryBarrierDesc &memoryBarrier) const {
-        MemoryBarrierInfo info{};
-        fill(memoryBarrier, info);
-        return info;
-    }
-
-    TensorBarrierInfo createInfo(const TensorBarrierDesc &tensorBarrier) const {
-        TensorBarrierInfo info{};
-        fill(tensorBarrier, info);
-        info.tensor = resolveResourceId<TensorId>(_resourceIds, tensorBarrier.tensorResource, "Tensor");
-        return info;
-    }
-
-    BufferBarrierInfo createInfo(const BufferBarrierDesc &bufferBarrier) const {
-        BufferBarrierInfo info{};
-        fill(bufferBarrier, info);
-        info.buffer = resolveResourceId<BufferId>(_resourceIds, bufferBarrier.bufferResource, "Buffer");
-        info.offset = bufferBarrier.offset;
-        info.size = bufferBarrier.size;
-        return info;
-    }
-};
-
-constexpr vk::DescriptorType convertDescriptorType(const DescriptorType descriptorType) {
-    switch (descriptorType) {
-    case DescriptorType::StorageImage:
-        return vk::DescriptorType::eStorageImage;
-    case DescriptorType::Auto:
-        throw std::runtime_error("Cannot infer the descriptor type without context");
-    default:
-        throw std::runtime_error("Descriptor type is invalid");
-    }
-}
-
-vk::DescriptorType getResourceDescriptorType(const ResourceManager &resources, const MemoryResourceId &resource) {
-    const auto getDescriptorType = Overloaded{
-        [&](BufferId id) {
-            (void)resources.get(id);
-            return vk::DescriptorType::eStorageBuffer;
-        },
-        [&](TensorId id) {
-            (void)resources.get(id);
-            return vk::DescriptorType::eTensorARM;
-        },
-        [&](ImageId id) {
-            return resources.get(id).isSampled ? vk::DescriptorType::eCombinedImageSampler
-                                               : vk::DescriptorType::eStorageImage;
-        },
-    };
-    return std::visit(getDescriptorType, resource);
-}
-
-TypedBinding convertBinding(const ResourceManager &resources,
-                            const std::unordered_map<Guid, TypedResourceId> &resourceIds, const BindingDesc &binding) {
-    const auto resource = resolveMemoryResourceId(resourceIds, binding.resourceRef);
-    const auto vkType = binding.descriptorType == DescriptorType::Auto ? getResourceDescriptorType(resources, resource)
-                                                                       : convertDescriptorType(binding.descriptorType);
-    return {binding.set, binding.id, resource, binding.lod, vkType};
-}
-
-std::vector<TypedBinding> convertBindings(const ResourceManager &resources,
-                                          const std::unordered_map<Guid, TypedResourceId> &resourceIds,
-                                          const std::vector<BindingDesc> &bindingDescs) {
-    std::vector<TypedBinding> bindings;
-    bindings.reserve(bindingDescs.size());
-    for (const auto &binding : bindingDescs) {
-        bindings.push_back(convertBinding(resources, resourceIds, binding));
-    }
-    return bindings;
 }
 
 class Creator final : public IResourceCreator {
@@ -467,20 +140,6 @@ MemoryGroupId getOrCreateMemoryGroup(GroupManager &groupManager, std::unordered_
     return group;
 }
 
-void registerMemoryGroup(ScenarioBuilder &builder, std::unordered_map<Guid, MemoryGroupId> &memoryGroupIds,
-                         MemoryResourceId resource, const std::optional<MemoryGroup> &memoryGroup) {
-    if (memoryGroup.has_value()) {
-        const auto existingGroup = memoryGroupIds.find(memoryGroup->memoryUid);
-        if (existingGroup != memoryGroupIds.end()) {
-            builder.addResourceToMemoryGroup(existingGroup->second, resource);
-            return;
-        }
-        const auto group = builder.createMemoryGroup();
-        memoryGroupIds.emplace(memoryGroup->memoryUid, group);
-        builder.addResourceToMemoryGroup(group, resource);
-    }
-}
-
 template <typename Id>
 Id resolveResourceUid(const std::unordered_map<Guid, TypedResourceId> &resourceIds, std::string_view uid,
                       std::string_view resourceType, std::string_view operation) {
@@ -498,162 +157,6 @@ Id resolveResourceUid(const std::unordered_map<Guid, TypedResourceId> &resourceI
     return *id;
 }
 
-struct CommandDataFactory {
-    const ResourceManager &_resources;
-    const std::unordered_map<Guid, TypedResourceId> &_resourceIds;
-
-    ShaderId getShaderId(const Guid &guid) const { return resolveResourceId<ShaderId>(_resourceIds, guid, "Shader"); }
-
-    GraphConstantResourceId getGraphConstantResourceId(const Guid &guid) const {
-        return resolveResourceId<GraphConstantResourceId>(_resourceIds, guid, "Graph constant");
-    }
-
-    DataGraphId getDataGraphId(const Guid &guid) const {
-        return resolveResourceId<DataGraphId>(_resourceIds, guid, "Data graph");
-    }
-
-    std::optional<RawDataId> getRawDataId(const std::optional<Guid> &guid) const {
-        if (!guid) {
-            return std::nullopt;
-        }
-        return resolveResourceId<RawDataId>(_resourceIds, *guid, "Raw data");
-    }
-
-    DispatchComputeData createData(const DispatchComputeDesc &dispatchCompute) {
-        DispatchComputeData data{getShaderId(dispatchCompute.shaderRef)};
-        data.debugName = dispatchCompute.debugName;
-        data.bindings = convertBindings(_resources, _resourceIds, dispatchCompute.bindings);
-        data.computeDispatch.gwcx = dispatchCompute.rangeND[0];
-        data.computeDispatch.gwcy = dispatchCompute.rangeND[1];
-        data.computeDispatch.gwcz = dispatchCompute.rangeND[2];
-        data.computeDispatch.profileName = dispatchCompute.debugName;
-        data.implicitBarrier = dispatchCompute.implicitBarrier;
-        data.pushData = getRawDataId(dispatchCompute.pushDataRef);
-        return data;
-    }
-
-    DispatchFragmentData createData(const DispatchFragmentDesc &dispatchFragment) {
-        DispatchFragmentData data{getShaderId(dispatchFragment.vertexShaderRef),
-                                  getShaderId(dispatchFragment.fragmentShaderRef)};
-        data.debugName = dispatchFragment.debugName;
-        data.bindings = convertBindings(_resources, _resourceIds, dispatchFragment.bindings);
-        data.colorAttachments.reserve(dispatchFragment.colorAttachments.size());
-        for (const auto &attachmentDesc : dispatchFragment.colorAttachments) {
-            data.colorAttachments.push_back(
-                {resolveResourceId<ImageId>(_resourceIds, attachmentDesc.resourceRef, "Image"), attachmentDesc.lod});
-        }
-        if (dispatchFragment.renderExtent) {
-            const auto &extent = dispatchFragment.renderExtent.value();
-            data.renderExtent = vk::Extent2D(extent[0], extent[1]);
-        }
-        data.implicitBarrier = dispatchFragment.implicitBarrier;
-        data.pushData = getRawDataId(dispatchFragment.pushDataRef);
-        return data;
-    }
-
-    DispatchBarrierData createData(const DispatchBarrierDesc &dispatchBarrier) {
-        DispatchBarrierData data;
-        for (const auto &ref : dispatchBarrier.bufferBarriersRef) {
-            data.bufferBarriers.push_back(
-                resolveResourceId<BufferBarrierId>(_resourceIds, Guid(ref), "Buffer barrier"));
-        }
-        for (const auto &ref : dispatchBarrier.imageBarriersRef) {
-            data.imageBarriers.push_back(resolveResourceId<ImageBarrierId>(_resourceIds, Guid(ref), "Image barrier"));
-        }
-        for (const auto &ref : dispatchBarrier.memoryBarriersRef) {
-            data.memoryBarriers.push_back(
-                resolveResourceId<MemoryBarrierId>(_resourceIds, Guid(ref), "Memory barrier"));
-        }
-        for (const auto &ref : dispatchBarrier.tensorBarriersRef) {
-            data.tensorBarriers.push_back(
-                resolveResourceId<TensorBarrierId>(_resourceIds, Guid(ref), "Tensor barrier"));
-        }
-        return data;
-    }
-
-    DispatchDataGraphData createData(const DispatchDataGraphDesc &dispatchDataGraph) {
-        DispatchDataGraphData data{getDataGraphId(dispatchDataGraph.dataGraphRef)};
-        data.debugName = dispatchDataGraph.debugName;
-        data.bindings = convertBindings(_resources, _resourceIds, dispatchDataGraph.bindings);
-        data.pushConstants.reserve(dispatchDataGraph.pushConstants.size());
-        for (const auto &pushConstant : dispatchDataGraph.pushConstants) {
-            data.pushConstants.push_back(
-                {resolveResourceId<RawDataId>(_resourceIds, pushConstant.pushDataRef, "Raw data"),
-                 pushConstant.shaderTarget});
-        }
-        data.shaderSubstitutions.reserve(dispatchDataGraph.shaderSubstitutions.size());
-        for (const auto &substitution : dispatchDataGraph.shaderSubstitutions) {
-            data.shaderSubstitutions.push_back({getShaderId(substitution.shaderRef), substitution.target});
-        }
-        data.implicitBarrier = dispatchDataGraph.implicitBarrier;
-        return data;
-    }
-
-    DispatchSpirvGraphData createData(const DispatchSpirvGraphDesc &dispatchSpirvGraph) {
-        DispatchSpirvGraphData data{getShaderId(dispatchSpirvGraph.dataGraphRef)};
-        data.debugName = dispatchSpirvGraph.debugName;
-        data.bindings = convertBindings(_resources, _resourceIds, dispatchSpirvGraph.bindings);
-        data.graphConstants.reserve(dispatchSpirvGraph.graphConstants.size());
-        for (const auto &graphConstant : dispatchSpirvGraph.graphConstants) {
-            data.graphConstants.push_back(getGraphConstantResourceId(graphConstant));
-        }
-        data.implicitBarrier = dispatchSpirvGraph.implicitBarrier;
-        return data;
-    }
-
-    DispatchOpticalFlowData createData(const DispatchOpticalFlowDesc &dispatchOpticalFlow) {
-        DispatchOpticalFlowData data{convertBinding(_resources, _resourceIds, dispatchOpticalFlow.searchImage),
-                                     convertBinding(_resources, _resourceIds, dispatchOpticalFlow.templateImage),
-                                     convertBinding(_resources, _resourceIds, dispatchOpticalFlow.outputImage)};
-        data.debugName = dispatchOpticalFlow.debugName;
-        if (dispatchOpticalFlow.hintMotionVectors.has_value()) {
-            data.hintMotionVectors =
-                convertBinding(_resources, _resourceIds, dispatchOpticalFlow.hintMotionVectors.value());
-        }
-        if (dispatchOpticalFlow.outputCost.has_value()) {
-            data.outputCost = convertBinding(_resources, _resourceIds, dispatchOpticalFlow.outputCost.value());
-        }
-
-        data.width = dispatchOpticalFlow.width;
-        data.height = dispatchOpticalFlow.height;
-        data.performanceLevel = dispatchOpticalFlow.performanceLevel;
-        data.executionFlags = dispatchOpticalFlow.executionFlags;
-        data.gridSize = dispatchOpticalFlow.gridSize;
-        data.meanFlowL1NormHint = dispatchOpticalFlow.meanFlowL1NormHint;
-
-        data.implicitBarrier = dispatchOpticalFlow.implicitBarrier;
-        return data;
-    }
-
-    MarkBoundaryData createData(const MarkBoundaryDesc &markBoundary) {
-        MarkBoundaryData data;
-
-        for (const auto &resourceRef : markBoundary.resources) {
-            const Guid guid(resourceRef);
-            const auto &resource = resolveTypedResourceId(_resourceIds, guid, "Memory");
-            if (const auto *buffer = std::get_if<BufferId>(&resource)) {
-                data.buffers.push_back(*buffer);
-            } else if (const auto *image = std::get_if<ImageId>(&resource)) {
-                data.images.push_back(*image);
-            } else if (const auto *tensor = std::get_if<TensorId>(&resource)) {
-                data.tensors.push_back(*tensor);
-            } else {
-                throw std::runtime_error("Unsupported resource");
-            }
-        }
-        return data;
-    }
-};
-
-auto getFamilyQueue(const ScenarioSpec &spec) {
-    if (spec.requiresGraphicsFamilyQueue) {
-        return FamilyQueue::Graphics;
-    }
-    if (spec.useComputeFamilyQueue) {
-        return FamilyQueue::Compute;
-    }
-    return FamilyQueue::DataGraph;
-}
 FamilyQueue getFamilyQueue(const detail::ScenarioBuildData &buildData) {
     if (buildData.requiresGraphicsFamilyQueue) {
         return FamilyQueue::Graphics;
@@ -705,17 +208,15 @@ void verifyOpticalFlowData(const DataManager &dataManager, const DispatchOptical
 
 } // namespace
 
-Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec, ScenarioBuilder &builder)
-    : _opts{opts}, _ctx{opts, getFamilyQueue(scenarioSpec)}, _scenarioSpec{&scenarioSpec}, _compute(_ctx) {
-    buildJsonScenarioData(builder, scenarioSpec);
-    setupResources();
-    setupRuntimeCommands();
-}
-
+// ScenarioBuildData is intentionally passed by value because this constructor takes ownership of its contents.
+// cppcheck-suppress passedByValue
 Scenario::Scenario(const ScenarioOptions &opts, detail::ScenarioBuildData buildData)
     : _opts{opts}, _ctx{opts, getFamilyQueue(buildData)}, _resources{std::move(buildData.resources)},
-      _commands{std::move(buildData.commands)}, _compute(_ctx), _groupManager{std::move(buildData.groupManager)} {
+      _resourceIds{std::move(buildData.resourceIds)}, _initializations{std::move(buildData.initializations)},
+      _outputs{std::move(buildData.outputs)}, _commands{std::move(buildData.commands)}, _compute(_ctx),
+      _groupManager{std::move(buildData.groupManager)} {
     setupResources();
+    initializeResourceData();
     setupRuntimeCommands();
 }
 
@@ -875,111 +376,44 @@ void Scenario::createRuntimeBarriers() {
     }
 }
 
-namespace {
-void registerJsonResourceInfo(ScenarioBuilder &builder, const ScenarioSpec &scenarioSpec,
-                              const ResourceInfoFactory &resourceInfoFactory, bool captureFrame,
-                              std::unordered_map<Guid, MemoryGroupId> &jsonMemoryGroupIds,
-                              std::unordered_map<Guid, TypedResourceId> &resourceIds) {
+void Scenario::initializeResourceData() {
+    const auto process = [&](const detail::InitializationBase &resource, auto &&initialize) {
+        PerfCounterGuard guard(_perfCounters, "Load Resource: " + resource.debugName, "Scenario Setup");
+        initialize();
+        mlsdk::logging::debug(resource.debugName + " loaded");
+    };
 
-    for (const auto &resource : scenarioSpec.resources) {
-        switch (resource->resourceType) {
-        case ResourceType::Buffer: {
-            const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
-            const auto id = builder.addBuffer(resourceInfoFactory.createInfo(*buffer));
-            resourceIds.emplace(resource->guid, id);
-            registerMemoryGroup(builder, jsonMemoryGroupIds, id, buffer->memoryGroup);
-        } break;
-        case ResourceType::RawData: {
-            const auto &rawData = reinterpret_cast<const std::unique_ptr<RawDataDesc> &>(resource);
-            const auto id = builder.addRawData(resourceInfoFactory.createInfo(*rawData));
-            resourceIds.emplace(resource->guid, id);
-        } break;
-        case ResourceType::Image: {
-            const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
-            const auto id = builder.addImage(resourceInfoFactory.createInfo(*image));
-            resourceIds.emplace(resource->guid, id);
-            registerMemoryGroup(builder, jsonMemoryGroupIds, id, image->memoryGroup);
-        } break;
-        case ResourceType::DataGraph: {
-            const auto &dataGraph = reinterpret_cast<const std::unique_ptr<DataGraphDesc> &>(resource);
-            const auto id = builder.addDataGraph(resourceInfoFactory.createInfo(*dataGraph));
-            resourceIds.emplace(resource->guid, id);
-        } break;
-        case ResourceType::Tensor: {
-            const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
-            const auto id = builder.addTensor(resourceInfoFactory.createInfo(*tensor, captureFrame));
-            resourceIds.emplace(resource->guid, id);
-            registerMemoryGroup(builder, jsonMemoryGroupIds, id, tensor->memoryGroup);
-        } break;
-        case ResourceType::Shader: {
-            const auto &shader = reinterpret_cast<const std::unique_ptr<ShaderDesc> &>(resource);
-            const auto id = builder.addShader(resourceInfoFactory.createInfo(*shader));
-            resourceIds.emplace(resource->guid, id);
-        } break;
-        case ResourceType::GraphConstant: {
-            const auto &graphConstant = reinterpret_cast<const std::unique_ptr<GraphConstantDesc> &>(resource);
-            const auto id = builder.addGraphConstant(resourceInfoFactory.createInfo(*graphConstant));
-            resourceIds.emplace(resource->guid, id);
-        } break;
-        default:
-            // Barriers can precede the regular resources they reference, so register them in a second pass.
-            continue;
-        }
-        mlsdk::logging::debug(resourceType(resource) + ": " + resource->guidStr + " loaded");
+    const auto initialize = Overloaded{
+        [&](const detail::BufferInitialization &resource) {
+            process(resource, [&] { upload(resource.id, {resource.data.data.data(), resource.data.data.size()}); });
+        },
+        [&](const detail::TensorInitialization &resource) {
+            process(resource, [&] {
+                upload(resource.id, {resource.data.data.data(), resource.data.data.size(), resource.data.shape,
+                                     resource.data.format});
+            });
+        },
+        [&](const detail::ImageInitialization &resource) {
+            process(resource, [&] {
+                if (resource.data.has_value()) {
+                    const auto &data = resource.data.value();
+                    upload(resource.id, {data.data.data(), data.data.size(), data.shape, data.format, data.mipLevels});
+                } else if (!_groupManager.isAliased(resource.id)) {
+                    const auto &image = _dataManager.getImage(resource.id);
+                    const auto dataSize = static_cast<size_t>(elementSizeFromVkFormat(image.dataType()) *
+                                                              totalElementsFromShape(image.shape()));
+                    const std::vector<char> data(dataSize, 0);
+                    upload(resource.id, {data.data(), data.size(), image.shape(), image.dataType(), /*mipLevels=*/1});
+                } else {
+                    _dataManager.getImageMut(resource.id).transitionLayout(_ctx, vk::ImageLayout::eGeneral);
+                }
+            });
+        },
+    };
+
+    for (const auto &initialization : _initializations) {
+        std::visit(initialize, initialization);
     }
-}
-
-void registerJsonBarrierInfo(ScenarioBuilder &builder, const ScenarioSpec &scenarioSpec,
-                             std::unordered_map<Guid, TypedResourceId> &resourceIds) {
-    // Barrier descriptions can reference resources declared later in the JSON,
-    // so translate them only after all regular resources have typed IDs.
-    BarrierInfoFactory barrierInfoFactory{resourceIds};
-    for (const auto &resource : scenarioSpec.resources) {
-        switch (resource->resourceType) {
-        case ResourceType::ImageBarrier: {
-            const auto &imageBarrier = reinterpret_cast<const std::unique_ptr<ImageBarrierDesc> &>(resource);
-            const auto id = builder.addImageBarrier(barrierInfoFactory.createInfo(*imageBarrier));
-            resourceIds.emplace(resource->guid, id);
-        } break;
-        case ResourceType::MemoryBarrier: {
-            const auto &memoryBarrier = reinterpret_cast<const std::unique_ptr<MemoryBarrierDesc> &>(resource);
-            const auto id = builder.addMemoryBarrier(barrierInfoFactory.createInfo(*memoryBarrier));
-            resourceIds.emplace(resource->guid, id);
-        } break;
-        case ResourceType::TensorBarrier: {
-            const auto &tensorBarrier = reinterpret_cast<const std::unique_ptr<TensorBarrierDesc> &>(resource);
-            const auto id = builder.addTensorBarrier(barrierInfoFactory.createInfo(*tensorBarrier));
-            resourceIds.emplace(resource->guid, id);
-        } break;
-        case ResourceType::BufferBarrier: {
-            const auto &bufferBarrier = reinterpret_cast<const std::unique_ptr<BufferBarrierDesc> &>(resource);
-            const auto id = builder.addBufferBarrier(barrierInfoFactory.createInfo(*bufferBarrier));
-            resourceIds.emplace(resource->guid, id);
-        } break;
-        default:
-            // Regular resources were registered in the first pass.
-            continue;
-        }
-        mlsdk::logging::debug(resourceType(resource) + ": " + resource->guidStr + " loaded");
-    }
-}
-} // namespace
-
-void Scenario::buildJsonScenarioData(ScenarioBuilder &builder, const ScenarioSpec &scenarioSpec) {
-    mlsdk::logging::info("Setup resources, count: " + std::to_string(scenarioSpec.resources.size()));
-    ResourceInfoFactory resourceInfoFactory;
-    std::unordered_map<Guid, MemoryGroupId> jsonMemoryGroupIds;
-    std::unordered_map<Guid, TypedResourceId> resourceIds;
-
-    registerJsonResourceInfo(builder, scenarioSpec, resourceInfoFactory, _opts.captureFrame, jsonMemoryGroupIds,
-                             resourceIds);
-    registerJsonBarrierInfo(builder, scenarioSpec, resourceIds);
-    resolveCommands(builder, scenarioSpec, resourceIds);
-    auto buildData = builder.takeBuildData();
-    _resources = std::move(buildData.resources);
-    _resourceIds = std::move(resourceIds);
-    _commands = std::move(buildData.commands);
-    _groupManager = std::move(buildData.groupManager);
 }
 
 void Scenario::setupResources() {
@@ -1049,86 +483,6 @@ void Scenario::setupResources() {
     }
     for (const auto &entry : _resources.buffers()) {
         _dataManager.getBufferMut(entry.id).allocateMemory(_ctx);
-    }
-
-    if (_scenarioSpec != nullptr) {
-        loadJsonResourceData();
-    }
-}
-
-void Scenario::loadJsonResourceData() {
-    // Preserve description-based CLI initialization by routing it through the
-    // same typed Scenario upload API used by in-memory clients.
-    for (const auto &resource : _scenarioSpec->resources) {
-        switch (resource->resourceType) {
-        case ResourceType::Tensor: {
-            const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
-            PerfCounterGuard guard(_perfCounters, "Load Tensor: " + tensor->guidStr, "Scenario Setup");
-            const auto id = resolveResourceId<TensorId>(_resourceIds, tensor->guid, "Tensor");
-            if (tensor->src || !_groupManager.isAliased(id)) {
-                const auto tensorData = loadTensorData(*tensor);
-                upload(id, {tensorData.data.data(), tensorData.data.size(), tensorData.shape, tensorData.format});
-            }
-        } break;
-        case ResourceType::Image: {
-            const auto &image = reinterpret_cast<const std::unique_ptr<ImageDesc> &>(resource);
-            PerfCounterGuard guard(_perfCounters, "Load Image: " + image->guidStr, "Scenario Setup");
-            const auto id = resolveResourceId<ImageId>(_resourceIds, image->guid, "Image");
-            auto &imageRec = _dataManager.getImageMut(id);
-            if (image->src || !_groupManager.isAliased(id)) {
-                imageRec.fillFromDescription(_ctx, *image);
-            } else {
-                imageRec.transitionLayout(_ctx, vk::ImageLayout::eGeneral);
-            }
-        } break;
-        case ResourceType::Buffer: {
-            const auto &buffer = reinterpret_cast<const std::unique_ptr<BufferDesc> &>(resource);
-            PerfCounterGuard guard(_perfCounters, "Load Buffer: " + buffer->guidStr, "Scenario Setup");
-            const auto id = resolveResourceId<BufferId>(_resourceIds, buffer->guid, "Buffer");
-            if (buffer->src || !_groupManager.isAliased(id)) {
-                const auto bufferData = loadBufferData(*buffer);
-                upload(id, {bufferData.data.data(), bufferData.data.size()});
-            }
-        } break;
-        default:
-            // Only buffers, images, and tensors have JSON-provided runtime data to load.
-            continue;
-        }
-        mlsdk::logging::debug(resourceType(resource) + ": " + resource->guidStr + " loaded");
-    }
-}
-
-void Scenario::resolveCommands(ScenarioBuilder &builder, const ScenarioSpec &scenarioSpec,
-                               const std::unordered_map<Guid, TypedResourceId> &resourceIds) {
-    CommandDataFactory factory{builder._data.resources, resourceIds};
-    for (const auto &command : scenarioSpec.commands) {
-        switch (command->commandType) {
-        case CommandType::DispatchCompute:
-            builder.addDispatchCompute(factory.createData(reinterpret_cast<const DispatchComputeDesc &>(*command)));
-            break;
-        case CommandType::DispatchBarrier:
-            builder.addDispatchBarrier(factory.createData(reinterpret_cast<const DispatchBarrierDesc &>(*command)));
-            break;
-        case CommandType::DispatchDataGraph:
-            builder.addDispatchDataGraph(factory.createData(reinterpret_cast<const DispatchDataGraphDesc &>(*command)));
-            break;
-        case CommandType::DispatchSpirvGraph:
-            builder.addDispatchSpirvGraph(
-                factory.createData(reinterpret_cast<const DispatchSpirvGraphDesc &>(*command)));
-            break;
-        case CommandType::DispatchFragment:
-            builder.addDispatchFragment(factory.createData(reinterpret_cast<const DispatchFragmentDesc &>(*command)));
-            break;
-        case CommandType::DispatchOpticalFlow:
-            builder.addDispatchOpticalFlow(
-                factory.createData(reinterpret_cast<const DispatchOpticalFlowDesc &>(*command)));
-            break;
-        case CommandType::MarkBoundary:
-            builder.addMarkBoundary(factory.createData(reinterpret_cast<const MarkBoundaryDesc &>(*command)));
-            break;
-        default:
-            throw std::runtime_error("Unknown CommandType in commands");
-        }
     }
 }
 
@@ -1596,30 +950,18 @@ void Scenario::saveResults(bool dryRun) {
     // Save resources that have an output destination
     {
         PerfCounterGuard guard(_perfCounters, "Save Resources", "Save Results", false);
-        if (_scenarioSpec != nullptr) {
-            for (const auto &resourceDesc : _scenarioSpec->resources) {
-                const auto &dst = resourceDesc->getDestination();
-                if (dst.has_value()) {
-                    switch (resourceDesc->resourceType) {
-                    case ResourceType::Buffer:
-                        _dataManager.getBuffer(resolveResourceId<BufferId>(_resourceIds, resourceDesc->guid, "Buffer"))
-                            .store(_ctx, dst.value());
-                        break;
-                    case ResourceType::Tensor:
-                        _dataManager.getTensor(resolveResourceId<TensorId>(_resourceIds, resourceDesc->guid, "Tensor"))
-                            .store(_ctx, dst.value());
-                        break;
-                    case ResourceType::Image:
-                        _dataManager.getImageMut(resolveResourceId<ImageId>(_resourceIds, resourceDesc->guid, "Image"))
-                            .store(_ctx, dst.value());
-                        break;
-                    default:
-                        throw std::runtime_error("Output destination is not supported for " +
-                                                 resourceType(resourceDesc) + " resource " + resourceDesc->guidStr);
-                    }
-                    mlsdk::logging::debug(resourceType(resourceDesc) + " " + resourceDesc->guidStr + " output stored");
-                }
-            }
+        for (const auto &output : _outputs) {
+            std::visit(Overloaded{
+                           [&](const BufferId id) { _dataManager.getBuffer(id).store(_ctx, output.destination); },
+                           [&](const TensorId id) { _dataManager.getTensor(id).store(_ctx, output.destination); },
+                           [&](const ImageId id) { _dataManager.getImageMut(id).store(_ctx, output.destination); },
+                           [&](const auto) {
+                               throw std::runtime_error("Output destination is not supported for resource " +
+                                                        output.debugName);
+                           },
+                       },
+                       output.id);
+            mlsdk::logging::debug(output.debugName + " output stored");
         }
     }
     mlsdk::logging::info("Results stored");

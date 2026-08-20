@@ -14,8 +14,6 @@
 
 namespace mlsdk::scenariorunner {
 
-struct ScenarioSpec;
-
 /// @brief Public interface for defining and building a scenario.
 ///
 /// Resource registration returns stable typed IDs. Callers retain these IDs
@@ -50,9 +48,6 @@ class IScenarioBuilder {
 
     /// @brief Consume the builder and return a ready-to-run scenario.
     virtual std::unique_ptr<IScenario> build(const ScenarioOptions &options) = 0;
-
-    /// @brief Build the scenario described by a parsed scenario.json file.
-    virtual std::unique_ptr<IScenario> build(const ScenarioOptions &options, ScenarioSpec &spec) = 0;
 };
 
 } // namespace mlsdk::scenariorunner
