@@ -4,7 +4,7 @@
 #
 
 [build-system]
-requires = ["setuptools>=68", "setuptools-scm>=8", "wheel"]
+requires = ["setuptools>=68", "setuptools-scm>=8", "wheel", "pybind11", "cmake>=3.25", "ninja>=1.10"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -17,6 +17,7 @@ authors = [
     { name = "Arm Limited" }
 ]
 requires-python = ">=3.10"
+dependencies = ["numpy>=1.24"]
 
 [project.scripts]
 scenario_runner = "scenario_runner.cli:main"

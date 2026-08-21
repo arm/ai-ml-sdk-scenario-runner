@@ -260,12 +260,42 @@ Install the published package:
 pip install ai-ml-sdk-scenario-runner
 ```
 
-To build and install the host executable from an ML SDK checkout, run from this
-repository root:
+## Python bindings
+
+Python bindings are available through the `scenario_runner` package:
+
+```python
+import numpy as np
+import scenario_runner
+
+builder = scenario_runner.ScenarioBuilder()
+image_id = builder.add_image(
+    [1, 2, 2, 1],
+    scenario_runner.Format.R8Uint,
+    is_input=True,
+    is_sampled=True,
+    tiling=scenario_runner.Tiling.Linear,
+)
+scenario = builder.build()
+
+image = np.array([1, 2, 3, 4], dtype=np.uint8).reshape(1, 2, 2, 1)
+scenario.upload(image_id, image)
+scenario.run()
+result = scenario.download(image_id)
+```
+
+## Install from source with pip
+
+From the repository root, install the package with:
 
 ```bash
 pip install .
 ```
+
+This command builds the host executable and Python bindings, then installs the
+resulting Python package. Ensure the prerequisites listed in
+[Building Scenario Runner from source](#building-scenario-runner-from-source)
+are installed and the repository dependencies have been initialized.
 
 ## Known Limitations
 
