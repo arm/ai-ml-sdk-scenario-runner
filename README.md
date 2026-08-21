@@ -297,12 +297,24 @@ resulting Python package. Ensure the prerequisites listed in
 [Building Scenario Runner from source](#building-scenario-runner-from-source)
 are installed and the repository dependencies have been initialized.
 
+## Graph Shape Inference
+
+Graph shape inference is experimental. A scenario requests graph shape inference
+by marking graph output tensor dimensions with `?`. Fully shaped graph outputs
+do not request shape inference. Input tensors must be fully shaped, and Scenario
+Runner does not inspect SPIR-V™ modules to detect unshaped graphs automatically.
+
 ## Known Limitations
 
-- Dynamically shaped VGF workloads are not currently supported. The supported
-  workflow requires all tensor shapes to be fixed and fully specified.
 - Resources created with `Optimal` tiling cannot be used with memory aliasing.
 - HLSL lacks support for VK_ARM_tensor at the moment, so tensor resources cannot be used with HLSL shaders.
+- For graph shape inference, partially specified output shapes are not supported
+  as constraints. Tensor dimensions must be either unranked or ranked with all
+  dynamic shapes. Mixed dimensions such as `[1, "?", 2, "?"]` are not supported.
+  Inferred output shapes replace the declared dimensions.
+- A graph resource requiring shape inference cannot be reused by dispatches
+  with different interface shapes. Declare a separate graph resource for each
+  shape.
 
 ## License
 

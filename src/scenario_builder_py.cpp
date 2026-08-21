@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <initializer_list>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -288,7 +289,9 @@ void bindResourceInfo(py::module_ &m) {
     py::class_<VgfInfo>(m, "VgfInfo")
         .def(py::init<>())
         .def_readwrite("debug_name", &VgfInfo::debugName)
-        .def_readwrite("src", &VgfInfo::src)
+        .def(
+            "load_source", [](VgfInfo &info, const std::string &path) { info.src = loadVgfView(path); },
+            py::arg("path"), "Load a VGF file into ``src``.")
         .def_readwrite("push_constants_size", &VgfInfo::pushConstantsSize)
         .def_readwrite("specialization_constant_maps", &VgfInfo::specializationConstantMaps);
 
@@ -298,7 +301,14 @@ void bindResourceInfo(py::module_ &m) {
         .def_readwrite("entry", &ShaderInfo::entry)
         .def_readwrite("push_constants_size", &ShaderInfo::pushConstantsSize)
         .def_readwrite("specialization_constants", &ShaderInfo::specializationConstants)
-        .def_readwrite("src", &ShaderInfo::src)
+        .def_property(
+            "src", [](const ShaderInfo &info) -> py::object { return info.src ? py::cast(*info.src) : py::none(); },
+            [](ShaderInfo &info, std::vector<uint32_t> src) {
+                info.src = std::make_shared<const std::vector<uint32_t>>(std::move(src));
+            })
+        .def(
+            "load_source", [](ShaderInfo &info, const std::string &path) { info.src = readShaderCode(path, info); },
+            py::arg("path"), "Load or compile a shader file into ``src``.")
         .def_readwrite("shader_type", &ShaderInfo::shaderType)
         .def_readwrite("stage", &ShaderInfo::stage)
         .def_readwrite("build_options", &ShaderInfo::buildOpts)
@@ -345,14 +355,13 @@ void bindResourceInfo(py::module_ &m) {
     setAttributeAnnotations(m.attr("SpecializationConstantMap"),
                             {{"specialization_constants", "list[SpecializationConstant]"}, {"shader_target", "str"}});
     setAttributeAnnotations(m.attr("VgfInfo"), {{"debug_name", "str"},
-                                                {"src", "str"},
                                                 {"push_constants_size", "int"},
                                                 {"specialization_constant_maps", "list[SpecializationConstantMap]"}});
     setAttributeAnnotations(m.attr("ShaderInfo"), {{"debug_name", "str"},
                                                    {"entry", "str"},
                                                    {"push_constants_size", "int"},
                                                    {"specialization_constants", "list[SpecializationConstant]"},
-                                                   {"src", "str"},
+                                                   {"src", "list[int] | None"},
                                                    {"shader_type", "ShaderType"},
                                                    {"stage", "ShaderStage"},
                                                    {"build_options", "str"},

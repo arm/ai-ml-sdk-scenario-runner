@@ -13,6 +13,7 @@
 #include "tensor.hpp"
 #include "vgf_view.hpp"
 
+#include <memory>
 #include <unordered_map>
 
 namespace mlsdk::scenariorunner {
@@ -64,7 +65,7 @@ class DataManager {
     std::unordered_map<TensorId, Tensor> _tensors;
     std::unordered_map<ImageId, Image> _images;
     std::unordered_map<RawDataId, RawData> _rawData;
-    std::unordered_map<VgfId, VgfView> _vgfViews;
+    std::unordered_map<VgfId, std::shared_ptr<const VgfView>> _vgfViews;
     std::unordered_map<ImageBarrierId, VulkanImageBarrier> _imageBarriers;
     std::unordered_map<MemoryBarrierId, VulkanMemoryBarrier> _memoryBarriers;
     std::unordered_map<BufferBarrierId, VulkanBufferBarrier> _bufferBarriers;

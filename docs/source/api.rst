@@ -68,10 +68,12 @@ The example has four stages:
 Calling ``build()`` transfers the registered resources and commands to the
 scenario. The builder must not be reused afterwards. Upload operations copy the
 provided bytes before returning, while download operations return owning data.
-For programmatically-created scenarios, file paths such as ``ShaderInfo::src``
-are resolved from the application's current working directory. The JSON factory
-instead resolves relative resource paths from the scenario file's directory by
-default.
+For programmatically-created scenarios, ``ShaderInfo::src`` contains immutable
+SPIR-V code and ``VgfInfo::src`` contains an immutable VGF view.
+``readShaderCode()`` and ``loadVgfView()`` create these values from files;
+relative paths are resolved from the application's current working directory.
+The JSON factory resolves relative resource paths from the scenario file's
+directory and performs these conversions automatically.
 
 API Reference
 ~~~~~~~~~~~~~

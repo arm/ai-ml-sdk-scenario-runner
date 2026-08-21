@@ -67,15 +67,15 @@ int mlsdk::scenariorunner::samples::runVgfInferenceSample(std::string_view execu
         auto builder = createScenarioBuilder();
         VgfInfo vgfInfo{};
         vgfInfo.debugName = "increment graph";
-        vgfInfo.src = vgfPath.string();
+        vgfInfo.src = loadVgfView(vgfPath.string());
         const auto vgf = builder->addVgf(vgfInfo);
 
         ShaderInfo shaderInfo{};
         shaderInfo.debugName = "increment";
         shaderInfo.entry = "main";
-        shaderInfo.src = shaderPath.string();
         shaderInfo.shaderType = ShaderType::GLSL;
         shaderInfo.stage = ShaderStage::Compute;
+        shaderInfo.src = readShaderCode(shaderPath.string(), shaderInfo);
         const auto shader = builder->addShader(shaderInfo);
 
         const auto input = builder->addBuffer(BufferInfo{"input", 16});

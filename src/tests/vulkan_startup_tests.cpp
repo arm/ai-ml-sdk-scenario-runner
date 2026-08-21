@@ -11,9 +11,9 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+#include <utility>
 #include <vector>
-
-#include "vgf-utils/temp_folder.hpp"
 
 namespace {
 using namespace mlsdk::scenariorunner;
@@ -43,16 +43,12 @@ void main()
 //      3. Run the shader.
 //      4. Check that the output buffer matches the expected values.
 void runShader(const ScenarioOptions &scenarioOptions) {
-    TempFolder tempFolder("scenario_runner_start_up_tests");
-
     constexpr uint32_t numElements = 10;
 
     // Compile compute shader to SPIR-V
 
-    std::string addShaderSPIRV = tempFolder.relative("add_shader.spv").string();
     auto spirv = GlslCompiler::get().compile(add_shader, ShaderStage::Compute);
     EXPECT_TRUE(spirv.first.empty());
-    GlslCompiler::get().save(spirv.second, addShaderSPIRV);
 
     Context ctx{scenarioOptions};
 
@@ -104,7 +100,7 @@ void runShader(const ScenarioOptions &scenarioOptions) {
     const Compute::PipelineCreateArguments args{"test_pipeline", bindings, nullptr};
     ShaderInfo shaderInfo;
     shaderInfo.debugName = "add_shader";
-    shaderInfo.src = addShaderSPIRV;
+    shaderInfo.src = std::make_shared<const std::vector<uint32_t>>(std::move(spirv.second));
     shaderInfo.entry = "main";
     shaderInfo.shaderType = ShaderType::SPIR_V;
     compute.createPipeline(args, shaderInfo);

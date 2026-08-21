@@ -10,10 +10,19 @@
         "dims": {
             "type": "array",
             "maxItems": 4,
-            "items": {
-                "type": "integer",
-                "minimum": 1
-            }
+            "anyOf": [
+                {
+                    "items": {
+                        "const": "?"
+                    }
+                },
+                {
+                    "items": {
+                        "type": "integer",
+                        "minimum": 1
+                    }
+                }
+            ]
         },
         "format": {
             "type": "string"
@@ -38,7 +47,6 @@
     },
     "required": [
         "uid",
-        "dims",
         "format",
         "shader_access"
     ],

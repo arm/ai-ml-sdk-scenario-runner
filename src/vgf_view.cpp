@@ -285,6 +285,10 @@ VgfView VgfView::createVgfView(std::string vgfFile) {
     return vgfView;
 }
 
+std::shared_ptr<const VgfView> loadVgfView(const std::string &sourcePath) {
+    return std::make_shared<const VgfView>(VgfView::createVgfView(sourcePath));
+}
+
 size_t VgfView::getNumSegments() const { return sequenceTableDecoder->modelSequenceTableSize(); }
 
 ModuleType VgfView::getSegmentType(uint32_t segmentIndex) const {
@@ -332,8 +336,16 @@ std::string VgfView::getModuleEntryPoint(uint32_t segmentIndex) const {
 }
 
 vgflib::DataView<uint32_t> VgfView::getSPVModuleCode(uint32_t segmentIndex) const {
+    if (const auto shapedModule = shapedSpirvModules.find(segmentIndex); shapedModule != shapedSpirvModules.end()) {
+        return {shapedModule->second.data(), shapedModule->second.size()};
+    }
+
     uint32_t moduleIndex = sequenceTableDecoder->getSegmentModuleIndex(segmentIndex);
     return moduleTableDecoder->getSPIRVModuleCode(moduleIndex);
+}
+
+void VgfView::setSPVModuleCode(uint32_t segmentIndex, std::vector<uint32_t> moduleCode) {
+    shapedSpirvModules[segmentIndex] = std::move(moduleCode);
 }
 
 std::string VgfView::getGLSLModuleCode(uint32_t segmentIndex) const {
@@ -413,6 +425,30 @@ std::vector<VgfView::VgfBinding> VgfView::getBindings(uint32_t segmentIndex) con
     return bindings;
 }
 
+VgfView::DescriptorBindingMrtMap VgfView::getSegmentMrtIndexes(uint32_t segmentIndex) const {
+    DescriptorBindingMrtMap mrtIndexes;
+    for (const auto &binding : getBindings(segmentIndex)) {
+        mrtIndexes[{binding.set, binding.id}] = binding.resourceIndex;
+    }
+    return mrtIndexes;
+}
+
+std::optional<uint32_t> VgfView::getModelInterfaceMrtIndex(uint32_t bindingId) const {
+    return findModelInterfaceMrtIndex(*sequenceTableDecoder, bindingId);
+}
+
+vgflib::DataView<int64_t> VgfView::getTensorShape(uint32_t mrtIndex) const {
+    if (const auto resolvedShape = resolvedMrtShapes.find(mrtIndex); resolvedShape != resolvedMrtShapes.end()) {
+        return {resolvedShape->second.data(), resolvedShape->second.size()};
+    }
+
+    return resourceTableDecoder->getTensorShape(mrtIndex);
+}
+
+void VgfView::setTensorShape(uint32_t mrtIndex, std::vector<int64_t> shape) {
+    resolvedMrtShapes[mrtIndex] = std::move(shape);
+}
+
 std::vector<TypedBinding>
 VgfView::resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
                          const std::vector<TypedBinding> &externalBindings,
@@ -471,7 +507,7 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
         const auto &buffer = resourceViewer.getBuffer();
 
         // Check if buffer sizes match
-        auto shape = resourceTableDecoder->getTensorShape(vgfMrtIndex);
+        auto shape = getTensorShape(vgfMrtIndex);
         auto expectedBufferSize = bufferSize(shape, vk::Format(format));
         if (buffer.size() != expectedBufferSize) {
             throw std::runtime_error(getVgfContext() + " expects buffer size " + std::to_string(expectedBufferSize) +
@@ -484,7 +520,7 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
         const std::vector<int64_t> actualTensorShape =
             tensor.isRankConverted() ? std::vector<int64_t>(0) : tensor.shape();
 
-        auto dims = resourceTableDecoder->getTensorShape(vgfMrtIndex);
+        auto dims = getTensorShape(vgfMrtIndex);
         const std::vector<int64_t> expectedTensorShape(dims.begin(), dims.end());
 
         // Check if tensor shapes match
@@ -506,7 +542,7 @@ void VgfView::validateResource(const IResourceViewer &resourceViewer, uint32_t v
         const auto &image = resourceViewer.getImage();
         const auto &actualImageShape = image.shape();
 
-        auto dims = resourceTableDecoder->getTensorShape(vgfMrtIndex);
+        auto dims = getTensorShape(vgfMrtIndex);
         const auto expectedImageShape = getScenarioImageShape(dims, vk::Format(format));
         if (actualImageShape != expectedImageShape) {
             throw std::runtime_error(getVgfContext() + " has shape " + formatShape(expectedImageShape) +
@@ -542,7 +578,7 @@ VgfResourceCreationResult VgfView::createIntermediateResources(IResourceCreator 
                 }
             };
             auto debugName = createResourceName(resourceIndex, resourceCategory);
-            const auto shape = resourceTableDecoder->getTensorShape(resourceIndex);
+            const auto shape = getTensorShape(resourceIndex);
             const auto type = resourceTableDecoder->getDescriptorType(resourceIndex);
             const auto descriptorType = type.value_or(DESCRIPTOR_TYPE_UNKNOWN);
             switch (descriptorType) {

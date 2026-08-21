@@ -245,13 +245,15 @@ graph_constant_path = resources_path / "graph_constant"
         # tensor
         (Ok(), tensor_path/"reference.json"),
         (Ok(), tensor_path/"minimal.json"),
+        (Ok(), tensor_path/"unresolved_dims.json"),
         (RequiredProperty("uid"), tensor_path/"missing_uid.json"),
-        (RequiredProperty("dims"), tensor_path/"missing_dims.json"),
+        (Ok(), tensor_path/"missing_dims.json"),
         (RequiredProperty("format"), tensor_path/"missing_format.json"),
         (RequiredProperty("shader_access"), tensor_path/"missing_shader_access.json"),
         (UnexpectedProperty("this_is_an_invalid_property"), tensor_path/"invalid_property.json"),
         (TooLong(), tensor_path/"invalid_dims_length.json"),
         (RequiredMin(1), tensor_path/"invalid_dim_value.json"),
+        (InvalidConstValue("?"), tensor_path/"invalid_mixed_dims.json"),
         (InvalidMutuallyExclusive(), tensor_path/"mutually_exclusive_src_dst.json"),
         # image
         (Ok(), image_path/"reference.json"),

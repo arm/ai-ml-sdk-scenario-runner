@@ -11,9 +11,9 @@ builder = sr.ScenarioBuilder()
 shader = sr.ShaderInfo()
 shader.debug_name = "increment"
 shader.entry = "main"
-shader.src = str(sample_dir / "increment.comp")
 shader.shader_type = sr.ShaderType.Glsl
 shader.stage = sr.ShaderStage.Compute
+shader.load_source(str(sample_dir / "increment.comp"))
 shader_id = builder.add_shader(shader)
 
 input_id = builder.add_buffer(16, debug_name="input")

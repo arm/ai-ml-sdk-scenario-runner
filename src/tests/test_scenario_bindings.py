@@ -151,9 +151,9 @@ def test_in_memory_scenario_builder_executes_compute(sr, tmp_path, glsl_compiler
     shader_info = sr.ShaderInfo()
     shader_info.debug_name = "increment"
     shader_info.entry = "main"
-    shader_info.src = str(compiled_shader)
     shader_info.shader_type = sr.ShaderType.SpirV
     shader_info.stage = sr.ShaderStage.Compute
+    shader_info.load_source(str(compiled_shader))
     shader_id = builder.add_shader(shader_info)
 
     input_info = sr.BufferInfo()
@@ -247,9 +247,9 @@ def test_in_memory_scenario_builder_executes_explicit_buffer_barrier(sr, sdk_too
     shader_info = sr.ShaderInfo()
     shader_info.debug_name = "addOne"
     shader_info.entry = "main"
-    shader_info.src = str(compiled_shader)
     shader_info.shader_type = sr.ShaderType.SpirV
     shader_info.stage = sr.ShaderStage.Compute
+    shader_info.load_source(str(compiled_shader))
     shader_id = builder.add_shader(shader_info)
 
     input_info = sr.BufferInfo()
