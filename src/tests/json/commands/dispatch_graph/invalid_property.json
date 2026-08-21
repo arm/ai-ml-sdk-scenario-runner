@@ -15,7 +15,7 @@
                     },
                     {
                         "id": 2,
-                        "resource_ref": "OutTensorr",
+                        "resource_ref": "OutTensor",
                         "set": 0
                     }
                 ],

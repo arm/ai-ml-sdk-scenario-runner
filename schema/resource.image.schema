@@ -82,7 +82,7 @@
             "enum" : ["OPTIMAL","LINEAR"]
         },
         "memory_group": {
-            "$ref" : "urn:scenario:common#/definitions/memory_group"
+            "$ref": "urn:scenario:common#/definitions/memory_group"
         }
     },
     "required": [
@@ -91,5 +91,5 @@
         "dims",
         "shader_access"
     ],
-    "$ref" : "urn:scenario:common#/definitions/mutually_exclusive_optional_src_dst"
+    "$ref": "urn:scenario:common#/definitions/mutually_exclusive_optional_src_dst"
 }
