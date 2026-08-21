@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "command_types.hpp"
 #include "compute.hpp"
 #include "context.hpp"
 #include "data_manager.hpp"
@@ -43,13 +44,6 @@ struct ScenarioOptions {
     bool shouldDumpNeuralStatistics() const { return !neuralStatisticsDumpDir.empty(); }
     bool shouldDumpGraphProfiling() const { return !graphProfilingDumpDir.empty(); }
 };
-
-struct DispatchComputeData;
-struct DispatchDataGraphData;
-struct DispatchSpirvGraphData;
-struct DispatchFragmentData;
-struct DispatchOpticalFlowData;
-struct ResolvedShaderSubstitution;
 
 class Scenario {
   public:
@@ -101,7 +95,8 @@ class Scenario {
     void createRuntimeResources();
     void createRuntimeBarriers();
     void loadJsonResourceData();
-    void setupCommands();
+    void resolveCommands();
+    void setupRuntimeCommands();
 
     /// \brief Save profiling data to file
     void saveProfilingData(int iteration, int repeatCount, bool dryRun);
@@ -126,6 +121,7 @@ class Scenario {
     std::unordered_map<DataGraphId, VgfResourceCreationResult> _vgfResourceCreationResults;
     DataManager _dataManager;
     ScenarioSpec &_scenarioSpec;
+    std::vector<detail::ScenarioCommand> _commands;
     std::shared_ptr<PipelineCache> _pipelineCache;
     Compute _compute;
     std::vector<PerformanceCounter> _perfCounters;
