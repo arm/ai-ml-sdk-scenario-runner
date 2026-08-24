@@ -395,66 +395,29 @@ std::vector<TypedBinding> convertBindings(const ResourceManager &resources,
 
 class Creator final : public IResourceCreator {
   public:
-    Creator(const Context &ctx, ResourceManager &resources, DataManager &dataManager, GroupManager &groupManager)
-        : _ctx{ctx}, _resources{resources}, _dataManager{dataManager}, _groupManager{groupManager} {}
+    Creator(ResourceManager &resources, DataManager &dataManager) : _resources{resources}, _dataManager{dataManager} {}
 
     BufferId createBuffer(BufferInfo &&info) override {
         const auto id = _resources.addBuffer(std::move(info));
         _dataManager.createBuffer(id, _resources.get(id));
-        _createdResources.push_back(id);
         return id;
     }
 
     TensorId createTensor(TensorInfo &&info) override {
         const auto id = _resources.addTensor(std::move(info));
         _dataManager.createTensor(id, _resources.get(id));
-        _createdResources.push_back(id);
         return id;
     }
 
     ImageId createImage(ImageInfo &&info) override {
         const auto id = _resources.addImage(std::move(info));
         _dataManager.createImage(id, _resources.get(id));
-        _createdResources.push_back(id);
         return id;
     }
 
-    void setupCreatedNonTensorResources() {
-        for (const auto &id : _createdResources) {
-            if (const auto *buffer = std::get_if<BufferId>(&id)) {
-                _dataManager.getBufferMut(*buffer).setup(_ctx, _groupManager.getMemoryManager(id));
-            } else if (const auto *image = std::get_if<ImageId>(&id)) {
-                _dataManager.getImageMut(*image).setup(_ctx, _groupManager.getMemoryManager(id));
-            }
-        }
-    }
-
-    void setupCreatedTensorResources() {
-        for (const auto &id : _createdResources) {
-            if (const auto *tensor = std::get_if<TensorId>(&id)) {
-                _dataManager.getTensorMut(*tensor).setup(_ctx, _groupManager.getMemoryManager(id));
-            }
-        }
-    }
-
-    void allocateCreatedResources() {
-        for (const auto &id : _createdResources) {
-            if (const auto *buffer = std::get_if<BufferId>(&id)) {
-                _dataManager.getBufferMut(*buffer).allocateMemory(_ctx);
-            } else if (const auto *image = std::get_if<ImageId>(&id)) {
-                _dataManager.getImageMut(*image).allocateMemory(_ctx);
-            } else if (const auto *tensor = std::get_if<TensorId>(&id)) {
-                _dataManager.getTensorMut(*tensor).allocateMemory(_ctx);
-            }
-        }
-    }
-
   private:
-    const Context &_ctx;
     ResourceManager &_resources;
     DataManager &_dataManager;
-    GroupManager &_groupManager;
-    std::vector<MemoryResourceId> _createdResources;
 };
 
 const TypedResourceId &resolveTypedResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds,
@@ -1005,7 +968,7 @@ void Scenario::buildJsonScenarioData(const ScenarioSpec &scenarioSpec) {
 void Scenario::setupResources() {
     createRuntimeResources();
 
-    Creator vgfResourceCreator{_ctx, _resources, _dataManager, _groupManager};
+    Creator vgfResourceCreator{_resources, _dataManager};
     // Per data graph, map VGF alias group IDs to runtime memory group IDs.
     std::unordered_map<DataGraphId, std::unordered_map<uint32_t, MemoryGroupId>> vgfMemoryGroupIds;
 
@@ -1051,14 +1014,12 @@ void Scenario::setupResources() {
         const auto id = entry.id;
         _dataManager.getImageMut(id).setup(_ctx, _groupManager.getMemoryManager(id));
     }
-    vgfResourceCreator.setupCreatedNonTensorResources();
 
     // Setup tensors, aliasing tensors are dependent on other resources having been constructed
     for (const auto &entry : _resources.tensors()) {
         const auto id = entry.id;
         _dataManager.getTensorMut(id).setup(_ctx, _groupManager.getMemoryManager(id));
     }
-    vgfResourceCreator.setupCreatedTensorResources();
 
     createRuntimeBarriers();
 
@@ -1074,7 +1035,6 @@ void Scenario::setupResources() {
     }
 
     loadJsonResourceData();
-    vgfResourceCreator.allocateCreatedResources();
 }
 
 void Scenario::loadJsonResourceData() {
