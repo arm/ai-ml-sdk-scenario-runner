@@ -740,10 +740,12 @@ Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
     setupRuntimeCommands();
 }
 
-Scenario::~Scenario() = default;
-
 BufferId Scenario::getBufferId(std::string_view uid) const {
     return resolveResourceUid<BufferId>(_resourceIds, uid, "Buffer", "getBufferId");
+}
+
+ImageId Scenario::getImageId(std::string_view uid) const {
+    return resolveResourceUid<ImageId>(_resourceIds, uid, "Image", "getImageId");
 }
 
 TensorId Scenario::getTensorId(std::string_view uid) const {
@@ -755,6 +757,13 @@ void Scenario::upload(BufferId id, const BufferDataView &data) {
         throw std::runtime_error("Scenario::upload: Buffer resource not found.");
     }
     _dataManager.getBuffer(id).upload(_ctx, data);
+}
+
+void Scenario::upload(ImageId id, const ImageDataView &data) {
+    if (!_dataManager.hasImage(id)) {
+        throw std::runtime_error("Scenario::upload: Image resource not found.");
+    }
+    _dataManager.getImageMut(id).upload(_ctx, data);
 }
 
 void Scenario::upload(TensorId id, const TensorDataView &data) {
@@ -769,6 +778,13 @@ BufferData Scenario::download(BufferId id) const {
         throw std::runtime_error("Scenario::download: Buffer resource not found.");
     }
     return _dataManager.getBuffer(id).download(_ctx);
+}
+
+ImageData Scenario::download(ImageId id) {
+    if (!_dataManager.hasImage(id)) {
+        throw std::runtime_error("Scenario::download: Image resource not found.");
+    }
+    return _dataManager.getImageMut(id).download(_ctx);
 }
 
 TensorData Scenario::download(TensorId id) const {

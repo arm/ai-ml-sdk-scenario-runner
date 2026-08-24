@@ -6,8 +6,9 @@
 
 #include "commands.hpp"
 #include "compute.hpp"
+#include "context.hpp"
 #include "glsl_compiler.hpp"
-#include "scenario.hpp"
+#include "scenario_options.hpp"
 
 #include <vector>
 

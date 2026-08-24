@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "context.hpp"
 #include "data_manager.hpp"
 #include "resource_data.hpp"
-#include "scenario.hpp"
+#include "scenario_options.hpp"
 #include "tensor.hpp"
 #include "utils.hpp"
 

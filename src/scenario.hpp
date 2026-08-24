@@ -11,9 +11,11 @@
 #include "data_manager.hpp"
 #include "frame_capturer.hpp"
 #include "group_manager.hpp"
+#include "iscenario.hpp"
 #include "resource_data.hpp"
 #include "resource_manager.hpp"
 #include "scenario_desc.hpp"
+#include "scenario_options.hpp"
 #include "types.hpp"
 
 #include <string>
@@ -24,59 +26,43 @@
 namespace mlsdk::scenariorunner {
 class ScenarioBuilder;
 
-/// \brief Options that are passed for configuring a scenario
-struct ScenarioOptions {
-    bool enablePipelineCaching{false};
-    bool clearPipelineCache{false};
-    bool failOnPipelineCacheMiss{false};
-    bool enableGPUDebugMarkers{false};
-    bool captureFrame{false};
-    bool enableRobustnessFeatures{false};
-    std::filesystem::path pipelineCachePath;
-    std::filesystem::path neuralDebugDatabaseDumpDir;
-    std::filesystem::path neuralStatisticsDumpDir;
-    std::filesystem::path graphProfilingDumpDir;
-    std::filesystem::path sessionRAMsDumpDir;
-    std::filesystem::path perfCountersPath;
-    std::filesystem::path profilingPath;
-    std::vector<std::string> disabledExtensions;
-    vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode{};
-
-    bool shouldDumpNeuralDebugDatabase() const { return !neuralDebugDatabaseDumpDir.empty(); }
-    bool shouldDumpNeuralStatistics() const { return !neuralStatisticsDumpDir.empty(); }
-    bool shouldDumpGraphProfiling() const { return !graphProfilingDumpDir.empty(); }
-};
-
-class Scenario {
+class Scenario : public IScenario {
   public:
     /// \brief Constructor
     Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec);
 
     /// \brief Destructor
-    ~Scenario();
+    ~Scenario() override = default;
 
-    /// \brief Executes the test case one or more times
-    /// \param repeatCount Number of executions; must be greater than zero
-    /// \param dryRun Skip workload execution and output-resource saving
-    void run(int repeatCount = 1, bool dryRun = false);
+    /// \brief Execute the scenario one or more times.
+    void run(int repeatCount = 1, bool dryRun = false) override;
 
     /// \brief Get a buffer resource ID from its UID
-    BufferId getBufferId(std::string_view uid) const;
+    BufferId getBufferId(std::string_view uid) const override;
+
+    /// \brief Get an image resource ID from its UID
+    ImageId getImageId(std::string_view uid) const override;
 
     /// \brief Get a tensor resource ID from its UID
-    TensorId getTensorId(std::string_view uid) const;
+    TensorId getTensorId(std::string_view uid) const override;
 
     /// \brief Upload data to an existing buffer resource
-    void upload(BufferId id, const BufferDataView &data);
+    void upload(BufferId id, const BufferDataView &data) override;
+
+    /// \brief Upload data to an existing image resource
+    void upload(ImageId id, const ImageDataView &data) override;
 
     /// \brief Upload data to an existing tensor resource
-    void upload(TensorId id, const TensorDataView &data);
+    void upload(TensorId id, const TensorDataView &data) override;
 
     /// \brief Download data from an existing buffer resource
-    BufferData download(BufferId id) const;
+    BufferData download(BufferId id) const override;
+
+    /// \brief Download data from an existing image resource
+    ImageData download(ImageId id) override;
 
     /// \brief Download data from an existing tensor resource
-    TensorData download(TensorId id) const;
+    TensorData download(TensorId id) const override;
 
   private:
     void runIteration(int iteration, int repeatCount, bool dryRun);
