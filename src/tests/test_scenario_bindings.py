@@ -195,3 +195,109 @@ def test_in_memory_scenario_builder_executes_compute(sr, tmp_path, glsl_compiler
     np.testing.assert_array_equal(
         scenario.download(output_id).view(np.uint32), second_input + 1
     )
+
+
+def test_in_memory_scenario_builder_aliases_image_and_tensor(sr):
+    # Programmatic equivalent of image_from_npy_alias_to_tensor.json.
+    width, height, channels = 80, 48, 2
+    input_data = np.arange(width * height * channels, dtype=np.float16).reshape(
+        1, height, width, channels
+    )
+
+    builder = sr.ScenarioBuilder()
+
+    image_info = sr.ImageInfo()
+    image_info.debug_name = "input image"
+    image_info.shape = [1, width, height, 1]
+    image_info.format = sr.Format.R16G16Sfloat
+    image_info.is_input = True
+    image_info.is_sampled = True
+    image_info.mips = 1
+    image_id = builder.add_image(image_info)
+
+    tensor_info = sr.TensorInfo()
+    tensor_info.debug_name = "output tensor"
+    tensor_info.shape = [1, height, width, channels]
+    tensor_info.format = sr.Format.R16Uint
+    tensor_id = builder.add_tensor(tensor_info)
+
+    group_id = builder.create_memory_group()
+    builder.add_resource_to_memory_group(group_id, image_id)
+    builder.add_resource_to_memory_group(group_id, tensor_id)
+
+    scenario = builder.build()
+
+    # ImageInfo uses [N, W, H, depth]; pack two float16 channels into one image element.
+    scenario.upload(image_id, input_data.view("V4").reshape(1, width, height, 1))
+    scenario.run()
+
+    np.testing.assert_array_equal(
+        scenario.download(tensor_id).view(np.uint16), input_data.view(np.uint16)
+    )
+
+
+def test_in_memory_scenario_builder_executes_explicit_buffer_barrier(sr, sdk_tools):
+    # Programmatic equivalent of buffer_barrier.json with explicit stages.
+    compiled_shader = sdk_tools.compile_shader(
+        "test_barrier/add_one.comp", output="addOne.spv"
+    )
+
+    builder = sr.ScenarioBuilder()
+
+    shader_info = sr.ShaderInfo()
+    shader_info.debug_name = "addOne"
+    shader_info.entry = "main"
+    shader_info.src = str(compiled_shader)
+    shader_info.shader_type = sr.ShaderType.SpirV
+    shader_info.stage = sr.ShaderStage.Compute
+    shader_id = builder.add_shader(shader_info)
+
+    input_info = sr.BufferInfo()
+    input_info.debug_name = "input"
+    input_info.size = 256
+    input_id = builder.add_buffer(input_info)
+
+    intermediate_info = sr.BufferInfo()
+    intermediate_info.debug_name = "intermediate"
+    intermediate_info.size = 256
+    intermediate_id = builder.add_buffer(intermediate_info)
+
+    output_info = sr.BufferInfo()
+    output_info.debug_name = "output"
+    output_info.size = 256
+    output_id = builder.add_buffer(output_info)
+
+    barrier_info = sr.BufferBarrierInfo()
+    barrier_info.debug_name = "intermediate write-to-read"
+    barrier_info.buffer = intermediate_id
+    barrier_info.size = 256
+    barrier_info.src_access = sr.MemoryAccess.ComputeShaderWrite
+    barrier_info.dst_access = sr.MemoryAccess.ComputeShaderRead
+    barrier_info.src_stages = [sr.PipelineStage.Compute]
+    barrier_info.dst_stages = [sr.PipelineStage.Compute]
+    barrier_id = builder.add_buffer_barrier(barrier_info)
+
+    def add_one_dispatch(input_buffer, output_buffer):
+        command = sr.DispatchComputeData(shader_id)
+        command.bindings = [
+            sr.TypedBinding(0, 0, input_buffer, sr.DescriptorType.StorageBuffer),
+            sr.TypedBinding(0, 1, output_buffer, sr.DescriptorType.StorageBuffer),
+        ]
+        command.implicit_barrier = False
+        dispatch = sr.ComputeDispatch()
+        dispatch.group_count_x = 256
+        command.compute_dispatch = dispatch
+        builder.add_dispatch_compute(command)
+
+    add_one_dispatch(input_id, intermediate_id)
+    barriers = sr.DispatchBarrierData()
+    barriers.buffer_barriers = [barrier_id]
+    builder.add_dispatch_barrier(barriers)
+    add_one_dispatch(intermediate_id, output_id)
+
+    scenario = builder.build()
+    input_data = np.full(256, 42, dtype=np.uint8)
+    scenario.upload(input_id, input_data)
+    scenario.run()
+
+    np.testing.assert_array_equal(scenario.download(output_id), input_data + 2)
