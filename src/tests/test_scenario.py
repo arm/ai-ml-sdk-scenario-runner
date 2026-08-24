@@ -125,6 +125,7 @@ graph_constant_path = resources_path / "graph_constant"
         (RequiredProperty("commands"), "no_commands.json"),
         (UnexpectedProperty("not_a_real_command"), commands_path/"invalid_command.json"),
         (InvalidMutuallyExclusive(), commands_path/"mutually_exclusive_commands.json"),
+
         # dispatch_compute
         (Ok(), dispatch_compute_path/"reference.json"),
         (UnexpectedProperty("this_is_an_invalid_property"), dispatch_compute_path/"invalid_property.json"),
@@ -139,6 +140,7 @@ graph_constant_path = resources_path / "graph_constant"
         (RequiredProperty("resource_ref"), dispatch_compute_path/"binding_missing_resource_ref.json"),
         (RequiredMin(0), dispatch_compute_path/"binding_negative_id.json"),
         (RequiredMin(0), dispatch_compute_path/"binding_negative_set.json"),
+
         # dispatch_fragment
         (Ok(), dispatch_fragment_path/"reference.json"),
         (Ok(), dispatch_fragment_path/"reference_render_extent.json"),
@@ -149,21 +151,23 @@ graph_constant_path = resources_path / "graph_constant"
         (ShouldBeNonEmpty(), dispatch_fragment_path/"invalid_color_attachment_refs.json"),
         (TooShort(), dispatch_fragment_path/"invalid_render_extent.json"),
         (RequiredMin(1), dispatch_fragment_path/"invalid_render_extent_value.json"),
+
         # dispatch_graph
         (Ok(), dispatch_graph_path/"reference.json"),
         (UnexpectedProperty("this_is_an_invalid_property"), dispatch_graph_path/"invalid_property.json"),
         (RequiredProperty("bindings"), dispatch_graph_path/"missing_bindings.json"),
         (RequiredProperty("graph_ref"), dispatch_graph_path/"missing_graph_ref.json",),
+        # dispatch_graph->bindings
+        (RequiredProperty("resource_ref"),dispatch_graph_path/"binding_missing_resource_ref.json"),
+        (RequiredMin(0), dispatch_graph_path/"binding_negative_id.json"),
+        (RequiredMin(0), dispatch_graph_path/"binding_negative_set.json"),
 
         # dispatch_spirv_graph
         (Ok(), dispatch_spirv_graph_path/"reference.json"),
         (Ok(), dispatch_spirv_graph_path/"graph_constants_ok.json"),
         (InvalidType("array"), dispatch_spirv_graph_path/"graph_constants_invalid_type.json"),
         (InvalidType("string"), dispatch_spirv_graph_path/"graph_constants_items_invalid_type.json"),
-        # dispatch_graph->bindings
-        (RequiredProperty("resource_ref"),dispatch_graph_path/"binding_missing_resource_ref.json"),
-        (RequiredMin(0), dispatch_graph_path/"binding_negative_id.json"),
-        (RequiredMin(0), dispatch_graph_path/"binding_negative_set.json"),
+
         # dispatch_optical_flow
         (Ok(), dispatch_optical_flow_path/"reference.json"),
         (UnexpectedProperty("this_is_an_invalid_property"), dispatch_optical_flow_path/"invalid_property.json"),
@@ -178,6 +182,7 @@ graph_constant_path = resources_path / "graph_constant"
         (RequiredProperty("resource_ref"), dispatch_optical_flow_path/"binding_missing_resource_ref.json"),
         (RequiredMin(0), dispatch_optical_flow_path/"binding_negative_id.json"),
         (RequiredMin(0), dispatch_optical_flow_path/"binding_negative_set.json"),
+
         # dispatch_barrier
         (Ok(), dispatch_barrier_path/"reference.json"),
         (RequiredProperty("image_barrier_refs"), dispatch_barrier_path/"missing_image_barrier_refs.json"),

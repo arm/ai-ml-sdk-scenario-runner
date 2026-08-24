@@ -4,10 +4,10 @@
     "type": "object",
     "properties": {
         "commands": {
-            "$ref" : "urn:scenario:commands"
+            "$ref": "urn:scenario:commands"
          },
         "resources": {
-            "$ref" : "urn:scenario:resources"
+            "$ref": "urn:scenario:resources"
         }
     },
     "required": [

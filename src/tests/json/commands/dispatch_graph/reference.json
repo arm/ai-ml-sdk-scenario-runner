@@ -10,7 +10,7 @@
                     },
                     {
                         "id": 1,
-                        "resource_ref": "OutTensorr",
+                        "resource_ref": "OutTensor",
                         "set": 0
                     }
                 ],

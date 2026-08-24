@@ -7,20 +7,20 @@
             "$ref": "urn:scenario:bindings"
         },
         "specialization_constants" : {
-            "$ref" : "urn:scenario:specialization_constants"
+            "$ref": "urn:scenario:specialization_constants"
         },
         "mutually_exclusive_optional_src_dst": {
-            "oneOf" : [
+            "oneOf": [
                 {
-                    "required" : ["dst"]
+                    "required": ["dst"]
                 },
                 {
-                    "required" : ["src"]
+                    "required": ["src"]
                 },
                 {
-                    "allOf" : [
-                        {"not" : {"required" : ["src"]}},
-                        {"not" : {"required" : ["dst"]}}
+                    "allOf": [
+                        {"not": {"required": ["src"]}},
+                        {"not": {"required": ["dst"]}}
                     ]
                 }
             ]

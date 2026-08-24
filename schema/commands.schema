@@ -7,25 +7,25 @@
         "additionalProperties": false,
         "properties": {
             "dispatch_graph": {
-                "$ref" : "urn:scenario:command:dispatch_graph"
+                "$ref": "urn:scenario:command:dispatch_graph"
             },
             "dispatch_spirv_graph": {
-                "$ref" : "urn:scenario:command:dispatch_spirv_graph"
+                "$ref": "urn:scenario:command:dispatch_spirv_graph"
             },
             "dispatch_compute": {
-                "$ref" : "urn:scenario:command:dispatch_compute"
+                "$ref": "urn:scenario:command:dispatch_compute"
             },
             "dispatch_fragment": {
-                "$ref" : "urn:scenario:command:dispatch_fragment"
+                "$ref": "urn:scenario:command:dispatch_fragment"
             },
             "dispatch_barrier": {
                 "$ref": "urn:scenario:command:dispatch_barrier"
             },
             "mark_boundary": {
-                "$ref" : "urn:scenario:command:mark_boundary"
+                "$ref": "urn:scenario:command:mark_boundary"
             },
             "dispatch_optical_flow": {
-                "$ref" : "urn:scenario:command:dispatch_optical_flow"
+                "$ref": "urn:scenario:command:dispatch_optical_flow"
             }
         },
         "oneOf": [
