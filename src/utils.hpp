@@ -90,6 +90,13 @@ uint32_t findMemoryIdx(const Context &ctx, uint32_t memTypeBits, vk::MemoryPrope
  */
 std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo);
 
+/** Throw an error that identifies the shader and preserves its compiler diagnostics.
+ *
+ * @param[in] shaderName Name of the shader that failed to compile.
+ * @param[in] compilerLog Diagnostics returned by the shader compiler.
+ */
+[[noreturn]] void throwShaderCompilationError(const std::string &shaderName, const std::string &compilerLog);
+
 /** Get lowercase file extension for a given path (including leading dot).
  *
  * @param[in] path Path string to get the extension from

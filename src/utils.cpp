@@ -307,7 +307,7 @@ std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo) {
         auto spirv =
             GlslCompiler::get().compile(content, shaderInfo.stage, shaderInfo.buildOpts, shaderInfo.includeDirs);
         if (!spirv.first.empty()) {
-            throw std::runtime_error("Compilation error\n" + spirv.first);
+            throwShaderCompilationError(shaderInfo.debugName, spirv.first);
         }
         return spirv.second;
     }
@@ -322,7 +322,7 @@ std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo) {
         auto spirv = HlslCompiler::get().compile(content, shaderInfo.entry, shaderInfo.debugName, shaderInfo.buildOpts,
                                                  shaderInfo.includeDirs);
         if (!spirv.first.empty()) {
-            throw std::runtime_error("Compilation error\n" + spirv.first);
+            throwShaderCompilationError(shaderInfo.debugName, spirv.first);
         }
         return spirv.second;
 #else
@@ -332,6 +332,10 @@ std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo) {
     default:
         throw std::runtime_error("Unknown shader type");
     }
+}
+
+void throwShaderCompilationError(const std::string &shaderName, const std::string &compilerLog) {
+    throw std::runtime_error("Compilation error for shader " + shaderName + ": " + compilerLog);
 }
 
 void SPIRVMessageConsumer(spv_message_level_t level, const char *, const spv_position_t &position,
