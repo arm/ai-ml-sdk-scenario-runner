@@ -29,6 +29,8 @@
 
 ### Bug Fixes
 
+- Fixed relative shader include directories being resolved from the process
+  working directory instead of the scenario file's directory.
 - Fixed pipeline-cache miss handling for all pipeline types by checking pipeline
   creation feedback as well as compile-required results. Data graph pipelines
   now use the required zero per-stage feedback entries.

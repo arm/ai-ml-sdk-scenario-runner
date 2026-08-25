@@ -39,6 +39,12 @@ void ScenarioSpec::addResource(std::unique_ptr<ResourceDesc> resource) {
             std::cout << "Source file does not exist: " + resource->src.value() << "\n";
         }
     }
+    if (resource->resourceType == ResourceType::Shader) {
+        auto &shader = static_cast<ShaderDesc &>(*resource);
+        for (auto &includeDir : shader.includeDirs) {
+            includeDir = (_workDir / std::filesystem::path(includeDir)).string();
+        }
+    }
     if (resource->dst.has_value()) {
         auto resolvedPath = _outputDir / std::filesystem::path(resource->dst.value());
         resource->dst = resolvedPath.string();
