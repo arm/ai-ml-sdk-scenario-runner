@@ -13,6 +13,7 @@
   shader capabilities.
 - Enabled building and installing Scenario Runner, including its native binaries,
   with `pip install .` from the repository root.
+- Improved shader compilation errors with the shader name and compiler diagnostics.
 
 ### Profiling
 

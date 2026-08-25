@@ -1548,7 +1548,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
                 const auto spirv =
                     GlslCompiler::get().compile(vgfView.getGLSLModuleCode(segmentIndex), shaderInfo.stage);
                 if (!spirv.first.empty()) {
-                    throw std::runtime_error("Compilation error\n" + spirv.first);
+                    throwShaderCompilationError(moduleName, spirv.first);
                 }
                 _compute.createPipeline(args, shaderInfo, spirv.second.data(), spirv.second.size());
             } else if (hasHLSLModule) {
@@ -1556,7 +1556,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
                 const auto spirv = HlslCompiler::get().compile(vgfView.getHLSLModuleCode(segmentIndex),
                                                                shaderInfo.entry, shaderInfo.debugName);
                 if (!spirv.first.empty()) {
-                    throw std::runtime_error("Compilation error\n" + spirv.first);
+                    throwShaderCompilationError(moduleName, spirv.first);
                 }
                 _compute.createPipeline(args, shaderInfo, spirv.second.data(), spirv.second.size());
 #else
