@@ -34,8 +34,11 @@ class Scenario : public IScenario {
     /// \brief Destructor
     ~Scenario() override = default;
 
+    /// \brief Single execution of the scenario.
+    void run() override;
+
     /// \brief Execute the scenario one or more times.
-    void run(int repeatCount = 1, bool dryRun = false) override;
+    void run(int repeatCount, bool dryRun) override;
 
     /// \brief Get a buffer resource ID from its UID
     BufferId getBufferId(std::string_view uid) const override;

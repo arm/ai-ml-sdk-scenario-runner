@@ -20,10 +20,13 @@ class IScenario {
   public:
     virtual ~IScenario() = default;
 
+    /// @brief Single execution of the scenario.
+    virtual void run() = 0;
+
     /// @brief Execute the scenario one or more times.
     /// @param repeatCount Number of executions; must be greater than zero.
     /// @param dryRun Skip workload execution and output-resource saving.
-    virtual void run(int repeatCount = 1, bool dryRun = false) = 0;
+    virtual void run(int repeatCount, bool dryRun) = 0;
 
     virtual BufferId getBufferId(std::string_view uid) const = 0;
     virtual ImageId getImageId(std::string_view uid) const = 0;
