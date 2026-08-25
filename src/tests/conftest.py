@@ -10,6 +10,7 @@ import platform
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import numpy as np
 import pytest
@@ -488,6 +489,13 @@ def pytest_addoption(parser) -> None:
         required=False,
         help="Specifies if sanitizers are enabled",
     )
+
+
+@pytest.fixture(scope="module")
+def sr(request: pytest.FixtureRequest) -> ModuleType:
+    if request.config.getoption("--sanitizers"):
+        pytest.skip("incompatible with --sanitizers")
+    return pytest.importorskip("scenario_runner_py")
 
 
 @pytest.fixture
