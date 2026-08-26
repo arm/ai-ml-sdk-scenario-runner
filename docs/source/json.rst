@@ -290,7 +290,7 @@ Runtime.
       type: enum = (GLSL | SPIR-V | HLSL), // Type of shader source to expect
       stage: enum(default=compute) = (compute | vertex | fragment), // shader stage
       build_options:string(default=""), // Build options to be used when compiling a GLSL or HLSL shader source
-      include_dirs:[string](default=[]), // Shaders include directories
+      include_dirs:[string](default=[]), // shader include directories
       push_constants_size:int(default=0), // Size in bytes of the push constants used by the shader. Must be a multiple of 4
       specialization_constants: [class specialization_constant](default=), // n-dimension array
   }
@@ -298,6 +298,10 @@ Runtime.
 If ``stage`` is omitted, the shader is treated as a compute shader. Use
 ``vertex`` and ``fragment`` for shader resources referenced by
 ``dispatch_fragment``.
+
+Relative paths in ``src`` and ``include_dirs`` are resolved against the parent
+directory of the input scenario JSON file. Absolute paths are used without
+modification.
 
 .. code-block::
 

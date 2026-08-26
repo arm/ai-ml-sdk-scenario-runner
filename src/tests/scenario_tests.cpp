@@ -73,6 +73,30 @@ TEST(IScenarioBuilder, BuildsScenarioWithRetainedTypedHandles) {
     EXPECT_THROW(builder->build(ScenarioOptions{}), std::runtime_error);
 }
 
+TEST(ScenarioSpec, ResolvesShaderIncludeDirectoriesFromScenarioDirectory) {
+    constexpr std::string_view json = R"(
+        {
+            "commands": [],
+            "resources": [
+                {
+                    "shader": {
+                        "uid": "shader",
+                        "src": "shader.comp",
+                        "type": "GLSL",
+                        "include_dirs": ["includes", "/shared/includes"]
+                    }
+                }
+            ]
+        }
+    )";
+
+    const std::filesystem::path workDir{"/scenario"};
+    ScenarioSpec spec{std::string{json}, workDir};
+    const auto &shader = static_cast<const ShaderDesc &>(*spec.resources.front());
+
+    EXPECT_EQ(shader.includeDirs, (std::vector<std::string>{(workDir / "includes").string(), "/shared/includes"}));
+}
+
 TEST(IScenario, ScenarioSupportsVirtualDispatch) {
     ScenarioSpec spec{scenarioJson};
     spec.useComputeFamilyQueue = true;
