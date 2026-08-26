@@ -36,6 +36,7 @@
   subresource offsets.
 - Fixed VGF image shape handling for custom shaders, preventing swapped image
   extents and invalid depth values.
+- Enable Vulkan robustness features only when `--enable-robustness-features` is set.
 
 ## Version 0.10.0 – *Optical Flow, VGF Runtime & APK Packaging*
 

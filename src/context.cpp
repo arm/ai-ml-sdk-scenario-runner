@@ -230,6 +230,11 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         throw std::runtime_error("Graphics scenarios require Vulkan dynamicRendering support");
     }
 
+    const bool enableRobustness2 = scenarioOptions.enableRobustnessFeatures && _optionals.robustness2;
+    const bool enableDescriptorIndexing = scenarioOptions.enableRobustnessFeatures && _optionals.descriptor_indexing &&
+                                          available12Features.descriptorIndexing;
+    const bool enablePipelineRobustness = scenarioOptions.enableRobustnessFeatures && _optionals.pipeline_robustness;
+
     vk::PhysicalDeviceVulkan11Features physicalDev11Feat;
     physicalDev11Feat.storageBuffer16BitAccess = available11Features.storageBuffer16BitAccess;
     physicalDev11Feat.uniformAndStorageBuffer16BitAccess = available11Features.uniformAndStorageBuffer16BitAccess;
@@ -244,6 +249,9 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     physicalDev2Feat.shaderFloat16 = available12Features.shaderFloat16;
     physicalDev2Feat.vulkanMemoryModel = true;
     physicalDev2Feat.vulkanMemoryModelDeviceScope = available12Features.vulkanMemoryModelDeviceScope;
+    if (enableDescriptorIndexing) {
+        physicalDev2Feat.descriptorIndexing = true;
+    }
     physicalDev2Feat.pNext = &physicalDev11Feat;
 
     vk::PhysicalDeviceVulkan13Features physicalDev3Feat;
@@ -297,7 +305,7 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     }
 
     vk::PhysicalDeviceRobustness2FeaturesKHR robustness2Feat{};
-    if (scenarioOptions.enableRobustnessFeatures && _optionals.robustness2) {
+    if (enableRobustness2) {
         robustness2Feat.robustBufferAccess2 = availableRobustness2.robustBufferAccess2;
         robustness2Feat.robustImageAccess2 = availableRobustness2.robustImageAccess2;
         robustness2Feat.nullDescriptor = availableRobustness2.nullDescriptor;
@@ -305,12 +313,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         featureChain = &robustness2Feat;
     }
 
-    if (_optionals.descriptor_indexing) {
-        physicalDev2Feat.descriptorIndexing = available12Features.descriptorIndexing;
-    }
-
     vk::PhysicalDevicePipelineRobustnessFeatures pipelineRobustnessFeat{};
-    if (scenarioOptions.enableRobustnessFeatures && _optionals.pipeline_robustness) {
+    if (enablePipelineRobustness) {
         pipelineRobustnessFeat.pipelineRobustness = availablePipelineRobustness.pipelineRobustness;
         pipelineRobustnessFeat.pNext = featureChain;
         featureChain = &pipelineRobustnessFeat;
@@ -354,13 +358,13 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     if (_optionals.optical_flow) {
         vulkanDeviceExtensions.push_back(VK_ARM_DATA_GRAPH_OPTICAL_FLOW_EXTENSION_NAME);
     }
-    if (_optionals.robustness2) {
+    if (enableRobustness2) {
         vulkanDeviceExtensions.push_back(VK_KHR_ROBUSTNESS_2_EXTENSION_NAME);
     }
-    if (_optionals.descriptor_indexing) {
+    if (enableDescriptorIndexing) {
         vulkanDeviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
     }
-    if (_optionals.pipeline_robustness) {
+    if (enablePipelineRobustness) {
         vulkanDeviceExtensions.push_back(VK_EXT_PIPELINE_ROBUSTNESS_EXTENSION_NAME);
     }
     if (_optionals.portability_subset) {
