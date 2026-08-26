@@ -18,6 +18,7 @@ Checks: >
     cppcoreguidelines-rvalue-reference-param-not-moved,
     cppcoreguidelines-virtual-class-destructor,
     google-build-namespaces,
+    google-default-arguments,
     misc-definitions-in-headers,
     misc-static-assert,
     misc-unused-*,

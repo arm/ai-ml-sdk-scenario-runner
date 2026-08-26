@@ -789,6 +789,8 @@ const ShaderInfo &Scenario::getSubstitutionShader(const std::vector<ResolvedShad
     throw std::runtime_error("Could not perform shader substitution");
 }
 
+void Scenario::run() { run(1, false); }
+
 void Scenario::run(int repeatCount, bool dryRun) {
     if (repeatCount <= 0) {
         throw std::invalid_argument("Scenario repeat count must be greater than zero; received " +

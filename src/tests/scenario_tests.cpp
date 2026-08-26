@@ -136,7 +136,7 @@ TEST(ScenarioInMemoryTransfer, RejectsNonPositiveRepeatCount) {
     auto scenario = buildScenario(spec);
 
     try {
-        scenario->run(0);
+        scenario->run(0, false);
         FAIL() << "Expected std::invalid_argument";
     } catch (const std::invalid_argument &error) {
         EXPECT_STREQ(error.what(), "Scenario repeat count must be greater than zero; received 0.");
