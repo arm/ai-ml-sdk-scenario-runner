@@ -5,11 +5,14 @@
 
 #include "data_manager.hpp"
 #include "image.hpp"
+#include "iscenario_builder.hpp"
 #include "resource_data.hpp"
-#include "scenario.hpp"
+#include "scenario_builder.hpp"
+#include "scenario_desc.hpp"
 #include "scenario_options.hpp"
 #include "utils.hpp"
 
+#include <memory>
 #include <numeric>
 #include <vector>
 
@@ -71,15 +74,15 @@ TEST(IScenario, ScenarioSupportsImageTransfers) {
     )";
     ScenarioSpec spec{scenarioJson};
     spec.useComputeFamilyQueue = true;
-    Scenario scenario{ScenarioOptions{}, spec};
-    IScenario &api = scenario;
-    const auto imageId = api.getImageId("inImage");
+    std::unique_ptr<IScenarioBuilder> builder = std::make_unique<ScenarioBuilder>();
+    auto api = builder->build(ScenarioOptions{}, spec);
+    const auto imageId = api->getImageId("inImage");
     const std::vector<char> payload{1, 2, 3, 4};
 
-    api.upload(imageId, {payload.data(), payload.size(), {1, 2, 2, 1}, vk::Format::eR8Uint});
-    api.run();
+    api->upload(imageId, {payload.data(), payload.size(), {1, 2, 2, 1}, vk::Format::eR8Uint});
+    api->run();
 
-    EXPECT_EQ(api.download(imageId).data, payload);
+    EXPECT_EQ(api->download(imageId).data, payload);
 }
 
 TEST(ImageInMemoryTransfer, UploadValidatesMetadataAndSize) {

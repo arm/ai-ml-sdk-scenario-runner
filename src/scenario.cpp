@@ -654,6 +654,15 @@ auto getFamilyQueue(const ScenarioSpec &spec) {
     }
     return FamilyQueue::DataGraph;
 }
+FamilyQueue getFamilyQueue(const detail::ScenarioBuildData &buildData) {
+    if (buildData.requiresGraphicsFamilyQueue) {
+        return FamilyQueue::Graphics;
+    }
+    if (buildData.useComputeFamilyQueue) {
+        return FamilyQueue::Compute;
+    }
+    return FamilyQueue::DataGraph;
+}
 
 // Map performance level to Vulkan enum
 auto getOpticalFlowPerformanceLevel(OpticalFlowPerformanceLevel performanceLevel) {
@@ -696,9 +705,16 @@ void verifyOpticalFlowData(const DataManager &dataManager, const DispatchOptical
 
 } // namespace
 
-Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec)
-    : _opts{opts}, _ctx{opts, getFamilyQueue(scenarioSpec)}, _scenarioSpec(scenarioSpec), _compute(_ctx) {
-    buildJsonScenarioData(scenarioSpec);
+Scenario::Scenario(const ScenarioOptions &opts, ScenarioSpec &scenarioSpec, ScenarioBuilder &builder)
+    : _opts{opts}, _ctx{opts, getFamilyQueue(scenarioSpec)}, _scenarioSpec{&scenarioSpec}, _compute(_ctx) {
+    buildJsonScenarioData(builder, scenarioSpec);
+    setupResources();
+    setupRuntimeCommands();
+}
+
+Scenario::Scenario(const ScenarioOptions &opts, detail::ScenarioBuildData buildData)
+    : _opts{opts}, _ctx{opts, getFamilyQueue(buildData)}, _resources{std::move(buildData.resources)},
+      _commands{std::move(buildData.commands)}, _compute(_ctx), _groupManager{std::move(buildData.groupManager)} {
     setupResources();
     setupRuntimeCommands();
 }
@@ -947,9 +963,8 @@ void registerJsonBarrierInfo(ScenarioBuilder &builder, const ScenarioSpec &scena
 }
 } // namespace
 
-void Scenario::buildJsonScenarioData(const ScenarioSpec &scenarioSpec) {
+void Scenario::buildJsonScenarioData(ScenarioBuilder &builder, const ScenarioSpec &scenarioSpec) {
     mlsdk::logging::info("Setup resources, count: " + std::to_string(scenarioSpec.resources.size()));
-    ScenarioBuilder builder;
     ResourceInfoFactory resourceInfoFactory;
     std::unordered_map<Guid, MemoryGroupId> jsonMemoryGroupIds;
     std::unordered_map<Guid, TypedResourceId> resourceIds;
@@ -1034,13 +1049,15 @@ void Scenario::setupResources() {
         _dataManager.getBufferMut(entry.id).allocateMemory(_ctx);
     }
 
-    loadJsonResourceData();
+    if (_scenarioSpec != nullptr) {
+        loadJsonResourceData();
+    }
 }
 
 void Scenario::loadJsonResourceData() {
     // Preserve description-based CLI initialization by routing it through the
     // same typed Scenario upload API used by in-memory clients.
-    for (const auto &resource : _scenarioSpec.resources) {
+    for (const auto &resource : _scenarioSpec->resources) {
         switch (resource->resourceType) {
         case ResourceType::Tensor: {
             const auto &tensor = reinterpret_cast<const std::unique_ptr<TensorDesc> &>(resource);
@@ -1577,27 +1594,29 @@ void Scenario::saveResults(bool dryRun) {
     // Save resources that have an output destination
     {
         PerfCounterGuard guard(_perfCounters, "Save Resources", "Save Results", false);
-        for (const auto &resourceDesc : _scenarioSpec.resources) {
-            const auto &dst = resourceDesc->getDestination();
-            if (dst.has_value()) {
-                switch (resourceDesc->resourceType) {
-                case ResourceType::Buffer:
-                    _dataManager.getBuffer(resolveResourceId<BufferId>(_resourceIds, resourceDesc->guid, "Buffer"))
-                        .store(_ctx, dst.value());
-                    break;
-                case ResourceType::Tensor:
-                    _dataManager.getTensor(resolveResourceId<TensorId>(_resourceIds, resourceDesc->guid, "Tensor"))
-                        .store(_ctx, dst.value());
-                    break;
-                case ResourceType::Image:
-                    _dataManager.getImageMut(resolveResourceId<ImageId>(_resourceIds, resourceDesc->guid, "Image"))
-                        .store(_ctx, dst.value());
-                    break;
-                default:
-                    throw std::runtime_error("Output destination is not supported for " + resourceType(resourceDesc) +
-                                             " resource " + resourceDesc->guidStr);
+        if (_scenarioSpec != nullptr) {
+            for (const auto &resourceDesc : _scenarioSpec->resources) {
+                const auto &dst = resourceDesc->getDestination();
+                if (dst.has_value()) {
+                    switch (resourceDesc->resourceType) {
+                    case ResourceType::Buffer:
+                        _dataManager.getBuffer(resolveResourceId<BufferId>(_resourceIds, resourceDesc->guid, "Buffer"))
+                            .store(_ctx, dst.value());
+                        break;
+                    case ResourceType::Tensor:
+                        _dataManager.getTensor(resolveResourceId<TensorId>(_resourceIds, resourceDesc->guid, "Tensor"))
+                            .store(_ctx, dst.value());
+                        break;
+                    case ResourceType::Image:
+                        _dataManager.getImageMut(resolveResourceId<ImageId>(_resourceIds, resourceDesc->guid, "Image"))
+                            .store(_ctx, dst.value());
+                        break;
+                    default:
+                        throw std::runtime_error("Output destination is not supported for " +
+                                                 resourceType(resourceDesc) + " resource " + resourceDesc->guidStr);
+                    }
+                    mlsdk::logging::debug(resourceType(resourceDesc) + " " + resourceDesc->guidStr + " output stored");
                 }
-                mlsdk::logging::debug(resourceType(resourceDesc) + " " + resourceDesc->guidStr + " output stored");
             }
         }
     }
