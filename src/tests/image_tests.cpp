@@ -11,6 +11,7 @@
 #include "scenario_options.hpp"
 #include "utils.hpp"
 
+#include <algorithm>
 #include <numeric>
 #include <vector>
 
@@ -74,7 +75,7 @@ TEST(IScenario, ScenarioSupportsImageTransfers) {
     spec.useComputeFamilyQueue = true;
     auto api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
     const auto imageId = api->getImageId("inImage");
-    const std::vector<char> payload{1, 2, 3, 4};
+    const std::vector<std::byte> payload{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
 
     api->upload(imageId, {payload.data(), payload.size(), {1, 2, 2, 1}, vk::Format::eR8Uint});
     api->run();
@@ -91,7 +92,7 @@ TEST(ImageInMemoryTransfer, UploadValidatesMetadataAndSize) {
     const vk::Format format = vk::Format::eR8Uint;
 
     auto &image = prepareImage(ctx, dataManager, imageId, shape, format);
-    std::vector<char> payload(packedImageDataSize(shape, format), 0x3c);
+    std::vector<std::byte> payload(packedImageDataSize(shape, format), std::byte{0x3c});
 
     EXPECT_THROW(image.upload(ctx, {payload.data(), payload.size(), {1, 2, 2, 1}, format}), std::runtime_error);
     EXPECT_THROW(image.upload(ctx, {payload.data(), payload.size(), shape, vk::Format::eR16Uint}), std::runtime_error);
@@ -109,8 +110,9 @@ TEST(ImageInMemoryTransfer, CanUploadAndDownloadRepeatedly) {
     const vk::Format format = vk::Format::eR8Uint;
 
     auto &image = prepareImage(ctx, dataManager, imageId, shape, format);
-    std::vector<char> firstPayload(packedImageDataSize(shape, format));
-    std::iota(firstPayload.begin(), firstPayload.end(), static_cast<char>(1));
+    std::vector<std::byte> firstPayload(packedImageDataSize(shape, format));
+    uint8_t value = 1;
+    std::generate(firstPayload.begin(), firstPayload.end(), [&value] { return std::byte{value++}; });
 
     image.transitionLayout(ctx, vk::ImageLayout::eShaderReadOnlyOptimal);
     ASSERT_NO_THROW(image.upload(ctx, {firstPayload.data(), firstPayload.size(), shape, format}));
@@ -125,8 +127,9 @@ TEST(ImageInMemoryTransfer, CanUploadAndDownloadRepeatedly) {
     ASSERT_TRUE(firstDownload.format.has_value());
     EXPECT_EQ(firstDownload.format.value(), format);
 
-    std::vector<char> secondPayload(packedImageDataSize(shape, format));
-    std::iota(secondPayload.rbegin(), secondPayload.rend(), static_cast<char>(10));
+    std::vector<std::byte> secondPayload(packedImageDataSize(shape, format));
+    uint8_t secondValue = 10;
+    std::generate(secondPayload.rbegin(), secondPayload.rend(), [&secondValue] { return std::byte{secondValue++}; });
 
     ASSERT_NO_THROW(image.upload(ctx, {secondPayload.data(), secondPayload.size(), shape, std::nullopt}));
     const auto secondDownload = image.download(ctx);
@@ -147,8 +150,9 @@ TEST(ImageInMemoryTransfer, CanUploadCompleteMipChainAndDownloadBaseMip) {
     constexpr uint32_t mipLevels = 3;
 
     auto &image = prepareImage(ctx, dataManager, imageId, shape, format, mipLevels);
-    std::vector<char> payload(packedImageDataSize(shape, format, mipLevels));
-    std::iota(payload.begin(), payload.end(), static_cast<char>(1));
+    std::vector<std::byte> payload(packedImageDataSize(shape, format, mipLevels));
+    uint8_t value = 1;
+    std::generate(payload.begin(), payload.end(), [&value] { return std::byte{value++}; });
 
     ASSERT_NO_THROW(image.upload(ctx, {payload.data(), payload.size(), shape, format, mipLevels}));
     const auto download = image.download(ctx);

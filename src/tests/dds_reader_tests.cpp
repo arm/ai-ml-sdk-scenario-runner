@@ -88,7 +88,8 @@ TEST(DdsReader, SaveDataToDDS) {
     const uint32_t mipLevels = 1;
     const uint32_t elementSize = 4;
 
-    const auto data = std::vector<char>(static_cast<size_t>(width) * static_cast<size_t>(height) * elementSize, 0);
+    const auto data =
+        std::vector<std::byte>(static_cast<size_t>(width) * static_cast<size_t>(height) * elementSize, std::byte{0});
     ImageSaveOptions options{{1, height, width, 4}, vk::Format::eR8G8B8A8Unorm, data};
 
     saveDataToDDS(filePath.string(), options);

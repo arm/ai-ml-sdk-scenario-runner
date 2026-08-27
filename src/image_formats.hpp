@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <cstddef>
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -34,7 +36,7 @@ struct ImageSaveOptions {
     /// vk::Format of source image data.
     vk::Format dataType{vk::Format::eUndefined};
     /// Pixel data to save.
-    const std::vector<char> &data;
+    const std::vector<std::byte> &data;
 };
 
 struct ImageLoadResult {
@@ -48,7 +50,7 @@ struct ImageLoadResult {
     /// Image height in pixels
     uint32_t height{0};
     /// Pixel data from file
-    std::vector<uint8_t> data;
+    std::vector<std::byte> data;
     /// Number of mip levels (only populated if relevant for data format)
     uint32_t mipLevels{1};
 };

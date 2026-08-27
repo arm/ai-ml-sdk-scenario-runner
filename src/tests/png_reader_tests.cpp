@@ -70,7 +70,8 @@ TEST(PngReader, SaveDataToPNG) {
     const uint32_t width = 4;
     const uint32_t height = 4;
 
-    const auto data = std::vector<char>(static_cast<size_t>(width) * static_cast<size_t>(height) * 4, 0x7f);
+    const auto data =
+        std::vector<std::byte>(static_cast<size_t>(width) * static_cast<size_t>(height) * 4, std::byte{0x7f});
     ImageSaveOptions options{{1, height, width, 4}, vk::Format::eR8G8B8A8Unorm, data};
 
     saveDataToPNG(filePath.string(), options);

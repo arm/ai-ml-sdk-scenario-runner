@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <cstddef>
+
 #include "context.hpp"
 #include "resource_data.hpp"
 #include "types.hpp"
@@ -76,7 +78,7 @@ class Image {
     uint64_t baseDataSize() const;
     uint64_t mipChainDataSize(uint32_t mipLevels) const;
     void uploadData(const Context &ctx, const void *data, size_t size, uint32_t mipLevels);
-    std::vector<char> getImageData(const Context &ctx);
+    std::vector<std::byte> getImageData(const Context &ctx);
     uint32_t getFormatMaxMipLevels(const Context &ctx, vk::ImageTiling tiling, vk::ImageUsageFlags usageFlags);
 
     vk::raii::Image _image{nullptr};

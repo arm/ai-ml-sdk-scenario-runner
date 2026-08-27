@@ -43,7 +43,7 @@ struct ImageDataView {
 };
 
 struct ImageData {
-    std::vector<char> data;
+    std::vector<std::byte> data;
     std::vector<int64_t> shape;
     std::optional<vk::Format> format{std::nullopt};
     uint32_t mipLevels{1};
