@@ -11,6 +11,7 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -83,7 +84,8 @@ ImageLoadResult loadDataFromPNG(const std::string &filename, const ImageLoadOpti
     const size_t expectedSize = checkedSize(width, height);
     ImageLoadResult result(vk::Format::eR8G8B8A8Unorm, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
     const auto *decodedData = static_cast<const stbi_uc *>(decoded.get());
-    result.data.assign(decodedData, decodedData + expectedSize);
+    result.data.resize(expectedSize);
+    std::memcpy(result.data.data(), decodedData, expectedSize);
     return result;
 }
 

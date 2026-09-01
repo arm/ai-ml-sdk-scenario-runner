@@ -411,7 +411,7 @@ void saveDataToDDS(const std::string &filename, const ImageSaveOptions &options)
 
     DDSHeaderInfo header = generateDDSHeader(options);
     saveHeaderToDDS(header, fstream);
-    fstream.write(options.data.data(), std::streamsize(options.data.size()));
+    fstream.write(reinterpret_cast<const char *>(options.data.data()), std::streamsize(options.data.size()));
     fstream.close();
 }
 

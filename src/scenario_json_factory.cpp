@@ -101,7 +101,7 @@ ImageData loadImageData(const ImageDesc &desc, const ImageInfo &info) {
     const auto baseDataSize =
         static_cast<size_t>(elementSizeFromVkFormat(dataType) * totalElementsFromShape(info.shape));
 
-    std::vector<uint8_t> data;
+    std::vector<std::byte> data;
     vk::Format fileFormat = vk::Format::eUndefined;
     uint32_t mipLevels = 1;
     if (desc.src.has_value()) {
@@ -110,17 +110,17 @@ ImageData loadImageData(const ImageDesc &desc, const ImageInfo &info) {
         fileFormat = result.initialFormat;
         mipLevels = result.mipLevels;
     } else {
-        data.resize(baseDataSize, 0);
+        data.resize(baseDataSize, std::byte{0});
     }
 
     if ((dataType == vk::Format::eR32Sfloat || dataType == vk::Format::eD32Sfloat) &&
         fileFormat == vk::Format::eD32SfloatS8Uint) {
-        std::vector<uint8_t> depthData(baseDataSize);
+        std::vector<std::byte> depthData(baseDataSize);
         bool hasStencilData = false;
         for (uint64_t i = 0; i < totalElementsFromShape(info.shape); ++i) {
             const auto depthStencilIndex = i * elementSizeFromVkFormat(fileFormat);
             const auto depthIndex = i * elementSizeFromVkFormat(dataType);
-            if (data[depthStencilIndex + 4] != 0) {
+            if (data[depthStencilIndex + 4] != std::byte{0}) {
                 hasStencilData = true;
             }
             std::memcpy(depthData.data() + depthIndex, data.data() + depthStencilIndex,
@@ -133,8 +133,7 @@ ImageData loadImageData(const ImageDesc &desc, const ImageInfo &info) {
     }
 
     ImageData imageData;
-    imageData.data.resize(data.size());
-    std::memcpy(imageData.data.data(), data.data(), data.size());
+    imageData.data = std::move(data);
     imageData.shape = info.shape;
     imageData.format = dataType;
     imageData.mipLevels = mipLevels;

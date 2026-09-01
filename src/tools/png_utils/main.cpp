@@ -22,7 +22,7 @@ namespace {
 void generatePNGFile(uint32_t height, uint32_t width, const std::string &output) {
     // Trust underlying function for validating dimensions and size.
     const auto dataSize = static_cast<size_t>(static_cast<uint64_t>(width) * height * 4);
-    const std::vector<char> data(dataSize, 0);
+    const std::vector<std::byte> data(dataSize, std::byte{0});
     const std::vector<int64_t> shape = {1, height, width, 4};
     ImageSaveOptions options{shape, vk::Format::eR8G8B8A8Unorm, data};
     saveDataToPNG(output, options);

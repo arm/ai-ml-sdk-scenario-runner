@@ -640,7 +640,7 @@ ImageData Image::download(const Context &ctx) {
     return imageData;
 }
 
-std::vector<char> Image::getImageData(const Context &ctx) {
+std::vector<std::byte> Image::getImageData(const Context &ctx) {
     const auto originalLayout = _targetLayout;
     if (_targetLayout != vk::ImageLayout::eGeneral) {
         transitionLayout(ctx, vk::ImageLayout::eGeneral);
@@ -681,7 +681,7 @@ std::vector<char> Image::getImageData(const Context &ctx) {
         throw std::runtime_error("Error while waiting for fence.");
     }
 
-    std::vector<char> data(baseDataSize());
+    std::vector<std::byte> data(baseDataSize());
     const void *pBufferDeviceMemory = _memoryManager->mapStagingBufferMemory(0, data.size());
     std::memcpy(data.data(), pBufferDeviceMemory, data.size());
     _memoryManager->unmapStagingBufferMemory();
