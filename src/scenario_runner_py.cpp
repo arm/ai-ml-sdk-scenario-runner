@@ -8,5 +8,9 @@
 namespace py = pybind11;
 
 extern void pyInitIScenario(py::module_ &m);
+extern void pyInitIScenarioBuilder(py::module_ &m);
 
-PYBIND11_MODULE(scenario_runner_py, m) { pyInitIScenario(m); }
+PYBIND11_MODULE(scenario_runner_py, m) {
+    pyInitIScenario(m);
+    pyInitIScenarioBuilder(m);
+}
