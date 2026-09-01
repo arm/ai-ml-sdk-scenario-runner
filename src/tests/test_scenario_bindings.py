@@ -2,6 +2,8 @@
 # SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
+import json
+
 import numpy as np
 import pytest
 
@@ -42,6 +44,93 @@ def test_numpy_image_upload_supports_single_mip():
 
     with pytest.raises(TypeError):
         scenario.upload(image_id, image, mip_levels=2)
+
+
+def test_scenario_supports_repeated_numpy_transfers(tmp_path):
+    scenario_path = tmp_path / "scenario.json"
+    scenario_path.write_text(
+        json.dumps(
+            {
+                "commands": [],
+                "resources": [
+                    {
+                        "buffer": {
+                            "uid": "buffer",
+                            "size": 4,
+                            "shader_access": "readwrite",
+                        }
+                    },
+                    {
+                        "tensor": {
+                            "uid": "tensor",
+                            "dims": [1, 2, 2, 1],
+                            "format": "VK_FORMAT_R8_SINT",
+                            "shader_access": "readwrite",
+                        }
+                    },
+                    {
+                        "image": {
+                            "uid": "image",
+                            "dims": [1, 2, 2, 1],
+                            "format": "VK_FORMAT_R8_UINT",
+                            "shader_access": "readwrite",
+                            "mips": 1,
+                        }
+                    },
+                ],
+            }
+        )
+    )
+
+    scenario = sr.ScenarioJsonFactory.make(scenario_path)
+    buffer_id = scenario.get_buffer_id("buffer")
+    tensor_id = scenario.get_tensor_id("tensor")
+    image_id = scenario.get_image_id("image")
+
+    first = np.array([1, 2, 3, 4], dtype=np.uint8)
+    tensor = np.array([1, 2, 3, 4], dtype=np.int8).reshape(1, 2, 2, 1)
+    image = np.array([5, 6, 7, 8], dtype=np.uint8).reshape(1, 2, 2, 1)
+    scenario.upload(buffer_id, first)
+    scenario.upload(tensor_id, tensor)
+    scenario.upload(image_id, image)
+    scenario.run()
+    np.testing.assert_array_equal(scenario.download(buffer_id), first)
+    np.testing.assert_array_equal(scenario.download(tensor_id), tensor)
+    np.testing.assert_array_equal(scenario.download(image_id), image)
+
+    second = np.array([5, 6, 7, 8], dtype=np.uint8)
+    scenario.upload(buffer_id, second)
+    scenario.run()
+    np.testing.assert_array_equal(scenario.download(buffer_id), second)
+
+    non_contiguous = np.arange(8, dtype=np.uint8)[::2]
+    with np.testing.assert_raises_regex(ValueError, "C-contiguous"):
+        scenario.upload(buffer_id, non_contiguous)
+
+
+def test_scenario_json_factory_builds_interface(tmp_path):
+    scenario_path = tmp_path / "scenario.json"
+    scenario_path.write_text(
+        json.dumps(
+            {
+                "commands": [],
+                "resources": [
+                    {
+                        "buffer": {
+                            "uid": "buffer",
+                            "size": 4,
+                            "shader_access": "readwrite",
+                        }
+                    }
+                ],
+            }
+        )
+    )
+    options = sr.ScenarioOptions()
+
+    scenario = sr.ScenarioJsonFactory.make(scenario_path, options=options)
+
+    assert isinstance(scenario, sr.IScenario)
 
 
 def test_in_memory_scenario_builder_executes_compute(tmp_path, glsl_compiler):
