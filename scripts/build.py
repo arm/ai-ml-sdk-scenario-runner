@@ -47,6 +47,7 @@ class Builder:
         self.test_dir = pathlib.Path(self.build_dir) / "src" / "tests"
         self.threads = args.threads
         self.run_tests = args.test
+        self.build_pylib = args.build_pylib
         self.build_type = args.build_type
         self.target_platform = args.target_platform
         self.cmake_toolchain_for_android = args.cmake_toolchain_for_android
@@ -236,7 +237,10 @@ class Builder:
         if self.run_tests:
             cmake_setup_cmd.append("-DSCENARIO_RUNNER_BUILD_TESTS=ON")
             cmake_setup_cmd.append(f"-DGTEST_PATH={self.gtest_path}")
+
+        if self.build_pylib or self.run_tests:
             cmake_setup_cmd.append(f"-DPYBIND11_PATH={self.pybind11_path}")
+            cmake_setup_cmd.append("-DSCENARIO_RUNNER_BUILD_PYLIB=ON")
 
         if self.doc:
             cmake_setup_cmd.append("-DSCENARIO_RUNNER_BUILD_DOCS=ON")
@@ -588,6 +592,12 @@ def parse_arguments(argv=None):
         "-t",
         "--test",
         help="Run unit tests after build. Default: %(default)s",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--build-pylib",
+        help="Build Scenario Runner Python bindings. Default: %(default)s",
         action="store_true",
         default=False,
     )
