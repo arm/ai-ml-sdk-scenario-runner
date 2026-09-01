@@ -9,6 +9,7 @@
 #include "scenario.hpp"
 #include "scenario_builder.hpp"
 #include "scenario_desc.hpp"
+#include "scenario_json_factory.hpp"
 #include "scenario_options.hpp"
 #include "shader_stage.hpp"
 
@@ -54,10 +55,6 @@ template <typename T> std::vector<char> asBytes(const std::vector<T> &values) {
     return bytes;
 }
 
-std::unique_ptr<IScenario> buildScenario(ScenarioSpec &spec) {
-    std::unique_ptr<IScenarioBuilder> builder = std::make_unique<ScenarioBuilder>();
-    return builder->build(ScenarioOptions{}, spec);
-}
 } // namespace
 
 TEST(IScenarioBuilder, BuildsScenarioWithRetainedTypedHandles) {
@@ -100,8 +97,7 @@ TEST(ScenarioSpec, ResolvesShaderIncludeDirectoriesFromScenarioDirectory) {
 TEST(IScenario, ScenarioSupportsVirtualDispatch) {
     ScenarioSpec spec{scenarioJson};
     spec.useComputeFamilyQueue = true;
-    std::unique_ptr<IScenarioBuilder> builder = std::make_unique<ScenarioBuilder>();
-    std::unique_ptr<IScenario> api = builder->build(ScenarioOptions{}, spec);
+    std::unique_ptr<IScenario> api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
 
     const auto bufferId = api->getBufferId("inBuffer");
     const std::vector<char> payload{1, 2, 3, 4};
@@ -112,10 +108,67 @@ TEST(IScenario, ScenarioSupportsVirtualDispatch) {
     EXPECT_EQ(api->getTensorId("inTensor").value(), 0U);
 }
 
+TEST(ScenarioJsonFactory, ExecutesInitializedImageBarrier) {
+    const std::string json = R"({
+        "commands": [
+            {
+                "dispatch_barrier": {
+                    "image_barrier_refs": ["imageBarrier"],
+                    "memory_barrier_refs": [],
+                    "buffer_barrier_refs": [],
+                    "tensor_barrier_refs": []
+                }
+            }
+        ],
+        "resources": [
+            {
+                "image": {
+                    "uid": "image",
+                    "dims": [1, 2, 2, 1],
+                    "format": "VK_FORMAT_R8_UINT",
+                    "shader_access": "readwrite"
+                }
+            },
+            {
+                "image_barrier": {
+                    "uid": "imageBarrier",
+                    "src_access": "compute_shader_write",
+                    "dst_access": "compute_shader_read",
+                    "old_layout": "general",
+                    "new_layout": "general",
+                    "image_resource": "image"
+                }
+            }
+        ]
+    })";
+
+    ScenarioSpec spec{json};
+    spec.useComputeFamilyQueue = true;
+    auto scenario = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
+
+    // Initialization must establish eGeneral before this runtime barrier executes.
+    ASSERT_NO_THROW(scenario->run());
+}
+
+TEST(ScenarioJsonFactory, BuiltScenarioOwnsJsonConstructionData) {
+    auto api = []() {
+        ScenarioSpec spec{scenarioJson};
+        spec.useComputeFamilyQueue = true;
+        return ScenarioJsonFactory::make(ScenarioOptions{}, spec);
+    }();
+
+    const auto bufferId = api->getBufferId("inBuffer");
+    const std::vector<char> payload{1, 2, 3, 4};
+    api->upload(bufferId, {payload.data(), payload.size()});
+    api->run();
+
+    EXPECT_EQ(api->download(bufferId).data, payload);
+}
+
 TEST(ScenarioInMemoryTransfer, UploadsAndDownloadsByTypedIdAcrossRuns) {
     ScenarioSpec spec{scenarioJson};
     spec.useComputeFamilyQueue = true;
-    auto scenario = buildScenario(spec);
+    auto scenario = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
 
     const auto bufferId = scenario->getBufferId("inBuffer");
     const auto tensorId = scenario->getTensorId("inTensor");
@@ -142,7 +195,7 @@ TEST(ScenarioInMemoryTransfer, UploadsAndDownloadsByTypedIdAcrossRuns) {
 TEST(ScenarioInMemoryTransfer, InitializesResourcesWithoutSourcesThroughTypedUploadPath) {
     ScenarioSpec spec{scenarioJson};
     spec.useComputeFamilyQueue = true;
-    auto scenario = buildScenario(spec);
+    auto scenario = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
 
     const auto buffer = scenario->download(scenario->getBufferId("inBuffer"));
     const auto tensor = scenario->download(scenario->getTensorId("inTensor"));
@@ -157,7 +210,7 @@ TEST(ScenarioInMemoryTransfer, InitializesResourcesWithoutSourcesThroughTypedUpl
 TEST(ScenarioInMemoryTransfer, RejectsNonPositiveRepeatCount) {
     ScenarioSpec spec{scenarioJson};
     spec.useComputeFamilyQueue = true;
-    auto scenario = buildScenario(spec);
+    auto scenario = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
 
     try {
         scenario->run(0, false);
@@ -170,7 +223,7 @@ TEST(ScenarioInMemoryTransfer, RejectsNonPositiveRepeatCount) {
 TEST(ScenarioInMemoryTransfer, RejectsUnknownTypedIds) {
     ScenarioSpec spec{scenarioJson};
     spec.useComputeFamilyQueue = true;
-    auto scenario = buildScenario(spec);
+    auto scenario = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
 
     const std::vector<char> data(4);
     const auto expectError = [](const auto &operation, const char *expectedMessage) {
@@ -204,7 +257,7 @@ TEST(ScenarioInMemoryTransfer, RejectsUnknownTypedIds) {
 TEST(IScenario, SupportsTensorUploadAndDownload) {
     ScenarioSpec spec{scenarioJson};
     spec.useComputeFamilyQueue = true;
-    auto api = buildScenario(spec);
+    auto api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
 
     const auto tensorId = api->getTensorId("inTensor");
     const std::vector<char> payload{1, 2, 3, 4};
@@ -220,7 +273,7 @@ TEST(IScenario, SupportsTensorUploadAndDownload) {
 TEST(IScenario, SupportsRepeatedUploadRunDownload) {
     ScenarioSpec spec{scenarioJson};
     spec.useComputeFamilyQueue = true;
-    auto api = buildScenario(spec);
+    auto api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
     const auto bufferId = api->getBufferId("inBuffer");
 
     const std::vector<char> firstPayload{1, 2, 3, 4};
@@ -287,7 +340,7 @@ TEST(IScenario, ExecutesCommandWithDifferentInputsAcrossRuns) {
 TEST(IScenario, RejectsUnknownTypedIds) {
     ScenarioSpec spec{scenarioJson};
     spec.useComputeFamilyQueue = true;
-    auto api = buildScenario(spec);
+    auto api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
     const std::vector<char> payload(4);
 
     EXPECT_THROW(api->upload(BufferId{1}, {payload.data(), payload.size()}), std::runtime_error);

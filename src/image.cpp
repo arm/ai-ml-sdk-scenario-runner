@@ -85,50 +85,6 @@ constexpr vk::ImageTiling convertTiling(const Tiling tiling) {
     }
 }
 
-ImageLoadResult loadDataFromNPY(const std::string &filename, vk::Format dataType, const ImageLoadOptions &options) {
-    MemoryMap mapped(filename);
-    auto dataPtr = vgfutils::numpy::parse(mapped);
-
-    if (dataPtr.shape.size() != 4) {
-        throw std::runtime_error("Image data must be 4 dimensional for npy sources");
-    }
-
-    if (dataPtr.shape[0] != 1) {
-        throw std::runtime_error("Image batch dimension must be 1 for npy sources");
-    }
-
-    if ((dataPtr.shape[1] != static_cast<int64_t>(options.expectedHeight)) ||
-        (dataPtr.shape[2] != static_cast<int64_t>(options.expectedWidth)) ||
-        (dataPtr.shape[3] != static_cast<int64_t>(numComponentsFromVkFormat(dataType)))) {
-        throw std::runtime_error("Image description dimensions do not match npy data shape");
-    }
-
-    const auto expectedSize = static_cast<uint64_t>(dataPtr.shape[0]) * options.expectedHeight * options.expectedWidth *
-                              elementSizeFromVkFormat(dataType);
-
-    if (dataPtr.size() != expectedSize) {
-        throw std::runtime_error("Image description size does not match data size: expected " +
-                                 std::to_string(expectedSize) + " vs " + std::to_string(dataPtr.size()));
-    }
-
-    ImageLoadResult result(dataType, options.expectedWidth, options.expectedHeight);
-    result.data.resize(dataPtr.size());
-    std::memcpy(result.data.data(), dataPtr.ptr, dataPtr.size());
-    return result;
-}
-
-ImageLoadResult loadData(const std::string &fileName, vk::Format dataType, const ImageLoadOptions &options) {
-    if (const auto *handler = getImageFormatHandler(fileName); handler) {
-        return handler->loadData(fileName, options);
-    }
-
-    if (lowercaseExtension(fileName) == ".npy") {
-        return loadDataFromNPY(fileName, dataType, options);
-    }
-
-    throw std::runtime_error("Unsupported image source file type for " + fileName);
-}
-
 uint64_t calculateMipDataSize(uint32_t width, uint32_t height, uint32_t depth, uint32_t elementSize) {
     return uint64_t{width} * uint64_t{height} * uint64_t{depth} * uint64_t{elementSize};
 }
@@ -444,46 +400,6 @@ void Image::allocateMemory(const Context &ctx) {
 }
 
 void Image::resetLayout() { _targetLayout = vk::ImageLayout::eUndefined; }
-
-void Image::fillFromDescription(const Context &ctx, const ImageDesc &desc) {
-    std::vector<uint8_t> data;
-    vk::Format fileFormat = vk::Format::eUndefined;
-    uint32_t mipmapsFromFile = 1;
-
-    // Determine image data, from file or zeroed
-    if (desc.src) {
-        auto result = loadData(desc.src.value(), _dataType, ImageLoadOptions{desc.dims[2], desc.dims[1]});
-        data = std::move(result.data);
-        fileFormat = result.initialFormat;
-        mipmapsFromFile = result.mipLevels;
-    } else {
-        data.resize(baseDataSize());
-        std::fill_n(data.begin(), baseDataSize(), 0);
-    }
-    // D32S8 stencil discard case
-    if ((_dataType == vk::Format::eR32Sfloat || _dataType == vk::Format::eD32Sfloat) &&
-        fileFormat == vk::Format::eD32SfloatS8Uint) {
-        // Depth stencil discarding
-        std::vector<uint8_t> bodgeData(baseDataSize());
-        bool hasStencilData = false;
-        for (uint64_t i = 0; i < totalElementsFromShape(shape()); ++i) {
-            uint64_t depthIdx = i * elementSizeFromVkFormat(fileFormat);
-            uint64_t bodgeIdx = i * elementSizeFromVkFormat(_dataType);
-            if (data[depthIdx + 4]) {
-                hasStencilData = true;
-            }
-            bodgeData[bodgeIdx + 0] = data[depthIdx + 0];
-            bodgeData[bodgeIdx + 1] = data[depthIdx + 1];
-            bodgeData[bodgeIdx + 2] = data[depthIdx + 2];
-            bodgeData[bodgeIdx + 3] = data[depthIdx + 3];
-        }
-        if (hasStencilData) {
-            mlsdk::logging::warning("Ignoring stencil data");
-        }
-        data = std::move(bodgeData);
-    }
-    uploadData(ctx, data.data(), data.size(), mipmapsFromFile);
-}
 
 void Image::uploadData(const Context &ctx, const void *data, size_t size, uint32_t mipLevels) {
     const auto elementSize = elementSizeFromVkFormat(_dataType);
