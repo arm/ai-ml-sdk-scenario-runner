@@ -13,6 +13,7 @@
 
 ### Build, Packaging & Developer Experience
 
+- Added the optional pybind11-based `scenario_runner_py` module for Python clients.
 - Updated Scenario Runner to consume explicit VGF graph constant bindings.
 - Updated Scenario Runner `--version` output to report the package version and include git revision and dependency revision information.
 - Added KosmicKrisp support on Darwin.

@@ -592,6 +592,8 @@ def pytest_configure(config):
     if scenario_runner_build_path:
         vgf_pylib_path = Path(scenario_runner_build_path) / "vgf-lib" / "src"
         sys.path.append(str(vgf_pylib_path))
+        scenario_runner_pylib_path = Path(scenario_runner_build_path) / "src"
+        sys.path.append(str(scenario_runner_pylib_path))
 
     if config.getoption("--sanitizers") and platform.system() == "Windows":
         asan_dll_path = os.getenv("ASAN_DLL_PATH")

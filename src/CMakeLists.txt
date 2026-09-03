@@ -71,6 +71,16 @@ endif()
 
 target_compile_options(ScenarioRunnerLib PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
 
+if(SCENARIO_RUNNER_BUILD_PYLIB AND NOT ANDROID)
+    include(pybind11)
+    pybind11_add_module(scenario_runner_py
+        scenario_runner_py.cpp
+        scenario_py.cpp
+    )
+    target_compile_options(scenario_runner_py PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
+    target_link_libraries(scenario_runner_py PRIVATE ScenarioRunnerLib pybind11::module)
+endif()
+
 add_subdirectory(tools)
 if(SCENARIO_RUNNER_EXPERIMENTAL_VGF_RUNTIME AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_subdirectory(vgf_runtime)
