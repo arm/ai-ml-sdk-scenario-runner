@@ -89,7 +89,7 @@ class Tensor {
     bool _rankConverted{false};
     bool _descriptorBufferCaptureReplay{false};
 
-    std::vector<char> getTensorData(const Context &ctx) const;
+    std::vector<std::byte> getTensorData(const Context &ctx) const;
 };
 
 } // namespace mlsdk::scenariorunner

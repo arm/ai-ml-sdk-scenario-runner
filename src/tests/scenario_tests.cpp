@@ -49,8 +49,8 @@ const std::string scenarioJson = R"(
         }
     )";
 
-template <typename T> std::vector<char> asBytes(const std::vector<T> &values) {
-    std::vector<char> bytes(values.size() * sizeof(T));
+template <typename T> std::vector<std::byte> asBytes(const std::vector<T> &values) {
+    std::vector<std::byte> bytes(values.size() * sizeof(T));
     std::memcpy(bytes.data(), values.data(), bytes.size());
     return bytes;
 }
@@ -62,7 +62,7 @@ TEST(IScenarioBuilder, BuildsScenarioWithRetainedTypedHandles) {
     const auto bufferId = builder->addBuffer(BufferInfo{"in_memory_buffer", 4, 0});
 
     std::unique_ptr<IScenario> scenario = builder->build(ScenarioOptions{});
-    const std::vector<char> payload{1, 2, 3, 4};
+    const std::vector<std::byte> payload{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
     scenario->upload(bufferId, {payload.data(), payload.size()});
     scenario->run();
 
@@ -100,7 +100,7 @@ TEST(IScenario, ScenarioSupportsVirtualDispatch) {
     std::unique_ptr<IScenario> api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
 
     const auto bufferId = api->getBufferId("inBuffer");
-    const std::vector<char> payload{1, 2, 3, 4};
+    const std::vector<std::byte> payload{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
     api->upload(bufferId, {payload.data(), payload.size()});
     api->run();
 
@@ -158,7 +158,7 @@ TEST(ScenarioJsonFactory, BuiltScenarioOwnsJsonConstructionData) {
     }();
 
     const auto bufferId = api->getBufferId("inBuffer");
-    const std::vector<char> payload{1, 2, 3, 4};
+    const std::vector<std::byte> payload{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
     api->upload(bufferId, {payload.data(), payload.size()});
     api->run();
 
@@ -173,8 +173,8 @@ TEST(ScenarioInMemoryTransfer, UploadsAndDownloadsByTypedIdAcrossRuns) {
     const auto bufferId = scenario->getBufferId("inBuffer");
     const auto tensorId = scenario->getTensorId("inTensor");
 
-    std::vector<char> firstBuffer{1, 2, 3, 4};
-    std::vector<char> firstTensor{5, 6, 7, 8};
+    std::vector<std::byte> firstBuffer{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
+    std::vector<std::byte> firstTensor{std::byte{5}, std::byte{6}, std::byte{7}, std::byte{8}};
     scenario->upload(bufferId, {firstBuffer.data(), firstBuffer.size()});
     scenario->upload(tensorId, {firstTensor.data(), firstTensor.size(), {1, 2, 2, 1}, vk::Format::eR8Sint});
     scenario->run();
@@ -182,8 +182,8 @@ TEST(ScenarioInMemoryTransfer, UploadsAndDownloadsByTypedIdAcrossRuns) {
     EXPECT_EQ(scenario->download(bufferId).data, firstBuffer);
     EXPECT_EQ(scenario->download(tensorId).data, firstTensor);
 
-    std::vector<char> secondBuffer{9, 10, 11, 12};
-    std::vector<char> secondTensor{13, 14, 15, 16};
+    std::vector<std::byte> secondBuffer{std::byte{9}, std::byte{10}, std::byte{11}, std::byte{12}};
+    std::vector<std::byte> secondTensor{std::byte{13}, std::byte{14}, std::byte{15}, std::byte{16}};
     scenario->upload(bufferId, {secondBuffer.data(), secondBuffer.size()});
     scenario->upload(tensorId, {secondTensor.data(), secondTensor.size(), {1, 2, 2, 1}, vk::Format::eR8Sint});
     scenario->run();
@@ -200,8 +200,8 @@ TEST(ScenarioInMemoryTransfer, InitializesResourcesWithoutSourcesThroughTypedUpl
     const auto buffer = scenario->download(scenario->getBufferId("inBuffer"));
     const auto tensor = scenario->download(scenario->getTensorId("inTensor"));
 
-    EXPECT_EQ(buffer.data, std::vector<char>(4, 0));
-    EXPECT_EQ(tensor.data, std::vector<char>(4, 0));
+    EXPECT_EQ(buffer.data, std::vector<std::byte>(4));
+    EXPECT_EQ(tensor.data, std::vector<std::byte>(4));
     EXPECT_EQ(tensor.shape, (std::vector<int64_t>{1, 2, 2, 1}));
     ASSERT_TRUE(tensor.format.has_value());
     EXPECT_EQ(tensor.format.value(), vk::Format::eR8Sint);
@@ -260,7 +260,7 @@ TEST(IScenario, SupportsTensorUploadAndDownload) {
     auto api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
 
     const auto tensorId = api->getTensorId("inTensor");
-    const std::vector<char> payload{1, 2, 3, 4};
+    const std::vector<std::byte> payload{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
     api->upload(tensorId, {payload.data(), payload.size(), {1, 2, 2, 1}, vk::Format::eR8Sint});
 
     const auto result = api->download(tensorId);
@@ -276,12 +276,12 @@ TEST(IScenario, SupportsRepeatedUploadRunDownload) {
     auto api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
     const auto bufferId = api->getBufferId("inBuffer");
 
-    const std::vector<char> firstPayload{1, 2, 3, 4};
+    const std::vector<std::byte> firstPayload{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
     api->upload(bufferId, {firstPayload.data(), firstPayload.size()});
     api->run();
     EXPECT_EQ(api->download(bufferId).data, firstPayload);
 
-    const std::vector<char> secondPayload{5, 6, 7, 8};
+    const std::vector<std::byte> secondPayload{std::byte{5}, std::byte{6}, std::byte{7}, std::byte{8}};
     api->upload(bufferId, {secondPayload.data(), secondPayload.size()});
     api->run();
     EXPECT_EQ(api->download(bufferId).data, secondPayload);

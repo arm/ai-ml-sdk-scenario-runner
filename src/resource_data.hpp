@@ -18,7 +18,7 @@ struct BufferDataView {
 };
 
 struct BufferData {
-    std::vector<char> data;
+    std::vector<std::byte> data;
 };
 
 struct TensorDataView {
@@ -29,7 +29,7 @@ struct TensorDataView {
 };
 
 struct TensorData {
-    std::vector<char> data;
+    std::vector<std::byte> data;
     std::vector<int64_t> shape;
     std::optional<vk::Format> format{std::nullopt};
 };

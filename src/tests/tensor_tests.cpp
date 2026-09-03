@@ -10,8 +10,10 @@
 #include "tensor.hpp"
 #include "utils.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
-#include <numeric>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -36,6 +38,12 @@ size_t bytesFor(vk::Format format, const std::vector<int64_t> &shape) {
     return static_cast<size_t>(elementSizeFromVkFormat(format) * totalElementsFromShape(shape));
 }
 
+std::vector<std::byte> sequence(size_t size, uint8_t first = 0) {
+    std::vector<std::byte> result(size);
+    std::generate(result.begin(), result.end(), [&first] { return std::byte{first++}; });
+    return result;
+}
+
 TEST(TensorInMemoryTransfer, UploadThrowsOnShapeMismatch) {
     ScenarioOptions opts{};
     Context ctx{opts};
@@ -44,7 +52,7 @@ TEST(TensorInMemoryTransfer, UploadThrowsOnShapeMismatch) {
     const vk::Format fmt = vk::Format::eR8Uint;
 
     auto &tensor = prepareTensor(ctx, dm, TensorId{0}, shape, fmt);
-    std::vector<char> payload(bytesFor(fmt, shape), 0x3C);
+    std::vector<std::byte> payload(bytesFor(fmt, shape), std::byte{0x3C});
 
     const std::vector<int64_t> wrongShape{2, 3};
     TensorDataView view{payload.data(), payload.size(), {}, std::nullopt};
@@ -61,7 +69,7 @@ TEST(TensorInMemoryTransfer, UploadThrowsOnIncompatibleFormatWhenProvided) {
     const vk::Format fmt = vk::Format::eR8Uint;
 
     auto &tensor = prepareTensor(ctx, dm, TensorId{0}, shape, fmt);
-    std::vector<char> payload(bytesFor(fmt, shape), 0x7F);
+    std::vector<std::byte> payload(bytesFor(fmt, shape), std::byte{0x7F});
 
     TensorDataView view{payload.data(), payload.size(), {}, std::nullopt};
     view.shape = shape;
@@ -77,7 +85,7 @@ TEST(TensorInMemoryTransfer, UploadThrowsOnSizeMismatch) {
     const vk::Format fmt = vk::Format::eR8Uint;
 
     auto &tensor = prepareTensor(ctx, dm, TensorId{0}, shape, fmt);
-    std::vector<char> small(3, 0x11); // too small by 1 byte
+    std::vector<std::byte> small(3, std::byte{0x11}); // too small by 1 byte
 
     TensorDataView view{small.data(), small.size(), {}, std::nullopt};
     view.shape = shape;
@@ -92,14 +100,13 @@ TEST(TensorInMemoryTransfer, UploadSucceedsAndPersistsCopy_FormatOptional) {
     const vk::Format fmt = vk::Format::eR8Uint; // 6 bytes
 
     auto &tensor = prepareTensor(ctx, dm, TensorId{0}, shape, fmt);
-    std::vector<char> payload(bytesFor(fmt, shape));
-    std::iota(payload.begin(), payload.end(), static_cast<char>(1));
+    auto payload = sequence(bytesFor(fmt, shape), 1);
     TensorDataView view{payload.data(), payload.size(), {}, std::nullopt};
     view.shape = shape;
     ASSERT_NO_THROW(tensor.upload(ctx, view));
 
     // Mutate source to ensure copy semantics
-    std::fill(payload.begin(), payload.end(), static_cast<char>(0xAA));
+    std::fill(payload.begin(), payload.end(), std::byte{0xAA});
 
     const auto tensorData = tensor.download(ctx);
     ASSERT_EQ(tensorData.data.size(), payload.size());
@@ -107,7 +114,7 @@ TEST(TensorInMemoryTransfer, UploadSucceedsAndPersistsCopy_FormatOptional) {
     ASSERT_TRUE(tensorData.format.has_value());
     EXPECT_EQ(tensorData.format.value(), fmt);
     for (size_t i = 0; i < tensorData.data.size(); ++i) {
-        EXPECT_EQ(static_cast<unsigned char>(tensorData.data[i]), static_cast<unsigned char>(i + 1))
+        EXPECT_EQ(std::to_integer<unsigned char>(tensorData.data[i]), static_cast<unsigned char>(i + 1))
             << "mismatch at index " << i;
     }
 }
@@ -121,7 +128,7 @@ TEST(TensorInMemoryTransfer, UploadAcceptsRankConvertedEmptyShape) {
 
     auto &tensor = prepareTensor(ctx, dm, TensorId{0}, emptyShape, fmt);
 
-    std::vector<char> payload(1, static_cast<char>(0x5A));
+    std::vector<std::byte> payload(1, std::byte{0x5A});
     TensorDataView view{payload.data(), payload.size(), {}, std::nullopt};
     view.shape = emptyShape;
     ASSERT_NO_THROW(tensor.upload(ctx, view));
@@ -143,8 +150,7 @@ TEST(TensorInMemoryTransfer, DownloadReturnsUploadedData) {
     const vk::Format fmt = vk::Format::eR8Uint; // 6 bytes
 
     auto &tensor = prepareTensor(ctx, dm, TensorId{0}, shape, fmt);
-    std::vector<char> payload(bytesFor(fmt, shape));
-    std::iota(payload.begin(), payload.end(), static_cast<char>(0));
+    auto payload = sequence(bytesFor(fmt, shape));
     TensorDataView view{payload.data(), payload.size(), {}, std::nullopt};
     view.shape = shape;
     view.format = fmt;
@@ -167,8 +173,7 @@ TEST(TensorInMemoryTransfer, UploadAndDownloadRespectMemoryOffset) {
     constexpr uint64_t memoryOffset = 4096;
 
     auto &tensor = prepareTensor(ctx, dm, TensorId{0}, shape, format, memoryOffset);
-    std::vector<char> payload(bytesFor(format, shape));
-    std::iota(payload.begin(), payload.end(), static_cast<char>(1));
+    auto payload = sequence(bytesFor(format, shape), 1);
 
     TensorDataView view{payload.data(), payload.size(), shape, format};
     ASSERT_NO_THROW(tensor.upload(ctx, view));
@@ -201,8 +206,7 @@ TEST(TensorInMemoryTransfer, UploadAndDownloadRespectImageSubresourceOffset) {
     tensor.setup(ctx, memoryManager);
     tensor.allocateMemory(ctx);
 
-    std::vector<char> payload(bytesFor(format, shape));
-    std::iota(payload.begin(), payload.end(), static_cast<char>(1));
+    auto payload = sequence(bytesFor(format, shape), 1);
     ASSERT_NO_THROW(tensor.upload(ctx, {payload.data(), payload.size(), shape, format}));
 
     const auto tensorData = tensor.download(ctx);
