@@ -196,17 +196,17 @@ TensorData Tensor::download(const Context &ctx) const {
     return tensorData;
 }
 
-std::vector<char> Tensor::getTensorData(const Context &ctx) const {
+std::vector<std::byte> Tensor::getTensorData(const Context &ctx) const {
     _memoryManager->downloadData(ctx, _memoryManager->getSubresourceOffset() + _memoryOffset, _size);
 
     const ScopeExit<void()> onScopeExitRun([&]() { _memoryManager->unmapStagingBufferMemory(); });
 
     // 1) map the GPU memory
-    const auto *mapped = static_cast<char *>(
+    const auto *mapped = static_cast<std::byte *>(
         _memoryManager->mapStagingBufferMemory(_memoryManager->getSubresourceOffset() + _memoryOffset, _size));
     const auto dSize = dataSize();
 
-    std::vector<char> out;
+    std::vector<std::byte> out;
     // 2) If padded/tiled (_size != dataSize) *and* a 4D tensor with strides,
     //    walk element-by-element using those strides to lay out the data correctly
     if (_size != dSize && _shape.size() == _strides.size() && _shape.size() == 4) {
@@ -240,7 +240,8 @@ std::vector<char> Tensor::getTensorData(const Context &ctx) const {
 
 void Tensor::store(const Context &ctx, const std::string &filename) const {
     const auto tensorData = download(ctx);
-    const vgfutils::numpy::DataPtr dataPtr(tensorData.data.data(), _rankConverted ? std::vector<int64_t>(0) : _shape,
+    const vgfutils::numpy::DataPtr dataPtr(reinterpret_cast<const char *>(tensorData.data.data()),
+                                           _rankConverted ? std::vector<int64_t>(0) : _shape,
                                            getDTypeFromVkFormat(dataType()));
     vgfutils::numpy::write(filename, dataPtr);
 }

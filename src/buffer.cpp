@@ -85,15 +85,15 @@ BufferData Buffer::download(const Context &ctx) const {
 
     BufferData bd;
     bd.data.resize(size());
-    const auto *mapped = static_cast<const char *>(_memoryManager->mapStagingBufferMemory(_memoryOffset, size()));
+    const auto *mapped = static_cast<const std::byte *>(_memoryManager->mapStagingBufferMemory(_memoryOffset, size()));
     std::memcpy(bd.data.data(), mapped, bd.data.size());
     return bd;
 }
 
 void Buffer::store(const Context &ctx, const std::string &filename) const {
     const auto bufferContents = download(ctx);
-    vgfutils::numpy::DataPtr data(bufferContents.data.data(), {static_cast<int64_t>(bufferContents.data.size())},
-                                  vgfutils::numpy::DType('i', 1));
+    vgfutils::numpy::DataPtr data(reinterpret_cast<const char *>(bufferContents.data.data()),
+                                  {static_cast<int64_t>(bufferContents.data.size())}, vgfutils::numpy::DType('i', 1));
     vgfutils::numpy::write(filename, data);
 }
 

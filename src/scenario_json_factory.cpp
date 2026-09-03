@@ -66,7 +66,7 @@ ImageLoadResult loadData(const std::string &fileName, vk::Format dataType, const
 BufferData loadBufferData(const BufferDesc &desc) {
     BufferData bufferData;
     if (!desc.src.has_value()) {
-        bufferData.data.resize(desc.size, 0);
+        bufferData.data.resize(desc.size, std::byte{0});
         return bufferData;
     }
 
@@ -84,7 +84,7 @@ TensorData loadTensorData(const TensorDesc &desc) {
     if (!desc.src.has_value()) {
         const auto format = getVkFormatFromString(desc.format);
         const auto expectedSize = elementSizeFromVkFormat(format) * totalElementsFromShape(desc.dims);
-        tensorData.data.resize(expectedSize, 0);
+        tensorData.data.resize(expectedSize, std::byte{0});
         return tensorData;
     }
 

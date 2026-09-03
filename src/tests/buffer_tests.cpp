@@ -8,10 +8,13 @@
 #include "data_manager.hpp"
 #include "resource_data.hpp"
 #include "scenario_options.hpp"
-#include <gtest/gtest.h>
 
-#include <numeric>
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <vector>
+
+#include <gtest/gtest.h>
 
 using namespace mlsdk::scenariorunner;
 
@@ -32,7 +35,7 @@ TEST(BufferInMemoryTransfer, UploadThrowsOnSizeMismatch) {
 
     auto &buf = prepareBuffer(ctx, dm, BufferId{0}, /*sizeBytes*/ 16);
 
-    std::vector<char> small(8, static_cast<char>(0x7B));
+    std::vector<std::byte> small(8, std::byte{0x7B});
     BufferDataView view{small.data(), small.size()};
     EXPECT_THROW(buf.upload(ctx, view), std::runtime_error);
 }
@@ -44,19 +47,20 @@ TEST(BufferInMemoryTransfer, UploadSucceedsAndPersistsCopy) {
 
     auto &buf = prepareBuffer(ctx, dm, BufferId{0}, /*sizeBytes*/ 16);
 
-    std::vector<char> payload(16);
-    std::iota(payload.begin(), payload.end(), static_cast<char>(0));
+    std::vector<std::byte> payload(16);
+    uint8_t value = 0;
+    std::generate(payload.begin(), payload.end(), [&value] { return std::byte{value++}; });
     BufferDataView view{payload.data(), payload.size()};
     ASSERT_NO_THROW(buf.upload(ctx, view));
 
     // Mutate source to ensure Buffer keeps a copy, not an alias
-    std::fill(payload.begin(), payload.end(), static_cast<char>(0xAA));
+    std::fill(payload.begin(), payload.end(), std::byte{0xAA});
 
     const auto bufferData = buf.download(ctx);
     ASSERT_EQ(bufferData.data.size(), static_cast<size_t>(buf.size()));
 
     for (size_t i = 0; i < bufferData.data.size(); ++i) {
-        EXPECT_EQ(static_cast<unsigned char>(bufferData.data[i]), static_cast<unsigned char>(i))
+        EXPECT_EQ(std::to_integer<unsigned char>(bufferData.data[i]), static_cast<unsigned char>(i))
             << "mismatch at index " << i;
     }
 }
@@ -68,8 +72,9 @@ TEST(BufferInMemoryTransfer, DownloadReturnsUploadedData) {
 
     auto &buf = prepareBuffer(ctx, dm, BufferId{0}, /*sizeBytes*/ 12);
 
-    std::vector<char> payload(12);
-    std::iota(payload.begin(), payload.end(), static_cast<char>(0));
+    std::vector<std::byte> payload(12);
+    uint8_t value = 0;
+    std::generate(payload.begin(), payload.end(), [&value] { return std::byte{value++}; });
     BufferDataView view{payload.data(), payload.size()};
     buf.upload(ctx, view);
 
