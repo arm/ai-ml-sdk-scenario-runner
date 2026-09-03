@@ -142,6 +142,7 @@ endif()
 add_executable(${SCENARIO_RUNNER_NAMESPACE}::scenario-runner ALIAS scenario-runner)
 
 install(TARGETS scenario-runner EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
+install(DIRECTORY include/scenario_runner DESTINATION include)
 if(ANDROID)
     install(TARGETS scenario_runner_jni EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
 endif()

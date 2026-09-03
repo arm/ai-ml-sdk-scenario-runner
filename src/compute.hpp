@@ -4,6 +4,8 @@
  */
 #pragma once
 
+#include "scenario_runner/command_types.hpp"
+
 #include "context.hpp"
 #include "data_manager.hpp"
 #include "json_writer.hpp"
@@ -32,14 +34,6 @@ struct GraphicsDispatchAttachment {
 struct GraphicsDispatchInfo {
     std::vector<GraphicsDispatchAttachment> colorAttachments;
     vk::Extent2D extent;
-};
-
-/// \brief Group count for x, y and z
-struct ComputeDispatch {
-    uint32_t gwcx{1};
-    uint32_t gwcy{1};
-    uint32_t gwcz{1};
-    std::string profileName;
 };
 
 /// @brief Compute command orchestrator

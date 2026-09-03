@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "scenario_runner/command_types.hpp"
+
 #include "guid.hpp"
 
 #include <array>
@@ -26,22 +28,6 @@ enum class CommandType {
 };
 
 enum class DescriptorType { Unknown, Auto, StorageImage };
-
-enum class OpticalFlowGridSize : uint32_t {
-    Invalid = 0xFFFFFFFFu,
-    e1x1 = 0,
-    e2x2 = 1,
-    e4x4 = 2,
-    e8x8 = 3,
-};
-
-enum class OpticalFlowPerformanceLevel : uint32_t {
-    Invalid = 0xFFFFFFFFu,
-    Unknown = 0,
-    Slow = 1,
-    Medium = 2,
-    Fast = 3,
-};
 
 enum class OpticalFlowExecutionFlag : uint32_t {
     Invalid = 0,

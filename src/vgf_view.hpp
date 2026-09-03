@@ -4,9 +4,9 @@
  */
 #pragma once
 
+#include "scenario_runner/types.hpp"
+
 #include "iresource.hpp"
-#include "scenario_runner.hpp"
-#include "types.hpp"
 
 #include "vgf-utils/memory_map.hpp"
 #include "vgf/decoder.hpp"
@@ -21,6 +21,7 @@
 namespace mlsdk::scenariorunner {
 
 class DataManager;
+enum class ModuleType { SHADER, GRAPH };
 
 struct VgfResourceCreationResult {
     // VGF model resource table index to the created runtime resource ID.

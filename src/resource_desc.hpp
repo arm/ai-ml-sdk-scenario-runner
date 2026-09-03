@@ -5,9 +5,10 @@
 
 #pragma once
 
+#include "scenario_runner/types.hpp"
+
 #include "commands.hpp"
 #include "guid.hpp"
-#include "types.hpp"
 
 namespace mlsdk::scenariorunner {
 

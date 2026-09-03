@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "iscenario.hpp"
-#include "scenario_options.hpp"
+#include "scenario_runner/scenario.hpp"
+#include "scenario_runner/scenario_options.hpp"
+
 #include "utils.hpp"
 
 #include <pybind11/numpy.h>
@@ -91,7 +92,7 @@ py::array copyToArray(const std::vector<std::byte> &data, const std::vector<int6
     return array;
 }
 
-py::array downloadBuffer(const IScenario &scenario, BufferId id) {
+py::array downloadBuffer(const Scenario &scenario, BufferId id) {
     BufferData result;
     {
         py::gil_scoped_release release;
@@ -102,7 +103,7 @@ py::array downloadBuffer(const IScenario &scenario, BufferId id) {
     return array;
 }
 
-py::array downloadTensor(const IScenario &scenario, TensorId id) {
+py::array downloadTensor(const Scenario &scenario, TensorId id) {
     TensorData result;
     {
         py::gil_scoped_release release;
@@ -114,7 +115,7 @@ py::array downloadTensor(const IScenario &scenario, TensorId id) {
     return copyToArray(result.data, result.shape, numpyDType(result.format.value(), false));
 }
 
-py::array downloadImage(IScenario &scenario, ImageId id) {
+py::array downloadImage(Scenario &scenario, ImageId id) {
     ImageData result;
     {
         py::gil_scoped_release release;
@@ -129,7 +130,7 @@ py::array downloadImage(IScenario &scenario, ImageId id) {
 } // namespace
 } // namespace mlsdk::scenariorunner
 
-void pyInitIScenario(py::module_ &m) {
+void pyInitScenario(py::module_ &m) {
     using namespace mlsdk::scenariorunner;
 
     bindResourceId<BufferId>(m, "BufferId");
@@ -158,15 +159,15 @@ void pyInitIScenario(py::module_ &m) {
         .def_readwrite("neural_statistics_mode", &ScenarioOptions::neuralStatisticsMode)
         .def_readwrite("disabled_extensions", &ScenarioOptions::disabledExtensions);
 
-    py::class_<IScenario, std::unique_ptr<IScenario>>(m, "IScenario")
-        .def("run", py::overload_cast<int, bool>(&IScenario::run), py::kw_only(), py::arg("repeat_count") = 1,
+    py::class_<Scenario, std::unique_ptr<Scenario>>(m, "Scenario")
+        .def("run", py::overload_cast<int, bool>(&Scenario::run), py::kw_only(), py::arg("repeat_count") = 1,
              py::arg("dry_run") = false, py::call_guard<py::gil_scoped_release>())
-        .def("get_buffer_id", &IScenario::getBufferId)
-        .def("get_image_id", &IScenario::getImageId)
-        .def("get_tensor_id", &IScenario::getTensorId)
+        .def("get_buffer_id", &Scenario::getBufferId)
+        .def("get_image_id", &Scenario::getImageId)
+        .def("get_tensor_id", &Scenario::getTensorId)
         .def(
             "upload",
-            [](IScenario &scenario, BufferId id, const py::array &array) {
+            [](Scenario &scenario, BufferId id, const py::array &array) {
                 const auto buffer = requireContiguousArray(array);
                 const BufferDataView view{buffer.ptr, arraySizeBytes(buffer)};
                 py::gil_scoped_release release;
@@ -175,7 +176,7 @@ void pyInitIScenario(py::module_ &m) {
             py::arg("id"), py::arg("data"))
         .def(
             "upload",
-            [](IScenario &scenario, TensorId id, const py::array &array) {
+            [](Scenario &scenario, TensorId id, const py::array &array) {
                 const auto buffer = requireContiguousArray(array);
                 const TensorDataView view{buffer.ptr, arraySizeBytes(buffer), arrayShape(buffer)};
                 py::gil_scoped_release release;
@@ -184,7 +185,7 @@ void pyInitIScenario(py::module_ &m) {
             py::arg("id"), py::arg("data"))
         .def(
             "upload",
-            [](IScenario &scenario, ImageId id, const py::array &array) {
+            [](Scenario &scenario, ImageId id, const py::array &array) {
                 const auto buffer = requireContiguousArray(array);
                 const ImageDataView view{buffer.ptr, arraySizeBytes(buffer), arrayShape(buffer), std::nullopt,
                                          /*mipLevels=*/1};

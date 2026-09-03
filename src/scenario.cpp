@@ -2,10 +2,18 @@
  * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "scenario.hpp"
-#include "command_types.hpp"
+#include "scenario_runner/scenario.hpp"
+#include "scenario_runner/command_types.hpp"
+#include "scenario_runner/resource_data.hpp"
+#include "scenario_runner/scenario_options.hpp"
+#include "scenario_runner/types.hpp"
+
+#include "compute.hpp"
+#include "context.hpp"
+#include "data_manager.hpp"
 #include "frame_capturer.hpp"
 #include "glsl_compiler.hpp"
+#include "group_manager.hpp"
 #include "guid.hpp"
 #ifdef SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT
 #    include "hlsl_compiler.hpp"
@@ -15,14 +23,89 @@
 #include "json_writer.hpp"
 #include "logging.hpp"
 #include "optical_flow_utils.hpp"
-#include "scenario_builder.hpp"
+#include "resource_manager.hpp"
+#include "scenario_build_data.hpp"
 #include "utils.hpp"
 
 #include <algorithm>
+#include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace mlsdk::scenariorunner {
+
+class ScenarioImpl final : public Scenario {
+  public:
+    ~ScenarioImpl() override = default;
+
+    ScenarioImpl(const ScenarioImpl &) = delete;
+    ScenarioImpl &operator=(const ScenarioImpl &) = delete;
+    ScenarioImpl(ScenarioImpl &&) = delete;
+    ScenarioImpl &operator=(ScenarioImpl &&) = delete;
+
+    void run() override;
+    void run(int repeatCount, bool dryRun) override;
+
+    BufferId getBufferId(std::string_view uid) const override;
+    ImageId getImageId(std::string_view uid) const override;
+    TensorId getTensorId(std::string_view uid) const override;
+
+    void upload(BufferId id, const BufferDataView &data) override;
+    void upload(ImageId id, const ImageDataView &data) override;
+    void upload(TensorId id, const TensorDataView &data) override;
+
+    BufferData download(BufferId id) const override;
+    ImageData download(ImageId id) override;
+    TensorData download(TensorId id) const override;
+
+  private:
+    friend std::unique_ptr<Scenario> detail::createScenario(const ScenarioOptions &options,
+                                                            detail::ScenarioBuildData buildData);
+
+    ScenarioImpl(const ScenarioOptions &opts, detail::ScenarioBuildData buildData);
+
+    void runIteration(int iteration, int repeatCount, bool dryRun);
+    void createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries);
+    void createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries);
+    void createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSpirvGraph, uint32_t &nQueries);
+    void createFragmentPipeline(const DispatchFragmentData &dispatchFragment, uint32_t &nQueries);
+    void createOpticalFlowPipeline(const DispatchOpticalFlowData &dispatchOpticalFlow, uint32_t &nQueries);
+    void createPipeline(uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
+                        const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries);
+    void initializeResourceData();
+    void setupResources();
+    void createRuntimeResources();
+    void createRuntimeBarriers();
+    void setupRuntimeCommands();
+    void saveProfilingData(int iteration, int repeatCount, bool dryRun);
+    void saveResults(bool dryRun);
+    void resetForNextRun();
+    bool hasAliasedOptimalTensors() const;
+    void handleAliasedLayoutTransitions();
+    MemoryResourceId getMemoryResourceId(const Guid &guid) const;
+    const ShaderInfo &getShader(ShaderId id) const;
+    const ShaderInfo &getSubstitutionShader(const std::vector<ResolvedShaderSubstitution> &shaderSubstitutions,
+                                            const std::string &moduleName) const;
+
+    ScenarioOptions _opts;
+    Context _ctx;
+    ResourceManager _resources;
+    std::unordered_map<Guid, TypedResourceId> _resourceIds;
+    std::unordered_map<DataGraphId, VgfResourceCreationResult> _vgfResourceCreationResults;
+    DataManager _dataManager;
+    std::vector<detail::ResourceInitialization> _initializations;
+    std::vector<detail::ResourceOutput> _outputs;
+    std::vector<detail::ScenarioCommand> _commands;
+    std::shared_ptr<PipelineCache> _pipelineCache;
+    Compute _compute;
+    std::vector<PerformanceCounter> _perfCounters;
+    GroupManager _groupManager;
+    std::unique_ptr<FrameCapturer> _frameCapturer;
+    bool _hasRun{false};
+};
+
 namespace {
 template <typename... Functions> struct Overloaded : Functions... {
     using Functions::operator()...;
@@ -223,9 +306,13 @@ std::pair<const char *, size_t> getPushConstantData(const std::optional<RawDataI
 
 } // namespace
 
+std::unique_ptr<Scenario> detail::createScenario(const ScenarioOptions &options, ScenarioBuildData buildData) {
+    return std::unique_ptr<Scenario>{new ScenarioImpl(options, std::move(buildData))};
+}
+
 // ScenarioBuildData is intentionally passed by value because this constructor takes ownership of its contents.
 // cppcheck-suppress passedByValue
-Scenario::Scenario(const ScenarioOptions &opts, detail::ScenarioBuildData buildData)
+ScenarioImpl::ScenarioImpl(const ScenarioOptions &opts, detail::ScenarioBuildData buildData)
     : _opts{opts}, _ctx{opts, getRequiredQueueFlags(buildData.commands)}, _resources{std::move(buildData.resources)},
       _resourceIds{std::move(buildData.resourceIds)}, _initializations{std::move(buildData.initializations)},
       _outputs{std::move(buildData.outputs)}, _commands{std::move(buildData.commands)}, _compute(_ctx),
@@ -235,68 +322,69 @@ Scenario::Scenario(const ScenarioOptions &opts, detail::ScenarioBuildData buildD
     setupRuntimeCommands();
 }
 
-BufferId Scenario::getBufferId(std::string_view uid) const {
+BufferId ScenarioImpl::getBufferId(std::string_view uid) const {
     return resolveResourceUid<BufferId>(_resourceIds, uid, "Buffer", "getBufferId");
 }
 
-ImageId Scenario::getImageId(std::string_view uid) const {
+ImageId ScenarioImpl::getImageId(std::string_view uid) const {
     return resolveResourceUid<ImageId>(_resourceIds, uid, "Image", "getImageId");
 }
 
-TensorId Scenario::getTensorId(std::string_view uid) const {
+TensorId ScenarioImpl::getTensorId(std::string_view uid) const {
     return resolveResourceUid<TensorId>(_resourceIds, uid, "Tensor", "getTensorId");
 }
 
-void Scenario::upload(BufferId id, const BufferDataView &data) {
+void ScenarioImpl::upload(BufferId id, const BufferDataView &data) {
     if (!_dataManager.hasBuffer(id)) {
         throw std::runtime_error("Scenario::upload: Buffer resource not found.");
     }
     _dataManager.getBuffer(id).upload(_ctx, data);
 }
 
-void Scenario::upload(ImageId id, const ImageDataView &data) {
+void ScenarioImpl::upload(ImageId id, const ImageDataView &data) {
     if (!_dataManager.hasImage(id)) {
         throw std::runtime_error("Scenario::upload: Image resource not found.");
     }
     _dataManager.getImageMut(id).upload(_ctx, data);
 }
 
-void Scenario::upload(TensorId id, const TensorDataView &data) {
+void ScenarioImpl::upload(TensorId id, const TensorDataView &data) {
     if (!_dataManager.hasTensor(id)) {
         throw std::runtime_error("Scenario::upload: Tensor resource not found.");
     }
     _dataManager.getTensor(id).upload(_ctx, data);
 }
 
-BufferData Scenario::download(BufferId id) const {
+BufferData ScenarioImpl::download(BufferId id) const {
     if (!_dataManager.hasBuffer(id)) {
         throw std::runtime_error("Scenario::download: Buffer resource not found.");
     }
     return _dataManager.getBuffer(id).download(_ctx);
 }
 
-ImageData Scenario::download(ImageId id) {
+ImageData ScenarioImpl::download(ImageId id) {
     if (!_dataManager.hasImage(id)) {
         throw std::runtime_error("Scenario::download: Image resource not found.");
     }
     return _dataManager.getImageMut(id).download(_ctx);
 }
 
-TensorData Scenario::download(TensorId id) const {
+TensorData ScenarioImpl::download(TensorId id) const {
     if (!_dataManager.hasTensor(id)) {
         throw std::runtime_error("Scenario::download: Tensor resource not found.");
     }
     return _dataManager.getTensor(id).download(_ctx);
 }
 
-const ShaderInfo &Scenario::getShader(ShaderId id) const { return _resources.get(id); }
+const ShaderInfo &ScenarioImpl::getShader(ShaderId id) const { return _resources.get(id); }
 
-MemoryResourceId Scenario::getMemoryResourceId(const Guid &guid) const {
+MemoryResourceId ScenarioImpl::getMemoryResourceId(const Guid &guid) const {
     return resolveMemoryResourceId(_resourceIds, guid);
 }
 
-const ShaderInfo &Scenario::getSubstitutionShader(const std::vector<ResolvedShaderSubstitution> &shaderSubstitutions,
-                                                  const std::string &moduleName) const {
+const ShaderInfo &
+ScenarioImpl::getSubstitutionShader(const std::vector<ResolvedShaderSubstitution> &shaderSubstitutions,
+                                    const std::string &moduleName) const {
     for (const auto &shaderSub : shaderSubstitutions) {
         if (shaderSub.target == moduleName) {
             return getShader(shaderSub.shader);
@@ -305,9 +393,9 @@ const ShaderInfo &Scenario::getSubstitutionShader(const std::vector<ResolvedShad
     throw std::runtime_error("Could not perform shader substitution");
 }
 
-void Scenario::run() { run(1, false); }
+void ScenarioImpl::run() { run(1, false); }
 
-void Scenario::run(int repeatCount, bool dryRun) {
+void ScenarioImpl::run(int repeatCount, bool dryRun) {
     if (repeatCount <= 0) {
         throw std::invalid_argument("Scenario repeat count must be greater than zero; received " +
                                     std::to_string(repeatCount) + ".");
@@ -320,7 +408,7 @@ void Scenario::run(int repeatCount, bool dryRun) {
     saveResults(dryRun);
 }
 
-void Scenario::runIteration(int iteration, int repeatCount, bool dryRun) {
+void ScenarioImpl::runIteration(int iteration, int repeatCount, bool dryRun) {
     if (_opts.captureFrame && !_frameCapturer) {
         _frameCapturer = std::make_unique<FrameCapturer>();
     }
@@ -348,7 +436,7 @@ void Scenario::runIteration(int iteration, int repeatCount, bool dryRun) {
     }
 }
 
-void Scenario::resetForNextRun() {
+void ScenarioImpl::resetForNextRun() {
     _compute.reset();
     for (const auto &[id, info] : _resources.images()) {
         if (info.tiling == Tiling::Optimal) {
@@ -357,7 +445,7 @@ void Scenario::resetForNextRun() {
     }
 }
 
-void Scenario::createRuntimeResources() {
+void ScenarioImpl::createRuntimeResources() {
     for (const auto &[id, info] : _resources.buffers()) {
         _dataManager.createBuffer(id, info);
     }
@@ -376,7 +464,7 @@ void Scenario::createRuntimeResources() {
     }
 }
 
-void Scenario::createRuntimeBarriers() {
+void ScenarioImpl::createRuntimeBarriers() {
     for (const auto &[id, info] : _resources.imageBarriers()) {
         _dataManager.createImageBarrier(id, info);
     }
@@ -391,7 +479,7 @@ void Scenario::createRuntimeBarriers() {
     }
 }
 
-void Scenario::initializeResourceData() {
+void ScenarioImpl::initializeResourceData() {
     const auto process = [&](const detail::InitializationBase &resource, auto &&initialize) {
         PerfCounterGuard guard(_perfCounters, "Load Resource: " + resource.debugName, "Scenario Setup");
         initialize();
@@ -431,7 +519,7 @@ void Scenario::initializeResourceData() {
     }
 }
 
-void Scenario::setupResources() {
+void ScenarioImpl::setupResources() {
     createRuntimeResources();
 
     Creator vgfResourceCreator{_resources, _dataManager};
@@ -501,7 +589,7 @@ void Scenario::setupResources() {
     }
 }
 
-void Scenario::setupRuntimeCommands() {
+void ScenarioImpl::setupRuntimeCommands() {
     if (_opts.enablePipelineCaching) {
         mlsdk::logging::info("Load Pipeline Cache");
         PerfCounterGuard guard(_perfCounters, "Load Pipeline Cache.", "Load Pipeline Cache");
@@ -544,7 +632,7 @@ void Scenario::setupRuntimeCommands() {
     }
 }
 
-bool Scenario::hasAliasedOptimalTensors() const {
+bool ScenarioImpl::hasAliasedOptimalTensors() const {
     // If any tensors in any memgroup have optimal tiling
     for ([[maybe_unused]] const auto &[_, resources] : _groupManager.getGroups()) {
         if (resources.size() <= 1) {
@@ -560,7 +648,7 @@ bool Scenario::hasAliasedOptimalTensors() const {
     return false;
 }
 
-void Scenario::handleAliasedLayoutTransitions() {
+void ScenarioImpl::handleAliasedLayoutTransitions() {
 
     // Validation pass: ensure all resources in a group have the same tiling type
     for ([[maybe_unused]] const auto &[_, resources] : _groupManager.getGroups()) {
@@ -658,7 +746,7 @@ void Scenario::handleAliasedLayoutTransitions() {
     }
 }
 
-void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries) {
+void ScenarioImpl::createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries) {
     // Create Compute shader pipeline
     const auto &shaderInfo = getShader(dispatchCompute.shader);
     if (shaderInfo.stage != ShaderStage::Compute && shaderInfo.stage != ShaderStage::Unknown) {
@@ -677,7 +765,7 @@ void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute,
     mlsdk::logging::debug("Shader Pipeline: " + shaderInfo.debugName + " created");
 }
 
-void Scenario::createFragmentPipeline(const DispatchFragmentData &dispatchFragment, uint32_t &nQueries) {
+void ScenarioImpl::createFragmentPipeline(const DispatchFragmentData &dispatchFragment, uint32_t &nQueries) {
     const auto &vertexShaderInfo = getShader(dispatchFragment.vertexShader);
     const auto &fragmentShaderInfo = getShader(dispatchFragment.fragmentShader);
     if (vertexShaderInfo.stage != ShaderStage::Vertex) {
@@ -749,7 +837,7 @@ void Scenario::createFragmentPipeline(const DispatchFragmentData &dispatchFragme
     mlsdk::logging::debug("Graphics Pipeline: " + fragmentShaderInfo.debugName + " created");
 }
 
-void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries) {
+void ScenarioImpl::createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries) {
     const VgfView &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraph);
     for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
         const auto &intermediates = _vgfResourceCreationResults.at(dispatchDataGraph.dataGraph).intermediateResources;
@@ -761,7 +849,7 @@ void Scenario::createDataGraphPipeline(const DispatchDataGraphData &dispatchData
     }
 }
 
-void Scenario::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSpirvGraph, uint32_t &nQueries) {
+void ScenarioImpl::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSpirvGraph, uint32_t &nQueries) {
     const auto &shaderInfo = getShader(dispatchSpirvGraph.graphShader);
     if (shaderInfo.shaderType != ShaderType::SPIR_V) {
         throw std::runtime_error("Shader resource used to create Graph Pipeline must be of type SPIR-V");
@@ -803,7 +891,7 @@ void Scenario::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSp
     mlsdk::logging::debug("Graph Pipeline: " + shaderInfo.debugName + " created");
 }
 
-void Scenario::createOpticalFlowPipeline(const DispatchOpticalFlowData &dispatchOpticalFlow, uint32_t &nQueries) {
+void ScenarioImpl::createOpticalFlowPipeline(const DispatchOpticalFlowData &dispatchOpticalFlow, uint32_t &nQueries) {
     const std::vector<TypedBinding> emptyBindings{};
     const Compute::PipelineCreateArguments args{dispatchOpticalFlow.debugName, emptyBindings, _pipelineCache};
 
@@ -844,9 +932,9 @@ void Scenario::createOpticalFlowPipeline(const DispatchOpticalFlowData &dispatch
     mlsdk::logging::debug("Optical Flow Pipeline: " + dispatchOpticalFlow.debugName + " created");
 }
 
-void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
-                              const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph,
-                              uint32_t &nQueries) {
+void ScenarioImpl::createPipeline(const uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
+                                  const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph,
+                                  uint32_t &nQueries) {
     const auto profileName = dispatchDataGraph.debugName + "/" + vgfView.getSegmentName(segmentIndex);
     const Compute::PipelineCreateArguments args{profileName, sequenceBindings, _pipelineCache};
     switch (vgfView.getSegmentType(segmentIndex)) {
@@ -921,7 +1009,7 @@ void Scenario::createPipeline(const uint32_t segmentIndex, const std::vector<Typ
     }
 }
 
-void Scenario::saveProfilingData(int iteration, int repeatCount, bool dryRun) {
+void ScenarioImpl::saveProfilingData(int iteration, int repeatCount, bool dryRun) {
     // Save profiling data
     if (!_opts.profilingPath.empty()) {
         std::optional<RuntimeProfilingData> runtimeProfilingData;
@@ -934,7 +1022,7 @@ void Scenario::saveProfilingData(int iteration, int repeatCount, bool dryRun) {
     }
 }
 
-void Scenario::saveResults(bool dryRun) {
+void ScenarioImpl::saveResults(bool dryRun) {
     if (_pipelineCache) {
         PerfCounterGuard guard(_perfCounters, "Save Pipeline Cache", "Save Pipeline Cache", false);
         _pipelineCache->save();

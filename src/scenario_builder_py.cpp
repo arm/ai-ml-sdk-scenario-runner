@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "iscenario_builder.hpp"
-#include "scenario_builder.hpp"
+#include "scenario_runner/scenario_builder.hpp"
+
+#include "scenario_builder_impl.hpp"
 
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
@@ -435,18 +436,19 @@ void bindCommands(py::module_ &m) {
 }
 
 void bindBuilder(py::module_ &m) {
-    py::class_<IScenarioBuilder>(m, "IScenarioBuilder")
-        .def("add_buffer", &IScenarioBuilder::addBuffer)
+    py::class_<ScenarioBuilder, std::unique_ptr<ScenarioBuilder>>(m, "ScenarioBuilder")
+        .def(py::init(&createScenarioBuilder))
+        .def("add_buffer", &ScenarioBuilder::addBuffer)
         .def(
             "add_buffer",
-            [](IScenarioBuilder &builder, uint32_t size, const std::string &debugName, uint64_t memoryOffset) {
+            [](ScenarioBuilder &builder, uint32_t size, const std::string &debugName, uint64_t memoryOffset) {
                 return builder.addBuffer(BufferInfo{debugName, size, memoryOffset});
             },
             py::arg("size"), py::kw_only(), py::arg("debug_name") = "", py::arg("memory_offset") = 0)
-        .def("add_image", &IScenarioBuilder::addImage)
+        .def("add_image", &ScenarioBuilder::addImage)
         .def(
             "add_image",
-            [](IScenarioBuilder &builder, const std::vector<int64_t> &shape, vk::Format format,
+            [](ScenarioBuilder &builder, const std::vector<int64_t> &shape, vk::Format format,
                const std::string &debugName, bool isInput, bool isSampled, bool isStorage, bool isColorAttachment,
                uint32_t mips, std::optional<Tiling> tiling, uint64_t memoryOffset) {
                 ImageInfo info{};
@@ -466,10 +468,10 @@ void bindBuilder(py::module_ &m) {
             py::arg("shape"), py::arg("format"), py::kw_only(), py::arg("debug_name") = "", py::arg("is_input") = false,
             py::arg("is_sampled") = false, py::arg("is_storage") = false, py::arg("is_color_attachment") = false,
             py::arg("mips") = 1, py::arg("tiling") = py::none(), py::arg("memory_offset") = 0)
-        .def("add_tensor", &IScenarioBuilder::addTensor)
+        .def("add_tensor", &ScenarioBuilder::addTensor)
         .def(
             "add_tensor",
-            [](IScenarioBuilder &builder, const std::vector<int64_t> &shape, vk::Format format,
+            [](ScenarioBuilder &builder, const std::vector<int64_t> &shape, vk::Format format,
                const std::string &debugName, int64_t sparsityDimension, bool descriptorBufferCaptureReplay,
                Tiling tiling, uint64_t memoryOffset) {
                 return builder.addTensor(TensorInfo{debugName, shape, format, sparsityDimension,
@@ -478,36 +480,34 @@ void bindBuilder(py::module_ &m) {
             py::arg("shape"), py::arg("format"), py::kw_only(), py::arg("debug_name") = "",
             py::arg("sparsity_dimension") = -1, py::arg("descriptor_buffer_capture_replay") = false,
             py::arg("tiling") = Tiling::Linear, py::arg("memory_offset") = 0)
-        .def("add_shader", &IScenarioBuilder::addShader)
-        .def("add_raw_data", &IScenarioBuilder::addRawData)
-        .def("add_data_graph", &IScenarioBuilder::addDataGraph)
-        .def("add_graph_constant", &IScenarioBuilder::addGraphConstant)
-        .def("add_image_barrier", &IScenarioBuilder::addImageBarrier)
-        .def("add_buffer_barrier", &IScenarioBuilder::addBufferBarrier)
-        .def("add_tensor_barrier", &IScenarioBuilder::addTensorBarrier)
-        .def("add_memory_barrier", &IScenarioBuilder::addMemoryBarrier)
-        .def("create_memory_group", &IScenarioBuilder::createMemoryGroup)
+        .def("add_shader", &ScenarioBuilder::addShader)
+        .def("add_raw_data", &ScenarioBuilder::addRawData)
+        .def("add_data_graph", &ScenarioBuilder::addDataGraph)
+        .def("add_graph_constant", &ScenarioBuilder::addGraphConstant)
+        .def("add_image_barrier", &ScenarioBuilder::addImageBarrier)
+        .def("add_buffer_barrier", &ScenarioBuilder::addBufferBarrier)
+        .def("add_tensor_barrier", &ScenarioBuilder::addTensorBarrier)
+        .def("add_memory_barrier", &ScenarioBuilder::addMemoryBarrier)
+        .def("create_memory_group", &ScenarioBuilder::createMemoryGroup)
         .def("add_resource_to_memory_group",
-             [](IScenarioBuilder &builder, MemoryGroupId group, const py::object &resource) {
+             [](ScenarioBuilder &builder, MemoryGroupId group, const py::object &resource) {
                  builder.addResourceToMemoryGroup(group, memoryResourceFromPython(resource));
              })
-        .def("add_dispatch_compute", &IScenarioBuilder::addDispatchCompute)
-        .def("add_dispatch_fragment", &IScenarioBuilder::addDispatchFragment)
-        .def("add_dispatch_data_graph", &IScenarioBuilder::addDispatchDataGraph)
-        .def("add_dispatch_spirv_graph", &IScenarioBuilder::addDispatchSpirvGraph)
-        .def("add_dispatch_optical_flow", &IScenarioBuilder::addDispatchOpticalFlow)
-        .def("add_dispatch_barrier", &IScenarioBuilder::addDispatchBarrier)
-        .def("add_mark_boundary", &IScenarioBuilder::addMarkBoundary)
-        .def("build", &IScenarioBuilder::build, py::kw_only(), py::arg("options") = ScenarioOptions{},
+        .def("add_dispatch_compute", &ScenarioBuilder::addDispatchCompute)
+        .def("add_dispatch_fragment", &ScenarioBuilder::addDispatchFragment)
+        .def("add_dispatch_data_graph", &ScenarioBuilder::addDispatchDataGraph)
+        .def("add_dispatch_spirv_graph", &ScenarioBuilder::addDispatchSpirvGraph)
+        .def("add_dispatch_optical_flow", &ScenarioBuilder::addDispatchOpticalFlow)
+        .def("add_dispatch_barrier", &ScenarioBuilder::addDispatchBarrier)
+        .def("add_mark_boundary", &ScenarioBuilder::addMarkBoundary)
+        .def("build", &ScenarioBuilder::build, py::kw_only(), py::arg("options") = ScenarioOptions{},
              py::call_guard<py::gil_scoped_release>());
-
-    py::class_<ScenarioBuilder, IScenarioBuilder>(m, "ScenarioBuilder").def(py::init<>());
 }
 
 } // namespace
 } // namespace mlsdk::scenariorunner
 
-void pyInitIScenarioBuilder(py::module_ &m) {
+void pyInitScenarioBuilder(py::module_ &m) {
     using namespace mlsdk::scenariorunner;
 
     bindResourceIds(m);

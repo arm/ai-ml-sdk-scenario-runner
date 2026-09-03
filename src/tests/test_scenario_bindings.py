@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 
-def test_python_interfaces_and_builder_types(sr):
+def test_python_scenario_and_builder_types(sr):
     builder = sr.ScenarioBuilder()
     options = sr.ScenarioOptions()
 
@@ -17,12 +17,12 @@ def test_python_interfaces_and_builder_types(sr):
     buffer_info.size = 4
     buffer_id = builder.add_buffer(buffer_info)
 
-    assert isinstance(builder, sr.IScenarioBuilder)
+    assert isinstance(builder, sr.ScenarioBuilder)
     assert isinstance(buffer_id, sr.BufferId)
     assert buffer_id.value == 0
 
     scenario = builder.build(options=options)
-    assert isinstance(scenario, sr.IScenario)
+    assert isinstance(scenario, sr.Scenario)
 
 
 def test_numpy_image_upload_supports_single_mip(sr):
@@ -128,7 +128,7 @@ def test_scenario_json_factory_builds_interface(sr, tmp_path):
 
     scenario = sr.ScenarioJsonFactory.make(scenario_path, options=options)
 
-    assert isinstance(scenario, sr.IScenario)
+    assert isinstance(scenario, sr.Scenario)
 
 
 def test_in_memory_scenario_builder_executes_compute(sr, tmp_path, glsl_compiler):
@@ -178,9 +178,9 @@ def test_in_memory_scenario_builder_executes_compute(sr, tmp_path, glsl_compiler
     command.compute_dispatch = dispatch
     builder.add_dispatch_compute(command)
 
-    assert isinstance(builder, sr.IScenarioBuilder)
+    assert isinstance(builder, sr.ScenarioBuilder)
     scenario = builder.build()
-    assert isinstance(scenario, sr.IScenario)
+    assert isinstance(scenario, sr.Scenario)
 
     first_input = np.array([1, 2, 3, 4], dtype=np.uint32)
     scenario.upload(input_id, first_input)

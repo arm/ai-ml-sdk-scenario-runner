@@ -16,9 +16,9 @@ namespace mlsdk::scenariorunner {
 ///
 /// Implementations own the built resources and pipelines. A caller can upload new input data,
 /// execute the scenario, and download output data repeatedly without rebuilding those resources.
-class IScenario {
+class Scenario {
   public:
-    virtual ~IScenario() = default;
+    virtual ~Scenario() = default;
 
     /// @brief Single execution of the scenario.
     virtual void run() = 0;
@@ -29,15 +29,21 @@ class IScenario {
     virtual void run(int repeatCount, bool dryRun) = 0;
 
     virtual BufferId getBufferId(std::string_view uid) const = 0;
+
     virtual ImageId getImageId(std::string_view uid) const = 0;
+
     virtual TensorId getTensorId(std::string_view uid) const = 0;
 
     virtual void upload(BufferId id, const BufferDataView &data) = 0;
+
     virtual void upload(ImageId id, const ImageDataView &data) = 0;
+
     virtual void upload(TensorId id, const TensorDataView &data) = 0;
 
     virtual BufferData download(BufferId id) const = 0;
+
     virtual ImageData download(ImageId id) = 0;
+
     virtual TensorData download(TensorId id) const = 0;
 };
 

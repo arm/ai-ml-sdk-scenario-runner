@@ -4,10 +4,11 @@
  */
 #pragma once
 
+#include "scenario_runner/types.hpp"
+
 #include "context.hpp"
 #include "data_manager.hpp"
 #include "pipeline_cache.hpp"
-#include "types.hpp"
 
 #include <optional>
 #include <string>

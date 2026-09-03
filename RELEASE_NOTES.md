@@ -6,10 +6,12 @@
 
 ### API Changes
 
-- Added `IScenario` as the public interface for running scenarios and transferring
+- Added `Scenario` as the public interface for running scenarios and transferring
   buffer, image, and tensor data in memory using typed resource IDs.
-- Added `IScenarioBuilder` for registering typed resources and commands and
-  constructing an `IScenario`.
+- Added `ScenarioBuilder` for registering typed resources and commands and
+  constructing a `Scenario`.
+- Added `ScenarioJsonFactory` for constructing scenarios from JSON files
+  through the public API.
 
 ### Build, Packaging & Developer Experience
 

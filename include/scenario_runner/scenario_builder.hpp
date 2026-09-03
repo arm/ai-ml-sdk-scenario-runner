@@ -6,7 +6,7 @@
 #pragma once
 
 #include "command_types.hpp"
-#include "iscenario.hpp"
+#include "scenario.hpp"
 #include "scenario_options.hpp"
 #include "types.hpp"
 
@@ -17,10 +17,10 @@ namespace mlsdk::scenariorunner {
 /// @brief Public interface for defining and building a scenario.
 ///
 /// Resource registration returns stable typed IDs. Callers retain these IDs
-/// and use them to transfer data through the IScenario returned by build().
-class IScenarioBuilder {
+/// and use them to transfer data through the Scenario returned by build().
+class ScenarioBuilder {
   public:
-    virtual ~IScenarioBuilder() = default;
+    virtual ~ScenarioBuilder() = default;
 
     virtual BufferId addBuffer(const BufferInfo &info) = 0;
     virtual ImageId addImage(const ImageInfo &info) = 0;
@@ -47,7 +47,9 @@ class IScenarioBuilder {
     virtual void addMarkBoundary(MarkBoundaryData command) = 0;
 
     /// @brief Consume the builder and return a ready-to-run scenario.
-    virtual std::unique_ptr<IScenario> build(const ScenarioOptions &options) = 0;
+    virtual std::unique_ptr<Scenario> build(const ScenarioOptions &options) = 0;
 };
+
+std::unique_ptr<ScenarioBuilder> createScenarioBuilder();
 
 } // namespace mlsdk::scenariorunner

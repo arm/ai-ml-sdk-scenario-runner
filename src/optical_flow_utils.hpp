@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "types.hpp"
+#include "scenario_runner/types.hpp"
 
 #include <optional>
 

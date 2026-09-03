@@ -5,9 +5,10 @@
 
 #pragma once
 
+#include "scenario_runner/resource_data.hpp"
+#include "scenario_runner/types.hpp"
+
 #include "context.hpp"
-#include "resource_data.hpp"
-#include "types.hpp"
 #include "vulkan_memory_manager.hpp"
 
 namespace mlsdk::scenariorunner {

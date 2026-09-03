@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <argparse/argparse.hpp>
-#include <vgf/logging.hpp>
+#include "scenario_runner/scenario_json_factory.hpp"
+#include "scenario_runner/scenario_options.hpp"
 
 #include "logging.hpp"
-#include "scenario_desc.hpp"
-#include "scenario_json_factory.hpp"
-#include "scenario_options.hpp"
 #include "version.hpp"
+
+#include <argparse/argparse.hpp>
+#include <vgf/logging.hpp>
 
 #include <chrono>
 #include <ctime>
@@ -324,9 +324,7 @@ int runScenarioRunner(int argc, const char **argv) {
 
         scenarioOptions.enableRobustnessFeatures = parser.get<bool>("--enable-robustness-features");
 
-        ScenarioSpec scenarioSpec(scenarioFile, workDir, outputDir);
-        mlsdk::logging::info("Scenario file parsed");
-        std::unique_ptr<IScenario> scenario = ScenarioJsonFactory::make(scenarioOptions, scenarioSpec);
+        auto scenario = ScenarioJsonFactory::make(scenarioFile, workDir, outputDir, scenarioOptions);
         if (parser.get<bool>("--wait-for-key-stroke-before-run")) {
             mlsdk::logging::info("Press enter to continue...");
             std::ignore = getchar();

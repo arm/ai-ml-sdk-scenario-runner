@@ -5,14 +5,35 @@
 
 #pragma once
 
-#include "resource_data.hpp"
-#include "types.hpp"
+#include "scenario_runner/command_types.hpp"
+#include "scenario_runner/resource_data.hpp"
 
+#include "group_manager.hpp"
+#include "guid.hpp"
+#include "resource_manager.hpp"
+
+#include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
+#include <utility>
 #include <variant>
+#include <vector>
 
-namespace mlsdk::scenariorunner::detail {
+namespace mlsdk::scenariorunner {
+
+class Scenario;
+struct ScenarioOptions;
+
+using TypedResourceId =
+    std::variant<BufferId, ImageId, TensorId, ShaderId, RawDataId, DataGraphId, GraphConstantResourceId, ImageBarrierId,
+                 BufferBarrierId, TensorBarrierId, MemoryBarrierId>;
+
+namespace detail {
+
+using ScenarioCommand =
+    std::variant<DispatchComputeData, DispatchFragmentData, DispatchDataGraphData, DispatchSpirvGraphData,
+                 DispatchOpticalFlowData, DispatchBarrierData, MarkBoundaryData>;
 
 struct InitializationBase {
     explicit InitializationBase(std::string debugName) : debugName{std::move(debugName)} {}
@@ -48,4 +69,16 @@ struct ResourceOutput {
     std::string debugName;
 };
 
-} // namespace mlsdk::scenariorunner::detail
+struct ScenarioBuildData {
+    ResourceManager resources;
+    GroupManager groupManager;
+    std::vector<ScenarioCommand> commands;
+    std::unordered_map<Guid, TypedResourceId> resourceIds;
+    std::vector<ResourceInitialization> initializations;
+    std::vector<ResourceOutput> outputs;
+};
+
+std::unique_ptr<Scenario> createScenario(const ScenarioOptions &options, ScenarioBuildData buildData);
+
+} // namespace detail
+} // namespace mlsdk::scenariorunner

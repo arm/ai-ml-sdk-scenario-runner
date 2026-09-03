@@ -5,29 +5,27 @@
 
 #pragma once
 
-#include "command_types.hpp"
-#include "group_manager.hpp"
-#include "iscenario_builder.hpp"
-#include "resource_manager.hpp"
-#include "scenario_resource_io.hpp"
+#include "scenario_runner/scenario_builder.hpp"
+
+#include "scenario_build_data.hpp"
+
+#include <memory>
 
 namespace mlsdk::scenariorunner {
 
 namespace detail {
-struct ScenarioBuildData {
-    ResourceManager resources;
-    GroupManager groupManager;
-    std::vector<ScenarioCommand> commands;
-    std::unordered_map<Guid, TypedResourceId> resourceIds;
-    std::vector<ResourceInitialization> initializations;
-    std::vector<ResourceOutput> outputs;
-};
 class ScenarioBuilderAccess;
-} // namespace detail
+}
 
-class ScenarioBuilder : public IScenarioBuilder {
+class ScenarioBuilderImpl final : public ScenarioBuilder {
   public:
-    ~ScenarioBuilder() override = default;
+    ScenarioBuilderImpl() = default;
+    ~ScenarioBuilderImpl() override = default;
+
+    ScenarioBuilderImpl(const ScenarioBuilderImpl &) = delete;
+    ScenarioBuilderImpl &operator=(const ScenarioBuilderImpl &) = delete;
+    ScenarioBuilderImpl(ScenarioBuilderImpl &&) = delete;
+    ScenarioBuilderImpl &operator=(ScenarioBuilderImpl &&) = delete;
 
     BufferId addBuffer(const BufferInfo &info) override;
     BufferId addBuffer(BufferInfo &&info);
@@ -60,13 +58,11 @@ class ScenarioBuilder : public IScenarioBuilder {
     void addDispatchBarrier(DispatchBarrierData command) override;
     void addMarkBoundary(MarkBoundaryData command) override;
 
-    std::unique_ptr<IScenario> build(const ScenarioOptions &options) override;
+    std::unique_ptr<Scenario> build(const ScenarioOptions &options) override;
 
   private:
     friend class detail::ScenarioBuilderAccess;
-    friend class Scenario;
 
-    detail::ScenarioBuildData takeBuildData();
     void ensureMutable() const;
     void validateMemoryResource(MemoryResourceId resource) const;
     void validateBinding(const TypedBinding &binding) const;
@@ -79,8 +75,8 @@ class ScenarioBuilder : public IScenarioBuilder {
 namespace detail {
 class ScenarioBuilderAccess {
   public:
-    static ScenarioBuildData &buildData(ScenarioBuilder &builder) { return builder._data; }
-    static ScenarioBuildData takeBuildData(ScenarioBuilder &builder) { return builder.takeBuildData(); }
+    static ScenarioBuildData &buildData(ScenarioBuilderImpl &builder) { return builder._data; }
+    static ScenarioBuildData takeBuildData(ScenarioBuilderImpl &builder);
 };
 } // namespace detail
 

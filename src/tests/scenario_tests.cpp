@@ -3,20 +3,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "scenario_runner/resource_data.hpp"
+#include "scenario_runner/scenario_builder.hpp"
+#include "scenario_runner/scenario_json_factory.hpp"
+#include "scenario_runner/scenario_options.hpp"
+#include "scenario_runner/types.hpp"
+
 #include "glsl_compiler.hpp"
-#include "iscenario_builder.hpp"
-#include "resource_data.hpp"
-#include "scenario.hpp"
-#include "scenario_builder.hpp"
 #include "scenario_desc.hpp"
-#include "scenario_json_factory.hpp"
-#include "scenario_options.hpp"
-#include "shader_stage.hpp"
 
 #include <gtest/gtest.h>
 
 #include <cstdint>
 #include <cstring>
+#include <fstream>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -55,13 +55,20 @@ template <typename T> std::vector<std::byte> asBytes(const std::vector<T> &value
     return bytes;
 }
 
+std::unique_ptr<Scenario> makeScenarioFromJson(std::string_view json) {
+    TempFolder tempFolder("scenario_json_factory_test");
+    const auto scenarioPath = tempFolder.relative("scenario.json");
+    std::ofstream(scenarioPath) << json;
+    return ScenarioJsonFactory::make(scenarioPath);
+}
+
 } // namespace
 
-TEST(IScenarioBuilder, BuildsScenarioWithRetainedTypedHandles) {
-    std::unique_ptr<IScenarioBuilder> builder = std::make_unique<ScenarioBuilder>();
+TEST(ScenarioBuilder, BuildsScenarioWithRetainedTypedHandles) {
+    std::unique_ptr<ScenarioBuilder> builder = createScenarioBuilder();
     const auto bufferId = builder->addBuffer(BufferInfo{"in_memory_buffer", 4, 0});
 
-    std::unique_ptr<IScenario> scenario = builder->build(ScenarioOptions{});
+    std::unique_ptr<Scenario> scenario = builder->build(ScenarioOptions{});
     const std::vector<std::byte> payload{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
     scenario->upload(bufferId, {payload.data(), payload.size()});
     scenario->run();
@@ -94,9 +101,8 @@ TEST(ScenarioSpec, ResolvesShaderIncludeDirectoriesFromScenarioDirectory) {
     EXPECT_EQ(shader.includeDirs, (std::vector<std::string>{(workDir / "includes").string(), "/shared/includes"}));
 }
 
-TEST(IScenario, ScenarioSupportsVirtualDispatch) {
-    ScenarioSpec spec{scenarioJson};
-    std::unique_ptr<IScenario> api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
+TEST(Scenario, ScenarioSupportsVirtualDispatch) {
+    std::unique_ptr<Scenario> api = makeScenarioFromJson(scenarioJson);
 
     const auto bufferId = api->getBufferId("inBuffer");
     const std::vector<std::byte> payload{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
@@ -141,18 +147,14 @@ TEST(ScenarioJsonFactory, ExecutesInitializedImageBarrier) {
         ]
     })";
 
-    ScenarioSpec spec{json};
-    auto scenario = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
+    auto scenario = makeScenarioFromJson(json);
 
     // Initialization must establish eGeneral before this runtime barrier executes.
     ASSERT_NO_THROW(scenario->run());
 }
 
 TEST(ScenarioJsonFactory, BuiltScenarioOwnsJsonConstructionData) {
-    auto api = []() {
-        ScenarioSpec spec{scenarioJson};
-        return ScenarioJsonFactory::make(ScenarioOptions{}, spec);
-    }();
+    auto api = []() { return makeScenarioFromJson(scenarioJson); }();
 
     const auto bufferId = api->getBufferId("inBuffer");
     const std::vector<std::byte> payload{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
@@ -163,8 +165,7 @@ TEST(ScenarioJsonFactory, BuiltScenarioOwnsJsonConstructionData) {
 }
 
 TEST(ScenarioInMemoryTransfer, UploadsAndDownloadsByTypedIdAcrossRuns) {
-    ScenarioSpec spec{scenarioJson};
-    auto scenario = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
+    auto scenario = makeScenarioFromJson(scenarioJson);
 
     const auto bufferId = scenario->getBufferId("inBuffer");
     const auto tensorId = scenario->getTensorId("inTensor");
@@ -189,8 +190,7 @@ TEST(ScenarioInMemoryTransfer, UploadsAndDownloadsByTypedIdAcrossRuns) {
 }
 
 TEST(ScenarioInMemoryTransfer, InitializesResourcesWithoutSourcesThroughTypedUploadPath) {
-    ScenarioSpec spec{scenarioJson};
-    auto scenario = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
+    auto scenario = makeScenarioFromJson(scenarioJson);
 
     const auto buffer = scenario->download(scenario->getBufferId("inBuffer"));
     const auto tensor = scenario->download(scenario->getTensorId("inTensor"));
@@ -203,8 +203,7 @@ TEST(ScenarioInMemoryTransfer, InitializesResourcesWithoutSourcesThroughTypedUpl
 }
 
 TEST(ScenarioInMemoryTransfer, RejectsNonPositiveRepeatCount) {
-    ScenarioSpec spec{scenarioJson};
-    auto scenario = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
+    auto scenario = makeScenarioFromJson(scenarioJson);
 
     try {
         scenario->run(0, false);
@@ -215,8 +214,7 @@ TEST(ScenarioInMemoryTransfer, RejectsNonPositiveRepeatCount) {
 }
 
 TEST(ScenarioInMemoryTransfer, RejectsUnknownTypedIds) {
-    ScenarioSpec spec{scenarioJson};
-    auto scenario = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
+    auto scenario = makeScenarioFromJson(scenarioJson);
 
     const std::vector<char> data(4);
     const auto expectError = [](const auto &operation, const char *expectedMessage) {
@@ -247,9 +245,8 @@ TEST(ScenarioInMemoryTransfer, RejectsUnknownTypedIds) {
                 "Scenario::getTensorId: resource UID 'inBuffer' does not identify a Tensor resource.");
 }
 
-TEST(IScenario, SupportsTensorUploadAndDownload) {
-    ScenarioSpec spec{scenarioJson};
-    auto api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
+TEST(Scenario, SupportsTensorUploadAndDownload) {
+    auto api = makeScenarioFromJson(scenarioJson);
 
     const auto tensorId = api->getTensorId("inTensor");
     const std::vector<std::byte> payload{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
@@ -262,9 +259,8 @@ TEST(IScenario, SupportsTensorUploadAndDownload) {
     EXPECT_EQ(result.format.value(), vk::Format::eR8Sint);
 }
 
-TEST(IScenario, SupportsRepeatedUploadRunDownload) {
-    ScenarioSpec spec{scenarioJson};
-    auto api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
+TEST(Scenario, SupportsRepeatedUploadRunDownload) {
+    auto api = makeScenarioFromJson(scenarioJson);
     const auto bufferId = api->getBufferId("inBuffer");
 
     const std::vector<std::byte> firstPayload{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
@@ -278,7 +274,7 @@ TEST(IScenario, SupportsRepeatedUploadRunDownload) {
     EXPECT_EQ(api->download(bufferId).data, secondPayload);
 }
 
-TEST(IScenario, ExecutesCommandWithDifferentInputsAcrossRuns) {
+TEST(Scenario, ExecutesCommandWithDifferentInputsAcrossRuns) {
     constexpr std::string_view shaderSource = R"(
         #version 450
         layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
@@ -295,7 +291,7 @@ TEST(IScenario, ExecutesCommandWithDifferentInputsAcrossRuns) {
     ASSERT_TRUE(spirv.first.empty()) << spirv.first;
     ASSERT_TRUE(GlslCompiler::get().save(spirv.second, shaderPath.string()));
 
-    std::unique_ptr<IScenarioBuilder> builder = std::make_unique<ScenarioBuilder>();
+    std::unique_ptr<ScenarioBuilder> builder = createScenarioBuilder();
 
     ShaderInfo shaderInfo{};
     shaderInfo.debugName = "increment";
@@ -315,7 +311,7 @@ TEST(IScenario, ExecutesCommandWithDifferentInputsAcrossRuns) {
     dispatch.computeDispatch.profileName = dispatch.debugName;
     builder->addDispatchCompute(std::move(dispatch));
 
-    std::unique_ptr<IScenario> api = builder->build(ScenarioOptions{});
+    std::unique_ptr<Scenario> api = builder->build(ScenarioOptions{});
 
     const auto firstInput = asBytes(std::vector<uint32_t>{1, 2, 3, 4});
     api->upload(inputId, {firstInput.data(), firstInput.size()});
@@ -328,9 +324,8 @@ TEST(IScenario, ExecutesCommandWithDifferentInputsAcrossRuns) {
     EXPECT_EQ(api->download(outputId).data, asBytes(std::vector<uint32_t>{11, 21, 31, 41}));
 }
 
-TEST(IScenario, RejectsUnknownTypedIds) {
-    ScenarioSpec spec{scenarioJson};
-    auto api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
+TEST(Scenario, RejectsUnknownTypedIds) {
+    auto api = makeScenarioFromJson(scenarioJson);
     const std::vector<char> payload(4);
 
     EXPECT_THROW(api->upload(BufferId{1}, {payload.data(), payload.size()}), std::runtime_error);

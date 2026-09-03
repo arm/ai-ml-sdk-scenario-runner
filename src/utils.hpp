@@ -5,8 +5,9 @@
 
 #pragma once
 
+#include "scenario_runner/types.hpp"
+
 #include "context.hpp"
-#include "types.hpp"
 
 #include "spirv-tools/libspirv.hpp"
 #include "vgf-utils/numpy.hpp"

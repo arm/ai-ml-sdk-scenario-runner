@@ -43,6 +43,10 @@ if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
     list(APPEND SCENARIO_RUNNER_LIB_SOURCES hlsl_compiler.cpp)
 endif()
 add_library(ScenarioRunnerLib ${SCENARIO_RUNNER_LIB_SOURCES})
+target_include_directories(ScenarioRunnerLib PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 target_link_libraries(ScenarioRunnerLib PUBLIC
     glslang::glslang
     glslang::glslang-default-resource-limits
