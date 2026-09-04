@@ -32,14 +32,13 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 #############################################################################
 # Options
 #############################################################################
-option(SCENARIO_RUNNER_BUILD_TESTS "Build Scenario Runner unit tests" OFF)
-option(SCENARIO_RUNNER_BUILD_PYLIB "Build Scenario Runner Python bindings" OFF)
-option(SCENARIO_RUNNER_ENABLE_CCACHE "Enable CCACHE support" OFF)
-option(SCENARIO_RUNNER_ENABLE_RDOC "Build Scenario Runner w/ RDoc support enabled" OFF)
 option(SCENARIO_RUNNER_BUILD_DOCS "Build project documentation" OFF)
+option(SCENARIO_RUNNER_BUILD_PYLIB "Build Scenario Runner Python bindings" OFF)
+option(SCENARIO_RUNNER_BUILD_TESTS "Build Scenario Runner unit tests" OFF)
+option(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT "HLSL only supported on Windows and Linux" OFF)
+option(SCENARIO_RUNNER_ENABLE_RDOC "Build Scenario Runner w/ RDoc support enabled" OFF)
 option(SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT "Enable support for experimental image formats in DDS reader" OFF)
 option(SCENARIO_RUNNER_EXPERIMENTAL_VGF_RUNTIME "Build VGF runtime library (Experimental)" OFF)
-option(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT "HLSL only supported on Windows and Linux" OFF)
 
 # Handle build type, set default as Release
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")
@@ -48,15 +47,8 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "")
 endif()
 
 #############################################################################
-# Toolchain configuration
+# Definitions
 #############################################################################
-
-if(NOT DEFINED CMAKE_CXX_COMPILER_LAUNCHER)
-    find_program(CCACHE_PROGRAM ccache)
-    if(CCACHE_PROGRAM AND SCENARIO_RUNNER_ENABLE_CCACHE)
-        set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
-    endif()
-endif()
 
 include(argparse)
 include(json)

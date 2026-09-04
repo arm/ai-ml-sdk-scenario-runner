@@ -217,7 +217,6 @@ class Builder:
             "-B",
             self.build_dir,
             f"-DCMAKE_BUILD_TYPE={self.build_type}",
-            "-DSCENARIO_RUNNER_ENABLE_CCACHE=ON",
             f"-DVULKAN_HEADERS_PATH={self.vulkan_headers_path}",
             f"-DML_SDK_VGF_LIB_PATH={self.vgf_lib_path}",
             f"-DJSON_PATH={self.json_path}",
