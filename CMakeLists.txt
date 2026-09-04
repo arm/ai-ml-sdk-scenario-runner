@@ -34,6 +34,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 #############################################################################
 option(SCENARIO_RUNNER_BUILD_DOCS "Build project documentation" OFF)
 option(SCENARIO_RUNNER_BUILD_PYLIB "Build Scenario Runner Python bindings" OFF)
+option(SCENARIO_RUNNER_BUILD_SHARED "Build Scenario Runner as a shared library" OFF)
 option(SCENARIO_RUNNER_BUILD_TESTS "Build Scenario Runner unit tests" OFF)
 option(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT "HLSL only supported on Windows and Linux" OFF)
 option(SCENARIO_RUNNER_ENABLE_RDOC "Build Scenario Runner w/ RDoc support enabled" OFF)
@@ -56,7 +57,9 @@ include(vulkan-headers)
 include(spirv-headers)
 include(spirv-tools)
 include(glslang)
-include(dxc)
+if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
+    include(dxc)
+endif()
 include(stb)
 include(version)
 
@@ -156,6 +159,11 @@ install(DIRECTORY include/scenario_runner DESTINATION include)
 if(ANDROID)
     install(TARGETS scenario_runner_jni EXPORT ${SCENARIO_RUNNER_PACKAGE_NAME}Config)
 endif()
+
+install(FILES
+    "${SCENARIO_RUNNER_VERSION_HEADER}"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/scenariorunner
+)
 
 if(ML_SDK_BUILD_DOCS OR SCENARIO_RUNNER_BUILD_DOCS)
     include(docs/docs.cmake)

@@ -42,39 +42,50 @@ set(SCENARIO_RUNNER_LIB_SOURCES
 if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
     list(APPEND SCENARIO_RUNNER_LIB_SOURCES hlsl_compiler.cpp)
 endif()
+
+function(srlib_configure_target target_name)
+    target_include_directories(${target_name} PUBLIC
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+    )
+    target_link_libraries(${target_name}
+        PUBLIC
+            glslang::glslang
+            glslang::glslang-default-resource-limits
+            glslang::SPIRV
+            nlohmann_json::nlohmann_json
+            SPIRV-Tools-static
+            VGF::vgf
+            VGF::vgf-utils
+            Vulkan::Headers
+            ${CMAKE_DL_LIBS}
+        PRIVATE
+            stb::stb
+    )
+    if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
+        target_link_libraries(${target_name} PUBLIC scenario_runner_dxc)
+        target_compile_definitions(${target_name} PRIVATE SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
+    endif()
+    if(SCENARIO_RUNNER_ENABLE_RDOC)
+        target_include_directories(${target_name} PRIVATE ${RenderDoc_INCLUDE_DIRS})
+        target_compile_definitions(${target_name} PRIVATE ML_SDK_ENABLE_RDOC)
+    endif()
+
+    if(SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT)
+        target_compile_definitions(${target_name} PUBLIC SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT)
+    endif()
+
+    target_compile_options(${target_name} PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
+endfunction()
+
 add_library(ScenarioRunnerLib ${SCENARIO_RUNNER_LIB_SOURCES})
-target_include_directories(ScenarioRunnerLib PUBLIC
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
-target_link_libraries(ScenarioRunnerLib PUBLIC
-    glslang::glslang
-    glslang::glslang-default-resource-limits
-    glslang::SPIRV
-    nlohmann_json::nlohmann_json
-    SPIRV-Tools-static
-    VGF::vgf
-    VGF::vgf-utils
-    Vulkan::Headers
-    ${CMAKE_DL_LIBS}
-    PRIVATE
-        stb::stb
-)
-if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
-    target_link_libraries(ScenarioRunnerLib PUBLIC scenario_runner_dxc)
-    target_compile_definitions(ScenarioRunnerLib PRIVATE SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
-endif()
-if(SCENARIO_RUNNER_ENABLE_RDOC)
-    target_include_directories(ScenarioRunnerLib PRIVATE
-    ${RenderDoc_INCLUDE_DIRS})
-    target_compile_definitions(ScenarioRunnerLib PRIVATE ML_SDK_ENABLE_RDOC)
-endif()
+srlib_configure_target(ScenarioRunnerLib)
 
-if(SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT)
-    target_compile_definitions(ScenarioRunnerLib PUBLIC SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT)
+if(SCENARIO_RUNNER_BUILD_SHARED)
+    add_library(ScenarioRunnerLib_shared SHARED ${SCENARIO_RUNNER_LIB_SOURCES})
+    srlib_configure_target(ScenarioRunnerLib_shared)
+    set_target_properties(ScenarioRunnerLib_shared PROPERTIES OUTPUT_NAME ScenarioRunnerLib)
 endif()
-
-target_compile_options(ScenarioRunnerLib PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
 
 if(SCENARIO_RUNNER_BUILD_PYLIB AND NOT ANDROID)
     include(pybind11)
