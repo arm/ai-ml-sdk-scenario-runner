@@ -76,6 +76,7 @@ if(SCENARIO_RUNNER_BUILD_PYLIB AND NOT ANDROID)
     pybind11_add_module(scenario_runner_py
         scenario_runner_py.cpp
         scenario_py.cpp
+        scenario_builder_py.cpp
     )
     target_compile_options(scenario_runner_py PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
     target_link_libraries(scenario_runner_py PRIVATE ScenarioRunnerLib pybind11::module)
