@@ -960,7 +960,6 @@ TEST(JsonParser, Commands) {
         ScenarioSpec scenarioSpec{jsonInput};
         const auto &command = scenarioSpec.commands.at(0);
         ASSERT_TRUE(command->commandType == CommandType::DispatchCompute);
-        ASSERT_TRUE(scenarioSpec.useComputeFamilyQueue);
         const auto &commandPtr = reinterpret_cast<const std::unique_ptr<DispatchComputeDesc> &>(command);
 
         const auto &binding1 = commandPtr->bindings.at(1);

@@ -30,6 +30,8 @@
 
 ### Bug Fixes
 
+- Fixed queue-family selection to account for every workload in a scenario and
+  avoid requiring a data graph queue when there are no workload dispatches.
 - Fixed relative shader include directories being resolved from the process
   working directory instead of the scenario file's directory.
 - Fixed pipeline-cache miss handling for all pipeline types by checking pipeline

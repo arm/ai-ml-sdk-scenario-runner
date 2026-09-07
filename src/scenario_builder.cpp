@@ -146,7 +146,6 @@ void ScenarioBuilder::addDispatchCompute(DispatchComputeData command) {
     if (command.pushData) {
         requireResource(_data.resources, *command.pushData, "Raw data");
     }
-    _data.useComputeFamilyQueue = true;
     _data.commands.emplace_back(std::move(command));
 }
 
@@ -163,7 +162,6 @@ void ScenarioBuilder::addDispatchFragment(DispatchFragmentData command) {
     if (command.pushData) {
         requireResource(_data.resources, *command.pushData, "Raw data");
     }
-    _data.requiresGraphicsFamilyQueue = true;
     _data.commands.emplace_back(std::move(command));
 }
 

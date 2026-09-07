@@ -29,13 +29,6 @@ struct OptionalExtensions {
     bool portability_subset = false;
 };
 
-/// \brief Type of family queue to use
-enum class FamilyQueue {
-    Compute,
-    DataGraph,
-    Graphics,
-};
-
 /// \brief Context that contains device related information
 ///
 /// Acts as a mechanism to keep commonly used objects in a single place.
@@ -44,8 +37,9 @@ class Context {
   public:
     /// \brief Constructor
     /// \param scenarioOptions configuration options
-    /// \param familyQueue family queue to use
-    explicit Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue = FamilyQueue::Compute);
+    /// \param requiredQueueFlags capabilities required from the queue family
+    explicit Context(const ScenarioOptions &scenarioOptions,
+                     vk::QueueFlags requiredQueueFlags = vk::QueueFlagBits::eCompute);
 
     /// \brief Logical device accessor
     /// \return Reference to the Vulkan logical device

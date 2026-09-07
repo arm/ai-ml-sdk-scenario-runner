@@ -28,9 +28,6 @@ struct ScenarioSpec {
 
     std::vector<std::unique_ptr<ResourceDesc>> resources;
     std::vector<std::unique_ptr<CommandDesc>> commands;
-    // Mark scenario to have compute commands, default is dataGraph
-    bool useComputeFamilyQueue{};
-    bool requiresGraphicsFamilyQueue{};
 
   private:
     std::unordered_set<Guid> _resourceGuids;

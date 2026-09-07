@@ -53,14 +53,6 @@ void ScenarioSpec::addResource(std::unique_ptr<ResourceDesc> resource) {
     resources.emplace_back(std::move(resource));
 }
 
-void ScenarioSpec::addCommand(std::unique_ptr<CommandDesc> command) {
-    if (command && command->commandType == CommandType::DispatchCompute) {
-        useComputeFamilyQueue = true;
-    }
-    if (command && command->commandType == CommandType::DispatchFragment) {
-        requiresGraphicsFamilyQueue = true;
-    }
-    commands.emplace_back(std::move(command));
-}
+void ScenarioSpec::addCommand(std::unique_ptr<CommandDesc> command) { commands.emplace_back(std::move(command)); }
 
 } // namespace mlsdk::scenariorunner

@@ -96,7 +96,6 @@ TEST(ScenarioSpec, ResolvesShaderIncludeDirectoriesFromScenarioDirectory) {
 
 TEST(IScenario, ScenarioSupportsVirtualDispatch) {
     ScenarioSpec spec{scenarioJson};
-    spec.useComputeFamilyQueue = true;
     std::unique_ptr<IScenario> api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
 
     const auto bufferId = api->getBufferId("inBuffer");
@@ -143,7 +142,6 @@ TEST(ScenarioJsonFactory, ExecutesInitializedImageBarrier) {
     })";
 
     ScenarioSpec spec{json};
-    spec.useComputeFamilyQueue = true;
     auto scenario = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
 
     // Initialization must establish eGeneral before this runtime barrier executes.
@@ -153,7 +151,6 @@ TEST(ScenarioJsonFactory, ExecutesInitializedImageBarrier) {
 TEST(ScenarioJsonFactory, BuiltScenarioOwnsJsonConstructionData) {
     auto api = []() {
         ScenarioSpec spec{scenarioJson};
-        spec.useComputeFamilyQueue = true;
         return ScenarioJsonFactory::make(ScenarioOptions{}, spec);
     }();
 
@@ -167,7 +164,6 @@ TEST(ScenarioJsonFactory, BuiltScenarioOwnsJsonConstructionData) {
 
 TEST(ScenarioInMemoryTransfer, UploadsAndDownloadsByTypedIdAcrossRuns) {
     ScenarioSpec spec{scenarioJson};
-    spec.useComputeFamilyQueue = true;
     auto scenario = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
 
     const auto bufferId = scenario->getBufferId("inBuffer");
@@ -194,7 +190,6 @@ TEST(ScenarioInMemoryTransfer, UploadsAndDownloadsByTypedIdAcrossRuns) {
 
 TEST(ScenarioInMemoryTransfer, InitializesResourcesWithoutSourcesThroughTypedUploadPath) {
     ScenarioSpec spec{scenarioJson};
-    spec.useComputeFamilyQueue = true;
     auto scenario = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
 
     const auto buffer = scenario->download(scenario->getBufferId("inBuffer"));
@@ -209,7 +204,6 @@ TEST(ScenarioInMemoryTransfer, InitializesResourcesWithoutSourcesThroughTypedUpl
 
 TEST(ScenarioInMemoryTransfer, RejectsNonPositiveRepeatCount) {
     ScenarioSpec spec{scenarioJson};
-    spec.useComputeFamilyQueue = true;
     auto scenario = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
 
     try {
@@ -222,7 +216,6 @@ TEST(ScenarioInMemoryTransfer, RejectsNonPositiveRepeatCount) {
 
 TEST(ScenarioInMemoryTransfer, RejectsUnknownTypedIds) {
     ScenarioSpec spec{scenarioJson};
-    spec.useComputeFamilyQueue = true;
     auto scenario = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
 
     const std::vector<char> data(4);
@@ -256,7 +249,6 @@ TEST(ScenarioInMemoryTransfer, RejectsUnknownTypedIds) {
 
 TEST(IScenario, SupportsTensorUploadAndDownload) {
     ScenarioSpec spec{scenarioJson};
-    spec.useComputeFamilyQueue = true;
     auto api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
 
     const auto tensorId = api->getTensorId("inTensor");
@@ -272,7 +264,6 @@ TEST(IScenario, SupportsTensorUploadAndDownload) {
 
 TEST(IScenario, SupportsRepeatedUploadRunDownload) {
     ScenarioSpec spec{scenarioJson};
-    spec.useComputeFamilyQueue = true;
     auto api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
     const auto bufferId = api->getBufferId("inBuffer");
 
@@ -339,7 +330,6 @@ TEST(IScenario, ExecutesCommandWithDifferentInputsAcrossRuns) {
 
 TEST(IScenario, RejectsUnknownTypedIds) {
     ScenarioSpec spec{scenarioJson};
-    spec.useComputeFamilyQueue = true;
     auto api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
     const std::vector<char> payload(4);
 
