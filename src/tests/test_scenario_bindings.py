@@ -3,14 +3,20 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import json
+from types import ModuleType
 
 import numpy as np
 import pytest
 
-sr = pytest.importorskip("scenario_runner_py")
+
+@pytest.fixture(scope="module")
+def sr(request: pytest.FixtureRequest) -> ModuleType:
+    if request.config.getoption("--sanitizers"):
+        pytest.skip("incompatible with --sanitizers")
+    return pytest.importorskip("scenario_runner_py")
 
 
-def test_python_interfaces_and_builder_types():
+def test_python_interfaces_and_builder_types(sr):
     builder = sr.ScenarioBuilder()
     options = sr.ScenarioOptions()
 
@@ -27,7 +33,7 @@ def test_python_interfaces_and_builder_types():
     assert isinstance(scenario, sr.IScenario)
 
 
-def test_numpy_image_upload_supports_single_mip():
+def test_numpy_image_upload_supports_single_mip(sr):
     builder = sr.ScenarioBuilder()
     image_id = builder.add_image(
         [1, 2, 2, 1],
@@ -46,7 +52,7 @@ def test_numpy_image_upload_supports_single_mip():
         scenario.upload(image_id, image, mip_levels=2)
 
 
-def test_scenario_supports_repeated_numpy_transfers(tmp_path):
+def test_scenario_supports_repeated_numpy_transfers(sr, tmp_path):
     scenario_path = tmp_path / "scenario.json"
     scenario_path.write_text(
         json.dumps(
@@ -108,7 +114,7 @@ def test_scenario_supports_repeated_numpy_transfers(tmp_path):
         scenario.upload(buffer_id, non_contiguous)
 
 
-def test_scenario_json_factory_builds_interface(tmp_path):
+def test_scenario_json_factory_builds_interface(sr, tmp_path):
     scenario_path = tmp_path / "scenario.json"
     scenario_path.write_text(
         json.dumps(
@@ -133,7 +139,7 @@ def test_scenario_json_factory_builds_interface(tmp_path):
     assert isinstance(scenario, sr.IScenario)
 
 
-def test_in_memory_scenario_builder_executes_compute(tmp_path, glsl_compiler):
+def test_in_memory_scenario_builder_executes_compute(sr, tmp_path, glsl_compiler):
     shader_path = tmp_path / "increment.comp"
     shader_path.write_text("""
         #version 450
