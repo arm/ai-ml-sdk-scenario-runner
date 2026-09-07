@@ -105,7 +105,6 @@ LogLevel parseLogLevel(const std::string &logLevel) {
 
     throw std::runtime_error("Unknown log level " + logLevel);
 }
-} // namespace
 
 void configureLogging() {
     setDefaultLoggerName("Scenario-Runner");
@@ -344,6 +343,7 @@ int runScenarioRunner(int argc, const char **argv) {
     // cppcheck-suppress-end knownConditionTrueFalse
     return retval;
 }
+} // namespace
 
 int main(int argc, const char **argv) {
     configureLogging();

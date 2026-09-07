@@ -217,7 +217,8 @@ std::vector<std::byte> Tensor::getTensorData(const Context &ctx) const {
                 for (int64_t c = 0; c < _shape[2]; ++c) {
                     for (int64_t d = 0; d < _shape[3]; ++d) {
                         for (int64_t e = 0; e < elementSize; ++e) {
-                            int64_t dataIdx = a * _strides[0] + b * _strides[1] + c * _strides[2] + d * _strides[3] + e;
+                            int64_t dataIdx =
+                                (a * _strides[0]) + (b * _strides[1]) + (c * _strides[2]) + (d * _strides[3]) + e;
                             out.push_back(mapped[dataIdx]);
                         }
                     }

@@ -6,6 +6,8 @@
 #include "resource_desc.hpp"
 #include "utils.hpp"
 
+#include <utility>
+
 namespace mlsdk::scenariorunner {
 
 /**
@@ -15,8 +17,8 @@ namespace mlsdk::scenariorunner {
  * @param guid
  * @param guidStr
  */
-ResourceDesc::ResourceDesc(ResourceType resourceType, Guid guid, const std::string &guidStr)
-    : resourceType(resourceType), guid(guid), guidStr(guidStr) {}
+ResourceDesc::ResourceDesc(ResourceType resourceType, Guid guid, std::string guidStr)
+    : resourceType(resourceType), guid(guid), guidStr(std::move(guidStr)) {}
 
 /**
  * @brief Construct a new BufferDesc object

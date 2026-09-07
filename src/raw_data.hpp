@@ -17,14 +17,14 @@ namespace mlsdk::scenariorunner {
 class RawData {
   public:
     RawData() = default;
-    explicit RawData(const std::string &debugName, const std::string &src);
+    explicit RawData(std::string debugName, const std::string &src);
 
     const char *data() const;
     size_t size() const;
     const std::string &debugName() const;
 
   private:
-    const std::string _debugName;
+    std::string _debugName;
     std::unique_ptr<MemoryMap> _mapped;
     vgfutils::numpy::DataPtr _dataptr;
 };

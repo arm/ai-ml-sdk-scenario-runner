@@ -6,6 +6,7 @@
 #include "json_writer.hpp"
 
 #include <fstream>
+#include <utility>
 
 #include "nlohmann/json.hpp"
 
@@ -21,9 +22,9 @@ double calculateElapsedTimeInMilliseconds(uint64_t startTimestamp, uint64_t endT
 
 struct CommandTimestamps {
     CommandTimestamps() = default;
-    CommandTimestamps(const ProfiledCommand &command, const std::vector<uint64_t> &commandTimestamps,
+    CommandTimestamps(ProfiledCommand command, const std::vector<uint64_t> &commandTimestamps,
                       const float timestampPeriod, const int iteration = 1)
-        : command(command), timestamps(commandTimestamps), period(timestampPeriod), iteration(iteration) {}
+        : command(std::move(command)), timestamps(commandTimestamps), period(timestampPeriod), iteration(iteration) {}
 
     ProfiledCommand command;
     std::vector<uint64_t> timestamps;

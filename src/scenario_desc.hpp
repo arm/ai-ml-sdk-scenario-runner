@@ -16,10 +16,10 @@
 namespace mlsdk::scenariorunner {
 
 struct ScenarioSpec {
-    explicit ScenarioSpec(const std::string &jsonStr, const std::filesystem::path &workDir = {},
-                          const std::filesystem::path &outputDir = {});
-    ScenarioSpec(const std::filesystem::path &jsonFile, const std::filesystem::path &workDir,
-                 const std::filesystem::path &outputDir = {});
+    explicit ScenarioSpec(const std::string &jsonStr, std::filesystem::path workDir = {},
+                          std::filesystem::path outputDir = {});
+    ScenarioSpec(const std::filesystem::path &jsonFile, std::filesystem::path workDir,
+                 std::filesystem::path outputDir = {});
 
     /// \brief Add resource and resolve paths
     void addResource(std::unique_ptr<ResourceDesc> resource);

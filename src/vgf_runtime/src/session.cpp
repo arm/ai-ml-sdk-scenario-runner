@@ -643,13 +643,12 @@ vk::raii::TensorARM Session::Impl::createIntermediateTensor(const DescriptorBind
                                                resource.stride.empty() ? nullptr : resource.stride.data(),
                                                vk::TensorUsageFlagBitsARM::eDataGraph);
     const vk::TensorCreateInfoARM createInfo({}, &description, vk::SharingMode::eExclusive);
-    return vk::raii::TensorARM(device, createInfo);
+    return {device, createInfo};
 }
 
 vk::raii::Buffer Session::Impl::createIntermediateBuffer(const DescriptorBindingInfo &binding) const {
     const auto resource = vgf.getResource(binding.resourceIndex);
-    return vk::raii::Buffer(
-        device, vk::BufferCreateInfo({}, resourceByteSize(resource), vk::BufferUsageFlagBits::eStorageBuffer));
+    return {device, vk::BufferCreateInfo({}, resourceByteSize(resource), vk::BufferUsageFlagBits::eStorageBuffer)};
 }
 
 vk::raii::Image Session::Impl::createIntermediateImage(const DescriptorBindingInfo &binding, bool aliased) const {
@@ -658,7 +657,7 @@ vk::raii::Image Session::Impl::createIntermediateImage(const DescriptorBindingIn
                                          vk::SampleCountFlagBits::e1, vk::ImageTiling::eOptimal,
                                          imageUsage(binding.descriptorType, aliased), vk::SharingMode::eExclusive, {},
                                          vk::ImageLayout::eUndefined);
-    return vk::raii::Image(device, createInfo);
+    return {device, createInfo};
 }
 
 void Session::Impl::allocateIntermediateTensor(const DescriptorBindingInfo &binding) {

@@ -21,8 +21,8 @@ namespace {
 template <typename Id> void bindResourceId(py::module_ &m, const char *name) {
     py::class_<Id>(m, name)
         .def_property_readonly("value", &Id::value)
-        .def(py::self == py::self)
-        .def(py::self != py::self)
+        .def(py::self == py::self) // NOLINT(misc-redundant-expression)
+        .def(py::self != py::self) // NOLINT(misc-redundant-expression)
         .def("__hash__", [](Id id) { return std::hash<Id>{}(id); })
         .def("__repr__", [name](Id id) { return std::string{name} + "(" + std::to_string(id.value()) + ")"; });
 }

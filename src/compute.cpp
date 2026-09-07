@@ -64,16 +64,16 @@ std::vector<vk::DescriptorPoolSize> getPoolSizes(const std::vector<TypedBinding>
     std::vector<vk::DescriptorPoolSize> poolSizes;
 
     if (numBuffers) {
-        poolSizes.push_back({vk::DescriptorType::eStorageBuffer, numBuffers});
+        poolSizes.emplace_back(vk::DescriptorType::eStorageBuffer, numBuffers);
     }
     if (numTensors) {
-        poolSizes.push_back({vk::DescriptorType::eTensorARM, numTensors});
+        poolSizes.emplace_back(vk::DescriptorType::eTensorARM, numTensors);
     }
     if (numSampledImages) {
-        poolSizes.push_back({vk::DescriptorType::eCombinedImageSampler, numSampledImages});
+        poolSizes.emplace_back(vk::DescriptorType::eCombinedImageSampler, numSampledImages);
     }
     if (numImages) {
-        poolSizes.push_back({vk::DescriptorType::eStorageImage, numImages});
+        poolSizes.emplace_back(vk::DescriptorType::eStorageImage, numImages);
     }
 
     return poolSizes;
@@ -84,6 +84,10 @@ std::vector<vk::DescriptorPoolSize> getPoolSizes(const std::vector<TypedBinding>
 struct Compute::DebugMarker {
     DebugMarker(Compute *compute, const std::string &name);
     ~DebugMarker();
+    DebugMarker(const DebugMarker &) = delete;
+    DebugMarker &operator=(const DebugMarker &) = delete;
+    DebugMarker(DebugMarker &&) = delete;
+    DebugMarker &operator=(DebugMarker &&) = delete;
 
   private:
     Compute *_compute;
@@ -344,9 +348,9 @@ void Compute::_addImplicitBarriers() {
     auto accessFlag = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite;
     _memoryBarriers.emplace_back(std::vector<vk::MemoryBarrier2>{vk::MemoryBarrier2(
         vk::PipelineStageFlagBits2::eAllCommands, accessFlag, vk::PipelineStageFlagBits2::eAllCommands, accessFlag)});
-    _imageBarriers.emplace_back(std::vector<vk::ImageMemoryBarrier2>{});
-    _tensorBarriers.emplace_back(std::vector<vk::TensorMemoryBarrierARM>{});
-    _bufferBarriers.emplace_back(std::vector<vk::BufferMemoryBarrier2>{});
+    _imageBarriers.emplace_back();
+    _tensorBarriers.emplace_back();
+    _bufferBarriers.emplace_back();
 
     DebugMarker dbgMrk1(this, "barriers (pipeline implicit)");
     _commands.emplace_back(MemoryBarrier{memoryBarrierIdx, imageBarrierIdx, tensorBarrierIdx, bufferBarrierIdx});

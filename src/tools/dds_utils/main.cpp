@@ -4,6 +4,7 @@
  */
 
 #include <argparse/argparse.hpp>
+#include <cstddef>
 #include <version.hpp>
 
 #include "dds_reader.hpp"
@@ -20,6 +21,7 @@
 
 using namespace mlsdk::scenariorunner;
 
+namespace {
 using DDSContent = std::pair<DDSHeaderInfo, ImageLoadResult>;
 
 std::vector<uint16_t> createRandomFloat16Data(uint32_t size) {
@@ -196,7 +198,7 @@ void generateDDSFile(uint32_t height, uint32_t width, const std::string &element
             auto sizeInBytes = data.size() * sizeof(uint16_t);
             testData = std::vector<uint8_t>(buffer, buffer + sizeInBytes);
         } else {
-            testData = std::vector<uint8_t>(s * elementSize);
+            testData = std::vector<uint8_t>(static_cast<size_t>(s) * elementSize);
         }
 
         fstream.write(reinterpret_cast<char *>(testData.data()), std::streamsize(testData.size()));
@@ -272,6 +274,8 @@ bool compare(const std::string &input, const std::string &output, const std::str
 
     return sameHeader && sameData;
 }
+
+} // namespace
 
 int main(int argc, const char **argv) {
     try {

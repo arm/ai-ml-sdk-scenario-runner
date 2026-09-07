@@ -230,13 +230,13 @@ vgfutils::numpy::DType getDTypeFromVkFormat(vk::Format format) {
     }
     // Handle special case for BFLOAT16 and FLOAT8 to use raw byte encoding 'V' in numpy output
     if (format == vk::Format::eR16SfloatFpencodingBfloat16ARM) {
-        return vgfutils::numpy::DType('V', 2);
+        return {'V', 2};
     }
     if (format == vk::Format::eR8SfloatFpencodingFloat8E4M3ARM) {
-        return vgfutils::numpy::DType('V', 1, '<');
+        return {'V', 1, '<'};
     }
     if (format == vk::Format::eR8SfloatFpencodingFloat8E5M2ARM) {
-        return vgfutils::numpy::DType('u', 1);
+        return {'u', 1};
     }
 
     char const *numeric = componentNumericFormat(format, 0);
@@ -246,12 +246,12 @@ vgfutils::numpy::DType getDTypeFromVkFormat(vk::Format format) {
     if (encoding == '?') {
         throw std::runtime_error("Unsupported VkFormat: " + vgflib::FormatTypeToName(vgflib::ToFormatType(format)));
     }
-    return vgfutils::numpy::DType(encoding, size);
+    return {encoding, size};
 }
 
 uint64_t totalElementsFromShape(const std::vector<int64_t> &shape) {
     return static_cast<uint64_t>(
-        std::abs(std::accumulate(shape.cbegin(), shape.cend(), int64_t(1), std::multiplies<int64_t>())));
+        std::abs(std::accumulate(shape.cbegin(), shape.cend(), int64_t(1), std::multiplies<>())));
 }
 
 uint32_t findMemoryIdx(const Context &ctx, uint32_t memTypeBits, vk::MemoryPropertyFlags required) {

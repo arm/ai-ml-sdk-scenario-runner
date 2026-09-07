@@ -14,7 +14,8 @@
 
 #include "vgf-utils/temp_folder.hpp"
 
-namespace mlsdk::scenariorunner {
+namespace {
+using namespace mlsdk::scenariorunner;
 
 constexpr float epsilon = 0.0001f;
 
@@ -134,4 +135,4 @@ TEST(VulkanStartUp, RunShaderWithRobustnessFeatures) { // cppcheck-suppress synt
     scenarioOptions.enableRobustnessFeatures = true;
     runShader(scenarioOptions);
 }
-} // namespace mlsdk::scenariorunner
+} // namespace

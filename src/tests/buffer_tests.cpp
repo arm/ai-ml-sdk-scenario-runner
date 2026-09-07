@@ -16,6 +16,7 @@
 
 #include <gtest/gtest.h>
 
+namespace {
 using namespace mlsdk::scenariorunner;
 
 Buffer &prepareBuffer(Context &ctx, DataManager &dm, BufferId id, uint32_t sizeBytes) {
@@ -27,6 +28,8 @@ Buffer &prepareBuffer(Context &ctx, DataManager &dm, BufferId id, uint32_t sizeB
     buf.allocateMemory(ctx);
     return buf;
 }
+
+} // namespace
 
 TEST(BufferInMemoryTransfer, UploadThrowsOnSizeMismatch) {
     ScenarioOptions opts{};

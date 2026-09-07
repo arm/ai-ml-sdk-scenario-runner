@@ -206,6 +206,15 @@ void verifyOpticalFlowData(const DataManager &dataManager, const DispatchOptical
                             dispatchOpticalFlow.gridSize);
 }
 
+std::pair<const char *, size_t> getPushConstantData(const std::optional<RawDataId> &pushData,
+                                                    const DataManager &dataManager) {
+    if (pushData) {
+        const auto &rawData = dataManager.getRawData(pushData.value());
+        return std::make_pair(rawData.data(), rawData.size());
+    }
+    return std::make_pair(nullptr, 0U);
+}
+
 } // namespace
 
 // ScenarioBuildData is intentionally passed by value because this constructor takes ownership of its contents.
@@ -641,15 +650,6 @@ void Scenario::handleAliasedLayoutTransitions() {
             }
         }
     }
-}
-
-std::pair<const char *, size_t> getPushConstantData(const std::optional<RawDataId> &pushData,
-                                                    const DataManager &dataManager) {
-    if (pushData) {
-        const auto &rawData = dataManager.getRawData(pushData.value());
-        return std::make_pair(rawData.data(), rawData.size());
-    }
-    return std::make_pair(nullptr, 0U);
 }
 
 void Scenario::createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries) {
