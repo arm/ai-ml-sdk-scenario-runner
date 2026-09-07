@@ -3,17 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import json
-from types import ModuleType
 
 import numpy as np
 import pytest
-
-
-@pytest.fixture(scope="module")
-def sr(request: pytest.FixtureRequest) -> ModuleType:
-    if request.config.getoption("--sanitizers"):
-        pytest.skip("incompatible with --sanitizers")
-    return pytest.importorskip("scenario_runner_py")
 
 
 def test_python_interfaces_and_builder_types(sr):
