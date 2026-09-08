@@ -121,6 +121,10 @@ template <typename F> class ScopeExit {
   public:
     explicit ScopeExit(const std::function<F> &f) : _f(f) {}
     ~ScopeExit() noexcept { _f(); }
+    ScopeExit(const ScopeExit &) = delete;
+    ScopeExit &operator=(const ScopeExit &) = delete;
+    ScopeExit(ScopeExit &&) = delete;
+    ScopeExit &operator=(ScopeExit &&) = delete;
 
   private:
     std::function<F> _f;

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2023-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -19,15 +19,10 @@ class Guid {
   public:
     Guid() = default;
 
-    Guid(const std::string &s) : _hash(std::hash<std::string>{}(s)) {} // cppcheck-suppress noExplicitConstructor
+    // Implicit conversion allows resource APIs to accept their textual identifiers directly.
+    // cppcheck-suppress noExplicitConstructor
+    Guid(const std::string &s) : _hash(std::hash<std::string>{}(s)) {} // NOLINT(google-explicit-constructor)
 
-    // Move/Copy constructor
-    Guid(Guid &&other) = default;
-    Guid(const Guid &other) = default;
-
-    // Move/Copy Assignment operators
-    Guid &operator=(Guid &&other) = default;
-    Guid &operator=(const Guid &other) = default;
     Guid &operator=(const std::string &s) {
         _hash = std::hash<std::string>{}(s);
         return *this;

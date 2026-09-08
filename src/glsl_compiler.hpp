@@ -14,6 +14,8 @@ class GlslCompiler {
   public:
     GlslCompiler(const GlslCompiler &) = delete;
     GlslCompiler &operator=(const GlslCompiler &) = delete;
+    GlslCompiler(GlslCompiler &&) = delete;
+    GlslCompiler &operator=(GlslCompiler &&) = delete;
 
     /// \brief Compiler instance accessor
     ///

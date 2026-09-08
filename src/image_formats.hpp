@@ -27,7 +27,7 @@ struct ImageLoadOptions {
     /// Maximum allowed width in pixels (0 to skip check).
     uint32_t maxWidth{8192};
     /// Maximum decoded byte size (0 to skip check).
-    uint64_t maxDecodedBytes{8192 * 8192 * 4};
+    uint64_t maxDecodedBytes{8192ULL * 8192 * 4};
 };
 
 struct ImageSaveOptions {

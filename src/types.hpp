@@ -129,8 +129,8 @@ union Constant {
 
 struct GraphConstantInfo {
     GraphConstantInfo() = default;
-    GraphConstantInfo(const std::string &debugName, vk::Format format, std::vector<int64_t> dims)
-        : format(format), dims(std::move(dims)), debugName(debugName) {}
+    GraphConstantInfo(std::string debugName, vk::Format format, std::vector<int64_t> dims)
+        : format(format), dims(std::move(dims)), debugName(std::move(debugName)) {}
 
     vk::Format format{vk::Format::eUndefined};
     std::vector<int64_t> dims;
