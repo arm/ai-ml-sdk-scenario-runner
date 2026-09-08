@@ -36,9 +36,19 @@ option(SCENARIO_RUNNER_BUILD_DOCS "Build project documentation" OFF)
 option(SCENARIO_RUNNER_BUILD_PYLIB "Build Scenario Runner Python bindings" OFF)
 option(SCENARIO_RUNNER_BUILD_SHARED "Build Scenario Runner as a shared library" OFF)
 option(SCENARIO_RUNNER_BUILD_TESTS "Build Scenario Runner unit tests" OFF)
+option(SCENARIO_RUNNER_ENABLE_FUZZER "Build Scenario Runner libFuzzer target" OFF)
 option(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT "HLSL only supported on Windows and Linux" OFF)
 option(SCENARIO_RUNNER_ENABLE_RDOC "Build Scenario Runner w/ RDoc support enabled" OFF)
 option(SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT "Enable support for experimental image formats in DDS reader" OFF)
+
+if(SCENARIO_RUNNER_ENABLE_FUZZER)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR "Scenario Runner fuzzing requires Clang.")
+    endif()
+    # Ensure native fuzz builds load the shared compiler options even when no
+    # CMake toolchain file is specified.
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchain/gnu_compiler_options.cmake")
+endif()
 
 # Handle build type, set default as Release
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")
@@ -115,6 +125,10 @@ endif()
 
 if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
     add_dependencies(scenario-runner dxc)
+endif()
+
+if(SCENARIO_RUNNER_ENABLE_FUZZER)
+    add_subdirectory(scenario_fuzzer)
 endif()
 
 set(SCENARIO_RUNNER_VERSION_DEPS
