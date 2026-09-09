@@ -84,9 +84,6 @@ if(SCENARIO_RUNNER_BUILD_PYLIB AND NOT ANDROID)
 endif()
 
 add_subdirectory(tools)
-if(SCENARIO_RUNNER_EXPERIMENTAL_VGF_RUNTIME AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    add_subdirectory(vgf_runtime)
-endif()
 
 if(SCENARIO_RUNNER_BUILD_TESTS)
     add_subdirectory(tests)

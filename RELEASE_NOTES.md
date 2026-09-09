@@ -17,11 +17,12 @@
 - Updated Scenario Runner to consume explicit VGF graph constant bindings.
 - Updated Scenario Runner `--version` output to report the package version and include git revision and dependency revision information.
 - Added KosmicKrisp support on Darwin.
-- Added startup logging for Vulkan API and driver versions and common device
+- Added startup logging for Vulkan® API and driver versions and common device
   shader capabilities.
 - Enabled building and installing Scenario Runner, including its native binaries,
   with `pip install .` from the repository root.
 - Improved shader compilation errors with the shader name and compiler diagnostics.
+- Removed VGF Runtime component. Replaced by ML Workload Library for Vulkan®
 
 ### Profiling
 
@@ -41,7 +42,7 @@
   subresource offsets.
 - Fixed VGF image shape handling for custom shaders, preventing swapped image
   extents and invalid depth values.
-- Enable Vulkan robustness features only when `--enable-robustness-features` is set.
+- Enable Vulkan® robustness features only when `--enable-robustness-features` is set.
 
 ## Version 0.10.0 – *Optical Flow, VGF Runtime & APK Packaging*
 
