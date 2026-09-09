@@ -341,6 +341,8 @@ class Builder:
 
                 clang_tidy_cmd = [
                     "run-clang-tidy",
+                    "-header-filter=scenario-runner/src/.*",
+                    r"-exclude-header-filter=.*\.generated\.hpp$",
                     "-quiet",
                     f"-j{self.threads}",
                     f"-p{self.build_dir}",

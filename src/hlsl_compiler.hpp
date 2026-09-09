@@ -12,6 +12,8 @@ class HlslCompiler {
   public:
     HlslCompiler(const HlslCompiler &) = delete;
     HlslCompiler &operator=(const HlslCompiler &) = delete;
+    HlslCompiler(HlslCompiler &&) = delete;
+    HlslCompiler &operator=(HlslCompiler &&) = delete;
 
     /// \brief Compiler instance accessor
     ///
@@ -50,5 +52,7 @@ class HlslCompiler {
   private:
     /// \brief Default constructor
     HlslCompiler() = default;
+    /// \brief Destructor
+    ~HlslCompiler() = default;
 };
 } // namespace mlsdk::scenariorunner

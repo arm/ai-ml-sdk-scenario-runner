@@ -8,6 +8,7 @@
 #include "types.hpp"
 #include "utils.hpp"
 
+#include <algorithm>
 #include <limits>
 
 namespace mlsdk::scenariorunner {
@@ -53,11 +54,7 @@ class ResourceMemoryManager {
         _initalized = true;
     }
 
-    void updateMemSize(vk::DeviceSize newSize) {
-        if (newSize > _memSize) {
-            _memSize = newSize;
-        }
-    }
+    void updateMemSize(vk::DeviceSize newSize) { _memSize = std::max(newSize, _memSize); }
 
     void updateSubResourceOffset(vk::DeviceSize offset) { _subRecOffset = offset; }
 
