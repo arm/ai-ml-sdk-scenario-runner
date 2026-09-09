@@ -4,6 +4,11 @@
 Scenario Runner C++ API
 ***********************
 
+.. warning::
+
+   The Scenario Runner C++ API is currently experimental and subject to change,
+   including incompatible changes, in future releases.
+
 The Scenario Runner API creates and executes Vulkan® scenarios. A scenario can
 be constructed from an existing JSON description or defined programmatically.
 Both workflows return a :cpp:class:`mlsdk::scenariorunner::Scenario`, which can

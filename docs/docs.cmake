@@ -14,6 +14,10 @@ if(CMAKE_CROSSCOMPILING)
     return()
 endif()
 
+if(NOT TARGET scenario_runner_py)
+    message(FATAL_ERROR "Python API documentation requires SCENARIO_RUNNER_BUILD_PYLIB.")
+endif()
+
 file(MAKE_DIRECTORY ${SPHINX_GEN_DIR})
 
 configure_file(
@@ -46,10 +50,14 @@ endforeach()
 # Stage the samples used as API guide excerpts.
 set(SCENARIO_RUNNER_SAMPLE_FILES
     2_run_compute.cpp
-    4_run_json.cpp)
+    4_run_json.cpp
+    python/1_run_json.py
+    python/2_run_compute.py)
 file(MAKE_DIRECTORY ${SPHINX_SRC_DIR}/samples)
 foreach(SAMPLE_FILE IN LISTS SCENARIO_RUNNER_SAMPLE_FILES)
     set(SAMPLE_SOURCE_FILE ${PROJECT_SOURCE_DIR}/samples/${SAMPLE_FILE})
+    get_filename_component(SAMPLE_DOC_DIR ${SAMPLE_FILE} DIRECTORY)
+    file(MAKE_DIRECTORY ${SPHINX_SRC_DIR}/samples/${SAMPLE_DOC_DIR})
     set(SAMPLE_DOC_FILE ${SPHINX_SRC_DIR}/samples/${SAMPLE_FILE})
     configure_file(${SAMPLE_SOURCE_FILE} ${SAMPLE_DOC_FILE} COPYONLY)
     list(APPEND DOC_SRC_FILES_FULL_PATHS ${SAMPLE_DOC_FILE})
@@ -57,8 +65,9 @@ endforeach()
 
 add_custom_command(
     OUTPUT ${SPHINX_INDEX_HTML}
-    DEPENDS ${DOC_SRC_FILES_FULL_PATHS}
-    COMMAND ${SPHINX_EXECUTABLE} -b html -W -Dbreathe_projects.ScenarioRunner=${DOXYGEN_XML_GEN} ${SPHINX_SRC_DIR}
+    DEPENDS ${DOC_SRC_FILES_FULL_PATHS} scenario_runner_py
+    COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=$<TARGET_FILE_DIR:scenario_runner_py>"
+            ${SPHINX_EXECUTABLE} -E -b html -W -Dbreathe_projects.ScenarioRunner=${DOXYGEN_XML_GEN} ${SPHINX_SRC_DIR}
             ${SPHINX_BLD_DIR}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     COMMENT "Generating API documentation with Sphinx"

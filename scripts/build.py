@@ -231,7 +231,7 @@ class Builder:
             cmake_setup_cmd.append("-DSCENARIO_RUNNER_BUILD_TESTS=ON")
             cmake_setup_cmd.append(f"-DGTEST_PATH={self.gtest_path}")
 
-        if self.build_pylib or self.run_tests:
+        if self.build_pylib or self.run_tests or self.doc:
             cmake_setup_cmd.append(f"-DPYBIND11_PATH={self.pybind11_path}")
             cmake_setup_cmd.append("-DSCENARIO_RUNNER_BUILD_PYLIB=ON")
 

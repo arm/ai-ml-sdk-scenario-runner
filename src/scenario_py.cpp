@@ -26,8 +26,9 @@ namespace mlsdk::scenariorunner {
 namespace {
 
 template <typename Id> void bindResourceId(py::module_ &m, const char *name) {
-    py::class_<Id>(m, name)
-        .def_property_readonly("value", &Id::value)
+    py::class_<Id>(m, name, "An immutable, hashable typed resource ID scoped to a scenario.")
+        .def_property_readonly("value", &Id::value,
+                               "Return the numeric identifier, which is meaningful only within its scenario.")
         .def(py::self == py::self) // NOLINT(misc-redundant-expression)
         .def(py::self != py::self) // NOLINT(misc-redundant-expression)
         .def("__hash__", [](Id id) { return std::hash<Id>{}(id); })
@@ -141,8 +142,8 @@ void pyInitScenario(py::module_ &m) {
         .value("Statistics0", vk::NeuralAcceleratorStatisticsModeARM::eStatistics0)
         .value("Statistics1", vk::NeuralAcceleratorStatisticsModeARM::eStatistics1);
 
-    py::class_<ScenarioOptions>(m, "ScenarioOptions")
-        .def(py::init<>())
+    auto scenarioOptions = py::class_<ScenarioOptions>(m, "ScenarioOptions", "Configure scenario creation and output.");
+    scenarioOptions.def(py::init<>())
         .def_readwrite("enable_pipeline_caching", &ScenarioOptions::enablePipelineCaching)
         .def_readwrite("clear_pipeline_cache", &ScenarioOptions::clearPipelineCache)
         .def_readwrite("fail_on_pipeline_cache_miss", &ScenarioOptions::failOnPipelineCacheMiss)
@@ -158,13 +159,34 @@ void pyInitScenario(py::module_ &m) {
         .def_readwrite("profiling_path", &ScenarioOptions::profilingPath)
         .def_readwrite("neural_statistics_mode", &ScenarioOptions::neuralStatisticsMode)
         .def_readwrite("disabled_extensions", &ScenarioOptions::disabledExtensions);
+    py::dict scenarioOptionsAnnotations;
+    scenarioOptionsAnnotations["enable_pipeline_caching"] = "bool";
+    scenarioOptionsAnnotations["clear_pipeline_cache"] = "bool";
+    scenarioOptionsAnnotations["fail_on_pipeline_cache_miss"] = "bool";
+    scenarioOptionsAnnotations["enable_gpu_debug_markers"] = "bool";
+    scenarioOptionsAnnotations["capture_frame"] = "bool";
+    scenarioOptionsAnnotations["enable_robustness_features"] = "bool";
+    scenarioOptionsAnnotations["pipeline_cache_path"] = "os.PathLike";
+    scenarioOptionsAnnotations["neural_debug_database_dump_dir"] = "os.PathLike";
+    scenarioOptionsAnnotations["neural_statistics_dump_dir"] = "os.PathLike";
+    scenarioOptionsAnnotations["graph_profiling_dump_dir"] = "os.PathLike";
+    scenarioOptionsAnnotations["session_rams_dump_dir"] = "os.PathLike";
+    scenarioOptionsAnnotations["perf_counters_path"] = "os.PathLike";
+    scenarioOptionsAnnotations["profiling_path"] = "os.PathLike";
+    scenarioOptionsAnnotations["neural_statistics_mode"] = "NeuralAcceleratorStatisticsMode";
+    scenarioOptionsAnnotations["disabled_extensions"] = "list[str]";
+    scenarioOptions.attr("__annotations__") = scenarioOptionsAnnotations;
 
-    py::class_<Scenario, std::unique_ptr<Scenario>>(m, "Scenario")
-        .def("run", py::overload_cast<int, bool>(&Scenario::run), py::kw_only(), py::arg("repeat_count") = 1,
-             py::arg("dry_run") = false, py::call_guard<py::gil_scoped_release>())
-        .def("get_buffer_id", &Scenario::getBufferId)
-        .def("get_image_id", &Scenario::getImageId)
-        .def("get_tensor_id", &Scenario::getTensorId)
+    py::class_<Scenario, std::unique_ptr<Scenario>>(
+        m, "Scenario", "A built scenario that owns runtime resources and commands. It can be run repeatedly.")
+        .def("run", py::overload_cast<int, bool>(&Scenario::run), "Execute the command sequence.", py::kw_only(),
+             py::arg("repeat_count") = 1, py::arg("dry_run") = false, py::call_guard<py::gil_scoped_release>())
+        .def("get_buffer_id", &Scenario::getBufferId, "Return the buffer ID associated with a JSON resource UID.",
+             py::arg("uid"))
+        .def("get_image_id", &Scenario::getImageId, "Return the image ID associated with a JSON resource UID.",
+             py::arg("uid"))
+        .def("get_tensor_id", &Scenario::getTensorId, "Return the tensor ID associated with a JSON resource UID.",
+             py::arg("uid"))
         .def(
             "upload",
             [](Scenario &scenario, BufferId id, const py::array &array) {
@@ -173,7 +195,7 @@ void pyInitScenario(py::module_ &m) {
                 py::gil_scoped_release release;
                 scenario.upload(id, view);
             },
-            py::arg("id"), py::arg("data"))
+            "Copy a C-contiguous NumPy array into the buffer selected by ``id``.", py::arg("id"), py::arg("data"))
         .def(
             "upload",
             [](Scenario &scenario, TensorId id, const py::array &array) {
@@ -182,7 +204,7 @@ void pyInitScenario(py::module_ &m) {
                 py::gil_scoped_release release;
                 scenario.upload(id, view);
             },
-            py::arg("id"), py::arg("data"))
+            "Copy a C-contiguous NumPy array into the tensor selected by ``id``.", py::arg("id"), py::arg("data"))
         .def(
             "upload",
             [](Scenario &scenario, ImageId id, const py::array &array) {
@@ -192,8 +214,13 @@ void pyInitScenario(py::module_ &m) {
                 py::gil_scoped_release release;
                 scenario.upload(id, view);
             },
-            py::arg("id"), py::arg("data"))
-        .def("download", &downloadBuffer, py::arg("id"))
-        .def("download", &downloadTensor, py::arg("id"))
-        .def("download", &downloadImage, py::arg("id"));
+            "Copy one mip level from a C-contiguous NumPy array into the image selected by ``id``.", py::arg("id"),
+            py::arg("data"))
+        .def("download", &downloadBuffer, "Return the buffer contents as a ``uint8`` NumPy array.", py::arg("id"))
+        .def("download", &downloadTensor, "Return tensor contents as a NumPy array derived from its format.",
+             py::arg("id"))
+        .def("download", &downloadImage,
+             "Return image contents as a NumPy array derived from its format. Multi-component images use a packed "
+             "dtype.",
+             py::arg("id"));
 }

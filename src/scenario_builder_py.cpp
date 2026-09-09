@@ -12,16 +12,29 @@
 #include <pybind11/stl.h>
 
 #include <cstdint>
+#include <initializer_list>
 #include <string>
+#include <utility>
 
 namespace py = pybind11;
 
 namespace mlsdk::scenariorunner {
 namespace {
 
+using AttributeAnnotations = std::initializer_list<std::pair<const char *, const char *>>;
+
+void setAttributeAnnotations(const py::object &type, AttributeAnnotations annotations) {
+    py::dict result;
+    for (const auto &[name, annotation] : annotations) {
+        result[name] = annotation;
+    }
+    type.attr("__annotations__") = result;
+}
+
 template <typename Id> void bindResourceId(py::module_ &m, const char *name) {
-    py::class_<Id>(m, name)
-        .def_property_readonly("value", &Id::value)
+    py::class_<Id>(m, name, "An immutable, hashable typed resource ID scoped to a scenario.")
+        .def_property_readonly("value", &Id::value,
+                               "Return the numeric identifier, which is meaningful only within its scenario.")
         .def(py::self == py::self) // NOLINT(misc-redundant-expression)
         .def(py::self != py::self) // NOLINT(misc-redundant-expression)
         .def("__hash__", [](Id id) { return std::hash<Id>{}(id); })
@@ -238,27 +251,33 @@ void bindResourceInfo(py::module_ &m) {
         .def_readwrite("memory_offset", &ImageInfo::memoryOffset);
 
     py::class_<SpecializationConstant>(m, "SpecializationConstant")
-        .def_static("from_int32",
-                    [](int id, int32_t value) {
-                        SpecializationConstant result{};
-                        result.id = id;
-                        result.value.i = value;
-                        return result;
-                    })
-        .def_static("from_uint32",
-                    [](int id, uint32_t value) {
-                        SpecializationConstant result{};
-                        result.id = id;
-                        result.value.ui = value;
-                        return result;
-                    })
-        .def_static("from_float32",
-                    [](int id, float value) {
-                        SpecializationConstant result{};
-                        result.id = id;
-                        result.value.f = value;
-                        return result;
-                    })
+        .def_static(
+            "from_int32",
+            [](int id, int32_t value) {
+                SpecializationConstant result{};
+                result.id = id;
+                result.value.i = value;
+                return result;
+            },
+            py::arg("id"), py::arg("value"))
+        .def_static(
+            "from_uint32",
+            [](int id, uint32_t value) {
+                SpecializationConstant result{};
+                result.id = id;
+                result.value.ui = value;
+                return result;
+            },
+            py::arg("id"), py::arg("value"))
+        .def_static(
+            "from_float32",
+            [](int id, float value) {
+                SpecializationConstant result{};
+                result.id = id;
+                result.value.f = value;
+                return result;
+            },
+            py::arg("id"), py::arg("value"))
         .def_readwrite("id", &SpecializationConstant::id);
 
     py::class_<SpecializationConstantMap>(m, "SpecializationConstantMap")
@@ -291,6 +310,56 @@ void bindResourceInfo(py::module_ &m) {
         .def_readwrite("dims", &GraphConstantInfo::dims)
         .def_readwrite("data", &GraphConstantInfo::data)
         .def_readwrite("debug_name", &GraphConstantInfo::debugName);
+
+    setAttributeAnnotations(m.attr("BufferInfo"), {{"debug_name", "str"}, {"size", "int"}, {"memory_offset", "int"}});
+    setAttributeAnnotations(m.attr("RawDataInfo"), {{"debug_name", "str"}, {"src", "str"}});
+    setAttributeAnnotations(m.attr("TensorInfo"), {{"debug_name", "str"},
+                                                   {"shape", "list[int]"},
+                                                   {"format", "Format"},
+                                                   {"sparsity_dimension", "int"},
+                                                   {"descriptor_buffer_capture_replay", "bool"},
+                                                   {"tiling", "Tiling"},
+                                                   {"memory_offset", "int"}});
+    setAttributeAnnotations(m.attr("SamplerSettings"), {{"min_filter", "FilterMode"},
+                                                        {"mag_filter", "FilterMode"},
+                                                        {"mip_filter", "FilterMode"},
+                                                        {"address_mode_u", "AddressMode"},
+                                                        {"address_mode_v", "AddressMode"},
+                                                        {"address_mode_w", "AddressMode"},
+                                                        {"border_color", "BorderColor"},
+                                                        {"custom_border_color", "tuple[float, float, float, float] | "
+                                                                                "tuple[int, int, int, int]"}});
+    setAttributeAnnotations(m.attr("ImageInfo"), {{"debug_name", "str"},
+                                                  {"shape", "list[int]"},
+                                                  {"format", "Format"},
+                                                  {"target_format", "Format"},
+                                                  {"is_input", "bool"},
+                                                  {"sampler_settings", "SamplerSettings"},
+                                                  {"mips", "int"},
+                                                  {"is_sampled", "bool"},
+                                                  {"is_storage", "bool"},
+                                                  {"is_color_attachment", "bool"},
+                                                  {"tiling", "Tiling | None"},
+                                                  {"memory_offset", "int"}});
+    setAttributeAnnotations(m.attr("SpecializationConstant"), {{"id", "int"}});
+    setAttributeAnnotations(m.attr("SpecializationConstantMap"),
+                            {{"specialization_constants", "list[SpecializationConstant]"}, {"shader_target", "str"}});
+    setAttributeAnnotations(m.attr("VgfInfo"), {{"debug_name", "str"},
+                                                {"src", "str"},
+                                                {"push_constants_size", "int"},
+                                                {"specialization_constant_maps", "list[SpecializationConstantMap]"}});
+    setAttributeAnnotations(m.attr("ShaderInfo"), {{"debug_name", "str"},
+                                                   {"entry", "str"},
+                                                   {"push_constants_size", "int"},
+                                                   {"specialization_constants", "list[SpecializationConstant]"},
+                                                   {"src", "str"},
+                                                   {"shader_type", "ShaderType"},
+                                                   {"stage", "ShaderStage"},
+                                                   {"build_options", "str"},
+                                                   {"include_dirs", "list[str]"}});
+    setAttributeAnnotations(
+        m.attr("GraphConstantInfo"),
+        {{"format", "Format"}, {"dims", "list[int]"}, {"data", "list[int]"}, {"debug_name", "str"}});
 }
 
 void bindBarriers(py::module_ &m) {
@@ -323,6 +392,21 @@ void bindBarriers(py::module_ &m) {
         .def(py::init<>())
         .def_readwrite("tensor", &TensorBarrierInfo::tensor);
     py::class_<MemoryBarrierInfo, BaseBarrierInfo>(m, "MemoryBarrierInfo").def(py::init<>());
+
+    setAttributeAnnotations(
+        m.attr("SubresourceRange"),
+        {{"base_mip_level", "int"}, {"level_count", "int"}, {"base_array_layer", "int"}, {"layer_count", "int"}});
+    setAttributeAnnotations(m.attr("BaseBarrierInfo"), {{"debug_name", "str"},
+                                                        {"src_access", "MemoryAccess"},
+                                                        {"dst_access", "MemoryAccess"},
+                                                        {"src_stages", "list[PipelineStage]"},
+                                                        {"dst_stages", "list[PipelineStage]"}});
+    setAttributeAnnotations(m.attr("ImageBarrierInfo"), {{"image", "ImageId"},
+                                                         {"old_layout", "ImageLayout"},
+                                                         {"new_layout", "ImageLayout"},
+                                                         {"range", "SubresourceRange"}});
+    setAttributeAnnotations(m.attr("BufferBarrierInfo"), {{"buffer", "BufferId"}, {"offset", "int"}, {"size", "int"}});
+    setAttributeAnnotations(m.attr("TensorBarrierInfo"), {{"tensor", "TensorId"}});
 }
 
 void bindCommands(py::module_ &m) {
@@ -397,13 +481,23 @@ void bindCommands(py::module_ &m) {
         .def_readwrite("push_constants", &DispatchVgfData::pushConstants)
         .def_readwrite("shader_substitutions", &DispatchVgfData::shaderSubstitutions)
         .def_readwrite("implicit_barrier", &DispatchVgfData::implicitBarrier);
-    py::class_<DispatchDataGraphData>(m, "DispatchDataGraphData")
-        .def(py::init<ShaderId>(), py::arg("graph_shader"))
-        .def_readwrite("graph_shader", &DispatchDataGraphData::graphShader)
-        .def_readwrite("debug_name", &DispatchDataGraphData::debugName)
-        .def_readwrite("bindings", &DispatchDataGraphData::bindings)
-        .def_readwrite("graph_constants", &DispatchDataGraphData::graphConstants)
-        .def_readwrite("implicit_barrier", &DispatchDataGraphData::implicitBarrier);
+    auto dispatchDataGraphData =
+        py::class_<DispatchDataGraphData>(m, "DispatchDataGraphData", "Describe a dispatch of a SPIR-V graph shader.");
+    dispatchDataGraphData.def(py::init<ShaderId>(), py::arg("graph_shader"), "Create a dispatch for ``graph_shader``.")
+        .def_readwrite("graph_shader", &DispatchDataGraphData::graphShader, "The graph shader to dispatch.")
+        .def_readwrite("debug_name", &DispatchDataGraphData::debugName, "Optional name used in diagnostics.")
+        .def_readwrite("bindings", &DispatchDataGraphData::bindings, "Resource bindings used by the graph shader.")
+        .def_readwrite("graph_constants", &DispatchDataGraphData::graphConstants,
+                       "Graph constants applied to the dispatch.")
+        .def_readwrite("implicit_barrier", &DispatchDataGraphData::implicitBarrier,
+                       "Whether to insert the default synchronization barrier.");
+    py::dict dispatchDataGraphDataAnnotations;
+    dispatchDataGraphDataAnnotations["graph_shader"] = "ShaderId";
+    dispatchDataGraphDataAnnotations["debug_name"] = "str";
+    dispatchDataGraphDataAnnotations["bindings"] = "list[TypedBinding]";
+    dispatchDataGraphDataAnnotations["graph_constants"] = "list[GraphConstantResourceId]";
+    dispatchDataGraphDataAnnotations["implicit_barrier"] = "bool";
+    dispatchDataGraphData.attr("__annotations__") = dispatchDataGraphDataAnnotations;
 
     py::class_<DispatchOpticalFlowData>(m, "DispatchOpticalFlowData")
         .def(py::init<TypedBinding, TypedBinding, TypedBinding>(), py::arg("search"), py::arg("reference"),
@@ -433,19 +527,74 @@ void bindCommands(py::module_ &m) {
         .def_readwrite("buffers", &FrameBoundaryData::buffers)
         .def_readwrite("images", &FrameBoundaryData::images)
         .def_readwrite("tensors", &FrameBoundaryData::tensors);
+
+    setAttributeAnnotations(m.attr("TypedBinding"), {{"set", "int"},
+                                                     {"binding", "int"},
+                                                     {"resource", "BufferId | ImageId | TensorId"},
+                                                     {"lod", "int | None"},
+                                                     {"descriptor_type", "DescriptorType"}});
+    setAttributeAnnotations(
+        m.attr("ComputeDispatch"),
+        {{"group_count_x", "int"}, {"group_count_y", "int"}, {"group_count_z", "int"}, {"profile_name", "str"}});
+    setAttributeAnnotations(m.attr("DispatchComputeData"), {{"debug_name", "str"},
+                                                            {"bindings", "list[TypedBinding]"},
+                                                            {"compute_dispatch", "ComputeDispatch"},
+                                                            {"shader", "ShaderId"},
+                                                            {"implicit_barrier", "bool"},
+                                                            {"push_data", "RawDataId | None"}});
+    setAttributeAnnotations(m.attr("FragmentAttachment"), {{"resource", "ImageId"}, {"lod", "int | None"}});
+    setAttributeAnnotations(m.attr("Extent2D"), {{"width", "int"}, {"height", "int"}});
+    setAttributeAnnotations(m.attr("DispatchFragmentData"), {{"debug_name", "str"},
+                                                             {"bindings", "list[TypedBinding]"},
+                                                             {"vertex_shader", "ShaderId"},
+                                                             {"fragment_shader", "ShaderId"},
+                                                             {"color_attachments", "list[FragmentAttachment]"},
+                                                             {"render_extent", "Extent2D | None"},
+                                                             {"implicit_barrier", "bool"},
+                                                             {"push_data", "RawDataId | None"}});
+    setAttributeAnnotations(m.attr("PushConstantMap"), {{"push_data", "RawDataId"}, {"shader_target", "str"}});
+    setAttributeAnnotations(m.attr("ShaderSubstitution"), {{"shader", "ShaderId"}, {"target", "str"}});
+    setAttributeAnnotations(m.attr("DispatchVgfData"), {{"vgf", "VgfId"},
+                                                        {"debug_name", "str"},
+                                                        {"bindings", "list[TypedBinding]"},
+                                                        {"push_constants", "list[PushConstantMap]"},
+                                                        {"shader_substitutions", "list[ShaderSubstitution]"},
+                                                        {"implicit_barrier", "bool"}});
+    setAttributeAnnotations(m.attr("DispatchOpticalFlowData"), {{"debug_name", "str"},
+                                                                {"search_image", "TypedBinding"},
+                                                                {"template_image", "TypedBinding"},
+                                                                {"output_image", "TypedBinding"},
+                                                                {"hint_motion_vectors", "TypedBinding | None"},
+                                                                {"output_cost", "TypedBinding | None"},
+                                                                {"width", "int"},
+                                                                {"height", "int"},
+                                                                {"performance_level", "OpticalFlowPerformanceLevel"},
+                                                                {"execution_flags", "int"},
+                                                                {"grid_size", "OpticalFlowGridSize"},
+                                                                {"mean_flow_l1_norm_hint", "int"},
+                                                                {"implicit_barrier", "bool"}});
+    setAttributeAnnotations(m.attr("PipelineBarrierData"), {{"memory_barriers", "list[MemoryBarrierId]"},
+                                                            {"image_barriers", "list[ImageBarrierId]"},
+                                                            {"tensor_barriers", "list[TensorBarrierId]"},
+                                                            {"buffer_barriers", "list[BufferBarrierId]"}});
+    setAttributeAnnotations(
+        m.attr("FrameBoundaryData"),
+        {{"buffers", "list[BufferId]"}, {"images", "list[ImageId]"}, {"tensors", "list[TensorId]"}});
 }
 
 void bindBuilder(py::module_ &m) {
-    py::class_<ScenarioBuilder, std::unique_ptr<ScenarioBuilder>>(m, "ScenarioBuilder")
+    py::class_<ScenarioBuilder, std::unique_ptr<ScenarioBuilder>>(
+        m, "ScenarioBuilder", "Define resources and commands, then build a :class:`Scenario`.")
         .def(py::init(&createScenarioBuilder))
-        .def("add_buffer", &ScenarioBuilder::addBuffer)
+        .def("add_buffer", &ScenarioBuilder::addBuffer, "Register a buffer and return its ID.", py::arg("info"))
         .def(
             "add_buffer",
             [](ScenarioBuilder &builder, uint32_t size, const std::string &debugName, uint64_t memoryOffset) {
                 return builder.addBuffer(BufferInfo{debugName, size, memoryOffset});
             },
-            py::arg("size"), py::kw_only(), py::arg("debug_name") = "", py::arg("memory_offset") = 0)
-        .def("add_image", &ScenarioBuilder::addImage)
+            "Register a buffer and return its ID.", py::arg("size"), py::kw_only(), py::arg("debug_name") = "",
+            py::arg("memory_offset") = 0)
+        .def("add_image", &ScenarioBuilder::addImage, "Register an image and return its ID.", py::arg("info"))
         .def(
             "add_image",
             [](ScenarioBuilder &builder, const std::vector<int64_t> &shape, vk::Format format,
@@ -465,10 +614,12 @@ void bindBuilder(py::module_ &m) {
                 info.memoryOffset = memoryOffset;
                 return builder.addImage(info);
             },
+            "Register an image and return its ID. The convenience overload uses ``format`` as both "
+            "source and target format.",
             py::arg("shape"), py::arg("format"), py::kw_only(), py::arg("debug_name") = "", py::arg("is_input") = false,
             py::arg("is_sampled") = false, py::arg("is_storage") = false, py::arg("is_color_attachment") = false,
             py::arg("mips") = 1, py::arg("tiling") = py::none(), py::arg("memory_offset") = 0)
-        .def("add_tensor", &ScenarioBuilder::addTensor)
+        .def("add_tensor", &ScenarioBuilder::addTensor, "Register a tensor and return its ID.", py::arg("info"))
         .def(
             "add_tensor",
             [](ScenarioBuilder &builder, const std::vector<int64_t> &shape, vk::Format format,
@@ -477,30 +628,49 @@ void bindBuilder(py::module_ &m) {
                 return builder.addTensor(TensorInfo{debugName, shape, format, sparsityDimension,
                                                     descriptorBufferCaptureReplay, tiling, memoryOffset});
             },
-            py::arg("shape"), py::arg("format"), py::kw_only(), py::arg("debug_name") = "",
-            py::arg("sparsity_dimension") = -1, py::arg("descriptor_buffer_capture_replay") = false,
-            py::arg("tiling") = Tiling::Linear, py::arg("memory_offset") = 0)
-        .def("add_shader", &ScenarioBuilder::addShader)
-        .def("add_raw_data", &ScenarioBuilder::addRawData)
-        .def("add_vgf", &ScenarioBuilder::addVgf)
-        .def("add_graph_constant", &ScenarioBuilder::addGraphConstant)
-        .def("add_image_barrier", &ScenarioBuilder::addImageBarrier)
-        .def("add_buffer_barrier", &ScenarioBuilder::addBufferBarrier)
-        .def("add_tensor_barrier", &ScenarioBuilder::addTensorBarrier)
-        .def("add_memory_barrier", &ScenarioBuilder::addMemoryBarrier)
-        .def("create_memory_group", &ScenarioBuilder::createMemoryGroup)
-        .def("add_resource_to_memory_group",
-             [](ScenarioBuilder &builder, MemoryGroupId group, const py::object &resource) {
-                 builder.addResourceToMemoryGroup(group, memoryResourceFromPython(resource));
-             })
-        .def("add_dispatch_compute", &ScenarioBuilder::addDispatchCompute)
-        .def("add_dispatch_fragment", &ScenarioBuilder::addDispatchFragment)
-        .def("add_dispatch_vgf", &ScenarioBuilder::addDispatchVgf)
-        .def("add_dispatch_data_graph", &ScenarioBuilder::addDispatchDataGraph)
-        .def("add_dispatch_optical_flow", &ScenarioBuilder::addDispatchOpticalFlow)
-        .def("add_pipeline_barrier", &ScenarioBuilder::addPipelineBarrier)
-        .def("add_frame_boundary", &ScenarioBuilder::addFrameBoundary)
-        .def("build", &ScenarioBuilder::build, py::kw_only(), py::arg("options") = ScenarioOptions{},
+            "Register a tensor and return its ID.", py::arg("shape"), py::arg("format"), py::kw_only(),
+            py::arg("debug_name") = "", py::arg("sparsity_dimension") = -1,
+            py::arg("descriptor_buffer_capture_replay") = false, py::arg("tiling") = Tiling::Linear,
+            py::arg("memory_offset") = 0)
+        .def("add_shader", &ScenarioBuilder::addShader, "Register :class:`ShaderInfo` and return its ID.",
+             py::arg("info"))
+        .def("add_raw_data", &ScenarioBuilder::addRawData, "Register :class:`RawDataInfo` and return its ID.",
+             py::arg("info"))
+        .def("add_vgf", &ScenarioBuilder::addVgf, "Register :class:`VgfInfo` and return its ID.", py::arg("info"))
+        .def("add_graph_constant", &ScenarioBuilder::addGraphConstant,
+             "Register :class:`GraphConstantInfo` and return its ID.", py::arg("info"))
+        .def("add_image_barrier", &ScenarioBuilder::addImageBarrier,
+             "Register an :class:`ImageBarrierInfo` and return its barrier ID.", py::arg("info"))
+        .def("add_buffer_barrier", &ScenarioBuilder::addBufferBarrier,
+             "Register a :class:`BufferBarrierInfo` and return its barrier ID.", py::arg("info"))
+        .def("add_tensor_barrier", &ScenarioBuilder::addTensorBarrier,
+             "Register a :class:`TensorBarrierInfo` and return its barrier ID.", py::arg("info"))
+        .def("add_memory_barrier", &ScenarioBuilder::addMemoryBarrier,
+             "Register a :class:`MemoryBarrierInfo` and return its barrier ID.", py::arg("info"))
+        .def("create_memory_group", &ScenarioBuilder::createMemoryGroup, "Create an aliasing group and return its ID.")
+        .def(
+            "add_resource_to_memory_group",
+            [](ScenarioBuilder &builder, MemoryGroupId group, const py::object &resource) {
+                builder.addResourceToMemoryGroup(group, memoryResourceFromPython(resource));
+            },
+            "Add a buffer, image, or tensor ID to an existing aliasing group.", py::arg("group"), py::arg("resource"))
+        .def("add_dispatch_compute", &ScenarioBuilder::addDispatchCompute,
+             "Append a :class:`DispatchComputeData` command.", py::arg("command"))
+        .def("add_dispatch_fragment", &ScenarioBuilder::addDispatchFragment,
+             "Append a :class:`DispatchFragmentData` command.", py::arg("command"))
+        .def("add_dispatch_vgf", &ScenarioBuilder::addDispatchVgf, "Append a :class:`DispatchVgfData` command.",
+             py::arg("command"))
+        .def("add_dispatch_data_graph", &ScenarioBuilder::addDispatchDataGraph,
+             "Append a :class:`DispatchDataGraphData` command.", py::arg("command"))
+        .def("add_dispatch_optical_flow", &ScenarioBuilder::addDispatchOpticalFlow,
+             "Append a :class:`DispatchOpticalFlowData` command.", py::arg("command"))
+        .def("add_pipeline_barrier", &ScenarioBuilder::addPipelineBarrier,
+             "Append a :class:`PipelineBarrierData` command.", py::arg("command"))
+        .def("add_frame_boundary", &ScenarioBuilder::addFrameBoundary, "Append a :class:`FrameBoundaryData` command.",
+             py::arg("command"))
+        .def("build", &ScenarioBuilder::build,
+             "Consume the builder and return a ready-to-run :class:`Scenario`. The builder cannot be reused.",
+             py::kw_only(), py::arg_v("options", ScenarioOptions{}, "ScenarioOptions()"),
              py::call_guard<py::gil_scoped_release>());
 }
 
