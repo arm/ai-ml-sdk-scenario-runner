@@ -132,7 +132,7 @@ python "$env:SDK_PATH\sw\scenario-runner\scripts\build.py" -j $cores  `
 ```
 
 To build on Darwin from a Repo tool checkout, first configure the
-[LunarG Vulkan SDK for macOS](https://vulkan.lunarg.com/sdk/home#mac) environment
+[LunarG Vulkan SDK for Darwin](https://vulkan.lunarg.com/sdk/home#mac) environment
 according to its documentation, then run:
 
 ```bash
