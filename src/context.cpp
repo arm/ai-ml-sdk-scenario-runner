@@ -7,38 +7,16 @@
 #include "logging.hpp"
 #include "scenario_options.hpp"
 
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
-#include <limits>
+#include <iterator>
 #include <map>
 #include <vector>
 #include <vulkan/vulkan_beta.h>
 
 namespace mlsdk::scenariorunner {
 namespace {
-constexpr auto getFlagsForQueueFamily(FamilyQueue familyQueue) {
-    switch (familyQueue) {
-    case FamilyQueue::Compute:
-        return vk::QueueFlagBits::eCompute;
-    case FamilyQueue::Graphics:
-        return vk::QueueFlagBits::eGraphics;
-    case FamilyQueue::DataGraph:
-    default:
-        return vk::QueueFlagBits::eDataGraphARM;
-    }
-}
-
-uint32_t findQueue(const std::vector<vk::QueueFamilyProperties> &queueProps, FamilyQueue familyQueue) {
-    const auto flag = getFlagsForQueueFamily(familyQueue);
-    for (uint32_t i = 0; i < queueProps.size(); ++i) {
-        const vk::QueueFamilyProperties &prop = queueProps[i];
-        if (prop.queueFlags & flag) {
-            return i;
-        }
-    }
-    return std::numeric_limits<uint32_t>::max();
-}
-
 bool hasExtension(const std::vector<vk::ExtensionProperties> &extensions, const std::string &extensionName,
                   const std::vector<std::string> &disabledExtensions = {}) {
     if (std::find(disabledExtensions.begin(), disabledExtensions.end(), extensionName) != disabledExtensions.end()) {
@@ -57,7 +35,7 @@ std::string formatVersion(uint32_t version) {
 std::string_view formatFeature(VkBool32 supported) { return supported == VK_TRUE ? "true" : "false"; }
 } // namespace
 
-Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue)
+Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags requiredQueueFlags)
     : _gpuDebugMarkersEnabled(scenarioOptions.enableGPUDebugMarkers),
       _sessionMemoryDumpEnabled(!scenarioOptions.sessionRAMsDumpDir.empty()),
       _robustnessFeaturesEnabled(scenarioOptions.enableRobustnessFeatures) {
@@ -111,10 +89,13 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
     mlsdk::logging::info("Device: " + deviceName + ", Type: " + deviceType + ", Vendor: 0x" + vendorID.str());
 
     const std::vector<vk::QueueFamilyProperties> queueProps = _physicalDev.getQueueFamilyProperties();
-    _familyQueueIdx = findQueue(queueProps, familyQueue);
-    if (_familyQueueIdx == std::numeric_limits<uint32_t>::max()) {
+    const auto queueFamily = std::find_if(queueProps.cbegin(), queueProps.cend(), [&](const auto &properties) {
+        return (properties.queueFlags & requiredQueueFlags) == requiredQueueFlags;
+    });
+    if (queueFamily == queueProps.cend()) {
         throw std::runtime_error("Cannot find queue index");
     }
+    _familyQueueIdx = static_cast<uint32_t>(std::distance(queueProps.cbegin(), queueFamily));
 
     // Get device capabilities
     const std::vector<vk::ExtensionProperties> &extensions = _physicalDev.enumerateDeviceExtensionProperties(nullptr);
@@ -225,7 +206,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, FamilyQueue familyQueue
         _optionals.pipeline_robustness = false;
     }
 
-    const bool requiresDynamicRendering = familyQueue == FamilyQueue::Graphics;
+    const bool requiresDynamicRendering =
+        (requiredQueueFlags & vk::QueueFlagBits::eGraphics) == vk::QueueFlagBits::eGraphics;
     if (requiresDynamicRendering && !available13Features.dynamicRendering) {
         throw std::runtime_error("Graphics scenarios require Vulkan dynamicRendering support");
     }

@@ -157,14 +157,20 @@ Id resolveResourceUid(const std::unordered_map<Guid, TypedResourceId> &resourceI
     return *id;
 }
 
-FamilyQueue getFamilyQueue(const detail::ScenarioBuildData &buildData) {
-    if (buildData.requiresGraphicsFamilyQueue) {
-        return FamilyQueue::Graphics;
+vk::QueueFlags getRequiredQueueFlags(const std::vector<detail::ScenarioCommand> &commands) {
+    vk::QueueFlags requiredQueueFlags;
+    for (const auto &command : commands) {
+        if (std::holds_alternative<DispatchComputeData>(command)) {
+            requiredQueueFlags |= vk::QueueFlagBits::eCompute;
+        } else if (std::holds_alternative<DispatchFragmentData>(command)) {
+            requiredQueueFlags |= vk::QueueFlagBits::eGraphics;
+        } else if (std::holds_alternative<DispatchDataGraphData>(command) ||
+                   std::holds_alternative<DispatchSpirvGraphData>(command) ||
+                   std::holds_alternative<DispatchOpticalFlowData>(command)) {
+            requiredQueueFlags |= vk::QueueFlagBits::eDataGraphARM;
+        }
     }
-    if (buildData.useComputeFamilyQueue) {
-        return FamilyQueue::Compute;
-    }
-    return FamilyQueue::DataGraph;
+    return requiredQueueFlags ? requiredQueueFlags : vk::QueueFlagBits::eCompute;
 }
 
 // Map performance level to Vulkan enum
@@ -220,7 +226,7 @@ std::pair<const char *, size_t> getPushConstantData(const std::optional<RawDataI
 // ScenarioBuildData is intentionally passed by value because this constructor takes ownership of its contents.
 // cppcheck-suppress passedByValue
 Scenario::Scenario(const ScenarioOptions &opts, detail::ScenarioBuildData buildData)
-    : _opts{opts}, _ctx{opts, getFamilyQueue(buildData)}, _resources{std::move(buildData.resources)},
+    : _opts{opts}, _ctx{opts, getRequiredQueueFlags(buildData.commands)}, _resources{std::move(buildData.resources)},
       _resourceIds{std::move(buildData.resourceIds)}, _initializations{std::move(buildData.initializations)},
       _outputs{std::move(buildData.outputs)}, _commands{std::move(buildData.commands)}, _compute(_ctx),
       _groupManager{std::move(buildData.groupManager)} {

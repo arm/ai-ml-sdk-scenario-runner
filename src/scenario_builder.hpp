@@ -21,8 +21,6 @@ struct ScenarioBuildData {
     std::unordered_map<Guid, TypedResourceId> resourceIds;
     std::vector<ResourceInitialization> initializations;
     std::vector<ResourceOutput> outputs;
-    bool useComputeFamilyQueue{};
-    bool requiresGraphicsFamilyQueue{};
 };
 class ScenarioBuilderAccess;
 } // namespace detail

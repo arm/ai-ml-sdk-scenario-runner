@@ -72,7 +72,6 @@ TEST(IScenario, ScenarioSupportsImageTransfers) {
         }
     )";
     ScenarioSpec spec{scenarioJson};
-    spec.useComputeFamilyQueue = true;
     auto api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
     const auto imageId = api->getImageId("inImage");
     const std::vector<std::byte> payload{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
