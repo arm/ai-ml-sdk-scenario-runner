@@ -76,6 +76,8 @@ target_link_libraries(scenario-runner PRIVATE
 )
 target_compile_options(scenario-runner PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
 
+add_subdirectory(samples)
+
 if(ANDROID)
     target_link_libraries(scenario-runner PRIVATE log)
     add_library(scenario_runner_jni SHARED

@@ -1,0 +1,45 @@
+{
+    "commands": [
+        {
+            "dispatch_compute": {
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "input"
+                    },
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "output"
+                    }
+                ],
+                "rangeND": [4, 1, 1],
+                "shader_ref": "increment"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "shader": {
+                "src": "increment.comp",
+                "type": "GLSL",
+                "uid": "increment"
+            }
+        },
+        {
+            "buffer": {
+                "shader_access": "readonly",
+                "size": 16,
+                "uid": "input"
+            }
+        },
+        {
+            "buffer": {
+                "shader_access": "writeonly",
+                "size": 16,
+                "uid": "output"
+            }
+        }
+    ]
+}

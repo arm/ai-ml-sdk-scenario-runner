@@ -1,0 +1,18 @@
+// SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+// SPDX-License-Identifier: Apache-2.0
+
+#version 450
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer Input {
+    uint values[];
+} inputBuffer;
+
+layout(set = 0, binding = 1) writeonly buffer Output {
+    uint values[];
+} outputBuffer;
+
+void main() {
+    outputBuffer.values[gl_GlobalInvocationID.x] = inputBuffer.values[gl_GlobalInvocationID.x] + 1;
+}
