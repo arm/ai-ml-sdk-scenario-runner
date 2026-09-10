@@ -16,7 +16,7 @@ license = { text = "Apache-2.0" }
 authors = [
     { name = "Arm Limited" }
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 
 [project.scripts]
 scenario_runner = "scenario_runner.cli:main"
