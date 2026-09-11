@@ -5,30 +5,37 @@
 
 #pragma once
 
-#include "scenario_runner.hpp"
+#include "scenario_runner/resource_id.hpp"
 
+#include "vulkan_memory_manager.hpp"
+
+#include <memory>
+#include <optional>
 #include <unordered_map>
+#include <vector>
 
 namespace mlsdk::scenariorunner {
 
-class GroupManager : public IGroupManager {
+using GroupResources = std::unordered_map<MemoryGroupId, std::vector<MemoryResourceId>>;
+
+class GroupManager {
   public:
-    MemoryGroupId createMemoryGroup() override;
+    MemoryGroupId createMemoryGroup();
 
     /// Add resource to group
-    void addResourceToGroup(MemoryGroupId group, MemoryResourceId resource) override;
+    void addResourceToGroup(MemoryGroupId group, MemoryResourceId resource);
 
     /// Complete group registration and create the shared memory managers.
-    void finalize() override;
+    void finalize();
 
     /// Return size of group that resource belongs to
-    size_t getAliasCount(MemoryResourceId resource) const override;
+    size_t getAliasCount(MemoryResourceId resource) const;
 
-    bool isAliased(MemoryResourceId resource) const override;
+    bool isAliased(MemoryResourceId resource) const;
 
     // Get memory manager, shared if resource is aliased.
-    std::shared_ptr<ResourceMemoryManager> getMemoryManager(MemoryResourceId resource) override;
-    const GroupResources &getGroups() const override;
+    std::shared_ptr<ResourceMemoryManager> getMemoryManager(MemoryResourceId resource);
+    const GroupResources &getGroups() const;
 
     std::optional<MemoryGroupId> getGroupForResource(MemoryResourceId resource) const;
     std::vector<MemoryResourceId> getResourcesInGroup(MemoryGroupId group) const;

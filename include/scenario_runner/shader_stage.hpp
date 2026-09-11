@@ -5,10 +5,12 @@
 #pragma once
 
 namespace mlsdk::scenariorunner {
+
 enum class ShaderStage {
     Unknown,
     Compute,
     Vertex,
     Fragment,
 };
+
 }

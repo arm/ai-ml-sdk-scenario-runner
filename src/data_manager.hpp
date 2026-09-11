@@ -4,11 +4,12 @@
  */
 #pragma once
 
+#include "scenario_runner/resource_id.hpp"
+
 #include "barrier.hpp"
 #include "buffer.hpp"
 #include "image.hpp"
 #include "raw_data.hpp"
-#include "resource_id.hpp"
 #include "tensor.hpp"
 #include "vgf_view.hpp"
 

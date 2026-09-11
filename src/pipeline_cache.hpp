@@ -5,16 +5,19 @@
 
 #pragma once
 
-#include "context.hpp"
-#include "types.hpp"
-#include "vgf-utils/memory_map.hpp"
+#include "scenario_runner/types.hpp"
 
+#include "context.hpp"
+
+#include "vgf-utils/memory_map.hpp"
 #include "vulkan/vulkan_raii.hpp"
 
 #include <filesystem>
 #include <vector>
 
 namespace mlsdk::scenariorunner {
+
+enum class PipelineType { Unknown, Compute, GraphCompute, Graphics };
 
 class PipelineCache {
   public:

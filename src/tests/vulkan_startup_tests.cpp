@@ -2,13 +2,14 @@
  * SPDX-FileCopyrightText: Copyright 2022-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <gtest/gtest.h>
+#include "scenario_runner/scenario_options.hpp"
 
 #include "commands.hpp"
 #include "compute.hpp"
 #include "context.hpp"
 #include "glsl_compiler.hpp"
-#include "scenario_options.hpp"
+
+#include <gtest/gtest.h>
 
 #include <vector>
 

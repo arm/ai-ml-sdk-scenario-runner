@@ -5,16 +5,37 @@
 
 #pragma once
 
-#include "commands.hpp"
-#include "compute.hpp"
 #include "types.hpp"
 
 #include <optional>
 #include <string>
-#include <variant>
 #include <vector>
 
 namespace mlsdk::scenariorunner {
+
+enum class OpticalFlowGridSize : uint32_t {
+    Invalid = 0xFFFFFFFFu,
+    e1x1 = 0,
+    e2x2 = 1,
+    e4x4 = 2,
+    e8x8 = 3,
+};
+
+enum class OpticalFlowPerformanceLevel : uint32_t {
+    Invalid = 0xFFFFFFFFu,
+    Unknown = 0,
+    Slow = 1,
+    Medium = 2,
+    Fast = 3,
+};
+
+/// \brief Group count for x, y and z
+struct ComputeDispatch {
+    uint32_t gwcx{1};
+    uint32_t gwcy{1};
+    uint32_t gwcz{1};
+    std::string profileName;
+};
 
 /// \brief Compute data with typed bindings
 struct DispatchComputeData {
@@ -115,11 +136,5 @@ struct MarkBoundaryData {
     std::vector<ImageId> images;
     std::vector<TensorId> tensors;
 };
-
-namespace detail {
-using ScenarioCommand =
-    std::variant<DispatchComputeData, DispatchFragmentData, DispatchDataGraphData, DispatchSpirvGraphData,
-                 DispatchOpticalFlowData, DispatchBarrierData, MarkBoundaryData>;
-} // namespace detail
 
 } // namespace mlsdk::scenariorunner

@@ -54,10 +54,6 @@ using MemoryBarrierId = ResourceId<MemoryBarrierIdTag>;
 
 using MemoryResourceId = std::variant<BufferId, ImageId, TensorId>;
 
-using TypedResourceId =
-    std::variant<BufferId, ImageId, TensorId, ShaderId, RawDataId, DataGraphId, GraphConstantResourceId, ImageBarrierId,
-                 BufferBarrierId, TensorBarrierId, MemoryBarrierId>;
-
 } // namespace mlsdk::scenariorunner
 
 namespace std {

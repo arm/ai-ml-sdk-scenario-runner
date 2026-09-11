@@ -26,6 +26,7 @@ add_executable(glslc
 )
 target_include_directories(glslc PRIVATE
     ../
+    ${PROJECT_SOURCE_DIR}/include
 )
 target_link_libraries(glslc
   PUBLIC

@@ -3,11 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "scenario_json_factory.hpp"
+#include "scenario_runner/scenario_json_factory.hpp"
+#include "scenario_runner/scenario_options.hpp"
 
 #include "image_formats.hpp"
 #include "logging.hpp"
-#include "scenario.hpp"
+#include "scenario_builder_impl.hpp"
+#include "scenario_desc.hpp"
 #include "utils.hpp"
 
 #include "vgf-utils/memory_map.hpp"
@@ -19,6 +21,10 @@
 
 namespace mlsdk::scenariorunner {
 namespace {
+void populate(const ScenarioOptions &options, const ScenarioSpec &scenarioSpec, ScenarioBuilderImpl &builder);
+void resolveCommands(ScenarioBuilderImpl &builder, const ScenarioSpec &scenarioSpec,
+                     const std::unordered_map<Guid, TypedResourceId> &resourceIds);
+
 ImageLoadResult loadDataFromNPY(const std::string &filename, vk::Format dataType, const ImageLoadOptions &options) {
     MemoryMap mapped(filename);
     auto dataPtr = vgfutils::numpy::parse(mapped);
@@ -479,7 +485,7 @@ void registerResourceId(std::unordered_map<Guid, TypedResourceId> &resourceIds, 
     }
 }
 
-void registerMemoryGroup(ScenarioBuilder &builder, std::unordered_map<Guid, MemoryGroupId> &memoryGroupIds,
+void registerMemoryGroup(ScenarioBuilderImpl &builder, std::unordered_map<Guid, MemoryGroupId> &memoryGroupIds,
                          MemoryResourceId resource, const std::optional<MemoryGroup> &memoryGroup) {
     if (memoryGroup.has_value()) {
         const auto existingGroup = memoryGroupIds.find(memoryGroup->memoryUid);
@@ -642,14 +648,20 @@ struct CommandDataFactory {
 
 } // namespace
 
-std::unique_ptr<IScenario> ScenarioJsonFactory::make(const ScenarioOptions &options, const ScenarioSpec &scenarioSpec) {
-    ScenarioBuilder builder;
+std::unique_ptr<Scenario> ScenarioJsonFactory::make(const std::filesystem::path &scenarioFile,
+                                                    const std::filesystem::path &workDir,
+                                                    const std::filesystem::path &outputDir,
+                                                    const ScenarioOptions &options) {
+    const auto resolvedWorkDir = workDir.empty() ? scenarioFile.parent_path() : workDir;
+    ScenarioSpec scenarioSpec{scenarioFile, resolvedWorkDir, outputDir};
+    mlsdk::logging::info("Scenario file parsed");
+    ScenarioBuilderImpl builder;
     populate(options, scenarioSpec, builder);
     return builder.build(options);
 }
 
-void ScenarioJsonFactory::populate(const ScenarioOptions &options, const ScenarioSpec &scenarioSpec,
-                                   ScenarioBuilder &builder) {
+namespace {
+void populate(const ScenarioOptions &options, const ScenarioSpec &scenarioSpec, ScenarioBuilderImpl &builder) {
     mlsdk::logging::info("Setup resources, count: " + std::to_string(scenarioSpec.resources.size()));
     // Setup resource info
     // (Memory for Tensors and Images is allocated in next pass)
@@ -778,8 +790,8 @@ void ScenarioJsonFactory::populate(const ScenarioOptions &options, const Scenari
     buildData.resourceIds = std::move(resourceIds);
 }
 
-void ScenarioJsonFactory::resolveCommands(ScenarioBuilder &builder, const ScenarioSpec &scenarioSpec,
-                                          const std::unordered_map<Guid, TypedResourceId> &resourceIds) {
+void resolveCommands(ScenarioBuilderImpl &builder, const ScenarioSpec &scenarioSpec,
+                     const std::unordered_map<Guid, TypedResourceId> &resourceIds) {
     CommandDataFactory factory{detail::ScenarioBuilderAccess::buildData(builder).resources, resourceIds};
     for (const auto &command : scenarioSpec.commands) {
         switch (command->commandType) {
@@ -809,5 +821,6 @@ void ScenarioJsonFactory::resolveCommands(ScenarioBuilder &builder, const Scenar
         }
     }
 }
+} // namespace
 
 } // namespace mlsdk::scenariorunner

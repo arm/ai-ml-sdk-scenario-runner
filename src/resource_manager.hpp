@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "resource_id.hpp"
-#include "types.hpp"
+#include "scenario_runner/resource_id.hpp"
+#include "scenario_runner/types.hpp"
 
 #include <vector>
 

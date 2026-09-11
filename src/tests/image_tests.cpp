@@ -3,19 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "scenario_runner/resource_data.hpp"
+#include "scenario_runner/scenario_json_factory.hpp"
+#include "scenario_runner/scenario_options.hpp"
+
 #include "data_manager.hpp"
 #include "image.hpp"
-#include "resource_data.hpp"
-#include "scenario_desc.hpp"
-#include "scenario_json_factory.hpp"
-#include "scenario_options.hpp"
 #include "utils.hpp"
 
 #include <algorithm>
+#include <fstream>
 #include <numeric>
 #include <vector>
 
 #include <gtest/gtest.h>
+
+#include "vgf-utils/temp_folder.hpp"
 
 using namespace mlsdk::scenariorunner;
 
@@ -54,7 +57,7 @@ Image &prepareImage(Context &ctx, DataManager &dataManager, ImageId id, const st
 }
 } // namespace
 
-TEST(IScenario, ScenarioSupportsImageTransfers) {
+TEST(Scenario, ScenarioSupportsImageTransfers) {
     const std::string scenarioJson = R"(
         {
             "commands": [],
@@ -71,8 +74,10 @@ TEST(IScenario, ScenarioSupportsImageTransfers) {
             ]
         }
     )";
-    ScenarioSpec spec{scenarioJson};
-    auto api = ScenarioJsonFactory::make(ScenarioOptions{}, spec);
+    TempFolder tempFolder("scenario_image_transfer_test");
+    const auto scenarioPath = tempFolder.relative("scenario.json");
+    std::ofstream(scenarioPath) << scenarioJson;
+    auto api = ScenarioJsonFactory::make(scenarioPath);
     const auto imageId = api->getImageId("inImage");
     const std::vector<std::byte> payload{std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}};
 

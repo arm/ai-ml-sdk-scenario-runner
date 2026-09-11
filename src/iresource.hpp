@@ -4,10 +4,11 @@
  */
 #pragma once
 
+#include "scenario_runner/resource_id.hpp"
+
 #include "buffer.hpp"
 #include "guid.hpp"
 #include "image.hpp"
-#include "resource_id.hpp"
 #include "tensor.hpp"
 
 namespace mlsdk::scenariorunner {

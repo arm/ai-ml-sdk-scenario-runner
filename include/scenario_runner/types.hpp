@@ -12,12 +12,12 @@
 #include <array>
 #include <optional>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
 namespace mlsdk::scenariorunner {
 
-enum class ModuleType { SHADER, GRAPH };
 enum class FilterMode { Linear, Nearest, Unknown };
 enum class AddressMode { ClampBorder, ClampEdge, Repeat, MirroredRepeat, Unknown };
 enum class BorderColor {
@@ -42,7 +42,6 @@ enum class MemoryAccess {
     Unknown
 };
 enum class PipelineStage { Graph, Compute, Graphics, All, Unknown };
-enum class PipelineType { Unknown, Compute, GraphCompute, Graphics };
 enum class ImageLayout { General, TensorAliasing, Undefined, Unknown };
 struct SubresourceRange {
     uint32_t baseMipLevel{0};

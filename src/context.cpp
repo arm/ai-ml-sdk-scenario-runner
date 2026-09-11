@@ -4,8 +4,9 @@
  */
 #include "context.hpp"
 
+#include "scenario_runner/scenario_options.hpp"
+
 #include "logging.hpp"
-#include "scenario_options.hpp"
 
 #include <algorithm>
 #include <iomanip>
