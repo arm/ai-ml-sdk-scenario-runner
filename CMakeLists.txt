@@ -64,6 +64,14 @@ if(SCENARIO_RUNNER_ENABLE_RDOC)
     find_package(RenderDoc REQUIRED)
 endif()
 
+if(ANDROID)
+    # Link all executable and library targets with 16KiB ELF segment alignment.
+    add_link_options(
+        "-Wl,-z,max-page-size=16384"
+        "-Wl,-z,common-page-size=16384"
+    )
+endif()
+
 add_subdirectory(src)
 
 add_executable(scenario-runner

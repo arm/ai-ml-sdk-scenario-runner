@@ -25,6 +25,7 @@
   with `pip install .` from the repository root.
 - Improved shader compilation errors with the shader name and compiler diagnostics.
 - Removed VGF Runtime component. Replaced by ML Workload Library for Vulkan®
+- Added support for Android™ devices using 16KiB pages.
 
 ### Profiling
 
