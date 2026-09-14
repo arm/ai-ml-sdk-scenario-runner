@@ -56,6 +56,7 @@ target_link_libraries(ScenarioRunnerLib PUBLIC
     VGF::vgf
     VGF::vgf-utils
     Vulkan::Headers
+    ${CMAKE_DL_LIBS}
     PRIVATE
         stb::stb
 )
