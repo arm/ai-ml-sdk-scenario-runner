@@ -1,0 +1,4343 @@
+From: svc_sdk <svc_sdk@arm.com>
+Date: Mon, 14 Sep 2026 07:04:09 +0100
+Subject: spirv-tools-for-scenario-runner-14-09-2026
+
+---
+ BUILD.bazel                                   |   26 +
+ include/spirv-tools/libspirv.h                |   39 +
+ include/spirv-tools/optimizer.hpp             |   34 +
+ source/opt/CMakeLists.txt                     |   46 +
+ source/opt/graph_shape_arm_motion_engine.cpp  |  281 +++
+ source/opt/graph_shape_arm_motion_engine.h    |   32 +
+ .../opt/graph_shape_extinst_operand_reader.h  |  136 ++
+ source/opt/graph_shape_pass.cpp               |  928 ++++++++++
+ source/opt/graph_shape_pass.h                 |   88 +
+ source/opt/graph_shape_tosa.cpp               | 1609 +++++++++++++++++
+ source/opt/graph_shape_tosa.h                 |   31 +
+ source/opt/graph_shape_util.cpp               |  521 ++++++
+ source/opt/graph_shape_util.h                 |   75 +
+ source/opt/optimizer.cpp                      |   45 +
+ source/opt/passes.h                           |    1 +
+ tools/opt/opt.cpp                             |    5 +-
+ utils/generate_extinst_operand_constants.py   |  203 +++
+ 17 files changed, 4099 insertions(+), 1 deletion(-)
+ create mode 100644 source/opt/graph_shape_arm_motion_engine.cpp
+ create mode 100644 source/opt/graph_shape_arm_motion_engine.h
+ create mode 100644 source/opt/graph_shape_extinst_operand_reader.h
+ create mode 100644 source/opt/graph_shape_pass.cpp
+ create mode 100644 source/opt/graph_shape_pass.h
+ create mode 100644 source/opt/graph_shape_tosa.cpp
+ create mode 100644 source/opt/graph_shape_tosa.h
+ create mode 100644 source/opt/graph_shape_util.cpp
+ create mode 100644 source/opt/graph_shape_util.h
+ create mode 100644 utils/generate_extinst_operand_constants.py
+
+diff --git a/BUILD.bazel b/BUILD.bazel
+index 98f616752..720e640c6 100644
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -46,6 +46,12 @@ py_binary(
+     srcs = ["utils/generate_language_headers.py"],
+ )
+ 
++py_binary(
++    name = "generate_extinst_operand_constants",
++    srcs = ["utils/generate_extinst_operand_constants.py"],
++    legacy_create_init = False,
++)
++
+ create_grammar_tables_target(
+     name="core", # unused
+     extinsts = [
+@@ -112,6 +118,24 @@ genrule(
+     tools = [":update_build_version"],
+ )
+ 
++genrule(
++    name = "graph_shape_tosa_operands_h",
++    srcs = ["@spirv_headers//:spirv_ext_inst_tosa_001000_1"],
++    outs = ["source/opt/graph_shape_tosa_operands.h"],
++    cmd = "$(location :generate_extinst_operand_constants) --grammar=$(location @spirv_headers//:spirv_ext_inst_tosa_001000_1) --output=$@ --namespace=tosa010_operands",
++    cmd_bat = "$(location :generate_extinst_operand_constants) --grammar=$(location @spirv_headers//:spirv_ext_inst_tosa_001000_1) --output=$@ --namespace=tosa010_operands",
++    tools = [":generate_extinst_operand_constants"],
++)
++
++genrule(
++    name = "graph_shape_arm_motion_engine_operands_h",
++    srcs = ["@spirv_headers//:spirv_ext_inst_arm_motion_engine_100"],
++    outs = ["source/opt/graph_shape_arm_motion_engine_operands.h"],
++    cmd = "$(location :generate_extinst_operand_constants) --grammar=$(location @spirv_headers//:spirv_ext_inst_arm_motion_engine_100) --output=$@ --namespace=arm_motion_engine100_operands",
++    cmd_bat = "$(location :generate_extinst_operand_constants) --grammar=$(location @spirv_headers//:spirv_ext_inst_arm_motion_engine_100) --output=$@ --namespace=arm_motion_engine100_operands",
++    tools = [":generate_extinst_operand_constants"],
++)
++
+ # Libraries
+ 
+ cc_library(
+@@ -182,6 +206,8 @@ cc_library(
+     name = "spirv_tools_opt_internal",
+     srcs = glob(["source/opt/*.cpp"]),
+     hdrs = glob(["source/opt/*.h"]) + [
++        ":graph_shape_arm_motion_engine_operands_h",
++        ":graph_shape_tosa_operands_h",
+         "include/spirv-tools/optimizer.hpp",
+     ],
+     copts = COMMON_COPTS,
+diff --git a/include/spirv-tools/libspirv.h b/include/spirv-tools/libspirv.h
+index 41f6ca754..dfb3a1e40 100644
+--- a/include/spirv-tools/libspirv.h
++++ b/include/spirv-tools/libspirv.h
+@@ -1,6 +1,7 @@
+ // Copyright (c) 2015-2020 The Khronos Group Inc.
+ // Modifications Copyright (C) 2020 Advanced Micro Devices, Inc. All rights
+ // reserved.
++// Copyright (c) 2026 Arm Ltd.
+ //
+ // Licensed under the Apache License, Version 2.0 (the "License");
+ // you may not use this file except in compliance with the License.
+@@ -1043,6 +1044,44 @@ SPIRV_TOOLS_EXPORT void spvOptimizerRegisterPerformancePasses(
+ SPIRV_TOOLS_EXPORT void spvOptimizerRegisterSizePasses(
+     spv_optimizer_t* optimizer);
+ 
++typedef struct spv_graph_interface_shape {
++  // Descriptor set decoration of the graph interface tensor variable.
++  uint32_t descriptor_set;
++  // Binding decoration of the graph interface tensor variable.
++  uint32_t binding_id;
++  // Number of dimensions in |shape|.
++  uint32_t rank;
++  // Pointer to |rank| dimension sizes. Must be non-null if |rank| is nonzero.
++  const int64_t* shape;
++} spv_graph_interface_shape;
++
++// Registers a pass that attempts to shape graphs in the code.
++//
++// The pass supports direct OpTypeTensorARM graph interfaces and graph bodies
++// using TOSA.001000.1 or Arm.MotionEngine.100 extended instructions, plus
++// OpCompositeExtract for multi-output results. Graphs referenced by more than
++// one OpGraphEntryPointARM are not supported. Tensor shapes and attributes
++// needed to calculate output shapes must be ordinary static constants. The
++// pass validates requirements needed to calculate representable output shapes;
++// it does not replace dialect semantic validation.
++//
++// |interface_shapes| provides full shapes for graph input or output interface
++// tensors identified by descriptor set and binding. The list does not need an
++// entry for every graph interface. An input request is required only when
++// neither its interface variable nor an already-shaped graph type supplies its
++// shape. Output requests are optional checks against inferred output shapes.
++// Supplied entries must satisfy the following requirements:
++// * No duplicate descriptor-set/binding pairs.
++// * Each shape has |rank| > 0.
++// * Each shape has a non-null |shape| pointer to |rank| dimensions.
++// * Each dimension is in the range [1, UINT32_MAX].
++//
++// Returns false and does not register the pass if the C shape list cannot be
++// copied safely. Shape-entry validity is checked when the pass runs.
++SPIRV_TOOLS_EXPORT bool spvOptimizerRegisterGraphShapePass(
++    spv_optimizer_t* optimizer, const size_t num_interface_shapes,
++    const spv_graph_interface_shape* interface_shapes);
++
+ // Registers a pass specified by a flag in an optimizer object.
+ SPIRV_TOOLS_EXPORT bool spvOptimizerRegisterPassFromFlag(
+     spv_optimizer_t* optimizer, const char* flag);
+diff --git a/include/spirv-tools/optimizer.hpp b/include/spirv-tools/optimizer.hpp
+index fd4527bf5..da0712b47 100644
+--- a/include/spirv-tools/optimizer.hpp
++++ b/include/spirv-tools/optimizer.hpp
+@@ -15,6 +15,8 @@
+ #ifndef INCLUDE_SPIRV_TOOLS_OPTIMIZER_HPP_
+ #define INCLUDE_SPIRV_TOOLS_OPTIMIZER_HPP_
+ 
++#include <cstdint>
++#include <map>
+ #include <memory>
+ #include <ostream>
+ #include <string>
+@@ -1037,6 +1039,38 @@ Optimizer::PassToken CreateResolveBindingConflictsPass();
+ // --strip-debug because this pass will use OpName to canonicalize IDs. i.e. Run
+ // --strip-debug after this pass.
+ Optimizer::PassToken CreateCanonicalizeIdsPass();
++
++// Shape request for a graph interface tensor identified by descriptor set and
++// binding.
++struct GraphInterfaceShape {
++  uint32_t descriptor_set;
++  uint32_t binding;
++  std::vector<int64_t> shape;
++};
++
++// Creates a graph-shape pass from graph interface tensor shapes identified by
++// descriptor set and binding.
++//
++// The pass supports direct OpTypeTensorARM graph interfaces and graph bodies
++// using TOSA.001000.1 or Arm.MotionEngine.100 extended instructions, plus
++// OpCompositeExtract for multi-output results. Graphs referenced by more than
++// one OpGraphEntryPointARM are not supported. Tensor shapes and attributes
++// needed to calculate output shapes must be ordinary static constants. The
++// pass validates requirements needed to calculate representable output shapes;
++// it does not replace dialect semantic validation.
++//
++// The request list does not need an entry for every graph interface. An input
++// request is required only when neither its interface variable nor an
++// already-shaped graph type supplies its shape. Output requests are optional
++// checks against inferred output shapes. Supplied entries must satisfy the
++// following requirements:
++// * No duplicate descriptor-set/binding pairs.
++// * Each shape is a full static tensor shape.
++// * Each shape contains at least one dimension.
++// * Each dimension is positive.
++// * Each dimension fits in a uint32_t tensor shape constant.
++Optimizer::PassToken CreateGraphShapePass(
++    const std::vector<GraphInterfaceShape>& interface_tensor_shapes);
+ }  // namespace spvtools
+ 
+ #endif  // INCLUDE_SPIRV_TOOLS_OPTIMIZER_HPP_
+diff --git a/source/opt/CMakeLists.txt b/source/opt/CMakeLists.txt
+index a0ca5b84b..e30d970f9 100644
+--- a/source/opt/CMakeLists.txt
++++ b/source/opt/CMakeLists.txt
+@@ -60,6 +60,11 @@ set(SPIRV_TOOLS_OPT_SOURCES
+   freeze_spec_constant_value_pass.h
+   function.h
+   graph.h
++  graph_shape_arm_motion_engine.h
++  graph_shape_extinst_operand_reader.h
++  graph_shape_pass.h
++  graph_shape_tosa.h
++  graph_shape_util.h
+   graphics_robust_access_pass.h
+   if_conversion.h
+   inline_exhaustive_pass.h
+@@ -184,6 +189,10 @@ set(SPIRV_TOOLS_OPT_SOURCES
+   freeze_spec_constant_value_pass.cpp
+   function.cpp
+   graph.cpp
++  graph_shape_arm_motion_engine.cpp
++  graph_shape_pass.cpp
++  graph_shape_tosa.cpp
++  graph_shape_util.cpp
+   graphics_robust_access_pass.cpp
+   if_conversion.cpp
+   inline_exhaustive_pass.cpp
+@@ -259,6 +268,41 @@ set(SPIRV_TOOLS_OPT_SOURCES
+   wrap_opkill.cpp
+ )
+ 
++set(EXTINST_OPERAND_CONSTANTS_PROCESSING_SCRIPT
++  "${spirv-tools_SOURCE_DIR}/utils/generate_extinst_operand_constants.py")
++set(GRAPH_SHAPE_TOSA_OPERANDS_H
++  "${spirv-tools_BINARY_DIR}/source/opt/graph_shape_tosa_operands.h")
++set(GRAPH_SHAPE_ARM_MOTION_ENGINE_OPERANDS_H
++  "${spirv-tools_BINARY_DIR}/source/opt/graph_shape_arm_motion_engine_operands.h")
++add_custom_command(OUTPUT ${GRAPH_SHAPE_TOSA_OPERANDS_H}
++  COMMAND Python3::Interpreter ${EXTINST_OPERAND_CONSTANTS_PROCESSING_SCRIPT}
++    --grammar=${EI_tosa_001000_1}
++    --output=${GRAPH_SHAPE_TOSA_OPERANDS_H}
++    --namespace=tosa010_operands
++  DEPENDS ${EXTINST_OPERAND_CONSTANTS_PROCESSING_SCRIPT}
++          ${EI_tosa_001000_1}
++  COMMENT "Generate TOSA operand constants for graph shape"
++  VERBATIM)
++add_custom_command(OUTPUT ${GRAPH_SHAPE_ARM_MOTION_ENGINE_OPERANDS_H}
++  COMMAND Python3::Interpreter ${EXTINST_OPERAND_CONSTANTS_PROCESSING_SCRIPT}
++    --grammar=${EI_arm_motion_engine_100}
++    --output=${GRAPH_SHAPE_ARM_MOTION_ENGINE_OPERANDS_H}
++    --namespace=arm_motion_engine100_operands
++  DEPENDS ${EXTINST_OPERAND_CONSTANTS_PROCESSING_SCRIPT}
++          ${EI_arm_motion_engine_100}
++  COMMENT "Generate Arm.MotionEngine.100 operand constants for graph shape"
++  VERBATIM)
++add_custom_target(spirv-tools-graph-shape-tosa-operands
++  DEPENDS ${GRAPH_SHAPE_TOSA_OPERANDS_H})
++add_custom_target(spirv-tools-graph-shape-arm-motion-engine-operands
++  DEPENDS ${GRAPH_SHAPE_ARM_MOTION_ENGINE_OPERANDS_H})
++list(APPEND SPIRV_TOOLS_OPT_SOURCES ${GRAPH_SHAPE_TOSA_OPERANDS_H}
++                                    ${GRAPH_SHAPE_ARM_MOTION_ENGINE_OPERANDS_H})
++set_source_files_properties(
++  ${GRAPH_SHAPE_TOSA_OPERANDS_H}
++  ${GRAPH_SHAPE_ARM_MOTION_ENGINE_OPERANDS_H}
++  PROPERTIES GENERATED TRUE HEADER_FILE_ONLY TRUE)
++
+ spvtools_pch(SPIRV_TOOLS_OPT_SOURCES pch_source_opt)
+ 
+ if (SPIRV_TOOLS_USE_MIMALLOC AND (NOT SPIRV_TOOLS_BUILD_STATIC OR SPIRV_TOOLS_USE_MIMALLOC_IN_STATIC_BUILD))
+@@ -266,6 +310,8 @@ if (SPIRV_TOOLS_USE_MIMALLOC AND (NOT SPIRV_TOOLS_BUILD_STATIC OR SPIRV_TOOLS_US
+ endif()
+ 
+ add_library(SPIRV-Tools-opt ${SPIRV_TOOLS_LIBRARY_TYPE} ${SPIRV_TOOLS_OPT_SOURCES})
++add_dependencies(SPIRV-Tools-opt spirv-tools-graph-shape-tosa-operands
++                                 spirv-tools-graph-shape-arm-motion-engine-operands)
+ 
+ if (SPIRV_TOOLS_USE_MIMALLOC AND (NOT SPIRV_TOOLS_BUILD_STATIC OR SPIRV_TOOLS_USE_MIMALLOC_IN_STATIC_BUILD))
+   target_link_libraries(SPIRV-Tools-opt PRIVATE mimalloc-static)
+diff --git a/source/opt/graph_shape_arm_motion_engine.cpp b/source/opt/graph_shape_arm_motion_engine.cpp
+new file mode 100644
+index 000000000..b3c0e16f0
+--- /dev/null
++++ b/source/opt/graph_shape_arm_motion_engine.cpp
+@@ -0,0 +1,281 @@
++// Copyright (c) 2026 Arm Ltd.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#include "source/opt/graph_shape_arm_motion_engine.h"
++
++#include <limits>
++#include <string>
++#include <string_view>
++#include <vector>
++
++#include "source/opt/graph_shape_arm_motion_engine_operands.h"
++#include "source/opt/graph_shape_extinst_operand_reader.h"
++#include "source/opt/graph_shape_util.h"
++#include "source/opt/instruction.h"
++#include "spirv/unified1/ArmMotionEngine.100.h"
++
++namespace spvtools {
++namespace opt {
++
++namespace {
++
++namespace operands = spvtools::opt::arm_motion_engine100_operands;
++
++using ArmMotionEngineOperandRole = operands::OperandRole;
++
++struct ArmMotionEngineOperandTraits {
++  using OperandRole = operands::OperandRole;
++  static constexpr spv_ext_inst_type_t kExtInstType =
++      SPV_EXT_INST_TYPE_ARM_MOTION_ENGINE_100;
++  static constexpr uint32_t kExtInstOpcode = operands::kExtInstOpcode;
++  static constexpr uint32_t kInvalidOperand = operands::kInvalidOperand;
++
++  static std::string_view InstructionSetName() {
++    return "Arm.MotionEngine.100";
++  }
++};
++
++using ArmMotionEngineOperandReader =
++    ExtInstOperandReader<ArmMotionEngineOperandTraits>;
++
++Pass::Status MultiplyOutputDimensions(IRContext* context, std::string_view name,
++                                      int64_t lhs, int64_t rhs,
++                                      int64_t* result) {
++  if (ValidateOutputDimension(context, name, lhs) == Pass::Status::Failure ||
++      ValidateOutputDimension(context, name, rhs) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  const uint64_t product =
++      static_cast<uint64_t>(lhs) * static_cast<uint64_t>(rhs);
++  if (product > std::numeric_limits<uint32_t>::max()) {
++    return ShapeFailure(
++        context, std::string(name) + " dimension is outside the valid range");
++  }
++  *result = static_cast<int64_t>(product);
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status GetBlockMatchInputShape(IRContext* context, uint32_t input_id,
++                                     std::vector<int64_t>* input_shape) {
++  auto input0_shape = GetTensorShape(context, input_id);
++  if (!input0_shape.has_value()) {
++    return ShapeFailure(context,
++                        "Arm.MotionEngine.100 SAD input 0 shape must be known");
++  }
++  const auto& input0_shape_value = input0_shape.value();
++
++  if (input0_shape_value.size() != 4) {
++    return ShapeFailure(context,
++                        "Arm.MotionEngine.100 SAD input 0 must be rank 4");
++  }
++
++  *input_shape = input0_shape_value;
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status GetOutputSpatialShape(IRContext* context,
++                                   const std::vector<int64_t>& input_shape,
++                                   uint32_t input_strides_id, int64_t* out_h,
++                                   int64_t* out_w) {
++  std::vector<int32_t> input_strides;
++  auto status = GetI32TensorConstantValues(
++      context, "Arm.MotionEngine.100 SAD input strides", input_strides_id, 2,
++      &input_strides);
++  if (status == Pass::Status::Failure) return status;
++  int32_t input_stride_y = input_strides[0];
++  int32_t input_stride_x = input_strides[1];
++
++  if (input_stride_y <= 0 || input_stride_x <= 0) {
++    return ShapeFailure(context,
++                        "Arm.MotionEngine.100 SAD input strides must be > 0");
++  }
++
++  // Integer division floors any trailing partial stride step.
++  *out_h = input_shape[2] / input_stride_y;
++  *out_w = input_shape[3] / input_stride_x;
++  if (ValidateOutputDimension(context, "Arm.MotionEngine.100 SAD output height",
++                              *out_h) == Pass::Status::Failure ||
++      ValidateOutputDimension(context, "Arm.MotionEngine.100 SAD output width",
++                              *out_w) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionMinSadOp(IRContext* context,
++                                           uint32_t input_strides_id,
++                                           uint32_t input0_id,
++                                           std::vector<int64_t>* output_shape) {
++  std::vector<int64_t> input_shape;
++  auto status = GetBlockMatchInputShape(context, input0_id, &input_shape);
++  if (status == Pass::Status::Failure) return status;
++
++  int64_t out_h = 0;
++  int64_t out_w = 0;
++  status = GetOutputSpatialShape(context, input_shape, input_strides_id, &out_h,
++                                 &out_w);
++  if (status == Pass::Status::Failure) return status;
++
++  int64_t flow_width = 0;
++  if (MultiplyOutputDimensions(context,
++                               "Arm.MotionEngine.100 MIN_SAD flow width", out_w,
++                               2, &flow_width) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  // MIN_SAD output: [N, C, H / stride_y, 2 * (W / stride_x)].
++  *output_shape = {input_shape[0], input_shape[1], out_h, flow_width};
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionMinSadCostOp(
++    IRContext* context, uint32_t input_strides_id, uint32_t input0_id,
++    std::vector<std::vector<int64_t> >* output_shapes) {
++  std::vector<int64_t> input_shape;
++  auto status = GetBlockMatchInputShape(context, input0_id, &input_shape);
++  if (status == Pass::Status::Failure) return status;
++
++  int64_t out_h = 0;
++  int64_t out_w = 0;
++  status = GetOutputSpatialShape(context, input_shape, input_strides_id, &out_h,
++                                 &out_w);
++  if (status == Pass::Status::Failure) return status;
++
++  int64_t flow_width = 0;
++  if (MultiplyOutputDimensions(
++          context, "Arm.MotionEngine.100 MIN_SAD_COST flow width", out_w, 2,
++          &flow_width) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  // MIN_SAD_COST outputs: flow [N, C, OH, 2 * OW], cost [N, C, OH, OW].
++  *output_shapes = {
++      {input_shape[0], input_shape[1], out_h, flow_width},
++      {input_shape[0], input_shape[1], out_h, out_w},
++  };
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionRawSadOp(IRContext* context,
++                                           uint32_t search_window_sizes_id,
++                                           uint32_t input_strides_id,
++                                           uint32_t input0_id,
++                                           std::vector<int64_t>* output_shape) {
++  std::vector<int64_t> input_shape;
++  auto status = GetBlockMatchInputShape(context, input0_id, &input_shape);
++  if (status == Pass::Status::Failure) return status;
++
++  std::vector<int32_t> search_window_sizes;
++  status = GetI32TensorConstantValues(
++      context, "Arm.MotionEngine.100 RAW_SAD search window sizes",
++      search_window_sizes_id, 2, &search_window_sizes);
++  if (status == Pass::Status::Failure) return status;
++  int32_t search_h = search_window_sizes[0];
++  int32_t search_w = search_window_sizes[1];
++  if (search_h <= 0 || search_w <= 0) {
++    return ShapeFailure(
++        context,
++        "Arm.MotionEngine.100 RAW_SAD search window sizes must be > 0");
++  }
++
++  int64_t out_h = 0;
++  int64_t out_w = 0;
++  status = GetOutputSpatialShape(context, input_shape, input_strides_id, &out_h,
++                                 &out_w);
++  if (status == Pass::Status::Failure) return status;
++
++  int64_t output_channels = 0;
++  if (MultiplyOutputDimensions(context,
++                               "Arm.MotionEngine.100 RAW_SAD output channels",
++                               input_shape[1], search_h,
++                               &output_channels) == Pass::Status::Failure ||
++      MultiplyOutputDimensions(context,
++                               "Arm.MotionEngine.100 RAW_SAD output channels",
++                               output_channels, search_w,
++                               &output_channels) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  // RAW_SAD output: [N, C * search_h * search_w, OH, OW].
++  *output_shape = {input_shape[0], output_channels, out_h, out_w};
++  return Pass::Status::SuccessWithoutChange;
++}
++
++}  // namespace
++
++Pass::Status ShapeGraphInstructionArmMotionEngine(IRContext* context,
++                                                  Instruction* inst) {
++  ArmMotionEngineOperandReader motion_engine_operands(context, inst);
++  if (motion_engine_operands.ReadOpcode() == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  uint32_t motion_engine_op = motion_engine_operands.opcode();
++
++  switch (motion_engine_op) {
++    case ArmMotionEngineMIN_SAD: {
++      uint32_t input_strides_id = 0;
++      uint32_t input0_id = 0;
++      if (motion_engine_operands.ReadOperands(
++              {{ArmMotionEngineOperandRole::kInputStrides, &input_strides_id},
++               {ArmMotionEngineOperandRole::kInput0, &input0_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      std::vector<int64_t> output_shape;
++      auto status = ShapeGraphInstructionMinSadOp(context, input_strides_id,
++                                                  input0_id, &output_shape);
++      if (status == Pass::Status::Failure) return status;
++      return ShapeGraphInstructionSingleOutput(context, inst, output_shape);
++    }
++    case ArmMotionEngineMIN_SAD_COST: {
++      uint32_t input_strides_id = 0;
++      uint32_t input0_id = 0;
++      if (motion_engine_operands.ReadOperands(
++              {{ArmMotionEngineOperandRole::kInputStrides, &input_strides_id},
++               {ArmMotionEngineOperandRole::kInput0, &input0_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      std::vector<std::vector<int64_t> > output_shapes;
++      auto status = ShapeGraphInstructionMinSadCostOp(
++          context, input_strides_id, input0_id, &output_shapes);
++      if (status == Pass::Status::Failure) return status;
++      return ShapeGraphInstructionMultiOutput(context, inst, output_shapes);
++    }
++    case ArmMotionEngineRAW_SAD: {
++      uint32_t search_window_sizes_id = 0;
++      uint32_t input_strides_id = 0;
++      uint32_t input0_id = 0;
++      if (motion_engine_operands.ReadOperands(
++              {{ArmMotionEngineOperandRole::kSearchWindowSizes,
++                &search_window_sizes_id},
++               {ArmMotionEngineOperandRole::kInputStrides, &input_strides_id},
++               {ArmMotionEngineOperandRole::kInput0, &input0_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      std::vector<int64_t> output_shape;
++      auto status = ShapeGraphInstructionRawSadOp(
++          context, search_window_sizes_id, input_strides_id, input0_id,
++          &output_shape);
++      if (status == Pass::Status::Failure) return status;
++      return ShapeGraphInstructionSingleOutput(context, inst, output_shape);
++    }
++    default:
++      return ShapeFailure(context, "Unhandled Arm.MotionEngine.100 operator");
++  }
++}
++
++}  // namespace opt
++}  // namespace spvtools
+diff --git a/source/opt/graph_shape_arm_motion_engine.h b/source/opt/graph_shape_arm_motion_engine.h
+new file mode 100644
+index 000000000..eabf91ece
+--- /dev/null
++++ b/source/opt/graph_shape_arm_motion_engine.h
+@@ -0,0 +1,32 @@
++// Copyright (c) 2026 Arm Ltd.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#ifndef SOURCE_OPT_GRAPH_SHAPE_ARM_MOTION_ENGINE_H_
++#define SOURCE_OPT_GRAPH_SHAPE_ARM_MOTION_ENGINE_H_
++
++#include "source/opt/pass.h"
++
++namespace spvtools {
++namespace opt {
++
++class Instruction;
++class IRContext;
++
++Pass::Status ShapeGraphInstructionArmMotionEngine(IRContext* context,
++                                                  Instruction* inst);
++
++}  // namespace opt
++}  // namespace spvtools
++
++#endif  // SOURCE_OPT_GRAPH_SHAPE_ARM_MOTION_ENGINE_H_
+diff --git a/source/opt/graph_shape_extinst_operand_reader.h b/source/opt/graph_shape_extinst_operand_reader.h
+new file mode 100644
+index 000000000..1db95b671
+--- /dev/null
++++ b/source/opt/graph_shape_extinst_operand_reader.h
+@@ -0,0 +1,136 @@
++// Copyright (c) 2026 Arm Ltd.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#ifndef SOURCE_OPT_GRAPH_SHAPE_EXTINST_OPERAND_READER_H_
++#define SOURCE_OPT_GRAPH_SHAPE_EXTINST_OPERAND_READER_H_
++
++#include <cstdint>
++#include <initializer_list>
++#include <string>
++#include <utility>
++#include <vector>
++
++#include "source/opt/graph_shape_util.h"
++#include "source/opt/instruction.h"
++#include "source/opt/pass.h"
++#include "source/table2.h"
++
++namespace spvtools {
++namespace opt {
++
++template <typename OperandTraits>
++class ExtInstOperandReader {
++ public:
++  using OperandRole = typename OperandTraits::OperandRole;
++
++  ExtInstOperandReader(IRContext* context, const Instruction* inst)
++      : context_(context), inst_(inst), extinst_opcode_(0) {}
++
++  Pass::Status ReadOpcode() {
++    return ReadInOperand(
++        context_, inst_, OperandTraits::kExtInstOpcode,
++        std::string(OperandTraits::InstructionSetName()) + " opcode",
++        &extinst_opcode_);
++  }
++
++  uint32_t opcode() const { return extinst_opcode_; }
++
++  Pass::Status ReadOperands(
++      std::initializer_list<std::pair<OperandRole, uint32_t*> > requests)
++      const {
++    for (const auto& [role, id] : requests) {
++      uint32_t operand_index = OperandIndex(extinst_opcode_, role);
++      if (operand_index == OperandTraits::kInvalidOperand) {
++        return ShapeFailure(context_, OperandName(role) + " is not defined");
++      }
++      if (ReadInOperand(context_, inst_, operand_index, OperandName(role),
++                        id) == Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++    }
++    return Pass::Status::SuccessWithoutChange;
++  }
++
++  Pass::Status ReadVariadic(OperandRole role,
++                            std::vector<uint32_t>* ids) const {
++    uint32_t first_operand_index = OperandIndex(extinst_opcode_, role);
++    if (first_operand_index == OperandTraits::kInvalidOperand) {
++      return ShapeFailure(context_, OperandName(role) + " is not defined");
++    }
++    if (first_operand_index >= inst_->NumInOperands()) {
++      return ShapeFailure(context_, OperandName(role) + " is missing");
++    }
++
++    ids->clear();
++    ids->reserve(inst_->NumInOperands() - first_operand_index);
++    const std::string operand_name = OperandName(role);
++    for (uint32_t operand_index = first_operand_index;
++         operand_index < inst_->NumInOperands(); ++operand_index) {
++      uint32_t id = 0;
++      if (ReadInOperand(context_, inst_, operand_index, operand_name, &id) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      ids->push_back(id);
++    }
++    return Pass::Status::SuccessWithoutChange;
++  }
++
++ private:
++  std::string ExtInstName() const {
++    const ExtInstDesc* desc = nullptr;
++    if (LookupExtInst(OperandTraits::kExtInstType, extinst_opcode_, &desc) ==
++        SPV_SUCCESS) {
++      return std::string(OperandTraits::InstructionSetName()) + " " +
++             desc->name().data();
++    }
++    return std::string(OperandTraits::InstructionSetName()) + " opcode " +
++           std::to_string(extinst_opcode_);
++  }
++
++  std::string OperandName(OperandRole role) const {
++    return ExtInstName() + " operand " + RoleName(role);
++  }
++
++  static const char* RoleName(OperandRole role) {
++    return OperandRoleName(role);
++  }
++
++  static uint32_t OperandIndex(uint32_t extinst_opcode, OperandRole role) {
++    return GetOperandIndex(extinst_opcode, role);
++  }
++
++  static Pass::Status ReadInOperand(IRContext* context, const Instruction* inst,
++                                    uint32_t operand_index,
++                                    const std::string& name, uint32_t* id) {
++    if (operand_index >= inst->NumInOperands()) {
++      return ShapeFailure(context, name + " is missing");
++    }
++    const auto& operand = inst->GetInOperand(operand_index);
++    if (operand.words.size() != 1) {
++      return ShapeFailure(context, name + " must be a single-word operand");
++    }
++    *id = operand.words[0];
++    return Pass::Status::SuccessWithoutChange;
++  }
++
++  IRContext* context_;
++  const Instruction* inst_;
++  uint32_t extinst_opcode_;
++};
++
++}  // namespace opt
++}  // namespace spvtools
++
++#endif  // SOURCE_OPT_GRAPH_SHAPE_EXTINST_OPERAND_READER_H_
+diff --git a/source/opt/graph_shape_pass.cpp b/source/opt/graph_shape_pass.cpp
+new file mode 100644
+index 000000000..7bf05792d
+--- /dev/null
++++ b/source/opt/graph_shape_pass.cpp
+@@ -0,0 +1,928 @@
++// Copyright (c) 2026 Arm Ltd.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#include "source/opt/graph_shape_pass.h"
++
++#include <cctype>
++#include <cstring>
++#include <limits>
++#include <map>
++#include <sstream>
++#include <string_view>
++
++#include "source/opcode.h"
++#include "source/opt/graph_shape_arm_motion_engine.h"
++#include "source/opt/graph_shape_tosa.h"
++#include "source/opt/graph_shape_util.h"
++#include "source/util/parse_number.h"
++
++namespace spvtools {
++namespace opt {
++
++namespace {
++
++// Handles the unsigned-char cast required by std::isspace.
++bool IsSpace(char ch) {
++  return std::isspace(static_cast<unsigned char>(ch)) != 0;
++}
++
++// Skips whitespace at the current parser cursor.
++const char* SkipWhitespace(const char* str) {
++  while (*str != '\0' && IsSpace(*str)) {
++    ++str;
++  }
++  return str;
++}
++
++// Returns true if the given char is ':', ',', '\0' or considered as blank space
++// (i.e.: '\n', '\r', '\v', '\t', '\f' and ' ').
++bool IsSeparator(char ch) { return std::strchr(":,\0", ch) || IsSpace(ch); }
++
++// Parses a number up to the next separator and returns the separator position.
++template <typename T>
++const char* ParseNumberUntilSeparator(const char* str, T* number) {
++  const char* number_begin = str;
++  while (!IsSeparator(*str)) str++;
++  const char* number_end = str;
++  std::string number_in_str(number_begin, number_end - number_begin);
++  if (!utils::ParseNumber(number_in_str.c_str(), number)) {
++    return nullptr;
++  }
++  return str;
++}
++
++// Parses a numeric token and leaves |str| pointing at the following separator.
++template <typename T>
++bool ParseNumberToken(const char*& str, T* number, std::string_view error,
++                      std::string* error_msg) {
++  str = ParseNumberUntilSeparator(str, number);
++  if (str == nullptr) {
++    SetError(error_msg, error);
++    return false;
++  }
++  return true;
++}
++
++// Consumes |expected| from the current cursor position.
++bool ConsumeChar(const char*& str, char expected, std::string_view error,
++                 std::string* error_msg) {
++  if (*str != expected) {
++    SetError(error_msg, error);
++    return false;
++  }
++  ++str;
++  return true;
++}
++
++// Parses one <descriptor set>:<binding>:<dim[,dim...]> shape request.
++bool ParseInterfaceShape(const char*& str, GraphInterfaceShape* interface_shape,
++                         std::string* error_msg) {
++  uint32_t descriptor_set = 0;
++  if (!ParseNumberToken(str, &descriptor_set, "Invalid descriptor set",
++                        error_msg)) {
++    return false;
++  }
++  if (!ConsumeChar(str, ':', "Expected ':' after descriptor set", error_msg)) {
++    return false;
++  }
++
++  uint32_t binding = 0;
++  if (!ParseNumberToken(str, &binding, "Invalid binding", error_msg)) {
++    return false;
++  }
++  if (!ConsumeChar(str, ':', "Expected ':' after binding", error_msg)) {
++    return false;
++  }
++
++  std::vector<int64_t> shape;
++  while (true) {
++    int64_t dim = 0;
++    if (!ParseNumberToken(str, &dim, "Invalid shape dimension", error_msg)) {
++      return false;
++    }
++    shape.push_back(dim);
++
++    if (*str == ',') {
++      ++str;
++      if (IsSeparator(*str)) {
++        SetError(error_msg, "Expected shape dimension after ','");
++        return false;
++      }
++      continue;
++    }
++    if (*str == '\0' || IsSpace(*str)) {
++      break;
++    }
++
++    SetError(error_msg, "Expected ',' or whitespace after shape dimension");
++    return false;
++  }
++
++  *interface_shape = {descriptor_set, binding, std::move(shape)};
++  return true;
++}
++
++Pass::Status ShapeGraphCompositeExtract(IRContext* context, Instruction* inst) {
++  if (inst->NumInOperands() == 0) {
++    return ShapeFailure(context,
++                        "OpCompositeExtract is missing composite operand");
++  }
++  auto composite_id = inst->GetSingleWordInOperand(0);
++  auto composite_inst = context->get_def_use_mgr()->GetDef(composite_id);
++  if (composite_inst == nullptr) {
++    return ShapeFailure(context,
++                        "OpCompositeExtract composite id is not defined");
++  }
++
++  auto composite_type =
++      context->get_type_mgr()->GetType(composite_inst->type_id());
++  if (composite_type == nullptr) {
++    return ShapeFailure(context,
++                        "OpCompositeExtract composite type is not known");
++  }
++  if (inst->NumInOperands() != 2) {
++    return ShapeFailure(
++        context,
++        "Graph shape pass only supports OpCompositeExtract with one index");
++  }
++
++  const uint32_t member_index = inst->GetSingleWordInOperand(1);
++  const auto* struct_type = composite_type->AsStruct();
++  if (struct_type == nullptr) {
++    return ShapeFailure(context,
++                        "OpCompositeExtract composite must be a struct type");
++  }
++  if (member_index >= struct_type->element_types().size()) {
++    return ShapeFailure(context, "OpCompositeExtract member index " +
++                                     std::to_string(member_index) +
++                                     " is out of range");
++  }
++  const auto* member_type =
++      context->get_type_mgr()->GetMemberType(composite_type, {member_index});
++  if (member_type->AsTensorARM() == nullptr) {
++    return ShapeFailure(context,
++                        "OpCompositeExtract member must be a tensor type");
++  }
++  auto member_type_id =
++      context->get_type_mgr()->GetTypeInstruction(member_type);
++  if (member_type_id == 0) {
++    return ShapeFailure(context,
++                        "OpCompositeExtract member type has no type id");
++  }
++  auto existing_type_id = inst->type_id();
++  if (member_type_id == existing_type_id) {
++    return Pass::Status::SuccessWithoutChange;
++  }
++
++  inst->SetResultType(member_type_id);
++  return Pass::Status::SuccessWithChange;
++}
++
++std::string FormatDSB(const std::pair<uint32_t, uint32_t>& dsb) {
++  return "descriptor set " + std::to_string(dsb.first) + ", binding " +
++         std::to_string(dsb.second);
++}
++
++std::string FormatShape(const std::vector<int64_t>& shape) {
++  std::ostringstream stream;
++  stream << "[";
++  const char* separator = "";
++  for (int64_t dim : shape) {
++    stream << separator << dim;
++    separator = ", ";
++  }
++  stream << "]";
++  return stream.str();
++}
++
++std::string FormatOptionalDSB(
++    const std::optional<std::pair<uint32_t, uint32_t>>& dsb) {
++  if (!dsb.has_value()) return "no descriptor set/binding";
++  return FormatDSB(dsb.value());
++}
++
++std::string FormatIds(const std::vector<uint32_t>& ids) {
++  std::ostringstream stream;
++  const char* separator = "";
++  for (uint32_t id : ids) {
++    stream << separator << id;
++    separator = ", ";
++  }
++  return stream.str();
++}
++
++}  // namespace
++
++// External graph-shape interface adapters.
++bool CopyGraphInterfaceShapes(
++    size_t num_interface_shapes,
++    const spv_graph_interface_shape* interface_shape_inputs,
++    std::vector<GraphInterfaceShape>* interface_shapes,
++    std::string* error_msg) {
++  if (interface_shapes == nullptr) {
++    SetError(error_msg, "interface_shapes output must not be null");
++    return false;
++  }
++  interface_shapes->clear();
++
++  if (num_interface_shapes > 0 && interface_shape_inputs == nullptr) {
++    SetError(error_msg,
++             "interface_shapes must not be null when num_interface_shapes is "
++             "nonzero");
++    return false;
++  }
++
++  interface_shapes->reserve(num_interface_shapes);
++  for (size_t i = 0; i < num_interface_shapes; ++i) {
++    const auto& interface_shape_input = interface_shape_inputs[i];
++    if (interface_shape_input.rank > 0 &&
++        interface_shape_input.shape == nullptr) {
++      SetError(error_msg,
++               "Shape pointer for descriptor set " +
++                   std::to_string(interface_shape_input.descriptor_set) +
++                   ", binding " +
++                   std::to_string(interface_shape_input.binding_id) +
++                   " must not be null");
++      return false;
++    }
++
++    std::vector<int64_t> shape;
++    if (interface_shape_input.rank > 0) {
++      shape.assign(interface_shape_input.shape,
++                   interface_shape_input.shape + interface_shape_input.rank);
++    }
++    interface_shapes->push_back({interface_shape_input.descriptor_set,
++                                 interface_shape_input.binding_id,
++                                 std::move(shape)});
++  }
++
++  return true;
++}
++
++std::unique_ptr<std::vector<GraphInterfaceShape>>
++GraphShapePass::ParseInterfaceTensorShapesString(const char* str,
++                                                 std::string* error_msg) {
++  if (str == nullptr) {
++    SetError(error_msg, "Expected a shape list");
++    return nullptr;
++  }
++
++  str = SkipWhitespace(str);
++  if (*str == '\0') {
++    SetError(error_msg, "Expected a shape list");
++    return nullptr;
++  }
++
++  // Parse entries of the form:
++  //   descriptor_set:binding:dim[,dim...] [descriptor_set:binding:dim...]
++  auto interface_tensor_shapes = MakeUnique<std::vector<GraphInterfaceShape>>();
++  while (*str != '\0') {
++    GraphInterfaceShape interface_shape;
++    if (!ParseInterfaceShape(str, &interface_shape, error_msg)) {
++      return nullptr;
++    }
++    interface_tensor_shapes->push_back(std::move(interface_shape));
++    str = SkipWhitespace(str);
++  }
++
++  return interface_tensor_shapes;
++}
++
++Pass::Status GraphShapePass::ValidateAndBuildInterfaceTensorShapeMap(
++    MapOfInterfaceTensorShapes* interface_shape_map) const {
++  auto& shapes = *interface_shape_map;
++  shapes.clear();
++
++  for (const auto& interface_shape : interface_shape_requests_) {
++    const auto dsb =
++        std::make_pair(interface_shape.descriptor_set, interface_shape.binding);
++
++    if (shapes.find(dsb) != shapes.end()) {
++      // A descriptor-set/binding pair must identify at most one requested
++      // shape.
++      return ShapeFailure(context(),
++                          "Duplicate shape entry for descriptor set " +
++                              std::to_string(interface_shape.descriptor_set) +
++                              ", binding " +
++                              std::to_string(interface_shape.binding));
++    }
++
++    // Input shapes must be full static tensor shapes representable in SPIR-V.
++    const auto& shape = interface_shape.shape;
++    if (shape.empty()) {
++      return ShapeFailure(context(), "Shape for " + FormatDSB(dsb) +
++                                         " has rank 0; rank must be greater "
++                                         "than zero");
++    }
++
++    for (int64_t dim : shape) {
++      if (dim <= 0 || dim > std::numeric_limits<uint32_t>::max()) {
++        return ShapeFailure(context(), "Shape " + FormatShape(shape) + " for " +
++                                           FormatDSB(dsb) +
++                                           " contains dimension " +
++                                           std::to_string(dim) +
++                                           "; dimensions must be in the range "
++                                           "[1, UINT32_MAX]");
++      }
++    }
++
++    shapes.emplace(dsb, shape);
++  }
++
++  return Status::SuccessWithoutChange;
++}
++
++Pass::Status GraphShapePass::ValidateInterfaceTensorShapeResources(
++    const MapOfInterfaceTensorShapes& interface_shape_map) const {
++  const auto& shapes = interface_shape_map;
++  std::map<std::pair<uint32_t, uint32_t>, std::vector<uint32_t>> vars_by_dsb;
++
++  for (const auto& inst : context()->types_values()) {
++    if (inst.opcode() != spv::Op::OpVariable) continue;
++    auto dsb = GetDSBForVar(context(), inst.result_id());
++    // Only track resources the user supplied shapes for; unrelated resources do
++    // not affect this pass.
++    if (!dsb.has_value() || shapes.count(dsb.value()) == 0) {
++      continue;
++    }
++    vars_by_dsb[dsb.value()].push_back(inst.result_id());
++  }
++
++  for (const auto& shape_entry : shapes) {
++    const auto& dsb = shape_entry.first;
++    auto var_ids = vars_by_dsb.find(dsb);
++    if (var_ids == vars_by_dsb.end()) {
++      return ShapeFailure(context(),
++                          "No OpVariable resource found for " + FormatDSB(dsb));
++    }
++    if (var_ids->second.size() > 1) {
++      return ShapeFailure(context(),
++                          "Multiple OpVariable resources found for " +
++                              FormatDSB(dsb) + ": ids are " +
++                              FormatIds(var_ids->second));
++    }
++
++    uint32_t var_id = var_ids->second.front();
++    auto var_inst = context()->get_def_use_mgr()->GetDef(var_id);
++    if (var_inst == nullptr) {
++      return ShapeFailure(context(), "OpVariable " + std::to_string(var_id) +
++                                         " for " + FormatDSB(dsb) +
++                                         " is not defined");
++    }
++    if (GetTensorVariableType(context(), var_id) == nullptr) {
++      return ShapeFailure(
++          context(), "User-supplied shape for " + FormatDSB(dsb) +
++                         " refers to OpVariable " + std::to_string(var_id) +
++                         ", but its pointee type is not OpTypeTensorARM");
++    }
++  }
++
++  return Status::SuccessWithoutChange;
++}
++
++Pass::Status GraphShapePass::ValidateGraphEntryPointTopology() const {
++  // Each graph must be owned by a single entry point.
++  std::map<uint32_t, uint32_t> graph_entry_point_counts;
++  for (const auto& entry_point : context()->module()->graph_entry_points()) {
++    if (entry_point.NumInOperands() == 0) {
++      return ShapeFailure(context(),
++                          "OpGraphEntryPointARM is missing graph operand");
++    }
++    graph_entry_point_counts[entry_point.GetSingleWordInOperand(0)]++;
++  }
++
++  for (const auto& [graph_id, entry_point_count] : graph_entry_point_counts) {
++    if (entry_point_count > 1) {
++      return ShapeFailure(context(),
++                          "Graph shape pass does not support shared graphs: "
++                          "graph " +
++                              std::to_string(graph_id) + " is referenced by " +
++                              std::to_string(entry_point_count) +
++                              " OpGraphEntryPointARM instructions.");
++    }
++  }
++
++  return Status::SuccessWithoutChange;
++}
++
++static bool tensor_shapes_equal(const std::vector<int64_t>& lhs,
++                                const std::vector<int64_t>& rhs) {
++  if (lhs.size() != rhs.size()) {
++    return false;
++  }
++  for (size_t i = 0; i < lhs.size(); i++) {
++    if (lhs[i] != rhs[i]) {
++      return false;
++    }
++  }
++  return true;
++}
++
++static Pass::Status IndexGraphInterfaceInstructions(
++    IRContext* context,
++    const std::vector<std::unique_ptr<Instruction>>& instructions,
++    uint32_t index_operand, uint32_t interface_count,
++    std::vector<Instruction*>& instructions_by_index) {
++  instructions_by_index.assign(interface_count, nullptr);
++  for (const auto& instruction : instructions) {
++    const std::string instruction_name =
++        "Op" + std::string(spvOpcodeString(instruction->opcode()));
++    if (index_operand >= instruction->NumInOperands()) {
++      return ShapeFailure(
++          context, instruction_name + " is missing interface index operand");
++    }
++    const uint32_t index_id =
++        instruction->GetSingleWordInOperand(index_operand);
++    const auto interface_index = GetIntegerConstantValue(context, index_id, 32);
++    if (!interface_index.has_value()) {
++      return ShapeFailure(context, instruction_name +
++                                       " interface index must be a known "
++                                       "32-bit integer constant");
++    }
++    const uint32_t index = static_cast<uint32_t>(interface_index.value());
++
++    if (index >= interface_count) {
++      return ShapeFailure(context, instruction_name + " interface index " +
++                                       std::to_string(index) +
++                                       " is outside graph interface range");
++    }
++    if (instructions_by_index[index] != nullptr) {
++      return ShapeFailure(context, "Graph contains duplicate " +
++                                       instruction_name + " index " +
++                                       std::to_string(index));
++    }
++    instructions_by_index[index] = instruction.get();
++  }
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status GraphShapePass::ShapeGraphInstruction(Instruction* inst) {
++  switch (inst->opcode()) {
++    case spv::Op::OpExtInst: {
++      if (inst->NumInOperands() == 0) {
++        return ShapeFailure(
++            context(),
++            "OpExtInst graph instruction is missing instruction-set id");
++      }
++      uint32_t iset_id = inst->GetSingleWordInOperand(0);
++      auto iset = context()->get_def_use_mgr()->GetDef(iset_id);
++      if (iset == nullptr || iset->opcode() != spv::Op::OpExtInstImport ||
++          iset->NumInOperands() == 0) {
++        return ShapeFailure(
++            context(),
++            "OpExtInst graph instruction has invalid instruction set id " +
++                std::to_string(iset_id));
++      }
++      auto iset_name = iset->GetInOperand(0).AsString();
++      if (iset_name == "TOSA.001000.1") {
++        return ShapeGraphInstructionTOSA(context(), inst);
++      }
++      if (iset_name == "Arm.MotionEngine.100") {
++        return ShapeGraphInstructionArmMotionEngine(context(), inst);
++      }
++      return ShapeFailure(
++          context(), "Unsupported graph instruction set '" + iset_name + "'");
++    }
++    case spv::Op::OpCompositeExtract:
++      return ShapeGraphCompositeExtract(context(), inst);
++    default:
++      return ShapeFailure(
++          context(), "Unsupported graph body instruction opcode " +
++                         std::to_string(static_cast<uint32_t>(inst->opcode())));
++  }
++}
++
++Pass::Status GraphShapePass::ShapeInterfaceTensorVariable(
++    uint32_t var_id, const std::vector<int64_t>& target_shape) {
++  std::string error_msg;
++  auto existing_tensor_type =
++      GetTensorVariableType(context(), var_id, &error_msg);
++  if (existing_tensor_type == nullptr) {
++    return ShapeFailure(context(), error_msg);
++  }
++
++  if (ValidateTensorRank(
++          context(), "Interface tensor " + std::to_string(var_id),
++          existing_tensor_type, target_shape.size()) == Status::Failure) {
++    return Status::Failure;
++  }
++
++  auto existing_shape = GetTensorTypeShape(context(), existing_tensor_type);
++
++  // Is the tensor already shaped?
++  if (existing_shape.has_value()) {
++    const auto& existing_shape_value = existing_shape.value();
++    if (tensor_shapes_equal(target_shape, existing_shape_value)) {
++      // Yes, and the shape is the one provided by the user, nothing to do
++      return Status::SuccessWithoutChange;
++    }
++    // Yes, but the shape is not the one provided by the user, fail
++    return ShapeFailure(
++        context(), "Tensor " + std::to_string(var_id) + " (" +
++                       FormatOptionalDSB(GetDSBForVar(context(), var_id)) +
++                       ") already shaped with a shape different from that "
++                       "requested: existing shape is " +
++                       FormatShape(existing_shape_value) +
++                       ", requested shape is " + FormatShape(target_shape));
++  }
++
++  // The tensor is not already shaped, we need to shape it
++
++  // Get tensor type
++  error_msg.clear();
++  auto tensor_type = GetOrCreateShapedTensorType(
++      context(), existing_tensor_type->element_type(), target_shape,
++      &error_msg);
++  if (!tensor_type.has_value()) {
++    return ShapeFailure(context(), error_msg);
++  }
++
++  // Get pointer type
++  error_msg.clear();
++  auto storage_class = GetVariableStorageClass(context(), var_id, &error_msg);
++  if (!storage_class.has_value()) {
++    return ShapeFailure(context(), error_msg);
++  }
++  analysis::Pointer ptr_type(tensor_type.value(), storage_class.value());
++  analysis::Type* tensor_pointer_type =
++      context()->get_type_mgr()->GetRegisteredType(&ptr_type);
++
++  // Redefine variable
++  uint32_t pointer_type_id =
++      context()->get_type_mgr()->GetId(tensor_pointer_type);
++  uint32_t new_var_id = TakeNextId();
++  std::unique_ptr<Instruction> new_var(new Instruction(
++      context(), spv::Op::OpVariable, pointer_type_id, new_var_id,
++      {{spv_operand_type_t::SPV_OPERAND_TYPE_OPTIONAL_LITERAL_INTEGER,
++        {uint32_t(storage_class.value())}}}));
++  context()->AddGlobalValue(std::move(new_var));
++  context()->ReplaceAllUsesWith(var_id, new_var_id);
++  context()->KillDef(var_id);
++
++  return Status::SuccessWithChange;
++}
++
++Pass::Status GraphShapePass::ProcessEntryPoint(
++    Instruction& epinst,
++    const MapOfInterfaceTensorShapes& interface_shape_map) {
++  const auto& shapes = interface_shape_map;
++  bool changed = false;
++  // Get graph
++  if (epinst.NumInOperands() == 0) {
++    return ShapeFailure(context(),
++                        "OpGraphEntryPointARM is missing graph operand");
++  }
++  auto graph_inst =
++      context()->get_def_use_mgr()->GetDef(epinst.GetSingleWordInOperand(0));
++  if (graph_inst == nullptr) {
++    return ShapeFailure(context(),
++                        "OpGraphEntryPointARM graph id is not defined");
++  }
++  if (graph_inst->opcode() != spv::Op::OpGraphARM) {
++    return ShapeFailure(context(),
++                        "OpGraphEntryPointARM target is not OpGraphARM");
++  }
++  auto graph_type_base =
++      context()->get_type_mgr()->GetType(graph_inst->type_id());
++  if (graph_type_base == nullptr || graph_type_base->AsGraphARM() == nullptr) {
++    return ShapeFailure(context(),
++                        "OpGraphEntryPointARM target is not an OpTypeGraphARM");
++  }
++  auto graph_type = graph_type_base->AsGraphARM();
++  if (graph_type->num_inputs() > graph_type->io_types().size()) {
++    return ShapeFailure(
++        context(),
++        "OpTypeGraphARM input count exceeds graph interface type count");
++  }
++  if (epinst.NumInOperands() != 2 + graph_type->io_types().size()) {
++    return ShapeFailure(context(),
++                        "OpGraphEntryPointARM interface operand count does "
++                        "not match graph type");
++  }
++  for (uint32_t i = 0; i < graph_type->io_types().size(); ++i) {
++    if (graph_type->io_types()[i] == nullptr ||
++        graph_type->io_types()[i]->AsTensorARM() == nullptr) {
++      return ShapeFailure(
++          context(),
++          "Graph shape pass only supports direct OpTypeTensorARM interface "
++          "types; graph interface index " +
++              std::to_string(i));
++    }
++  }
++
++  // Shape interface tensors connected to graph inputs
++  for (uint32_t i = 2; i < 2 + graph_type->num_inputs(); i++) {
++    auto iovar_id = epinst.GetSingleWordInOperand(i);
++    std::string error_msg;
++    auto iovar_ty = GetTensorVariableType(context(), iovar_id, &error_msg);
++    if (iovar_ty == nullptr) {
++      return ShapeFailure(context(), error_msg);
++    }
++    auto dsb = GetDSBForVar(context(), iovar_id);
++    auto existing_shape = GetTensorTypeShape(context(), iovar_ty);
++    std::optional<std::vector<int64_t>> user_shape;
++    if (dsb.has_value()) {
++      auto user_shape_it = shapes.find(dsb.value());
++      if (user_shape_it != shapes.end()) {
++        user_shape = user_shape_it->second;
++      }
++    }
++
++    if (existing_shape.has_value()) {
++      const auto& existing_shape_value = existing_shape.value();
++      if (!user_shape.has_value()) {
++        // Existing interface shape is enough when no user shape is supplied.
++        continue;
++      }
++      const auto& user_shape_value = user_shape.value();
++      if (tensor_shapes_equal(existing_shape_value, user_shape_value)) {
++        // Existing interface shape agrees with the user shape.
++        continue;
++      }
++      return ShapeFailure(
++          context(),
++          "Existing interface tensor shape mismatched user supplied shape for "
++          "tensor " +
++              std::to_string(iovar_id) + " (" + FormatDSB(dsb.value()) +
++              "): existing shape is " + FormatShape(existing_shape_value) +
++              ", user supplied shape is " + FormatShape(user_shape_value));
++    }
++
++    if (!user_shape.has_value()) {
++      if (graph_type->is_shaped()) {
++        continue;
++      }
++      return ShapeFailure(
++          context(), "No user-supplied shape for interface tensor " +
++                         std::to_string(iovar_id) + " at graph input " +
++                         std::to_string(i - 2) + " (" + FormatOptionalDSB(dsb) +
++                         ")");
++    }
++
++    // The interface tensor needs shaping
++    auto status = ShapeInterfaceTensorVariable(iovar_id, user_shape.value());
++    if (status == Status::Failure) {
++      return status;
++    }
++    if (status == Status::SuccessWithChange) {
++      changed = true;
++    }
++  }
++
++  // Is the graph already shaped?
++  if (graph_type->is_shaped()) {
++    // The graph type is already the authoritative shape contract. Make sure
++    // each entry-point interface variable is compatible with that contract.
++    for (uint32_t i = 0; i < graph_type->io_types().size(); i++) {
++      auto tensor_type_graph = graph_type->io_types()[i]->AsTensorARM();
++      if (tensor_type_graph == nullptr) {
++        return ShapeFailure(context(), "Graph interface type at index " +
++                                           std::to_string(i) +
++                                           " is not OpTypeTensorARM");
++      }
++      auto tensor_interface_var_id = epinst.GetSingleWordInOperand(2 + i);
++      std::string error_msg;
++      auto tensor_type_interface =
++          GetTensorVariableType(context(), tensor_interface_var_id, &error_msg);
++      if (tensor_type_interface == nullptr) {
++        return ShapeFailure(context(), error_msg);
++      }
++      auto graph_shape = GetTensorTypeShape(context(), tensor_type_graph);
++      if (!graph_shape.has_value()) {
++        return ShapeFailure(context(),
++                            "Existing graph type is marked shaped but graph "
++                            "interface index " +
++                                std::to_string(i) + " has no shape");
++      }
++      const auto& graph_shape_value = graph_shape.value();
++      // A user-supplied shape for this resource must agree with the already
++      // shaped graph type; there is no inference step that can reconcile it.
++      auto dsb = GetDSBForVar(context(), tensor_interface_var_id);
++      if (dsb.has_value()) {
++        auto user_shape_it = shapes.find(dsb.value());
++        if (user_shape_it != shapes.end() &&
++            !tensor_shapes_equal(user_shape_it->second, graph_shape_value)) {
++          return ShapeFailure(
++              context(),
++              "User-supplied shape mismatches existing graph shape for "
++              "interface tensor " +
++                  std::to_string(tensor_interface_var_id) +
++                  " at graph interface index " + std::to_string(i) + " (" +
++                  FormatDSB(dsb.value()) + "): graph shape is " +
++                  FormatShape(graph_shape_value) + ", user supplied shape is " +
++                  FormatShape(user_shape_it->second));
++        }
++      }
++
++      // If the interface variable is already shaped, it must match the graph
++      // interface tensor shape. If it is still unshaped, shape it below.
++      auto interface_shape =
++          GetTensorTypeShape(context(), tensor_type_interface);
++      if (interface_shape.has_value() &&
++          !tensor_shapes_equal(graph_shape_value, interface_shape.value())) {
++        return ShapeFailure(
++            context(),
++            "Mismatch between existing graph shape and interface tensor shape "
++            "at graph interface index " +
++                std::to_string(i) + " for interface tensor " +
++                std::to_string(tensor_interface_var_id) + " (" +
++                FormatOptionalDSB(dsb) + "): graph shape is " +
++                FormatShape(graph_shape_value) +
++                ", interface tensor shape is " +
++                FormatShape(interface_shape.value()));
++      }
++
++      // The graph is already shaped but the entry-point variable is not; update
++      // the variable so the graph entry point remains type-consistent.
++      if (!interface_shape.has_value()) {
++        auto status = ShapeInterfaceTensorVariable(tensor_interface_var_id,
++                                                   graph_shape_value);
++        if (status == Status::Failure) {
++          return status;
++        }
++        if (status == Status::SuccessWithChange) {
++          changed = true;
++        }
++      }
++    }
++    return changed ? Status::SuccessWithChange : Status::SuccessWithoutChange;
++  }
++  // The graph needs shaping
++
++  changed = true;
++  std::vector<const analysis::Type*> shaped_graph_io_types;
++
++  // Mutate type of graph inputs
++  auto graph = context()->GetGraph(graph_inst);
++  if (graph == nullptr) {
++    return ShapeFailure(context(),
++                        "Graph shape pass could not retrieve graph body");
++  }
++
++  const uint32_t num_inputs = graph_type->num_inputs();
++  const uint32_t num_outputs =
++      static_cast<uint32_t>(graph_type->io_types().size()) - num_inputs;
++  std::vector<Instruction*> inputs_by_index;
++  if (IndexGraphInterfaceInstructions(context(), graph->inputs(), 0, num_inputs,
++                                      inputs_by_index) == Status::Failure) {
++    return Status::Failure;
++  }
++
++  std::vector<Instruction*> outputs_by_index;
++  if (IndexGraphInterfaceInstructions(context(), graph->outputs(), 1,
++                                      num_outputs,
++                                      outputs_by_index) == Status::Failure) {
++    return Status::Failure;
++  }
++  for (uint32_t i = 0; i < num_outputs; ++i) {
++    if (outputs_by_index[i] == nullptr) {
++      return ShapeFailure(
++          context(),
++          "Graph is missing OpGraphSetOutputARM index " + std::to_string(i));
++    }
++  }
++
++  for (uint32_t i = 0; i < num_inputs; i++) {
++    std::string error_msg;
++    auto iovar_ty = GetTensorVariableType(
++        context(), epinst.GetSingleWordInOperand(i + 2), &error_msg);
++    if (iovar_ty == nullptr) {
++      return ShapeFailure(context(), error_msg);
++    }
++    shaped_graph_io_types.push_back(iovar_ty);
++    auto input_type_id =
++        context()->get_type_mgr()->GetTypeInstruction(iovar_ty);
++    if (input_type_id == 0) {
++      return ShapeFailure(context(), "Graph input tensor type has no type id");
++    }
++    if (inputs_by_index[i] != nullptr) {
++      inputs_by_index[i]->SetResultType(input_type_id);
++    }
++  }
++  // Mutate body instructions
++  for (auto& binst : graph->instructions()) {
++    auto status = ShapeGraphInstruction(binst.get());
++    if (status == Status::Failure) {
++      return status;
++    }
++    if (status == Status::SuccessWithChange) {
++      changed = true;
++    }
++  }
++  // Collect graph output types
++  for (uint32_t i = 0; i < outputs_by_index.size(); i++) {
++    auto output_inst = outputs_by_index[i];
++    if (output_inst->NumInOperands() == 0) {
++      return ShapeFailure(
++          context(), "OpGraphSetOutputARM is missing output value operand");
++    }
++    auto output_val_id = output_inst->GetSingleWordInOperand(0);
++    auto output_val = context()->get_def_use_mgr()->GetDef(output_val_id);
++    if (output_val == nullptr) {
++      return ShapeFailure(context(), "Graph output value " +
++                                         std::to_string(output_val_id) +
++                                         " is not defined");
++    }
++    auto tensor_type = GetTensorResultType(context(), output_val);
++    if (tensor_type == nullptr) {
++      return ShapeFailure(context(), "Graph output value " +
++                                         std::to_string(output_val_id) +
++                                         " is not OpTypeTensorARM");
++    }
++    shaped_graph_io_types.push_back(tensor_type);
++  }
++  // Mutate graph type
++  analysis::GraphARM new_gtype(graph_type->num_inputs(), shaped_graph_io_types);
++  analysis::Type* new_graph_type =
++      context()->get_type_mgr()->GetRegisteredType(&new_gtype);
++  auto new_graph_type_id =
++      context()->get_type_mgr()->GetTypeInstruction(new_graph_type);
++  if (new_graph_type_id == 0) {
++    return ShapeFailure(context(), "Shaped graph type has no type id");
++  }
++  graph_inst->SetResultType(new_graph_type_id);
++
++  // Shape output interface tensors
++  for (uint32_t i = 0; i < outputs_by_index.size(); i++) {
++    uint32_t output_var_id =
++        epinst.GetSingleWordInOperand(2 + graph_type->num_inputs() + i);
++    auto target_shape = GetTensorShape(
++        context(), outputs_by_index[i]->GetSingleWordInOperand(0));
++    if (!target_shape.has_value()) {
++      return ShapeFailure(context(), "Graph output tensor shape must be known");
++    }
++    const auto& target_shape_value = target_shape.value();
++    auto dsb = GetDSBForVar(context(), output_var_id);
++    if (dsb.has_value() && shapes.count(dsb.value()) != 0) {
++      auto const& user_shape = shapes.at(dsb.value());
++      if (!tensor_shapes_equal(user_shape, target_shape_value)) {
++        return ShapeFailure(
++            context(),
++            "User-supplied output shape mismatches inferred graph output "
++            "shape for tensor " +
++                std::to_string(output_var_id) + " at graph output " +
++                std::to_string(i) + " (" + FormatDSB(dsb.value()) +
++                "): inferred shape is " + FormatShape(target_shape_value) +
++                ", user supplied shape is " + FormatShape(user_shape));
++      }
++    }
++    auto status =
++        ShapeInterfaceTensorVariable(output_var_id, target_shape_value);
++    if (status == Status::Failure) {
++      return status;
++    }
++    if (status == Status::SuccessWithChange) {
++      changed = true;
++    }
++  }
++
++  return changed ? Status::SuccessWithChange : Status::SuccessWithoutChange;
++}
++
++Pass::Status GraphShapePass::Process() {
++  MapOfInterfaceTensorShapes interface_shape_map;
++  auto interface_shape_status =
++      ValidateAndBuildInterfaceTensorShapeMap(&interface_shape_map);
++  if (interface_shape_status == Status::Failure) {
++    return interface_shape_status;
++  }
++
++  if (ValidateInterfaceTensorShapeResources(interface_shape_map) ==
++      Status::Failure) {
++    return Status::Failure;
++  }
++
++  auto topology_status = ValidateGraphEntryPointTopology();
++  if (topology_status == Status::Failure) {
++    return topology_status;
++  }
++
++  bool changed = false;
++
++  // For all graph entry points
++  for (auto& ep : context()->module()->graph_entry_points()) {
++    auto status = ProcessEntryPoint(ep, interface_shape_map);
++    if (status == Status::Failure) {
++      return status;
++    }
++    if (status == Status::SuccessWithChange) {
++      changed = true;
++    }
++  }
++
++  return changed ? Status::SuccessWithChange : Status::SuccessWithoutChange;
++}
++
++}  // namespace opt
++}  // namespace spvtools
+diff --git a/source/opt/graph_shape_pass.h b/source/opt/graph_shape_pass.h
+new file mode 100644
+index 000000000..f2cf333a0
+--- /dev/null
++++ b/source/opt/graph_shape_pass.h
+@@ -0,0 +1,88 @@
++// Copyright (c) 2026 Arm Ltd.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#ifndef SOURCE_OPT_GRAPH_SHAPE_PASS_H_
++#define SOURCE_OPT_GRAPH_SHAPE_PASS_H_
++
++#include <cstdint>
++#include <functional>
++#include <memory>
++#include <optional>
++#include <string>
++#include <unordered_map>
++#include <utility>
++#include <vector>
++
++#include "source/opt/pass.h"
++#include "spirv-tools/optimizer.hpp"
++
++namespace spvtools {
++namespace opt {
++
++using ::spvtools::GraphInterfaceShape;
++
++class GraphShapePass : public Pass {
++ public:
++  explicit GraphShapePass(
++      const std::vector<GraphInterfaceShape>& interface_tensor_shapes)
++      : interface_shape_requests_(interface_tensor_shapes) {}
++
++  Status Process() override;
++  const char* name() const override { return "graph-shape"; }
++
++  static std::unique_ptr<std::vector<GraphInterfaceShape>>
++  ParseInterfaceTensorShapesString(const char* str,
++                                   std::string* error_msg = nullptr);
++
++ private:
++  // Descriptor-set/binding pair identifying a graph interface tensor.
++  // |first| is the descriptor set and |second| is the binding.
++  using InterfaceTensorShapeKey = std::pair<uint32_t, uint32_t>;
++
++  struct InterfaceTensorShapeKeyHash {
++    size_t operator()(const InterfaceTensorShapeKey key) const {
++      const auto packed = (uint64_t{key.first} << 32) | uint64_t{key.second};
++      return std::hash<uint64_t>{}(packed);
++    }
++  };
++
++  using MapOfInterfaceTensorShapes =
++      std::unordered_map<InterfaceTensorShapeKey, std::vector<int64_t>,
++                         InterfaceTensorShapeKeyHash>;
++
++  Pass::Status ValidateAndBuildInterfaceTensorShapeMap(
++      MapOfInterfaceTensorShapes* interface_shape_map) const;
++  Pass::Status ValidateInterfaceTensorShapeResources(
++      const MapOfInterfaceTensorShapes& interface_shape_map) const;
++  Pass::Status ValidateGraphEntryPointTopology() const;
++  Pass::Status ShapeInterfaceTensorVariable(
++      uint32_t var_id, const std::vector<int64_t>& target_shape);
++  Pass::Status ShapeGraphInstruction(Instruction* inst);
++  Pass::Status ProcessEntryPoint(
++      Instruction& epinst,
++      const MapOfInterfaceTensorShapes& interface_shape_map);
++
++  std::vector<GraphInterfaceShape> interface_shape_requests_;
++};
++// Copies raw C API shape entries into the owned C++ request list. This only
++// validates pointer/count safety; shape contents are validated by the pass.
++bool CopyGraphInterfaceShapes(
++    size_t num_interface_shapes,
++    const spv_graph_interface_shape* interface_shape_inputs,
++    std::vector<GraphInterfaceShape>* interface_shapes, std::string* error_msg);
++
++}  // namespace opt
++}  // namespace spvtools
++
++#endif  // SOURCE_OPT_GRAPH_SHAPE_PASS_H_
+diff --git a/source/opt/graph_shape_tosa.cpp b/source/opt/graph_shape_tosa.cpp
+new file mode 100644
+index 000000000..93796c95a
+--- /dev/null
++++ b/source/opt/graph_shape_tosa.cpp
+@@ -0,0 +1,1609 @@
++// Copyright (c) 2026 Arm Ltd.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#include "source/opt/graph_shape_tosa.h"
++
++#include <algorithm>
++#include <initializer_list>
++#include <limits>
++#include <string>
++#include <string_view>
++#include <utility>
++
++#include "source/opcode.h"
++#include "source/opt/graph_shape_extinst_operand_reader.h"
++#include "source/opt/graph_shape_tosa_operands.h"
++#include "source/opt/graph_shape_util.h"
++#include "source/opt/instruction.h"
++#include "source/opt/types.h"
++
++namespace tosa010 {
++#include "spirv/unified1/TOSA.001000.1.h"
++}
++
++using namespace spvtools::opt::analysis;
++using spvtools::opt::ExtInstOperandReader;
++using spvtools::opt::GetI32TensorConstantValues;
++using spvtools::opt::Instruction;
++using spvtools::opt::IRContext;
++using spvtools::opt::Pass;
++using spvtools::opt::ShapeFailure;
++namespace operands = spvtools::opt::tosa010_operands;
++
++namespace {
++
++constexpr int64_t kInt64Min = std::numeric_limits<int64_t>::min();
++constexpr int64_t kInt64Max = std::numeric_limits<int64_t>::max();
++constexpr int64_t kResizeParameterLimit = 16;
++using TosaOperandRole = operands::OperandRole;
++
++struct TosaOperandTraits {
++  using OperandRole = operands::OperandRole;
++  static constexpr spv_ext_inst_type_t kExtInstType =
++      SPV_EXT_INST_TYPE_TOSA_001000_1;
++  static constexpr uint32_t kExtInstOpcode = operands::kExtInstOpcode;
++  static constexpr uint32_t kInvalidOperand = operands::kInvalidOperand;
++
++  static std::string_view InstructionSetName() { return "TOSA"; }
++};
++
++using TosaOperandReader = ExtInstOperandReader<TosaOperandTraits>;
++
++bool CheckedAdd(int64_t lhs, int64_t rhs, int64_t* result) {
++  if ((rhs > 0 && lhs > (kInt64Max - rhs)) ||
++      (rhs < 0 && lhs < (kInt64Min - rhs))) {
++    return false;
++  }
++  *result = lhs + rhs;
++  return true;
++}
++
++bool CheckedSub(int64_t lhs, int64_t rhs, int64_t* result) {
++  if ((rhs < 0 && lhs > (kInt64Max + rhs)) ||
++      (rhs > 0 && lhs < (kInt64Min + rhs))) {
++    return false;
++  }
++  *result = lhs - rhs;
++  return true;
++}
++
++bool CheckedMul(int64_t lhs, int64_t rhs, int64_t* result) {
++  if (lhs > 0) {
++    if ((rhs > 0 && lhs > (kInt64Max / rhs)) ||
++        (rhs < 0 && rhs < (kInt64Min / lhs))) {
++      return false;
++    }
++  } else if (lhs < 0) {
++    if ((rhs > 0 && lhs < (kInt64Min / rhs)) ||
++        (rhs < 0 && lhs < (kInt64Max / rhs))) {
++      return false;
++    }
++  }
++  *result = lhs * rhs;
++  return true;
++}
++
++Pass::Status CheckedExactDivide(IRContext* context, int64_t dividend,
++                                int64_t divisor, std::string_view name,
++                                int64_t* result) {
++  if (divisor == 0) {
++    return ShapeFailure(context,
++                        std::string(name) + " extent has a zero divisor");
++  }
++  if (dividend == kInt64Min && divisor == -1) {
++    return ShapeFailure(
++        context, std::string(name) + " extent division overflows int64_t");
++  }
++  if (dividend % divisor != 0) {
++    return ShapeFailure(context,
++                        std::string(name) + " extent is not evenly divisible");
++  }
++  *result = dividend / divisor;
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status CheckedOutputExtent(IRContext* context, std::string_view name,
++                                 int64_t input, int64_t kernel,
++                                 int64_t pad_before, int64_t pad_after,
++                                 int64_t dilation, int64_t stride,
++                                 int64_t* output) {
++  int64_t effective_kernel_minus_one;
++  int64_t padded_input;
++  int64_t numerator;
++  if (!CheckedSub(kernel, 1, &effective_kernel_minus_one) ||
++      !CheckedMul(effective_kernel_minus_one, dilation,
++                  &effective_kernel_minus_one) ||
++      !CheckedAdd(input, pad_before, &padded_input) ||
++      !CheckedAdd(padded_input, pad_after, &padded_input) ||
++      !CheckedSub(padded_input, effective_kernel_minus_one, &numerator) ||
++      !CheckedSub(numerator, 1, &numerator)) {
++    return ShapeFailure(context,
++                        std::string(name) + " arithmetic overflows int64_t");
++  }
++
++  int64_t quotient;
++  auto status = CheckedExactDivide(context, numerator, stride, name, &quotient);
++  if (status == Pass::Status::Failure) {
++    return status;
++  }
++  if (!CheckedAdd(quotient, 1, output)) {
++    return ShapeFailure(context,
++                        std::string(name) + " output extent overflows int64_t");
++  }
++  return ValidateOutputDimension(context, name, *output);
++}
++
++Pass::Status GetAxisConstant(IRContext* context, std::string_view op_name,
++                             uint32_t axis_id, uint32_t* axis) {
++  std::string error_msg;
++  const auto value = GetIntegerConstantValue(context, axis_id, 32, &error_msg);
++  if (!value.has_value()) {
++    return ShapeFailure(context,
++                        std::string(op_name) + " axis value " + error_msg);
++  }
++
++  *axis = static_cast<uint32_t>(value.value());
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ValidateSpatialParameters(
++    IRContext* context, std::string_view op_name,
++    const std::vector<int32_t>& padding, const std::vector<int32_t>& stride,
++    const std::vector<int32_t>& dilation = {}) {
++  if (std::any_of(padding.begin(), padding.end(),
++                  [](int32_t value) { return value < 0; })) {
++    return ShapeFailure(
++        context, std::string(op_name) + " padding values must be non-negative");
++  }
++  if (std::any_of(stride.begin(), stride.end(),
++                  [](int32_t value) { return value <= 0; })) {
++    return ShapeFailure(
++        context,
++        std::string(op_name) + " stride values must be greater than zero");
++  }
++  if (std::any_of(dilation.begin(), dilation.end(),
++                  [](int32_t value) { return value <= 0; })) {
++    return ShapeFailure(context, std::string(op_name) +
++                                     " dilation values must be greater than "
++                                     "zero");
++  }
++  return Pass::Status::SuccessWithoutChange;
++}
++
++}  // namespace
++
++namespace spvtools {
++namespace opt {
++
++Pass::Status ShapeGraphInstructionArgmaxOp(IRContext* context,
++                                           uint32_t input_id, uint32_t axis_id,
++                                           std::vector<int64_t>* output_shape) {
++  uint32_t axis = 0;
++  if (GetAxisConstant(context, "Argmax", axis_id, &axis) ==
++      Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  auto input_shape = GetTensorShape(context, input_id);
++  if (!input_shape) {
++    return ShapeFailure(context, "Argmax input shape must be known");
++  }
++
++  if (axis >= input_shape.value().size()) {
++    return ShapeFailure(context, "Axis outside of input tensor rank");
++  }
++
++  std::vector<int64_t> reduced_shape = input_shape.value();
++  reduced_shape.erase(reduced_shape.begin() + axis);
++
++  *output_shape = reduced_shape;
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionAvgMaxPool2dOps(
++    IRContext* context, uint32_t kernel_id, uint32_t stride_id, uint32_t pad_id,
++    uint32_t input_id, std::vector<int64_t>* output_shape) {
++  std::vector<int32_t> kernel;
++  if (GetI32TensorConstantValues(context, "Pool kernel", kernel_id, 2,
++                                 &kernel) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t kernel_y = kernel[0];
++  int32_t kernel_x = kernel[1];
++
++  std::vector<int32_t> stride;
++  if (GetI32TensorConstantValues(context, "Pool stride", stride_id, 2,
++                                 &stride) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t stride_y = stride[0];
++  int32_t stride_x = stride[1];
++
++  std::vector<int32_t> pad;
++  if (GetI32TensorConstantValues(context, "Pool pad", pad_id, 4, &pad) ==
++      Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t pad_top = pad[0];
++  int32_t pad_bottom = pad[1];
++  int32_t pad_left = pad[2];
++  int32_t pad_right = pad[3];
++
++  auto input_shape = GetTensorShape(context, input_id);
++  if (!input_shape) {
++    return ShapeFailure(context, "Pool input shape must be known");
++  }
++  if (input_shape.value().size() != 4) {
++    return ShapeFailure(context, "Pool input tensor must be rank 4");
++  }
++  if (kernel_y <= 0 || kernel_x <= 0) {
++    return ShapeFailure(context,
++                        "Pool kernel values must be greater than zero");
++  }
++  if (ValidateSpatialParameters(context, "Pool", pad, stride) ==
++      Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  if (pad_top >= kernel_y || pad_bottom >= kernel_y || pad_left >= kernel_x ||
++      pad_right >= kernel_x) {
++    return ShapeFailure(context,
++                        "Pool padding values must be less than kernel extent");
++  }
++
++  auto N = input_shape.value()[0];
++  auto IH = input_shape.value()[1];
++  auto IW = input_shape.value()[2];
++  auto C = input_shape.value()[3];
++
++  int64_t OH;
++  int64_t OW;
++  if (CheckedOutputExtent(context, "Pool height", IH, kernel_y, pad_top,
++                          pad_bottom, 1, stride_y,
++                          &OH) == Pass::Status::Failure ||
++      CheckedOutputExtent(context, "Pool width", IW, kernel_x, pad_left,
++                          pad_right, 1, stride_x,
++                          &OW) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  *output_shape = {N, OH, OW, C};
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionMatchOutput(
++    IRContext* context, uint32_t input_id, std::vector<int64_t>* output_shape) {
++  auto input_shape = GetTensorShape(context, input_id);
++  if (!input_shape) {
++    return ShapeFailure(context, "Input shape must be known");
++  }
++  *output_shape = input_shape.value();
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status BroadcastShapes(IRContext* context,
++                             const std::vector<int64_t>& input1_shape,
++                             const std::vector<int64_t>& input2_shape,
++                             std::vector<int64_t>* output_shape) {
++  if (input1_shape.size() != input2_shape.size()) {
++    return ShapeFailure(context, "Input ranks mismatch");
++  }
++  output_shape->clear();
++  output_shape->reserve(input1_shape.size());
++  for (size_t i = 0; i < input1_shape.size(); ++i) {
++    if (input1_shape[i] != input2_shape[i] && input1_shape[i] != 1 &&
++        input2_shape[i] != 1) {
++      return ShapeFailure(context, "Input shapes are not broadcast-compatible");
++    }
++    output_shape->push_back(std::max(input1_shape[i], input2_shape[i]));
++  }
++
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionMatchOutputWithCheck(
++    IRContext* context, uint32_t input1_id, uint32_t input2_id,
++    std::vector<int64_t>* output_shape) {
++  auto input1_shape = GetTensorShape(context, input1_id);
++  if (!input1_shape) {
++    return ShapeFailure(context, "Input 1 shape must be known");
++  }
++  auto input2_shape = GetTensorShape(context, input2_id);
++  if (!input2_shape) {
++    return ShapeFailure(context, "Input 2 shape must be known");
++  }
++
++  return BroadcastShapes(context, input1_shape.value(), input2_shape.value(),
++                         output_shape);
++}
++
++Pass::Status ShapeGraphInstructionFFT2dOp(
++    IRContext* context, uint32_t input_real_id,
++    std::vector<std::vector<int64_t> >* output_shapes) {
++  auto input_real_shape = GetTensorShape(context, input_real_id);
++  if (!input_real_shape) {
++    return ShapeFailure(context, "FFT2D input real shape must be known");
++  }
++
++  *output_shapes = {input_real_shape.value(), input_real_shape.value()};
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionRFFT2dOp(
++    IRContext* context, uint32_t input_real_id,
++    std::vector<std::vector<int64_t> >* output_shapes) {
++  auto input_real_shape = GetTensorShape(context, input_real_id);
++  if (!input_real_shape) {
++    return ShapeFailure(context, "RFFT2D input shape must be known");
++  }
++
++  if (input_real_shape.value().size() != 3) {
++    return ShapeFailure(context, "RFFT2D input tensor must be rank 3");
++  }
++  auto N = input_real_shape.value()[0];
++  auto H = input_real_shape.value()[1];
++  auto W = input_real_shape.value()[2];
++
++  std::vector<int64_t> output_shape = {N, H, W / 2 + 1};
++  *output_shapes = {output_shape, output_shape};
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionReduceOps(
++    IRContext* context, uint32_t input_id, uint32_t axis_id,
++    std::vector<int64_t>* output_shape) {
++  uint32_t axis = 0;
++  if (GetAxisConstant(context, "Reduce", axis_id, &axis) ==
++      Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  auto input_shape = GetTensorShape(context, input_id);
++  if (!input_shape) {
++    return ShapeFailure(context, "Reduce input shape must be known");
++  }
++
++  if (axis >= input_shape.value().size()) {
++    return ShapeFailure(context, "Axis outside of input tensor rank");
++  }
++
++  *output_shape = input_shape.value();
++  (*output_shape)[axis] = 1;
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionReverseOp(
++    IRContext* context, uint32_t input_id, std::vector<int64_t>* output_shape) {
++  auto input_shape = GetTensorShape(context, input_id);
++  if (!input_shape) {
++    return ShapeFailure(context, "Reverse input shape must be known");
++  }
++
++  *output_shape = input_shape.value();
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionSelectOp(IRContext* context,
++                                           uint32_t input1_id,
++                                           uint32_t input2_id,
++                                           uint32_t input3_id,
++                                           std::vector<int64_t>* output_shape) {
++  auto input1_shape = GetTensorShape(context, input1_id);
++  if (!input1_shape) {
++    return ShapeFailure(context, "Select input 1 shape must be known");
++  }
++  auto input2_shape = GetTensorShape(context, input2_id);
++  if (!input2_shape) {
++    return ShapeFailure(context, "Select input 2 shape must be known");
++  }
++  auto input3_shape = GetTensorShape(context, input3_id);
++  if (!input3_shape) {
++    return ShapeFailure(context, "Select input 3 shape must be known");
++  }
++
++  std::vector<int64_t> intermediate_output_shape;
++  auto status =
++      BroadcastShapes(context, input1_shape.value(), input2_shape.value(),
++                      &intermediate_output_shape);
++  if (status == Pass::Status::Failure) {
++    return status;
++  }
++  return BroadcastShapes(context, intermediate_output_shape,
++                         input3_shape.value(), output_shape);
++}
++
++Pass::Status ShapeGraphInstructionConv2dOp(IRContext* context, uint32_t pad_id,
++                                           uint32_t stride_id,
++                                           uint32_t dilation_id,
++                                           uint32_t input_id,
++                                           uint32_t weights_id,
++                                           std::vector<int64_t>* output_shape) {
++  std::vector<int32_t> pad;
++  if (GetI32TensorConstantValues(context, "Conv2D pad", pad_id, 4, &pad) ==
++      Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t pad_top = pad[0];
++  int32_t pad_bottom = pad[1];
++  int32_t pad_left = pad[2];
++  int32_t pad_right = pad[3];
++
++  std::vector<int32_t> stride;
++  if (GetI32TensorConstantValues(context, "Conv2D stride", stride_id, 2,
++                                 &stride) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t stride_y = stride[0];
++  int32_t stride_x = stride[1];
++
++  std::vector<int32_t> dilation;
++  if (GetI32TensorConstantValues(context, "Conv2D dilation", dilation_id, 2,
++                                 &dilation) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t dilation_y = dilation[0];
++  int32_t dilation_x = dilation[1];
++
++  auto input_shape = GetTensorShape(context, input_id);
++  if (!input_shape) {
++    return ShapeFailure(context, "Conv2D input shape must be known");
++  }
++  if (input_shape.value().size() != 4) {
++    return ShapeFailure(context, "Conv2D input tensor must be rank 4");
++  }
++
++  auto N = input_shape.value()[0];
++  auto IH = input_shape.value()[1];
++  auto IW = input_shape.value()[2];
++
++  auto weights_shape = GetTensorShape(context, weights_id);
++  if (!weights_shape) {
++    return ShapeFailure(context, "Conv2D weights shape must be known");
++  }
++  if (weights_shape.value().size() != 4) {
++    return ShapeFailure(context, "Conv2D weights tensor must be rank 4");
++  }
++
++  auto KO = weights_shape.value()[0];
++  auto KH = weights_shape.value()[1];
++  auto KW = weights_shape.value()[2];
++  if (ValidateSpatialParameters(context, "Conv2D", pad, stride, dilation) ==
++      Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  int64_t OH;
++  int64_t OW;
++  if (CheckedOutputExtent(context, "Conv2D height", IH, KH, pad_top, pad_bottom,
++                          dilation_y, stride_y, &OH) == Pass::Status::Failure ||
++      CheckedOutputExtent(context, "Conv2D width", IW, KW, pad_left, pad_right,
++                          dilation_x, stride_x, &OW) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  *output_shape = {N, OH, OW, KO};
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionConv3dOp(IRContext* context, uint32_t pad_id,
++                                           uint32_t stride_id,
++                                           uint32_t dilation_id,
++                                           uint32_t input_id,
++                                           uint32_t weights_id,
++                                           std::vector<int64_t>* output_shape) {
++  std::vector<int32_t> pad;
++  if (GetI32TensorConstantValues(context, "Conv3D pad", pad_id, 6, &pad) ==
++      Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t pad_d0 = pad[0];
++  int32_t pad_d1 = pad[1];
++  int32_t pad_top = pad[2];
++  int32_t pad_bottom = pad[3];
++  int32_t pad_left = pad[4];
++  int32_t pad_right = pad[5];
++
++  std::vector<int32_t> stride;
++  if (GetI32TensorConstantValues(context, "Conv3D stride", stride_id, 3,
++                                 &stride) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t stride_d = stride[0];
++  int32_t stride_y = stride[1];
++  int32_t stride_x = stride[2];
++
++  std::vector<int32_t> dilation;
++  if (GetI32TensorConstantValues(context, "Conv3D dilation", dilation_id, 3,
++                                 &dilation) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t dilation_d = dilation[0];
++  int32_t dilation_y = dilation[1];
++  int32_t dilation_x = dilation[2];
++
++  auto input_shape = GetTensorShape(context, input_id);
++  if (!input_shape) {
++    return ShapeFailure(context, "Conv3D input shape must be known");
++  }
++  if (input_shape.value().size() != 5) {
++    return ShapeFailure(context, "Conv3D input tensor must be rank 5");
++  }
++
++  auto N = input_shape.value()[0];
++  auto ID = input_shape.value()[1];
++  auto IH = input_shape.value()[2];
++  auto IW = input_shape.value()[3];
++
++  auto weights_shape = GetTensorShape(context, weights_id);
++  if (!weights_shape) {
++    return ShapeFailure(context, "Conv3D weights shape must be known");
++  }
++  if (weights_shape.value().size() != 5) {
++    return ShapeFailure(context, "Conv3D weights tensor must be rank 5");
++  }
++
++  auto KO = weights_shape.value()[0];
++  auto KD = weights_shape.value()[1];
++  auto KH = weights_shape.value()[2];
++  auto KW = weights_shape.value()[3];
++  if (ValidateSpatialParameters(context, "Conv3D", pad, stride, dilation) ==
++      Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  int64_t OD;
++  int64_t OH;
++  int64_t OW;
++  if (CheckedOutputExtent(context, "Conv3D depth", ID, KD, pad_d0, pad_d1,
++                          dilation_d, stride_d, &OD) == Pass::Status::Failure ||
++      CheckedOutputExtent(context, "Conv3D height", IH, KH, pad_top, pad_bottom,
++                          dilation_y, stride_y, &OH) == Pass::Status::Failure ||
++      CheckedOutputExtent(context, "Conv3D width", IW, KW, pad_left, pad_right,
++                          dilation_x, stride_x, &OW) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  *output_shape = {N, OD, OH, OW, KO};
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionMatmulOp(IRContext* context,
++                                           uint32_t input_a_id,
++                                           uint32_t input_b_id,
++                                           std::vector<int64_t>* output_shape) {
++  auto input_a_shape = GetTensorShape(context, input_a_id);
++  if (!input_a_shape) {
++    return ShapeFailure(context, "MatMul input A shape must be known");
++  }
++  if (input_a_shape.value().size() != 3) {
++    return ShapeFailure(context, "MatMul input A tensor must be rank 3");
++  }
++  auto N = input_a_shape.value()[0];
++  auto H = input_a_shape.value()[1];
++
++  auto input_b_shape = GetTensorShape(context, input_b_id);
++  if (!input_b_shape) {
++    return ShapeFailure(context, "MatMul input B shape must be known");
++  }
++  if (input_b_shape.value().size() != 3) {
++    return ShapeFailure(context, "MatMul input B tensor must be rank 3");
++  }
++  auto W = input_b_shape.value()[2];
++
++  *output_shape = {N, H, W};
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionDepthwiseConv2dOp(
++    IRContext* context, uint32_t pad_id, uint32_t stride_id,
++    uint32_t dilation_id, uint32_t input_id, uint32_t weights_id,
++    std::vector<int64_t>* output_shape) {
++  std::vector<int32_t> pad;
++  if (GetI32TensorConstantValues(context, "Depthwise Conv2D pad", pad_id, 4,
++                                 &pad) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t pad_top = pad[0];
++  int32_t pad_bottom = pad[1];
++  int32_t pad_left = pad[2];
++  int32_t pad_right = pad[3];
++
++  std::vector<int32_t> stride;
++  if (GetI32TensorConstantValues(context, "Depthwise Conv2D stride", stride_id,
++                                 2, &stride) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t stride_y = stride[0];
++  int32_t stride_x = stride[1];
++
++  std::vector<int32_t> dilation;
++  if (GetI32TensorConstantValues(context, "Depthwise Conv2D dilation",
++                                 dilation_id, 2,
++                                 &dilation) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t dilation_y = dilation[0];
++  int32_t dilation_x = dilation[1];
++
++  auto input_shape = GetTensorShape(context, input_id);
++  if (!input_shape) {
++    return ShapeFailure(context, "Depthwise Conv2D input shape must be known");
++  }
++  if (input_shape.value().size() != 4) {
++    return ShapeFailure(context,
++                        "Depthwise Conv2D input tensor must be rank 4");
++  }
++
++  auto N = input_shape.value()[0];
++  auto IH = input_shape.value()[1];
++  auto IW = input_shape.value()[2];
++  auto C = input_shape.value()[3];
++
++  auto weights_shape = GetTensorShape(context, weights_id);
++  if (!weights_shape) {
++    return ShapeFailure(context,
++                        "Depthwise Conv2D weights shape must be known");
++  }
++  if (weights_shape.value().size() != 4) {
++    return ShapeFailure(context,
++                        "Depthwise Conv2D weights tensor must be rank 4");
++  }
++
++  auto KH = weights_shape.value()[0];
++  auto KW = weights_shape.value()[1];
++  auto M = weights_shape.value()[3];
++  int64_t output_channels;
++  if (!CheckedMul(C, M, &output_channels)) {
++    return ShapeFailure(
++        context,
++        "Depthwise Conv2D output channels arithmetic overflows int64_t");
++  }
++  if (ValidateOutputDimension(context, "Depthwise Conv2D output channels",
++                              output_channels) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  if (ValidateSpatialParameters(context, "Depthwise Conv2D", pad, stride,
++                                dilation) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  int64_t OH;
++  int64_t OW;
++  if (CheckedOutputExtent(context, "Depthwise Conv2D height", IH, KH, pad_top,
++                          pad_bottom, dilation_y, stride_y,
++                          &OH) == Pass::Status::Failure ||
++      CheckedOutputExtent(context, "Depthwise Conv2D width", IW, KW, pad_left,
++                          pad_right, dilation_x, stride_x,
++                          &OW) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  *output_shape = {N, OH, OW, output_channels};
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionTransposeConv2dOp(
++    IRContext* context, uint32_t out_pad_id, uint32_t stride_id,
++    uint32_t input_id, uint32_t weights_id,
++    std::vector<int64_t>* output_shape) {
++  std::vector<int32_t> out_pad;
++  if (GetI32TensorConstantValues(context, "Transpose Conv2D output padding",
++                                 out_pad_id, 4,
++                                 &out_pad) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t out_pad_top = out_pad[0];
++  int32_t out_pad_bottom = out_pad[1];
++  int32_t out_pad_left = out_pad[2];
++  int32_t out_pad_right = out_pad[3];
++
++  std::vector<int32_t> stride;
++  if (GetI32TensorConstantValues(context, "Transpose Conv2D stride", stride_id,
++                                 2, &stride) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t stride_y = stride[0];
++  int32_t stride_x = stride[1];
++
++  auto input_shape = GetTensorShape(context, input_id);
++  if (!input_shape) {
++    return ShapeFailure(context, "Transpose Conv2D input shape must be known");
++  }
++  if (input_shape.value().size() != 4) {
++    return ShapeFailure(context,
++                        "Transpose Conv2D input tensor must be rank 4");
++  }
++
++  auto N = input_shape.value()[0];
++  auto IH = input_shape.value()[1];
++  auto IW = input_shape.value()[2];
++
++  auto weights_shape = GetTensorShape(context, weights_id);
++  if (!weights_shape) {
++    return ShapeFailure(context,
++                        "Transpose Conv2D weights shape must be known");
++  }
++  if (weights_shape.value().size() != 4) {
++    return ShapeFailure(context,
++                        "Transpose Conv2D weights tensor must be rank 4");
++  }
++
++  auto KO = weights_shape.value()[0];
++  auto KH = weights_shape.value()[1];
++  auto KW = weights_shape.value()[2];
++  if (std::any_of(stride.begin(), stride.end(),
++                  [](int32_t value) { return value <= 0; })) {
++    return ShapeFailure(
++        context, "Transpose Conv2D stride values must be greater than zero");
++  }
++  if (out_pad_top <= -KH || out_pad_bottom <= -KH || out_pad_left <= -KW ||
++      out_pad_right <= -KW) {
++    return ShapeFailure(
++        context,
++        "Transpose Conv2D output padding must be greater than the negated "
++        "kernel extent");
++  }
++
++  auto checked_transpose_extent =
++      [context](std::string_view name, int64_t input, int64_t stride_value,
++                int64_t pad_before, int64_t pad_after, int64_t kernel,
++                int64_t* output) {
++        int64_t input_minus_one;
++        if (!CheckedSub(input, 1, &input_minus_one) ||
++            !CheckedMul(input_minus_one, stride_value, output) ||
++            !CheckedAdd(*output, pad_before, output) ||
++            !CheckedAdd(*output, pad_after, output) ||
++            !CheckedAdd(*output, kernel, output)) {
++          return ShapeFailure(
++              context, std::string(name) + " arithmetic overflows int64_t");
++        }
++        return ValidateOutputDimension(context, name, *output);
++      };
++
++  int64_t OH;
++  int64_t OW;
++  if (checked_transpose_extent("Transpose Conv2D height", IH, stride_y,
++                               out_pad_top, out_pad_bottom, KH,
++                               &OH) == Pass::Status::Failure ||
++      checked_transpose_extent("Transpose Conv2D width", IW, stride_x,
++                               out_pad_left, out_pad_right, KW,
++                               &OW) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  *output_shape = {N, OH, OW, KO};
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionResizeOp(IRContext* context,
++                                           uint32_t input_id, uint32_t scale_id,
++                                           uint32_t offset_id,
++                                           uint32_t border_id,
++                                           std::vector<int64_t>* output_shape) {
++  auto input_shape = GetTensorShape(context, input_id);
++  if (!input_shape) {
++    return ShapeFailure(context, "Resize input shape must be known");
++  }
++  if (input_shape.value().size() != 4) {
++    return ShapeFailure(context, "Resize input tensor must be rank 4");
++  }
++
++  auto N = input_shape.value()[0];
++  auto IH = input_shape.value()[1];
++  auto IW = input_shape.value()[2];
++  auto IC = input_shape.value()[3];
++
++  std::vector<int32_t> scale;
++  if (GetI32TensorConstantValues(context, "Resize scale", scale_id, 4,
++                                 &scale) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t scale_y_n = scale[0];
++  int32_t scale_y_d = scale[1];
++  int32_t scale_x_n = scale[2];
++  int32_t scale_x_d = scale[3];
++
++  std::vector<int32_t> offset;
++  if (GetI32TensorConstantValues(context, "Resize offset", offset_id, 2,
++                                 &offset) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t offset_y = offset[0];
++  int32_t offset_x = offset[1];
++
++  std::vector<int32_t> border;
++  if (GetI32TensorConstantValues(context, "Resize border", border_id, 2,
++                                 &border) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  int32_t border_y = border[0];
++  int32_t border_x = border[1];
++
++  if (scale_y_n <= 0 || scale_x_n <= 0) {
++    return ShapeFailure(context,
++                        "Resize scale numerators must be greater than zero");
++  }
++  if (scale_y_d <= 0 || scale_x_d <= 0) {
++    return ShapeFailure(context,
++                        "Resize scale denominators must be greater than zero");
++  }
++  const int64_t scale_y_n_64 = scale_y_n;
++  const int64_t scale_x_n_64 = scale_x_n;
++  if (scale_y_d >= kResizeParameterLimit * scale_y_n_64 ||
++      scale_x_d >= kResizeParameterLimit * scale_x_n_64) {
++    return ShapeFailure(
++        context,
++        "Resize scale denominator must be less than 16 times its "
++        "numerator");
++  }
++  if (offset_y < -scale_y_n_64 ||
++      offset_y >= kResizeParameterLimit * scale_y_n_64 ||
++      offset_x < -scale_x_n_64 ||
++      offset_x >= kResizeParameterLimit * scale_x_n_64) {
++    return ShapeFailure(context,
++                        "Resize offset values are outside the valid range");
++  }
++  if (border_y < -kResizeParameterLimit * scale_y_n_64 ||
++      border_y >= scale_y_n_64 ||
++      border_x < -kResizeParameterLimit * scale_x_n_64 ||
++      border_x >= scale_x_n_64) {
++    return ShapeFailure(context,
++                        "Resize border values are outside the valid range");
++  }
++  auto checked_resize_extent =
++      [context](std::string_view name, int64_t input, int64_t scale_numerator,
++                int64_t offset_value, int64_t border_value,
++                int64_t scale_denominator, int64_t* output) {
++        int64_t input_minus_one;
++        int64_t numerator;
++        if (!CheckedSub(input, 1, &input_minus_one) ||
++            !CheckedMul(input_minus_one, scale_numerator, &numerator) ||
++            !CheckedSub(numerator, offset_value, &numerator) ||
++            !CheckedAdd(numerator, border_value, &numerator)) {
++          return ShapeFailure(
++              context, std::string(name) + " arithmetic overflows int64_t");
++        }
++
++        int64_t quotient;
++        auto status = CheckedExactDivide(context, numerator, scale_denominator,
++                                         name, &quotient);
++        if (status == Pass::Status::Failure) {
++          return status;
++        }
++        if (!CheckedAdd(quotient, 1, output)) {
++          return ShapeFailure(
++              context, std::string(name) + " output extent overflows int64_t");
++        }
++        return ValidateOutputDimension(context, name, *output);
++      };
++
++  int64_t OH;
++  int64_t OW;
++  if (checked_resize_extent("Resize height", IH, scale_y_n, offset_y, border_y,
++                            scale_y_d, &OH) == Pass::Status::Failure ||
++      checked_resize_extent("Resize width", IW, scale_x_n, offset_x, border_x,
++                            scale_x_d, &OW) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  *output_shape = {N, OH, OW, IC};
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionConcatOp(
++    IRContext* context, uint32_t axis_id,
++    const std::vector<uint32_t>& input_ids,
++    std::vector<int64_t>* output_shape) {
++  uint32_t axis = 0;
++  if (GetAxisConstant(context, "Concat", axis_id, &axis) ==
++      Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  if (input_ids.empty()) {
++    return ShapeFailure(context, "Concat must have at least one input tensor");
++  }
++
++  auto first_input_id = input_ids.front();
++  auto first_input_shape = GetTensorShape(context, first_input_id);
++  if (!first_input_shape) {
++    return ShapeFailure(context, "Concat input tensor shape must be known");
++  }
++  if (axis >= first_input_shape.value().size()) {
++    return ShapeFailure(context, "Concat axis outside of input tensor rank");
++  }
++
++  std::vector<int64_t> concat_shape = first_input_shape.value();
++  concat_shape[axis] = 0;
++  for (uint32_t input_id : input_ids) {
++    auto input_shape = GetTensorShape(context, input_id);
++    if (!input_shape) {
++      return ShapeFailure(context, "Concat input tensor shape must be known");
++    }
++    if (input_shape.value().size() != first_input_shape.value().size()) {
++      return ShapeFailure(context, "Concat input ranks mismatch");
++    }
++    for (size_t dim = 0; dim < input_shape.value().size(); ++dim) {
++      if (dim != axis) {
++        if (input_shape.value()[dim] != first_input_shape.value()[dim]) {
++          return ShapeFailure(
++              context, "Concat input shapes mismatch on a non-concat axis");
++        }
++      }
++    }
++    int64_t concat_axis_dim;
++    if (!CheckedAdd(concat_shape[axis], input_shape.value()[axis],
++                    &concat_axis_dim)) {
++      return ShapeFailure(
++          context, "Concat output concat-axis dimension overflows int64_t");
++    }
++    if (ValidateOutputDimension(context, "Concat output concat-axis",
++                                concat_axis_dim) == Pass::Status::Failure) {
++      return Pass::Status::Failure;
++    }
++    concat_shape[axis] = concat_axis_dim;
++  }
++
++  *output_shape = concat_shape;
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionReshapeOp(
++    IRContext* context, uint32_t shape_id, std::vector<int64_t>* output_shape) {
++  auto shape_rank_tensor = GetTensorShape(context, shape_id);
++  if (!shape_rank_tensor) {
++    return ShapeFailure(context, "Reshape shape shape must be known");
++  }
++  if (shape_rank_tensor.value().size() != 1) {
++    return ShapeFailure(context, "New shape tensor should be of rank 1");
++  }
++
++  size_t rank = static_cast<size_t>(shape_rank_tensor.value()[0]);
++
++  std::vector<int32_t> new_shape;
++  if (GetI32TensorConstantValues(context, "Reshape new shape", shape_id, rank,
++                                 &new_shape) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  for (int64_t dim : new_shape) {
++    if (dim <= 0) {
++      return ShapeFailure(
++          context, "Reshape output dimensions must be greater than zero");
++    }
++  }
++
++  output_shape->clear();
++  output_shape->reserve(new_shape.size());
++
++  for (int32_t dim : new_shape) {
++    output_shape->emplace_back(static_cast<int64_t>(dim));
++  }
++
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionGatherOp(IRContext* context,
++                                           uint32_t values_id,
++                                           uint32_t indices_id,
++                                           std::vector<int64_t>* output_shape) {
++  auto values_shape = GetTensorShape(context, values_id);
++  if (!values_shape) {
++    return ShapeFailure(context, "Gather values shape must be known");
++  }
++  auto indices_shape = GetTensorShape(context, indices_id);
++  if (!indices_shape) {
++    return ShapeFailure(context, "Gather indices shape must be known");
++  }
++
++  if (values_shape.value().size() != 3) {
++    return ShapeFailure(context, "Gather values tensor must be rank 3");
++  }
++  if (indices_shape.value().size() != 2) {
++    return ShapeFailure(context, "Gather indices tensor must be rank 2");
++  }
++  auto N = values_shape.value()[0];
++  auto W = indices_shape.value()[1];
++  auto C = values_shape.value()[2];
++
++  *output_shape = {N, W, C};
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionSliceOp(IRContext* context, uint32_t size_id,
++                                          std::vector<int64_t>* output_shape) {
++  auto size_shape = GetTensorShape(context, size_id);
++  if (!size_shape) {
++    return ShapeFailure(context, "Slice size shape must be known");
++  }
++  if (size_shape.value().size() != 1) {
++    return ShapeFailure(context, "Slice size tensor must be rank 1");
++  }
++  size_t rank = static_cast<size_t>(size_shape.value()[0]);
++
++  std::vector<int32_t> size;
++  if (GetI32TensorConstantValues(context, "Slice size", size_id, rank, &size) ==
++      Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  output_shape->clear();
++  output_shape->reserve(rank);
++  for (size_t dim = 0; dim < rank; ++dim) {
++    if (size[dim] <= 0) {
++      return ShapeFailure(context, "Slice size must be positive");
++    }
++    output_shape->push_back(size[dim]);
++  }
++
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionTransposeOp(
++    IRContext* context, uint32_t perms_id, uint32_t input_id,
++    std::vector<int64_t>* output_shape) {
++  auto input_shape = GetTensorShape(context, input_id);
++  if (!input_shape) {
++    return ShapeFailure(context, "Transpose input shape must be known");
++  }
++  std::vector<int32_t> perms;
++  if (GetI32TensorConstantValues(context, "Transpose permutation", perms_id,
++                                 input_shape.value().size(),
++                                 &perms) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  std::vector<int64_t> transposed_shape;
++  transposed_shape.reserve(input_shape.value().size());
++  std::vector<bool> used_perms(input_shape.value().size(), false);
++  for (auto perm : perms) {
++    if (perm < 0 || static_cast<size_t>(perm) >= input_shape.value().size()) {
++      return ShapeFailure(
++          context, "Transpose permutation index outside of input tensor rank");
++    }
++    auto perm_index = static_cast<size_t>(perm);
++    if (used_perms[perm_index]) {
++      return ShapeFailure(context,
++                          "Transpose permutation index used more than once");
++    }
++    used_perms[perm_index] = true;
++    transposed_shape.push_back(input_shape.value()[perm_index]);
++  }
++
++  *output_shape = transposed_shape;
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionPadOp(IRContext* context, uint32_t input_id,
++                                        uint32_t padding_id,
++                                        std::vector<int64_t>* output_shape) {
++  auto input_shape = GetTensorShape(context, input_id);
++  if (!input_shape) {
++    return ShapeFailure(context, "Pad input shape must be known");
++  }
++  std::vector<int32_t> padding;
++  if (GetI32TensorConstantValues(context, "Pad padding", padding_id,
++                                 input_shape.value().size() * 2,
++                                 &padding) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  output_shape->clear();
++  output_shape->reserve(input_shape.value().size());
++  for (size_t dim = 0; dim < input_shape.value().size(); ++dim) {
++    if (padding[2 * dim] < 0 || padding[2 * dim + 1] < 0) {
++      return ShapeFailure(context, "Pad padding values must be non-negative");
++    }
++    int64_t output_dim;
++    if (!CheckedAdd(input_shape.value()[dim], padding[2 * dim], &output_dim) ||
++        !CheckedAdd(output_dim, padding[2 * dim + 1], &output_dim)) {
++      return ShapeFailure(context, "Pad output dimension overflows int64_t");
++    }
++    if (ValidateOutputDimension(context, "Pad output", output_dim) ==
++        Pass::Status::Failure) {
++      return Pass::Status::Failure;
++    }
++    output_shape->push_back(output_dim);
++  }
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionTileOp(IRContext* context, uint32_t input_id,
++                                         uint32_t multiples_id,
++                                         std::vector<int64_t>* inferred_shape) {
++  auto input_shape = GetTensorShape(context, input_id);
++  if (!input_shape) {
++    return ShapeFailure(context, "Tile input shape must be known");
++  }
++
++  auto multiples_shape = GetTensorShape(context, multiples_id);
++  if (!multiples_shape) {
++    return ShapeFailure(context, "Tile multiples shape must be known");
++  }
++  int64_t input_rank = static_cast<int64_t>(input_shape.value().size());
++  if (multiples_shape.value().size() != 1 ||
++      multiples_shape.value()[0] != input_rank) {
++    return ShapeFailure(context, "Tile multiples shape must be [rank(input1)]");
++  }
++
++  std::vector<int32_t> multiples;
++  if (GetI32TensorConstantValues(context, "Tile multiples", multiples_id,
++                                 input_shape.value().size(),
++                                 &multiples) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++
++  std::vector<int64_t> output_shape;
++  output_shape.reserve(input_shape.value().size());
++  for (size_t i = 0; i < input_shape.value().size(); ++i) {
++    if (multiples[i] < 1) {
++      return ShapeFailure(context, "Tile multiples must be greater than zero");
++    }
++    int64_t output_dim;
++    if (!CheckedMul(input_shape.value()[i], multiples[i], &output_dim)) {
++      return ShapeFailure(context, "Tile output dimension overflows int64_t");
++    }
++    if (ValidateOutputDimension(context, "Tile output", output_dim) ==
++        Pass::Status::Failure) {
++      return Pass::Status::Failure;
++    }
++    output_shape.push_back(output_dim);
++  }
++
++  *inferred_shape = output_shape;
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionTOSA(IRContext* context, Instruction* inst) {
++  TosaOperandReader tosa_operands(context, inst);
++  if (tosa_operands.ReadOpcode() == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  uint32_t tosaop = tosa_operands.opcode();
++
++  std::vector<int64_t> output_shape;
++
++  switch (tosaop) {
++    case tosa010::TOSAARGMAX: {
++      uint32_t input_id = 0;
++      uint32_t axis_id = 0;
++      if (tosa_operands.ReadOperands({{TosaOperandRole::kInput, &input_id},
++                                      {TosaOperandRole::kAxis, &axis_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status = ShapeGraphInstructionArgmaxOp(context, input_id, axis_id,
++                                                  &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSAAVG_POOL2D:
++    case tosa010::TOSAMAX_POOL2D: {
++      uint32_t kernel_id = 0;
++      uint32_t stride_id = 0;
++      uint32_t pad_id = 0;
++      uint32_t input_id = 0;
++      if (tosa_operands.ReadOperands({{TosaOperandRole::kKernel, &kernel_id},
++                                      {TosaOperandRole::kStride, &stride_id},
++                                      {TosaOperandRole::kPad, &pad_id},
++                                      {TosaOperandRole::kInput, &input_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status = ShapeGraphInstructionAvgMaxPool2dOps(
++          context, kernel_id, stride_id, pad_id, input_id, &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSAFFT2D: {
++      uint32_t input_real_id = 0;
++      if (tosa_operands.ReadOperands(
++              {{TosaOperandRole::kInputReal, &input_real_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      std::vector<std::vector<int64_t> > output_shapes;
++      auto status =
++          ShapeGraphInstructionFFT2dOp(context, input_real_id, &output_shapes);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      return ShapeGraphInstructionMultiOutput(context, inst, output_shapes);
++    }
++    case tosa010::TOSARFFT2D: {
++      uint32_t input_real_id = 0;
++      if (tosa_operands.ReadOperands(
++              {{TosaOperandRole::kInputReal, &input_real_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      std::vector<std::vector<int64_t> > output_shapes;
++      auto status =
++          ShapeGraphInstructionRFFT2dOp(context, input_real_id, &output_shapes);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      return ShapeGraphInstructionMultiOutput(context, inst, output_shapes);
++    }
++    case tosa010::TOSAABS:
++    case tosa010::TOSABITWISE_NOT:
++    case tosa010::TOSACEIL:
++    case tosa010::TOSACLZ:
++    case tosa010::TOSACOS:
++    case tosa010::TOSAEXP:
++    case tosa010::TOSAFLOOR:
++    case tosa010::TOSALOG:
++    case tosa010::TOSALOGICAL_NOT:
++    case tosa010::TOSANEGATE:
++    case tosa010::TOSARECIPROCAL:
++    case tosa010::TOSARSQRT:
++    case tosa010::TOSASIN:
++    case tosa010::TOSACAST:
++    case tosa010::TOSARESCALE:
++    case tosa010::TOSAERF:
++    case tosa010::TOSASIGMOID:
++    case tosa010::TOSATANH:
++    case tosa010::TOSACLAMP:
++    case tosa010::TOSATABLE: {
++      uint32_t input_id = 0;
++      if (tosa_operands.ReadOperands({{TosaOperandRole::kInput, &input_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status =
++          ShapeGraphInstructionMatchOutput(context, input_id, &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSAADD:
++    case tosa010::TOSAARITHMETIC_RIGHT_SHIFT:
++    case tosa010::TOSABITWISE_AND:
++    case tosa010::TOSABITWISE_OR:
++    case tosa010::TOSABITWISE_XOR:
++    case tosa010::TOSAINTDIV:
++    case tosa010::TOSALOGICAL_AND:
++    case tosa010::TOSALOGICAL_LEFT_SHIFT:
++    case tosa010::TOSALOGICAL_RIGHT_SHIFT:
++    case tosa010::TOSALOGICAL_OR:
++    case tosa010::TOSALOGICAL_XOR:
++    case tosa010::TOSAMAXIMUM:
++    case tosa010::TOSAMINIMUM:
++    case tosa010::TOSAMUL:
++    case tosa010::TOSAPOW:
++    case tosa010::TOSASUB:
++    case tosa010::TOSAEQUAL:
++    case tosa010::TOSAGREATER:
++    case tosa010::TOSAGREATER_EQUAL: {
++      uint32_t input1_id = 0;
++      uint32_t input2_id = 0;
++      if (tosa_operands.ReadOperands({{TosaOperandRole::kInput1, &input1_id},
++                                      {TosaOperandRole::kInput2,
++                                       &input2_id}}) == Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status = ShapeGraphInstructionMatchOutputWithCheck(
++          context, input1_id, input2_id, &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSAREDUCE_ALL:
++    case tosa010::TOSAREDUCE_ANY:
++    case tosa010::TOSAREDUCE_MAX:
++    case tosa010::TOSAREDUCE_MIN:
++    case tosa010::TOSAREDUCE_PRODUCT:
++    case tosa010::TOSAREDUCE_SUM: {
++      uint32_t input_id = 0;
++      uint32_t axis_id = 0;
++      if (tosa_operands.ReadOperands({{TosaOperandRole::kInput, &input_id},
++                                      {TosaOperandRole::kAxis, &axis_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status = ShapeGraphInstructionReduceOps(context, input_id, axis_id,
++                                                   &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSASELECT: {
++      uint32_t input1_id = 0;
++      uint32_t input2_id = 0;
++      uint32_t input3_id = 0;
++      if (tosa_operands.ReadOperands({{TosaOperandRole::kInput1, &input1_id},
++                                      {TosaOperandRole::kInput2, &input2_id},
++                                      {TosaOperandRole::kInput3,
++                                       &input3_id}}) == Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status = ShapeGraphInstructionSelectOp(context, input1_id, input2_id,
++                                                  input3_id, &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSASCATTER: {
++      uint32_t values_in_id = 0;
++      if (tosa_operands.ReadOperands(
++              {{TosaOperandRole::kValuesIn, &values_in_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status = ShapeGraphInstructionMatchOutput(context, values_in_id,
++                                                     &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSACONV2D: {
++      uint32_t pad_id = 0;
++      uint32_t stride_id = 0;
++      uint32_t dilation_id = 0;
++      uint32_t input_id = 0;
++      uint32_t weight_id = 0;
++      if (tosa_operands.ReadOperands(
++              {{TosaOperandRole::kPad, &pad_id},
++               {TosaOperandRole::kStride, &stride_id},
++               {TosaOperandRole::kDilation, &dilation_id},
++               {TosaOperandRole::kInput, &input_id},
++               {TosaOperandRole::kWeight, &weight_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status =
++          ShapeGraphInstructionConv2dOp(context, pad_id, stride_id, dilation_id,
++                                        input_id, weight_id, &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSACONV3D: {
++      uint32_t pad_id = 0;
++      uint32_t stride_id = 0;
++      uint32_t dilation_id = 0;
++      uint32_t input_id = 0;
++      uint32_t weight_id = 0;
++      if (tosa_operands.ReadOperands(
++              {{TosaOperandRole::kPad, &pad_id},
++               {TosaOperandRole::kStride, &stride_id},
++               {TosaOperandRole::kDilation, &dilation_id},
++               {TosaOperandRole::kInput, &input_id},
++               {TosaOperandRole::kWeight, &weight_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status =
++          ShapeGraphInstructionConv3dOp(context, pad_id, stride_id, dilation_id,
++                                        input_id, weight_id, &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSAMATMUL: {
++      uint32_t input_a_id = 0;
++      uint32_t input_b_id = 0;
++      if (tosa_operands.ReadOperands({{TosaOperandRole::kA, &input_a_id},
++                                      {TosaOperandRole::kB, &input_b_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status = ShapeGraphInstructionMatmulOp(context, input_a_id,
++                                                  input_b_id, &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSADEPTHWISE_CONV2D: {
++      uint32_t pad_id = 0;
++      uint32_t stride_id = 0;
++      uint32_t dilation_id = 0;
++      uint32_t input_id = 0;
++      uint32_t weight_id = 0;
++      if (tosa_operands.ReadOperands(
++              {{TosaOperandRole::kPad, &pad_id},
++               {TosaOperandRole::kStride, &stride_id},
++               {TosaOperandRole::kDilation, &dilation_id},
++               {TosaOperandRole::kInput, &input_id},
++               {TosaOperandRole::kWeight, &weight_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status = ShapeGraphInstructionDepthwiseConv2dOp(
++          context, pad_id, stride_id, dilation_id, input_id, weight_id,
++          &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSATRANSPOSE_CONV2D: {
++      uint32_t out_pad_id = 0;
++      uint32_t stride_id = 0;
++      uint32_t input_id = 0;
++      uint32_t weight_id = 0;
++      if (tosa_operands.ReadOperands({{TosaOperandRole::kOutPad, &out_pad_id},
++                                      {TosaOperandRole::kStride, &stride_id},
++                                      {TosaOperandRole::kInput, &input_id},
++                                      {TosaOperandRole::kWeight,
++                                       &weight_id}}) == Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status = ShapeGraphInstructionTransposeConv2dOp(
++          context, out_pad_id, stride_id, input_id, weight_id, &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSARESIZE: {
++      uint32_t input_id = 0;
++      uint32_t scale_id = 0;
++      uint32_t offset_id = 0;
++      uint32_t border_id = 0;
++      if (tosa_operands.ReadOperands({{TosaOperandRole::kInput, &input_id},
++                                      {TosaOperandRole::kScale, &scale_id},
++                                      {TosaOperandRole::kOffset, &offset_id},
++                                      {TosaOperandRole::kBorder,
++                                       &border_id}}) == Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status = ShapeGraphInstructionResizeOp(
++          context, input_id, scale_id, offset_id, border_id, &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSACONCAT: {
++      uint32_t axis_id = 0;
++      std::vector<uint32_t> input_ids;
++      if (tosa_operands.ReadOperands({{TosaOperandRole::kAxis, &axis_id}}) ==
++              Pass::Status::Failure ||
++          tosa_operands.ReadVariadic(TosaOperandRole::kInput1, &input_ids) ==
++              Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status = ShapeGraphInstructionConcatOp(context, axis_id, input_ids,
++                                                  &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSARESHAPE: {
++      uint32_t shape_id = 0;
++      if (tosa_operands.ReadOperands({{TosaOperandRole::kShape, &shape_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status =
++          ShapeGraphInstructionReshapeOp(context, shape_id, &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSAREVERSE: {
++      uint32_t input_id = 0;
++      if (tosa_operands.ReadOperands({{TosaOperandRole::kInput, &input_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status =
++          ShapeGraphInstructionReverseOp(context, input_id, &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSAGATHER: {
++      uint32_t values_id = 0;
++      uint32_t indices_id = 0;
++      if (tosa_operands.ReadOperands(
++              {{TosaOperandRole::kValues, &values_id},
++               {TosaOperandRole::kIndices, &indices_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status = ShapeGraphInstructionGatherOp(context, values_id,
++                                                  indices_id, &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSASLICE: {
++      uint32_t size_id = 0;
++      if (tosa_operands.ReadOperands({{TosaOperandRole::kSize, &size_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status =
++          ShapeGraphInstructionSliceOp(context, size_id, &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSATRANSPOSE: {
++      uint32_t perms_id = 0;
++      uint32_t input_id = 0;
++      if (tosa_operands.ReadOperands({{TosaOperandRole::kPerms, &perms_id},
++                                      {TosaOperandRole::kInput, &input_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status = ShapeGraphInstructionTransposeOp(context, perms_id,
++                                                     input_id, &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSAPAD: {
++      uint32_t input_id = 0;
++      uint32_t padding_id = 0;
++      if (tosa_operands.ReadOperands(
++              {{TosaOperandRole::kInput, &input_id},
++               {TosaOperandRole::kPadding, &padding_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status = ShapeGraphInstructionPadOp(context, input_id, padding_id,
++                                               &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    case tosa010::TOSATILE: {
++      uint32_t input_id = 0;
++      uint32_t multiples_id = 0;
++      if (tosa_operands.ReadOperands(
++              {{TosaOperandRole::kInput, &input_id},
++               {TosaOperandRole::kMultiples, &multiples_id}}) ==
++          Pass::Status::Failure) {
++        return Pass::Status::Failure;
++      }
++      auto status = ShapeGraphInstructionTileOp(context, input_id, multiples_id,
++                                                &output_shape);
++      if (status == Pass::Status::Failure) {
++        return status;
++      }
++      break;
++    }
++    default:
++      return ShapeFailure(context, "Unhandled TOSA operator");
++  }
++
++  // TensorARM represents a TOSA rank-0 result as shape [1].
++  if (output_shape.empty()) {
++    output_shape.push_back(1);
++  }
++  return ShapeGraphInstructionSingleOutput(context, inst, output_shape);
++}
++
++}  // namespace opt
++}  // namespace spvtools
+diff --git a/source/opt/graph_shape_tosa.h b/source/opt/graph_shape_tosa.h
+new file mode 100644
+index 000000000..ec8aa690c
+--- /dev/null
++++ b/source/opt/graph_shape_tosa.h
+@@ -0,0 +1,31 @@
++// Copyright (c) 2026 Arm Ltd.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#ifndef SOURCE_OPT_GRAPH_SHAPE_TOSA_H_
++#define SOURCE_OPT_GRAPH_SHAPE_TOSA_H_
++
++#include "source/opt/pass.h"
++
++namespace spvtools {
++namespace opt {
++
++class Instruction;
++class IRContext;
++
++Pass::Status ShapeGraphInstructionTOSA(IRContext* context, Instruction* inst);
++
++}  // namespace opt
++}  // namespace spvtools
++
++#endif  // SOURCE_OPT_GRAPH_SHAPE_TOSA_H_
+diff --git a/source/opt/graph_shape_util.cpp b/source/opt/graph_shape_util.cpp
+new file mode 100644
+index 000000000..d30c4b4f2
+--- /dev/null
++++ b/source/opt/graph_shape_util.cpp
+@@ -0,0 +1,521 @@
++// Copyright (c) 2026 Arm Ltd.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#include "source/opt/graph_shape_util.h"
++
++#include <limits>
++#include <string_view>
++
++#include "source/opcode.h"
++#include "source/opt/constants.h"
++#include "source/opt/instruction.h"
++#include "source/opt/ir_context.h"
++
++namespace spvtools {
++namespace opt {
++
++void SetError(std::string* error_msg, std::string_view message) {
++  if (error_msg) {
++    *error_msg = message;
++  }
++}
++
++Pass::Status ShapeFailure(IRContext* context, const std::string& message) {
++  context->consumer()(SPV_MSG_ERROR, "", {0, 0, 0}, message.c_str());
++  return Pass::Status::Failure;
++}
++
++namespace {
++
++std::optional<uint64_t> DecodeIntegerConstantValue(
++    const analysis::Constant* constant, uint32_t bit_width,
++    std::string* error_msg) {
++  if (constant == nullptr) {
++    SetError(error_msg, "must be known");
++    return std::nullopt;
++  }
++
++  const auto* integer_type = constant->type()->AsInteger();
++  if (integer_type == nullptr || integer_type->width() > 64 ||
++      (bit_width != 0 && integer_type->width() != bit_width) ||
++      (constant->AsIntConstant() == nullptr &&
++       constant->AsNullConstant() == nullptr)) {
++    if (bit_width == 0) {
++      SetError(error_msg, "must be an integer constant of at most 64 bits");
++    } else {
++      SetError(error_msg, "must be a " + std::to_string(bit_width) +
++                              "-bit integer constant");
++    }
++    return std::nullopt;
++  }
++
++  return constant->GetZeroExtendedValue();
++}
++
++std::optional<uint64_t> GetTensorRank(IRContext* context,
++                                      const analysis::TensorARM* tensor_type,
++                                      std::string* error_msg = nullptr) {
++  std::string detail;
++  const auto rank =
++      GetIntegerConstantValue(context, tensor_type->rank_id(), 0, &detail);
++  if (!rank.has_value()) {
++    SetError(error_msg, " rank " + detail);
++    return std::nullopt;
++  }
++  return rank;
++}
++
++}  // namespace
++
++std::optional<uint64_t> GetIntegerConstantValue(IRContext* context, uint32_t id,
++                                                uint32_t bit_width,
++                                                std::string* error_msg) {
++  const auto* inst = context->get_def_use_mgr()->GetDef(id);
++  if (inst == nullptr || spvOpcodeIsSpecConstant(inst->opcode())) {
++    SetError(error_msg, "must be known");
++    return std::nullopt;
++  }
++
++  const auto* constant = context->get_constant_mgr()->FindDeclaredConstant(id);
++  if (constant == nullptr) {
++    SetError(error_msg, "must be known");
++    return std::nullopt;
++  }
++
++  return DecodeIntegerConstantValue(constant, bit_width, error_msg);
++}
++
++std::optional<std::pair<uint32_t, uint32_t>> GetDSBForVar(IRContext* context,
++                                                          uint32_t var_id) {
++  auto decos = context->get_decoration_mgr()->GetDecorationsFor(var_id, false);
++  constexpr uint32_t kUnset = std::numeric_limits<uint32_t>::max();
++  uint32_t set = kUnset, binding = kUnset;
++  for (const auto& deco : decos) {
++    spv::Decoration d = spv::Decoration(deco->GetSingleWordInOperand(1u));
++    if (d == spv::Decoration::DescriptorSet) {
++      set = deco->GetSingleWordInOperand(2u);
++    } else if (d == spv::Decoration::Binding) {
++      binding = deco->GetSingleWordInOperand(2u);
++    }
++  }
++  if (set == kUnset || binding == kUnset) {
++    return std::nullopt;
++  }
++  return std::make_pair(set, binding);
++}
++
++std::optional<spv::StorageClass> GetVariableStorageClass(
++    IRContext* context, uint32_t var_id, std::string* error_msg) {
++  auto var_inst = context->get_def_use_mgr()->GetDef(var_id);
++  if (var_inst == nullptr) {
++    SetError(error_msg,
++             "OpVariable " + std::to_string(var_id) + " is not defined");
++    return std::nullopt;
++  }
++  if (var_inst->opcode() != spv::Op::OpVariable) {
++    SetError(error_msg, "Expected OpVariable " + std::to_string(var_id) +
++                            " but found a different instruction");
++    return std::nullopt;
++  }
++  if (var_inst->NumInOperands() == 0) {
++    SetError(error_msg, "OpVariable " + std::to_string(var_id) +
++                            " is missing storage class operand");
++    return std::nullopt;
++  }
++  return spv::StorageClass(var_inst->GetSingleWordInOperand(0));
++}
++
++const analysis::TensorARM* GetTensorResultType(IRContext* context,
++                                               const Instruction* inst) {
++  if (inst == nullptr) {
++    return nullptr;
++  }
++  auto type = context->get_type_mgr()->GetType(inst->type_id());
++  return type == nullptr ? nullptr : type->AsTensorARM();
++}
++
++const analysis::TensorARM* GetTensorVariableType(IRContext* context,
++                                                 uint32_t var_id,
++                                                 std::string* error_msg) {
++  auto var_inst = context->get_def_use_mgr()->GetDef(var_id);
++  if (var_inst == nullptr) {
++    SetError(error_msg,
++             "OpVariable " + std::to_string(var_id) + " is not defined");
++    return nullptr;
++  }
++  if (var_inst->opcode() != spv::Op::OpVariable) {
++    SetError(error_msg, "Expected OpVariable " + std::to_string(var_id) +
++                            " but found a different instruction");
++    return nullptr;
++  }
++  auto ptrty = context->get_type_mgr()->GetType(var_inst->type_id());
++  if (ptrty == nullptr || ptrty->kind() != analysis::Type::Kind::kPointer) {
++    SetError(error_msg, "OpVariable " + std::to_string(var_id) +
++                            " does not have a pointer type");
++    return nullptr;
++  }
++  auto pointee_type = ptrty->AsPointer()->pointee_type();
++  if (pointee_type == nullptr ||
++      pointee_type->kind() != analysis::Type::Kind::kTensorARM) {
++    SetError(error_msg, "OpVariable " + std::to_string(var_id) +
++                            " pointee type is not OpTypeTensorARM");
++    return nullptr;
++  }
++  return pointee_type->AsTensorARM();
++}
++
++std::optional<std::vector<int64_t>> GetTensorTypeShape(
++    IRContext* context, const analysis::TensorARM* tensor_type) {
++  if (tensor_type == nullptr || tensor_type->shape_id() == 0) {
++    return std::nullopt;
++  }
++  const auto* shape_inst =
++      context->get_def_use_mgr()->GetDef(tensor_type->shape_id());
++  const auto rank = GetTensorRank(context, tensor_type);
++  if (!rank.has_value() || shape_inst == nullptr ||
++      spvOpcodeIsSpecConstant(shape_inst->opcode())) {
++    return std::nullopt;
++  }
++
++  auto shape_constant = context->get_constant_mgr()->FindDeclaredConstant(
++      tensor_type->shape_id());
++  if (shape_constant == nullptr) {
++    return std::nullopt;
++  }
++  auto shape_composite = shape_constant->AsCompositeConstant();
++  if (shape_composite == nullptr) {
++    return std::nullopt;
++  }
++  std::vector<int64_t> shape;
++  for (const auto* component : shape_composite->GetComponents()) {
++    const auto dim = DecodeIntegerConstantValue(component, 0, nullptr);
++    if (!dim.has_value() || dim.value() == 0 ||
++        dim.value() > std::numeric_limits<uint32_t>::max()) {
++      return std::nullopt;
++    }
++    shape.push_back(static_cast<int64_t>(dim.value()));
++  }
++  if (rank.value() != shape.size()) {
++    return std::nullopt;
++  }
++  return shape;
++}
++
++std::optional<std::vector<int64_t>> GetTensorShape(IRContext* context,
++                                                   uint32_t id) {
++  auto inst = context->get_def_use_mgr()->GetDef(id);
++  if (inst == nullptr) {
++    return std::nullopt;
++  }
++  auto tensor_type = GetTensorResultType(context, inst);
++  return GetTensorTypeShape(context, tensor_type);
++}
++
++std::optional<analysis::TensorARM*> GetOrCreateShapedTensorType(
++    IRContext* context, const analysis::Type* tensor_elem_type,
++    const std::vector<int64_t>& target_shape, std::string* error_msg) {
++  if (tensor_elem_type == nullptr) {
++    SetError(error_msg, "Cannot create a tensor type without an element type");
++    return std::nullopt;
++  }
++  if (target_shape.empty()) {
++    SetError(error_msg, "Cannot create a ranked tensor type with rank 0");
++    return std::nullopt;
++  }
++
++  auto cstmgr = context->get_constant_mgr();
++  uint32_t tensor_rank = static_cast<uint32_t>(target_shape.size());
++  auto rankcst_id = cstmgr->GetUIntConstId(tensor_rank);
++  std::vector<uint32_t> shape_ids;
++  for (auto dim : target_shape) {
++    if (dim <= 0) {
++      SetError(error_msg,
++               "Cannot create a tensor type with non-positive dimension " +
++                   std::to_string(dim));
++      return std::nullopt;
++    }
++    if (static_cast<uint64_t>(dim) > std::numeric_limits<uint32_t>::max()) {
++      SetError(error_msg, "Cannot create a tensor type with dimension " +
++                              std::to_string(dim) +
++                              " because it does not fit in 32 bits");
++      return std::nullopt;
++    }
++    auto c = cstmgr->GetUIntConstId(static_cast<uint32_t>(dim));
++    shape_ids.push_back(c);
++  }
++  auto tymgr = context->get_type_mgr();
++  analysis::Integer i(32, false);
++  analysis::Type* shape_array_elem_type =
++      context->get_type_mgr()->GetRegisteredType(&i);
++  analysis::Array array_type(
++      shape_array_elem_type,
++      analysis::Array::LengthInfo{rankcst_id, {0, tensor_rank}});
++
++  analysis::Type* shape_arr_type = tymgr->GetRegisteredType(&array_type);
++
++  auto shape_constant = cstmgr->GetConstant(shape_arr_type, shape_ids);
++  auto shape_constant_inst = cstmgr->GetDefiningInstruction(shape_constant);
++  if (shape_constant_inst == nullptr) {
++    SetError(error_msg, "Cannot create a tensor shape constant");
++    return std::nullopt;
++  }
++  auto shape_constant_id = shape_constant_inst->result_id();
++  analysis::TensorARM tensor_type_tpl(tensor_elem_type, rankcst_id,
++                                      shape_constant_id);
++  return tymgr->GetRegisteredType(&tensor_type_tpl)->AsTensorARM();
++}
++
++Pass::Status GetI32TensorConstantValues(IRContext* context,
++                                        std::string_view name, uint32_t id,
++                                        size_t num_elements,
++                                        std::vector<int32_t>* values) {
++  values->clear();
++  const std::string value_name(name);
++
++  auto inst = context->get_def_use_mgr()->GetDef(id);
++  if (inst == nullptr) {
++    return ShapeFailure(context, value_name + " value definition must exist");
++  }
++  if (spvOpcodeIsSpecConstant(inst->opcode())) {
++    return ShapeFailure(context, value_name + " value must be known");
++  }
++
++  auto tensor_type = GetTensorResultType(context, inst);
++  if (tensor_type == nullptr) {
++    return ShapeFailure(context, value_name + " value must have tensor type");
++  }
++  auto element_type = tensor_type->element_type()->AsInteger();
++  if (element_type == nullptr || element_type->width() != 32) {
++    return ShapeFailure(context, value_name +
++                                     " value must have 32-bit integer "
++                                     "element type");
++  }
++
++  auto shape = GetTensorTypeShape(context, tensor_type);
++  if (!shape.has_value()) {
++    return ShapeFailure(context, value_name + " tensor shape must be known");
++  }
++
++  if (shape.value().size() != 1 ||
++      shape.value()[0] != static_cast<int64_t>(num_elements)) {
++    return ShapeFailure(context, value_name + " tensor shape must be [" +
++                                     std::to_string(num_elements) + "]");
++  }
++
++  auto constant = context->get_constant_mgr()->FindDeclaredConstant(id);
++  if (constant == nullptr) {
++    return ShapeFailure(context, value_name + " value must be known");
++  }
++  if (constant->AsNullConstant() != nullptr) {
++    values->assign(num_elements, 0);
++    return Pass::Status::SuccessWithoutChange;
++  }
++
++  const analysis::TensorConstant* tensor_constant =
++      constant->AsTensorConstant();
++  if (tensor_constant == nullptr) {
++    return ShapeFailure(context,
++                        value_name + " value must be a tensor constant");
++  }
++
++  auto instruction = context->get_def_use_mgr()->GetDef(id);
++  bool is_splat =
++      instruction != nullptr &&
++      instruction->opcode() == spv::Op::OpConstantCompositeReplicateEXT;
++  const auto& components = tensor_constant->GetComponents();
++  // Read replicated tensor constants from either the original single
++  // constituent or the constant manager's expanded component list.
++  if (is_splat) {
++    if (components.size() == 1) {
++      const auto* component = components.front()->AsIntConstant();
++      if (component == nullptr) {
++        return ShapeFailure(
++            context, value_name + " value must contain integer elements");
++      }
++      values->assign(num_elements, component->GetS32());
++      return Pass::Status::SuccessWithoutChange;
++    }
++
++    if (components.size() != num_elements) {
++      return ShapeFailure(
++          context,
++          value_name + " replicated value has unexpected element count");
++    }
++  }
++
++  if (components.size() != num_elements) {
++    return ShapeFailure(context,
++                        value_name + " value has unexpected element count");
++  }
++
++  values->reserve(num_elements);
++  for (auto&& component : components) {
++    if (component->AsIntConstant() == nullptr) {
++      return ShapeFailure(context,
++                          value_name + " value must contain integer elements");
++    }
++    values->push_back(component->GetS32());
++  }
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ValidateTensorRank(IRContext* context, std::string_view name,
++                                const analysis::TensorARM* tensor_type,
++                                size_t expected_rank) {
++  const std::string tensor_name(name);
++  if (tensor_type == nullptr) {
++    return ShapeFailure(context, tensor_name + " type must be OpTypeTensorARM");
++  }
++  if (!tensor_type->is_ranked()) {
++    return Pass::Status::SuccessWithoutChange;
++  }
++
++  std::string error_msg;
++  const auto existing_rank = GetTensorRank(context, tensor_type, &error_msg);
++  if (!existing_rank.has_value()) {
++    return ShapeFailure(context, tensor_name + error_msg);
++  }
++  if (existing_rank.value() != expected_rank) {
++    return ShapeFailure(context, tensor_name + " rank " +
++                                     std::to_string(existing_rank.value()) +
++                                     " conflicts with inferred rank " +
++                                     std::to_string(expected_rank));
++  }
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ValidateOutputDimension(IRContext* context, std::string_view name,
++                                     int64_t value) {
++  if (value <= 0 ||
++      static_cast<uint64_t>(value) > std::numeric_limits<uint32_t>::max()) {
++    return ShapeFailure(
++        context, std::string(name) + " dimension is outside the valid range");
++  }
++  return Pass::Status::SuccessWithoutChange;
++}
++
++Pass::Status ShapeGraphInstructionSingleOutput(
++    IRContext* context, Instruction* inst,
++    const std::vector<int64_t>& output_shape) {
++  auto output_type = GetTensorResultType(context, inst);
++  if (output_type == nullptr) {
++    return ShapeFailure(context,
++                        "Single-output result type must be OpTypeTensorARM");
++  }
++  if (ValidateTensorRank(context, "Single-output result", output_type,
++                         output_shape.size()) == Pass::Status::Failure) {
++    return Pass::Status::Failure;
++  }
++  auto existing_shape = GetTensorTypeShape(context, output_type);
++  if (output_type->is_shaped() && !existing_shape.has_value()) {
++    return ShapeFailure(context,
++                        "Single-output result shape must be statically known");
++  }
++  if (existing_shape.has_value() && existing_shape.value() != output_shape) {
++    return ShapeFailure(
++        context,
++        "Existing graph instruction result shape conflicts with inferred "
++        "shape");
++  }
++  std::string error_msg;
++  auto output_shaped_tensor_type = GetOrCreateShapedTensorType(
++      context, output_type->element_type(), output_shape, &error_msg);
++  if (!output_shaped_tensor_type.has_value()) {
++    return ShapeFailure(context, error_msg);
++  }
++  uint32_t new_output_type_id = context->get_type_mgr()->GetTypeInstruction(
++      output_shaped_tensor_type.value());
++  if (new_output_type_id == 0) {
++    return ShapeFailure(context,
++                        "Single-output shaped tensor type has no type id");
++  }
++  uint32_t existing_output_type_id = inst->type_id();
++  if (new_output_type_id == existing_output_type_id) {
++    return Pass::Status::SuccessWithoutChange;
++  }
++  inst->SetResultType(new_output_type_id);
++  return Pass::Status::SuccessWithChange;
++}
++
++Pass::Status ShapeGraphInstructionMultiOutput(
++    IRContext* context, Instruction* inst,
++    const std::vector<std::vector<int64_t>>& output_shapes) {
++  auto type_mgr = context->get_type_mgr();
++  auto output_type = type_mgr->GetType(inst->type_id());
++  if (output_type == nullptr) {
++    return ShapeFailure(context, "Multi-output result type is not known");
++  }
++  auto output_struct_type = output_type->AsStruct();
++  if (!output_struct_type) {
++    return ShapeFailure(context, "Multi-output result type must be a struct");
++  }
++  if (output_struct_type->element_types().size() != output_shapes.size()) {
++    return ShapeFailure(context,
++                        "Multi-output result count must match inferred shapes");
++  }
++
++  std::vector<const analysis::Type*> shaped_member_types;
++  for (size_t i = 0; i < output_shapes.size(); ++i) {
++    auto output_tensor_type =
++        output_struct_type->element_types()[i]->AsTensorARM();
++    if (!output_tensor_type) {
++      return ShapeFailure(context,
++                          "Multi-output struct members must be tensor types");
++    }
++    if (ValidateTensorRank(context, "Multi-output result member",
++                           output_tensor_type,
++                           output_shapes[i].size()) == Pass::Status::Failure) {
++      return Pass::Status::Failure;
++    }
++    auto existing_shape = GetTensorTypeShape(context, output_tensor_type);
++    if (output_tensor_type->is_shaped() && !existing_shape.has_value()) {
++      return ShapeFailure(
++          context, "Multi-output result member shape must be statically known");
++    }
++    if (existing_shape.has_value() &&
++        existing_shape.value() != output_shapes[i]) {
++      return ShapeFailure(
++          context,
++          "Existing graph instruction result shape conflicts with inferred "
++          "shape");
++    }
++    std::string error_msg;
++    auto shaped_member_type =
++        GetOrCreateShapedTensorType(context, output_tensor_type->element_type(),
++                                    output_shapes[i], &error_msg);
++    if (!shaped_member_type.has_value()) {
++      return ShapeFailure(context, error_msg);
++    }
++    shaped_member_types.push_back(shaped_member_type.value());
++  }
++
++  analysis::Struct output_struct(shaped_member_types);
++  auto shaped_output_type = type_mgr->GetRegisteredType(&output_struct);
++  uint32_t new_output_type_id =
++      type_mgr->GetTypeInstruction(shaped_output_type);
++  if (new_output_type_id == 0) {
++    return ShapeFailure(context,
++                        "Multi-output shaped struct type has no type id");
++  }
++  uint32_t existing_output_type_id = inst->type_id();
++  if (new_output_type_id == existing_output_type_id) {
++    return Pass::Status::SuccessWithoutChange;
++  }
++
++  inst->SetResultType(new_output_type_id);
++  return Pass::Status::SuccessWithChange;
++}
++
++}  // namespace opt
++}  // namespace spvtools
+diff --git a/source/opt/graph_shape_util.h b/source/opt/graph_shape_util.h
+new file mode 100644
+index 000000000..03e3f37df
+--- /dev/null
++++ b/source/opt/graph_shape_util.h
+@@ -0,0 +1,75 @@
++// Copyright (c) 2026 Arm Ltd.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#ifndef SOURCE_OPT_GRAPH_SHAPE_UTIL_H_
++#define SOURCE_OPT_GRAPH_SHAPE_UTIL_H_
++
++#include <cstddef>
++#include <cstdint>
++#include <optional>
++#include <string>
++#include <string_view>
++#include <utility>
++#include <vector>
++
++#include "source/opt/pass.h"
++#include "source/opt/types.h"
++
++namespace spvtools {
++namespace opt {
++
++class Instruction;
++class IRContext;
++
++void SetError(std::string* error_msg, std::string_view message);
++[[nodiscard]] Pass::Status ShapeFailure(IRContext* context,
++                                        const std::string& message);
++std::optional<uint64_t> GetIntegerConstantValue(
++    IRContext* context, uint32_t id, uint32_t bit_width = 0,
++    std::string* error_msg = nullptr);
++std::optional<std::pair<uint32_t, uint32_t>> GetDSBForVar(IRContext* context,
++                                                          uint32_t var_id);
++std::optional<spv::StorageClass> GetVariableStorageClass(
++    IRContext* context, uint32_t var_id, std::string* error_msg = nullptr);
++const analysis::TensorARM* GetTensorResultType(IRContext* context,
++                                               const Instruction* inst);
++const analysis::TensorARM* GetTensorVariableType(
++    IRContext* context, uint32_t var_id, std::string* error_msg = nullptr);
++std::optional<std::vector<int64_t>> GetTensorTypeShape(
++    IRContext* context, const analysis::TensorARM* tensor_type);
++std::optional<std::vector<int64_t>> GetTensorShape(IRContext* context,
++                                                   uint32_t id);
++std::optional<analysis::TensorARM*> GetOrCreateShapedTensorType(
++    IRContext* context, const analysis::Type* tensor_elem_type,
++    const std::vector<int64_t>& target_shape, std::string* error_msg);
++Pass::Status GetI32TensorConstantValues(IRContext* context,
++                                        std::string_view name, uint32_t id,
++                                        size_t num_elements,
++                                        std::vector<int32_t>* values);
++Pass::Status ValidateTensorRank(IRContext* context, std::string_view name,
++                                const analysis::TensorARM* tensor_type,
++                                size_t expected_rank);
++Pass::Status ValidateOutputDimension(IRContext* context, std::string_view name,
++                                     int64_t value);
++Pass::Status ShapeGraphInstructionSingleOutput(
++    IRContext* context, Instruction* inst,
++    const std::vector<int64_t>& output_shape);
++Pass::Status ShapeGraphInstructionMultiOutput(
++    IRContext* context, Instruction* inst,
++    const std::vector<std::vector<int64_t>>& output_shapes);
++
++}  // namespace opt
++}  // namespace spvtools
++
++#endif  // SOURCE_OPT_GRAPH_SHAPE_UTIL_H_
+diff --git a/source/opt/optimizer.cpp b/source/opt/optimizer.cpp
+index 6986501db..1e7abdf3a 100644
+--- a/source/opt/optimizer.cpp
++++ b/source/opt/optimizer.cpp
+@@ -647,6 +647,27 @@ bool Optimizer::RegisterPassFromFlag(const std::string& flag,
+     RegisterPass(CreateResolveBindingConflictsPass());
+   } else if (pass_name == "canonicalize-ids") {
+     RegisterPass(CreateCanonicalizeIdsPass());
++  } else if (pass_name == "graph-shape") {
++    if (pass_args.empty()) {
++      Errorf(consumer(), nullptr, {},
++             "Invalid interface tensor shape information '%s'. Expected a "
++             "space-separated list of <descriptor set>:<binding>:<shape>.",
++             pass_args.c_str());
++      return false;
++    }
++
++    std::string error_msg;
++    auto interface_tensor_shapes =
++        opt::GraphShapePass::ParseInterfaceTensorShapesString(pass_args.c_str(),
++                                                              &error_msg);
++    if (!interface_tensor_shapes) {
++      Errorf(consumer(), nullptr, {},
++             "Invalid argument for --graph-shape: %s: %s", pass_args.c_str(),
++             error_msg.c_str());
++      return false;
++    }
++
++    RegisterPass(CreateGraphShapePass(*interface_tensor_shapes));
+   } else {
+     Errorf(consumer(), nullptr, {},
+            "Unknown flag '--%s'. Use --help for a list of valid flags",
+@@ -1218,6 +1239,11 @@ Optimizer::PassToken CreateCanonicalizeIdsPass() {
+       MakeUnique<opt::CanonicalizeIdsPass>());
+ }
+ 
++Optimizer::PassToken CreateGraphShapePass(
++    const std::vector<GraphInterfaceShape>& interface_tensor_shapes) {
++  return MakeUnique<Optimizer::PassToken::Impl>(
++      MakeUnique<opt::GraphShapePass>(interface_tensor_shapes));
++}
+ }  // namespace spvtools
+ 
+ extern "C" {
+@@ -1257,6 +1283,25 @@ SPIRV_TOOLS_EXPORT void spvOptimizerRegisterSizePasses(
+   reinterpret_cast<spvtools::Optimizer*>(optimizer)->RegisterSizePasses();
+ }
+ 
++SPIRV_TOOLS_EXPORT bool spvOptimizerRegisterGraphShapePass(
++    spv_optimizer_t* optimizer, const size_t num_interface_shapes,
++    const spv_graph_interface_shape* interface_shape_inputs) {
++  auto* cpp_optimizer = reinterpret_cast<spvtools::Optimizer*>(optimizer);
++  std::vector<spvtools::GraphInterfaceShape> interface_shapes;
++  std::string error_msg;
++  if (!spvtools::opt::CopyGraphInterfaceShapes(
++          num_interface_shapes, interface_shape_inputs, &interface_shapes,
++          &error_msg)) {
++    spvtools::Errorf(cpp_optimizer->consumer(), nullptr, {},
++                     "Invalid graph-shape interface tensor shapes: %s",
++                     error_msg.c_str());
++    return false;
++  }
++
++  cpp_optimizer->RegisterPass(spvtools::CreateGraphShapePass(interface_shapes));
++  return true;
++}
++
+ SPIRV_TOOLS_EXPORT bool spvOptimizerRegisterPassFromFlag(
+     spv_optimizer_t* optimizer, const char* flag)
+ {
+diff --git a/source/opt/passes.h b/source/opt/passes.h
+index 533fc216c..5a89d2324 100644
+--- a/source/opt/passes.h
++++ b/source/opt/passes.h
+@@ -45,6 +45,7 @@
+ #include "source/opt/flatten_decoration_pass.h"
+ #include "source/opt/fold_spec_constant_op_and_composite_pass.h"
+ #include "source/opt/freeze_spec_constant_value_pass.h"
++#include "source/opt/graph_shape_pass.h"
+ #include "source/opt/graphics_robust_access_pass.h"
+ #include "source/opt/if_conversion.h"
+ #include "source/opt/inline_exhaustive_pass.h"
+diff --git a/tools/opt/opt.cpp b/tools/opt/opt.cpp
+index 19852e6e9..a3a1265b3 100644
+--- a/tools/opt/opt.cpp
++++ b/tools/opt/opt.cpp
+@@ -143,7 +143,7 @@ Options (in lexicographical order):)",
+                does not support RelaxedPrecision or ignores it. This pass also
+                removes all RelaxedPrecision decorations.)");
+   printf(R"(
+-  --convert-to-sampled-image "<descriptor set>:<binding> ..."
++  --convert-to-sampled-image="<descriptor set>:<binding> ..."
+                convert images and/or samplers with the given pairs of descriptor
+                set and binding to sampled images. If a pair of an image and a
+                sampler have the same pair of descriptor set and binding that is
+@@ -256,6 +256,9 @@ Options (in lexicographical order):)",
+                Freeze the values of specialization constants to their default
+                values.)");
+   printf(R"(
++  --graph-shape "<set>:<binding>:<dim[,dim...]> ..."
++               Shape graph interface tensors using full static shapes.)");
++  printf(R"(
+   --graphics-robust-access
+                Clamp indices used to access buffers and internal composite
+                values, providing guarantees that satisfy Vulkan's
+diff --git a/utils/generate_extinst_operand_constants.py b/utils/generate_extinst_operand_constants.py
+new file mode 100644
+index 000000000..cf0c4b551
+--- /dev/null
++++ b/utils/generate_extinst_operand_constants.py
+@@ -0,0 +1,203 @@
++#!/usr/bin/env python3
++# Copyright (c) 2026 Arm Ltd.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++"""Generates extended-instruction operand index constants."""
++
++import argparse
++import json
++import os
++import re
++
++
++def ensure_parent_dir(path):
++    directory = os.path.dirname(os.path.abspath(path))
++    if directory:
++        os.makedirs(directory, exist_ok=True)
++
++
++def identifier_fragment(name):
++    parts = re.split(r"[^0-9A-Za-z]+", name)
++    return "".join(
++        part[:1].upper() + part[1:].lower() for part in parts if part
++    )
++
++
++def has_numbered_input_group(operands):
++    return any(
++        re.match(r"input(0|[2-9][0-9]*)(_|$)", operand["name"])
++        for operand in operands
++    )
++
++
++def has_variadic_input1(operands):
++    return any(
++        operand["name"] == "input1" and operand.get("quantifier") == "*"
++        for operand in operands
++    )
++
++
++def normalize_operand_name(name, operands):
++    if (
++        not has_numbered_input_group(operands)
++        and not has_variadic_input1(operands)
++    ):
++        if name == "input1":
++            return "input"
++        if name.startswith("input1_"):
++            return "input" + name[len("input1"):]
++    return name
++
++
++def collect_operand_indices(grammar):
++    operand_indices = {}
++    for instruction in grammar["instructions"]:
++        opcode = instruction["opcode"]
++        opname = instruction["opname"]
++        operands = instruction.get("operands", [])
++        for operand_index, operand in enumerate(operands):
++            operand_name = normalize_operand_name(operand["name"], operands)
++            operand_indices.setdefault(operand_name, []).append(
++                (opcode, opname, operand_index)
++            )
++    return operand_indices
++
++
++def role_enumerator_name(operand_name):
++    return "k" + identifier_fragment(operand_name)
++
++
++def include_guard(output):
++    stem = os.path.basename(output)
++    name = re.sub(r"[^0-9A-Za-z]", "_", stem).upper()
++    return "SOURCE_OPT_" + name + "_"
++
++
++def generate_constants(grammar, grammar_path, namespace, guard):
++    operand_indices = collect_operand_indices(grammar)
++    lines = [
++        "// {}".format(notice)
++        for notice in grammar.get("copyright", [])
++    ]
++    if lines:
++        lines.append("")
++    lines.extend([
++        "// Generated by utils/generate_extinst_operand_constants.py from",
++        "// {}.".format(os.path.basename(grammar_path)),
++        "// Do not edit manually.",
++        "",
++        "#ifndef {}".format(guard),
++        "#define {}".format(guard),
++        "",
++        "#include <cstdint>",
++        "",
++        "namespace spvtools {",
++        "namespace opt {",
++        "namespace {} {{".format(namespace),
++        "",
++        "// OpExtInst in-operands 0 and 1 are the set id and opcode.",
++        "constexpr uint32_t kExtInstSetId = 0;",
++        "constexpr uint32_t kExtInstOpcode = 1;",
++        "constexpr uint32_t kExtInstOperandStart = 2;",
++        "constexpr uint32_t kInvalidOperand = ~uint32_t{0};",
++        "",
++        "enum class OperandRole {",
++    ])
++
++    for operand_name in sorted(operand_indices):
++        lines.append("  {},".format(role_enumerator_name(operand_name)))
++    lines.append("};")
++    lines.append("")
++
++    lines.append("inline const char* OperandRoleName(OperandRole role) {")
++    lines.append("  switch (role) {")
++    for operand_name in sorted(operand_indices):
++        lines.append(
++            '    case OperandRole::{}:'.format(
++                role_enumerator_name(operand_name)
++            )
++        )
++        lines.append('      return "{}";'.format(operand_name))
++    lines.append("  }")
++    lines.append('  return "unknown";')
++    lines.append("}")
++    lines.append("")
++
++    lines.append(
++        "inline uint32_t GetOperandIndex(uint32_t extinst_opcode, "
++        "OperandRole role) {"
++    )
++    lines.append("  switch (role) {")
++    for operand_name in sorted(operand_indices):
++        lines.append(
++            "    case OperandRole::{}:".format(
++                role_enumerator_name(operand_name)
++            )
++        )
++        lines.append("      switch (extinst_opcode) {")
++        for opcode, opname, operand_index in operand_indices[operand_name]:
++            lines.append("        case {}:  // {}".format(opcode, opname))
++            lines.append(
++                "          return kExtInstOperandStart + {};".format(
++                    operand_index
++                )
++            )
++        lines.append("        default:")
++        lines.append("          return kInvalidOperand;")
++        lines.append("      }")
++    lines.append("  }")
++    lines.append("  return kInvalidOperand;")
++    lines.append("}")
++    lines.append("")
++
++    lines.extend(
++        [
++            "}}  // namespace {}".format(namespace),
++            "}  // namespace opt",
++            "}  // namespace spvtools",
++            "",
++            "#endif  // {}".format(guard),
++            "",
++        ]
++    )
++    return "\n".join(lines)
++
++
++def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument(
++        "--grammar", required=True, help="extended-instruction grammar JSON"
++    )
++    parser.add_argument("--output", required=True, help="output header path")
++    parser.add_argument(
++        "--namespace", required=True, help="namespace for generated constants"
++    )
++    args = parser.parse_args()
++
++    with open(args.grammar, encoding="utf-8") as grammar_file:
++        grammar = json.load(grammar_file)
++
++    ensure_parent_dir(args.output)
++    with open(args.output, "w", encoding="utf-8") as output_file:
++        output_file.write(
++            generate_constants(
++                grammar,
++                args.grammar,
++                args.namespace,
++                include_guard(args.output),
++            )
++        )
++
++
++if __name__ == "__main__":
++    main()
+-- 
+2.34.1
