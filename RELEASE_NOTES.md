@@ -31,6 +31,7 @@
 - Improved shader compilation errors with the shader name and compiler diagnostics.
 - Removed VGF Runtime component. Replaced by ML Workload Library for Vulkan®
 - Added support for Android™ devices using 16KiB pages.
+- Breaking: The scenario-runner CLI alias has been removed; use scenario_runner instead.
 
 ### Profiling
 
