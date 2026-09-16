@@ -17,7 +17,8 @@ int mlsdk::scenariorunner::samples::runJsonSample(std::string_view executable) {
     using namespace mlsdk::scenariorunner::samples;
 
     try {
-        // JSON resources retain their UIDs for lookup after construction.
+        // API documentation: JSON scenario example begins.
+        // JSON memory-resource UIDs remain available for lookup after construction.
         auto scenario = ScenarioJsonFactory::make(assetPath(executable, "increment.json"));
         const auto inputId = scenario->getBufferId("input");
         const auto outputId = scenario->getBufferId("output");
@@ -26,8 +27,10 @@ int mlsdk::scenariorunner::samples::runJsonSample(std::string_view executable) {
         const std::vector<uint32_t> expected{11, 21, 31, 41};
         scenario->upload(inputId, view(input));
         scenario->run();
+        const auto output = scenario->download(outputId);
+        // API documentation: JSON scenario example ends.
 
-        if (!matches(scenario->download(outputId), expected)) {
+        if (!matches(output, expected)) {
             std::cerr << "Unexpected JSON scenario output\n";
             return 1;
         }

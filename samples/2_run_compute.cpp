@@ -19,6 +19,7 @@ int mlsdk::scenariorunner::samples::runComputeSample(std::string_view executable
     using namespace mlsdk::scenariorunner::samples;
 
     try {
+        // API documentation: programmatic scenario example begins.
         // Register the shader and all resources before defining the dispatch.
         auto builder = createScenarioBuilder();
 
@@ -47,8 +48,10 @@ int mlsdk::scenariorunner::samples::runComputeSample(std::string_view executable
         const std::vector<uint32_t> expected{2, 3, 4, 5};
         scenario->upload(inputId, view(input));
         scenario->run();
+        const auto output = scenario->download(outputId);
+        // API documentation: programmatic scenario example ends.
 
-        if (!matches(scenario->download(outputId), expected)) {
+        if (!matches(output, expected)) {
             std::cerr << "Unexpected compute output\n";
             return 1;
         }

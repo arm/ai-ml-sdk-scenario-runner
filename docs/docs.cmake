@@ -43,10 +43,23 @@ foreach(SRC_IN IN LISTS DOC_SRC_FILES)
     list(APPEND DOC_SRC_FILES_FULL_PATHS ${DOC_SOURCE_FILE})
 endforeach()
 
+# Stage the samples used as API guide excerpts.
+set(SCENARIO_RUNNER_SAMPLE_FILES
+    2_run_compute.cpp
+    4_run_json.cpp)
+file(MAKE_DIRECTORY ${SPHINX_SRC_DIR}/samples)
+foreach(SAMPLE_FILE IN LISTS SCENARIO_RUNNER_SAMPLE_FILES)
+    set(SAMPLE_SOURCE_FILE ${PROJECT_SOURCE_DIR}/samples/${SAMPLE_FILE})
+    set(SAMPLE_DOC_FILE ${SPHINX_SRC_DIR}/samples/${SAMPLE_FILE})
+    configure_file(${SAMPLE_SOURCE_FILE} ${SAMPLE_DOC_FILE} COPYONLY)
+    list(APPEND DOC_SRC_FILES_FULL_PATHS ${SAMPLE_DOC_FILE})
+endforeach()
+
 add_custom_command(
     OUTPUT ${SPHINX_INDEX_HTML}
     DEPENDS ${DOC_SRC_FILES_FULL_PATHS}
-    COMMAND ${SPHINX_EXECUTABLE} -b html -W -Dbreathe_projects.MLSDK=${DOXYGEN_XML_GEN} ${SPHINX_SRC_DIR} ${SPHINX_BLD_DIR}
+    COMMAND ${SPHINX_EXECUTABLE} -b html -W -Dbreathe_projects.ScenarioRunner=${DOXYGEN_XML_GEN} ${SPHINX_SRC_DIR}
+            ${SPHINX_BLD_DIR}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     COMMENT "Generating API documentation with Sphinx"
     VERBATIM

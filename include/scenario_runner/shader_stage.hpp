@@ -6,11 +6,12 @@
 
 namespace mlsdk::scenariorunner {
 
+/// \brief Pipeline stage in which a shader executes
 enum class ShaderStage {
-    Unknown,
-    Compute,
-    Vertex,
-    Fragment,
+    Unknown, ///< Shader stage has not been specified
+    Compute, ///< Compute shader stage
+    Vertex,  ///< Vertex shader stage
+    Fragment ///< Fragment shader stage
 };
 
-}
+} // namespace mlsdk::scenariorunner
