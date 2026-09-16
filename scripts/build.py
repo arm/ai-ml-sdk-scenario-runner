@@ -94,12 +94,6 @@ class Builder:
         if self.package_release_pip:
             self.package_pip = True
 
-        self.pip_install = str(
-            SCENARIO_RUNNER_DIR / "pip_package" / "scenario_runner" / "binaries"
-        )
-        if not self.install and self.package_pip:
-            self.install = self.pip_install
-
         if not self.install and self.package_apk:
             self.install = "apk_install"
 
@@ -466,30 +460,43 @@ class Builder:
                     )
 
             if self.package_pip:
-                if self.install != self.pip_install:
-                    subprocess.run(
-                        [
-                            "cmake",
-                            "--install",
-                            self.build_dir,
-                            "--prefix",
-                            self.pip_install,
-                            "--config",
-                            self.build_type,
-                        ],
-                        check=True,
-                    )
-
                 build_env = os.environ.copy()
                 build_env[
                     "SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AI_ML_SDK_SCENARIO_RUNNER"
                 ] = package_version
-                build_env["SCENARIO_RUNNER_SKIP_NATIVE_BUILD"] = "1"
+                build_env["SCENARIO_RUNNER_PIP_BUILD_DIR"] = str(
+                    pathlib.Path(self.build_dir) / "pip"
+                )
+                build_env["SCENARIO_RUNNER_PIP_BUILD_TYPE"] = self.build_type
+                if self.enable_hlsl_support:
+                    build_env["SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT"] = "ON"
+                if self.experimental_image_format_support:
+                    build_env["SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT"] = (
+                        "ON"
+                    )
+                if self.enable_rdoc:
+                    build_env["SCENARIO_RUNNER_ENABLE_RDOC"] = "ON"
+                    if self.renderdoc_path:
+                        build_env["RenderDoc_ROOT"] = self.renderdoc_path
+                build_env["VULKAN_HEADERS_PATH"] = self.vulkan_headers_path
+                build_env["ML_SDK_VGF_LIB_PATH"] = self.vgf_lib_path
+                build_env["JSON_PATH"] = self.json_path
+                build_env["FLATBUFFERS_PATH"] = self.flatbuffers_path
+                build_env["SPIRV_TOOLS_PATH"] = self.spirv_tools_path
+                build_env["SPIRV_HEADERS_PATH"] = self.spirv_headers_path
+                build_env["GLSLANG_PATH"] = self.glslang_path
+                build_env["DXC_PATH"] = self.dxc_path
+                build_env["ARGPARSE_PATH"] = self.argparse_path
+                build_env["PYBIND11_PATH"] = self.pybind11_path
+                build_env.setdefault("CMAKE_BUILD_PARALLEL_LEVEL", str(self.threads))
+                if self.prefix_path:
+                    build_env["CMAKE_PREFIX_PATH"] = self.prefix_path
                 result = subprocess.Popen(
                     [
                         sys.executable,
                         "-m",
                         "build",
+                        "--wheel",
                         "--outdir",
                         str(SCENARIO_RUNNER_DIR / "pip_package" / "dist"),
                         str(SCENARIO_RUNNER_DIR),
