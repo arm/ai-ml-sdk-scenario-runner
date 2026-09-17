@@ -27,7 +27,10 @@ def build_native(extension_output_path, install_dir=None, package_version=None):
 
 def _configure_and_build(extension_output_path, install_dir=None, package_version=None):
     build_dir = pathlib.Path(
-        os.environ.get("SCENARIO_RUNNER_PIP_BUILD_DIR", ROOT_DIR / "build" / "pip")
+        os.environ.get(
+            "SCENARIO_RUNNER_PIP_BUILD_DIR",
+            ROOT_DIR / "build" / "pip" / sys.implementation.cache_tag,
+        )
     ).resolve()
     package_dir = extension_output_path.parent
     if install_dir is None:
@@ -62,6 +65,11 @@ def _configure_and_build(extension_output_path, install_dir=None, package_versio
         f"-DDXC_PATH={_env_path('DXC_PATH', DEPENDENCY_DIR / 'DirectXShaderCompiler')}",
         f"-DARGPARSE_PATH={_env_path('ARGPARSE_PATH', DEPENDENCY_DIR / 'argparse')}",
     ]
+    if generator.startswith("Ninja"):
+        ninja = shutil.which("ninja")
+        if ninja is None:
+            raise RuntimeError("Ninja is required for the selected CMake generator")
+        cmake_setup_cmd.append(f"-DCMAKE_MAKE_PROGRAM={ninja}")
     if package_version:
         cmake_setup_cmd.append(f"-DML_SDK_PACKAGE_VERSION={package_version}")
     hlsl_enabled = platform.system() != "Darwin" and _env_flag_enabled(
