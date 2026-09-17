@@ -299,6 +299,8 @@ are installed and the repository dependencies have been initialized.
 
 ## Known Limitations
 
+- Dynamically shaped VGF workloads are not currently supported. The supported
+  workflow requires all tensor shapes to be fixed and fully specified.
 - Resources created with `Optimal` tiling cannot be used with memory aliasing.
 - HLSL lacks support for VK_ARM_tensor at the moment, so tensor resources cannot be used with HLSL shaders.
 
