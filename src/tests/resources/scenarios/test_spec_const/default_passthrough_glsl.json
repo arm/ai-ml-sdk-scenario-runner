@@ -1,7 +1,7 @@
 {
     "commands": [
       {
-        "mark_boundary": {
+        "frame_boundary": {
           "resources": []
         }
       },
@@ -23,7 +23,7 @@
         }
       },
       {
-        "mark_boundary": {
+        "frame_boundary": {
           "resources": []
         }
       }

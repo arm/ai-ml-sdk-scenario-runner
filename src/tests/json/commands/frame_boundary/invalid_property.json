@@ -1,0 +1,15 @@
+{
+    "commands": [
+        {
+            "frame_boundary" : {
+                "resources" : [
+                    "one",
+                    "two"
+                ],
+                "this_is_an_invalid_property" : "oops"
+            }
+        }
+    ],
+    "resources" : [
+    ]
+}

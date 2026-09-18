@@ -1,0 +1,16 @@
+{
+    "commands": [
+        {
+            "pipeline_barrier" : {
+                "image_barrier_refs": [
+                ],
+                "tensor_barrier_refs": [
+                ],
+                "memory_barrier_refs" : [
+                ]
+            }
+        }
+    ],
+    "resources" : [
+    ]
+}

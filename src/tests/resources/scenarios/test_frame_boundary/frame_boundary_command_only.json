@@ -1,0 +1,30 @@
+{
+    "commands": [
+        {
+            "frame_boundary":{
+                "resources": [
+                   "inBufferA",
+                   "inBufferB"
+                ]
+            }
+        }
+    ],
+    "resources": [
+        {
+            "buffer": {
+                "shader_access": "readonly",
+                "size": 40,
+                "src": "inBufferA.npy",
+                "uid": "inBufferA"
+            }
+        },
+        {
+            "buffer": {
+                "shader_access": "readonly",
+                "size": 40,
+                "src": "inBufferB.npy",
+                "uid": "inBufferB"
+            }
+        }
+    ]
+}

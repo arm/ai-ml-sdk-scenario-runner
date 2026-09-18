@@ -1,0 +1,30 @@
+{
+    "commands": [
+        {
+            "dispatch_graph": {
+                "bindings": [],
+                "graph_ref": "graph"
+            }
+        },
+        {
+            "dispatch_spirv_graph": {
+                "bindings": [],
+                "graph_ref": "shader"
+            }
+        },
+        {
+            "dispatch_barrier": {
+                "image_barrier_refs": [],
+                "tensor_barrier_refs": [],
+                "buffer_barrier_refs": [],
+                "memory_barrier_refs": []
+            }
+        },
+        {
+            "mark_boundary": {
+                "resources": []
+            }
+        }
+    ],
+    "resources": []
+}

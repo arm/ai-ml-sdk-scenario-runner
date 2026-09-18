@@ -1,0 +1,14 @@
+{
+    "commands": [
+        {
+            "frame_boundary" : {
+                "resources" : [
+                    "one",
+                    "two"
+                ]
+            }
+        }
+    ],
+    "resources" : [
+    ]
+}

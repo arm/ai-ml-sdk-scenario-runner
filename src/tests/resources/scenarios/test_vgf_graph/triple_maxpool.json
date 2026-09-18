@@ -1,7 +1,7 @@
 {
     "commands": [
         {
-            "dispatch_graph": {
+            "dispatch_vgf": {
                 "graph_ref": "graph_ref",
                 "bindings": [
                     {
