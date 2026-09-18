@@ -1,0 +1,30 @@
+{
+    "commands": [
+        {
+            "dispatch_vgf": {
+                "bindings": [],
+                "graph_ref": "graph"
+            }
+        },
+        {
+            "dispatch_data_graph": {
+                "bindings": [],
+                "graph_ref": "shader"
+            }
+        },
+        {
+            "pipeline_barrier": {
+                "image_barrier_refs": [],
+                "tensor_barrier_refs": [],
+                "buffer_barrier_refs": [],
+                "memory_barrier_refs": []
+            }
+        },
+        {
+            "frame_boundary": {
+                "resources": []
+            }
+        }
+    ],
+    "resources": []
+}

@@ -81,9 +81,9 @@ The root of the JSON file has two blocks.
                    class graph | class shader | class memory_barrier | class buffer_barrier |
                    class buffer_barrier | class tensor_barrier | class image_barrier
                    | class graph_constant ],
-      commands: [ class dispatch_compute | class dispatch_fragment | class dispatch_graph |
-            class dispatch_spirv_graph | class dispatch_optical_flow |
-            class dispatch_barrier | class mark_boundary ]
+      commands: [ class dispatch_compute | class dispatch_fragment | class dispatch_vgf |
+            class dispatch_data_graph | class dispatch_optical_flow |
+            class pipeline_barrier | class frame_boundary ]
   }
 
 ``resources`` lists all the resources in the test case and each item in the
@@ -100,13 +100,18 @@ array can be any of the following types:
 
 ``commands`` lists all the commands in order of execution or dispatch:
 
+.. note:: ``dispatch_graph``, ``dispatch_spirv_graph``, ``dispatch_barrier``, and
+   ``mark_boundary`` remain accepted for backward compatibility, but are deprecated.
+   Use ``dispatch_vgf``, ``dispatch_data_graph``, ``pipeline_barrier``, and
+   ``frame_boundary`` instead.
+
 * :ref:`dispatch_compute`
 * :ref:`dispatch_fragment`
-* :ref:`dispatch_graph`
-* :ref:`dispatch_spirv_graph`
+* :ref:`dispatch_vgf`
+* :ref:`dispatch_data_graph`
 * :ref:`dispatch_optical_flow`
-* :ref:`dispatch_barrier`
-* :ref:`mark_boundary`
+* :ref:`pipeline_barrier`
+* :ref:`frame_boundary`
 
 
 Resources
@@ -355,7 +360,7 @@ Barriers
 """"""""
 
 The barrier type resources represents memory, image, tensor and buffer barriers in Vulkan® which are inserted
-by the dispatch_barrier command. You must ensure that implicit barriers are disabled for the target pipeline in
+by the pipeline_barrier command. You must ensure that implicit barriers are disabled for the target pipeline in
 the corresponding dispatch command.
 
 .. code-block::
@@ -496,15 +501,15 @@ At least one of ``color_attachment_refs`` or ``render_extent`` must be present. 
 
 Bindings use the same structure as compute commands, meaning fragment shaders can consume buffers, tensors, storage images, and sampled images declared elsewhere in the scenario.
 
-dispatch_graph
-""""""""""""""
+dispatch_vgf
+""""""""""""
 
-The ``dispatch_graph`` command dispatches a compiled graph using the proposed
+The ``dispatch_vgf`` command dispatches a compiled graph using the proposed
 ML extensions for Vulkan®.
 
 .. code-block::
 
-  dispatch_graph: {
+  dispatch_vgf: {
       graph_ref: string, // reference to the graph resource
       push_constants: [class push_constant_map](default=), // mappings between push constants data and the target shader node.
       bindings: [class binding] // array of bindings mapping a resource reference to a descriptor set and id. These bindings describe the inputs and outputs to the graph.
@@ -519,17 +524,17 @@ ML extensions for Vulkan®.
 
 The ``shader_substitutions`` field uses the same :ref:`shader_substitutions structure <shader_substitutions>` structure as graph resources.
 
-dispatch_spirv_graph
-"""""""""""""""""""""
+dispatch_data_graph
+"""""""""""""""""""
 
-The ``dispatch_spirv_graph`` command dispatches a SPIR-V-only graph using a
+The ``dispatch_data_graph`` command dispatches a SPIR-V-only graph using a
 SPIR-V shader module referenced via ``graph_ref``. It supports standard
 descriptor ``bindings`` and optional ``graph_constants`` that provide constant
 tensor data to the SPIR-V pipeline.
 
 .. code-block::
 
-  dispatch_spirv_graph: {
+  dispatch_data_graph: {
       graph_ref: string, // reference to the SPIR-V shader resource
       bindings: [class binding], // resource-to-descriptor set/id mappings
       graph_constants: [string](default=[]), // list of graph_constant resource UIDs
@@ -577,31 +582,31 @@ cost output.
 Within ``bindings``, ``search_image``, ``template_image``, and ``output_image``
 are required. Optional ``execution_flags`` values must be unique.
 
-dispatch_barrier
+pipeline_barrier
 """"""""""""""""
 
-The ``dispatch_barrier`` command dispatches memory, image and buffer barriers.
+The ``pipeline_barrier`` command dispatches memory, image and buffer barriers.
 
 .. code-block::
 
-  dispatch_barrier: {
+  pipeline_barrier: {
       image_barrier_refs:[string] (default=[]), // array of image barrier uids
       tensor_barrier_refs:[string] (default=[]), // array of tensor barrier uids
       memory_barrier_refs:[string] (default=[]), // array of memory barrier uids
       buffer_barrier_refs:[string] (default=[]) // array of buffer barrier uids
   }
 
-mark_boundary
-"""""""""""""
+frame_boundary
+""""""""""""""
 
-The ``mark_boundary`` command defines the end of a 'frame' and explicitly submits
+The ``frame_boundary`` command defines the end of a 'frame' and explicitly submits
 JSON commands in the frame. Tools can use this information to identify frames and
 capture targeted resources specified in the command options. The end of a 'frame'
 implicitly marks the start of the next frame.
 
 .. code-block::
 
-  mark_boundary: {
+  frame_boundary: {
       resources:[string] // array of named references to the resources to capture
   }
 
@@ -700,7 +705,7 @@ commands are processed in order of appearance in the file.
           ],
           "rangeND": [32, 32]
       },
-      "dispatch_graph": {
+      "dispatch_vgf": {
           "graph_ref": "NN_graph",
           "bindings": [
               {"set": 0, "id": 0, "resource_ref":"intermediate0"},
@@ -720,7 +725,7 @@ commands are processed in order of appearance in the file.
       }
   ]
 
-You can use the ``mark_boundary`` command to signal the completion of a frame and explicitly
+You can use the ``frame_boundary`` command to signal the completion of a frame and explicitly
 submit all commands in this frame.
 
 .. code-block::
@@ -750,7 +755,7 @@ submit all commands in this frame.
                 }
             },
             {
-                "mark_boundary":{
+                "frame_boundary":{
                     "resources": [
                       "inBufferA",
                       "inBufferB"

@@ -8,7 +8,9 @@
 #include "logging.hpp"
 #include "scenario_desc.hpp"
 
+#include <array>
 #include <string_view>
+#include <utility>
 
 using namespace std::string_view_literals;
 
@@ -61,6 +63,32 @@ template <typename ValueType> void parseOptionalField(const json &j, std::string
     parseOptionalFieldAs<ValueType>(j, fieldName, value);
 }
 
+constexpr std::array commandAliases{
+    std::pair{"dispatch_graph"sv, "dispatch_vgf"sv},
+    std::pair{"dispatch_spirv_graph"sv, "dispatch_data_graph"sv},
+    std::pair{"dispatch_barrier"sv, "pipeline_barrier"sv},
+    std::pair{"mark_boundary"sv, "frame_boundary"sv},
+};
+
+std::string_view canonicalCommandName(std::string_view commandName) {
+    for (const auto &[deprecatedName, canonicalName] : commandAliases) {
+        if (commandName == deprecatedName) {
+            mlsdk::logging::warning("Command '" + std::string(deprecatedName) + "' is deprecated; use '" +
+                                    std::string(canonicalName) + "' instead.");
+            return canonicalName;
+        }
+    }
+    return commandName;
+}
+
+void rejectDuplicateCommandAliases(const json &commandJson) {
+    for (const auto &[deprecatedName, canonicalName] : commandAliases) {
+        if (commandJson.contains(deprecatedName) && commandJson.contains(canonicalName)) {
+            throw std::runtime_error("Command must not contain both '" + std::string(deprecatedName) + "' and '" +
+                                     std::string(canonicalName) + "'.");
+        }
+    }
+}
 } // namespace
 
 //==============
@@ -100,12 +128,12 @@ NLOHMANN_JSON_SERIALIZE_ENUM(ResourceType, {{ResourceType::Unknown, nullptr},
 
 NLOHMANN_JSON_SERIALIZE_ENUM(CommandType, {{CommandType::Unknown, nullptr},
                                            {CommandType::DispatchCompute, "dispatch_compute"},
-                                           {CommandType::DispatchDataGraph, "dispatch_graph"},
-                                           {CommandType::DispatchSpirvGraph, "dispatch_spirv_graph"},
+                                           {CommandType::DispatchDataGraph, "dispatch_vgf"},
+                                           {CommandType::DispatchSpirvGraph, "dispatch_data_graph"},
                                            {CommandType::DispatchFragment, "dispatch_fragment"},
-                                           {CommandType::DispatchBarrier, "dispatch_barrier"},
+                                           {CommandType::DispatchBarrier, "pipeline_barrier"},
                                            {CommandType::DispatchOpticalFlow, "dispatch_optical_flow"},
-                                           {CommandType::MarkBoundary, "mark_boundary"}})
+                                           {CommandType::MarkBoundary, "frame_boundary"}})
 
 // Map ShaderType values to JSON as strings
 NLOHMANN_JSON_SERIALIZE_ENUM(ShaderType, {{ShaderType::Unknown, nullptr},
@@ -261,34 +289,37 @@ void readJsonImpl(ScenarioSpec &scenarioSpec, const json &j) {
 
     const json &commandsJson = j.at("commands"sv);
     for (const auto &commandJson : commandsJson) {
-        const auto commandType = json(commandJson.begin().key()).get<CommandType>();
+        rejectDuplicateCommandAliases(commandJson);
+        const auto commandKey = commandJson.begin().key();
+        const auto commandName = canonicalCommandName(commandKey);
+        const auto commandType = json(commandName).get<CommandType>();
         switch (commandType) {
         case CommandType::DispatchCompute: {
-            auto dispatchCompute = commandJson.at("dispatch_compute"sv).get<DispatchComputeDesc>();
+            auto dispatchCompute = commandJson.at(commandKey).get<DispatchComputeDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchComputeDesc>(std::move(dispatchCompute)));
         } break;
         case CommandType::DispatchDataGraph: {
-            auto dispatchDataGraph = commandJson.at("dispatch_graph"sv).get<DispatchDataGraphDesc>();
+            auto dispatchDataGraph = commandJson.at(commandKey).get<DispatchDataGraphDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchDataGraphDesc>(std::move(dispatchDataGraph)));
         } break;
         case CommandType::DispatchSpirvGraph: {
-            auto dispatchSpirvGraph = commandJson.at("dispatch_spirv_graph"sv).get<DispatchSpirvGraphDesc>();
+            auto dispatchSpirvGraph = commandJson.at(commandKey).get<DispatchSpirvGraphDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchSpirvGraphDesc>(std::move(dispatchSpirvGraph)));
         } break;
         case CommandType::DispatchFragment: {
-            auto dispatchFragment = commandJson.at("dispatch_fragment"sv).get<DispatchFragmentDesc>();
+            auto dispatchFragment = commandJson.at(commandKey).get<DispatchFragmentDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchFragmentDesc>(std::move(dispatchFragment)));
         } break;
         case CommandType::DispatchBarrier: {
-            auto dispatchBarrier = commandJson.at("dispatch_barrier"sv).get<DispatchBarrierDesc>();
+            auto dispatchBarrier = commandJson.at(commandKey).get<DispatchBarrierDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchBarrierDesc>(std::move(dispatchBarrier)));
         } break;
         case CommandType::MarkBoundary: {
-            auto markBoundary = commandJson.at("mark_boundary"sv).get<MarkBoundaryDesc>();
+            auto markBoundary = commandJson.at(commandKey).get<MarkBoundaryDesc>();
             scenarioSpec.addCommand(std::make_unique<MarkBoundaryDesc>(std::move(markBoundary)));
         } break;
         case CommandType::DispatchOpticalFlow: {
-            auto dispatchOpticalFlow = commandJson.at("dispatch_optical_flow"sv).get<DispatchOpticalFlowDesc>();
+            auto dispatchOpticalFlow = commandJson.at(commandKey).get<DispatchOpticalFlowDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchOpticalFlowDesc>(std::move(dispatchOpticalFlow)));
         } break;
         default:
