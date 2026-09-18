@@ -40,7 +40,7 @@ void DataManager::createImage(ImageId id, const ImageInfo &info) { _images.empla
 
 void DataManager::createImage(ImageId id, ImageInfo &&info) { _images.emplace(id, Image(std::move(info))); }
 
-void DataManager::createVgfView(DataGraphId id, const DataGraphInfo &info) {
+void DataManager::createVgfView(VgfId id, const VgfInfo &info) {
     _vgfViews.insert({id, VgfView::createVgfView(info.src)});
 }
 
@@ -127,7 +127,7 @@ const RawData &DataManager::getRawData(RawDataId id) const {
     return _rawData.at(id);
 }
 
-const VgfView &DataManager::getVgfView(DataGraphId id) const {
+const VgfView &DataManager::getVgfView(VgfId id) const {
     if (_vgfViews.find(id) == _vgfViews.end()) {
         throw std::runtime_error("Vgf not found");
     }

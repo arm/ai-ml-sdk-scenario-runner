@@ -290,9 +290,9 @@ def test_in_memory_scenario_builder_executes_explicit_buffer_barrier(sr, sdk_too
         builder.add_dispatch_compute(command)
 
     add_one_dispatch(input_id, intermediate_id)
-    barriers = sr.DispatchBarrierData()
+    barriers = sr.PipelineBarrierData()
     barriers.buffer_barriers = [barrier_id]
-    builder.add_dispatch_barrier(barriers)
+    builder.add_pipeline_barrier(barriers)
     add_one_dispatch(intermediate_id, output_id)
 
     scenario = builder.build()

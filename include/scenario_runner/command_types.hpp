@@ -112,14 +112,14 @@ struct ResolvedShaderSubstitution {
     std::string target;
 };
 
-/// \brief Command that dispatches a VGF data graph
-struct DispatchDataGraphData {
-    /// @brief Construct a command for a VGF data graph.
-    /// @param dataGraph Registered VGF data graph to dispatch.
-    explicit DispatchDataGraphData(DataGraphId dataGraph) : dataGraph(dataGraph) {}
+/// \brief Command that dispatches a VGF
+struct DispatchVgfData {
+    /// @brief Construct a command for a VGF.
+    /// @param vgf Registered VGF to dispatch.
+    explicit DispatchVgfData(VgfId vgf) : vgf(vgf) {}
 
-    /// @brief VGF data graph to dispatch.
-    DataGraphId dataGraph;
+    /// @brief VGF to dispatch.
+    VgfId vgf;
     /// @brief Human-readable name used in diagnostics.
     std::string debugName;
     /// @brief External resources bound to graph interfaces.
@@ -133,10 +133,10 @@ struct DispatchDataGraphData {
 };
 
 /// \brief Command that dispatches a SPIR-V™ data graph
-struct DispatchSpirvGraphData {
+struct DispatchDataGraphData {
     /// @brief Construct a command for a SPIR-V™ data graph.
     /// @param graphShader Registered SPIR-V™ graph shader to dispatch.
-    explicit DispatchSpirvGraphData(ShaderId graphShader) : graphShader(graphShader) {}
+    explicit DispatchDataGraphData(ShaderId graphShader) : graphShader(graphShader) {}
 
     /// @brief SPIR-V™ graph shader to dispatch.
     ShaderId graphShader;
@@ -189,7 +189,7 @@ struct DispatchOpticalFlowData {
 };
 
 /// \brief Command that executes a collection of registered barriers
-struct DispatchBarrierData {
+struct PipelineBarrierData {
     /// @brief Global memory barriers to execute.
     std::vector<MemoryBarrierId> memoryBarriers;
     /// @brief Image barriers to execute.
@@ -201,7 +201,7 @@ struct DispatchBarrierData {
 };
 
 /// \brief Command that marks resources at a profiling boundary
-struct MarkBoundaryData {
+struct FrameBoundaryData {
     /// @brief Buffers included in the boundary marker.
     std::vector<BufferId> buffers;
     /// @brief Images included in the boundary marker.

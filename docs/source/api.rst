@@ -159,7 +159,7 @@ construct IDs from numeric values.
 .. doxygentypedef:: mlsdk::scenariorunner::RawDataId
    :project: ScenarioRunner
 
-.. doxygentypedef:: mlsdk::scenariorunner::DataGraphId
+.. doxygentypedef:: mlsdk::scenariorunner::VgfId
    :project: ScenarioRunner
 
 .. doxygentypedef:: mlsdk::scenariorunner::GraphConstantResourceId
@@ -249,7 +249,7 @@ Shader and graph resource descriptions
    :project: ScenarioRunner
    :members:
 
-.. doxygenstruct:: mlsdk::scenariorunner::DataGraphInfo
+.. doxygenstruct:: mlsdk::scenariorunner::VgfInfo
    :project: ScenarioRunner
    :members:
 
@@ -284,11 +284,11 @@ Bindings and commands
    :project: ScenarioRunner
    :members:
 
-.. doxygenstruct:: mlsdk::scenariorunner::DispatchDataGraphData
+.. doxygenstruct:: mlsdk::scenariorunner::DispatchVgfData
    :project: ScenarioRunner
    :members:
 
-.. doxygenstruct:: mlsdk::scenariorunner::DispatchSpirvGraphData
+.. doxygenstruct:: mlsdk::scenariorunner::DispatchDataGraphData
    :project: ScenarioRunner
    :members:
 
@@ -302,11 +302,11 @@ Bindings and commands
    :project: ScenarioRunner
    :members:
 
-.. doxygenstruct:: mlsdk::scenariorunner::DispatchBarrierData
+.. doxygenstruct:: mlsdk::scenariorunner::PipelineBarrierData
    :project: ScenarioRunner
    :members:
 
-.. doxygenstruct:: mlsdk::scenariorunner::MarkBoundaryData
+.. doxygenstruct:: mlsdk::scenariorunner::FrameBoundaryData
    :project: ScenarioRunner
    :members:
 

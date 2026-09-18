@@ -37,8 +37,8 @@ class ScenarioBuilderImpl final : public ScenarioBuilder {
     ShaderId addShader(ShaderInfo &&info);
     RawDataId addRawData(const RawDataInfo &info) override;
     RawDataId addRawData(RawDataInfo &&info);
-    DataGraphId addDataGraph(const DataGraphInfo &info) override;
-    DataGraphId addDataGraph(DataGraphInfo &&info);
+    VgfId addVgf(const VgfInfo &info) override;
+    VgfId addVgf(VgfInfo &&info);
     GraphConstantResourceId addGraphConstant(const GraphConstantInfo &info) override;
     GraphConstantResourceId addGraphConstant(GraphConstantInfo &&info);
 
@@ -52,11 +52,11 @@ class ScenarioBuilderImpl final : public ScenarioBuilder {
 
     void addDispatchCompute(DispatchComputeData command) override;
     void addDispatchFragment(DispatchFragmentData command) override;
+    void addDispatchVgf(DispatchVgfData command) override;
     void addDispatchDataGraph(DispatchDataGraphData command) override;
-    void addDispatchSpirvGraph(DispatchSpirvGraphData command) override;
     void addDispatchOpticalFlow(DispatchOpticalFlowData command) override;
-    void addDispatchBarrier(DispatchBarrierData command) override;
-    void addMarkBoundary(MarkBoundaryData command) override;
+    void addPipelineBarrier(PipelineBarrierData command) override;
+    void addFrameBoundary(FrameBoundaryData command) override;
 
     std::unique_ptr<Scenario> build(const ScenarioOptions &options) override;
 

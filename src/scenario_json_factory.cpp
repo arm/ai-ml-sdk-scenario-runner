@@ -152,8 +152,8 @@ std::string resourceType(const std::unique_ptr<ResourceDesc> &resource) {
         return "Unknown";
     case ResourceType::Buffer:
         return "Buffer";
-    case ResourceType::DataGraph:
-        return "DataGraph";
+    case ResourceType::Vgf:
+        return "Vgf";
     case ResourceType::Shader:
         return "Shader";
     case ResourceType::RawData:
@@ -189,9 +189,8 @@ struct ResourceInfoFactory {
 
     RawDataInfo createInfo(const RawDataDesc &rawData) const { return {rawData.guidStr, rawData.src.value()}; }
 
-    DataGraphInfo createInfo(const DataGraphDesc &dataGraph) const {
-        return {dataGraph.guidStr, dataGraph.src.value(), dataGraph.pushConstantsSize,
-                dataGraph.specializationConstantMaps};
+    VgfInfo createInfo(const VgfDesc &vgf) const {
+        return {vgf.guidStr, vgf.src.value(), vgf.pushConstantsSize, vgf.specializationConstantMaps};
     }
 
     GraphConstantInfo createInfo(const GraphConstantDesc &graphConstant) const {
@@ -509,9 +508,7 @@ struct CommandDataFactory {
         return resolveResourceId<GraphConstantResourceId>(_resourceIds, guid, "Graph constant");
     }
 
-    DataGraphId getDataGraphId(const Guid &guid) const {
-        return resolveResourceId<DataGraphId>(_resourceIds, guid, "Data graph");
-    }
+    VgfId getVgfId(const Guid &guid) const { return resolveResourceId<VgfId>(_resourceIds, guid, "VGF"); }
 
     std::optional<RawDataId> getRawDataId(const std::optional<Guid> &guid) const {
         if (!guid) {
@@ -552,53 +549,53 @@ struct CommandDataFactory {
         return data;
     }
 
-    DispatchBarrierData createData(const DispatchBarrierDesc &dispatchBarrier) {
-        DispatchBarrierData data;
-        for (const auto &ref : dispatchBarrier.bufferBarriersRef) {
+    PipelineBarrierData createData(const PipelineBarrierDesc &pipelineBarrier) {
+        PipelineBarrierData data;
+        for (const auto &ref : pipelineBarrier.bufferBarriersRef) {
             data.bufferBarriers.push_back(
                 resolveResourceId<BufferBarrierId>(_resourceIds, Guid(ref), "Buffer barrier"));
         }
-        for (const auto &ref : dispatchBarrier.imageBarriersRef) {
+        for (const auto &ref : pipelineBarrier.imageBarriersRef) {
             data.imageBarriers.push_back(resolveResourceId<ImageBarrierId>(_resourceIds, Guid(ref), "Image barrier"));
         }
-        for (const auto &ref : dispatchBarrier.memoryBarriersRef) {
+        for (const auto &ref : pipelineBarrier.memoryBarriersRef) {
             data.memoryBarriers.push_back(
                 resolveResourceId<MemoryBarrierId>(_resourceIds, Guid(ref), "Memory barrier"));
         }
-        for (const auto &ref : dispatchBarrier.tensorBarriersRef) {
+        for (const auto &ref : pipelineBarrier.tensorBarriersRef) {
             data.tensorBarriers.push_back(
                 resolveResourceId<TensorBarrierId>(_resourceIds, Guid(ref), "Tensor barrier"));
         }
         return data;
     }
 
-    DispatchDataGraphData createData(const DispatchDataGraphDesc &dispatchDataGraph) {
-        DispatchDataGraphData data{getDataGraphId(dispatchDataGraph.dataGraphRef)};
-        data.debugName = dispatchDataGraph.debugName;
-        data.bindings = convertBindings(_resources, _resourceIds, dispatchDataGraph.bindings);
-        data.pushConstants.reserve(dispatchDataGraph.pushConstants.size());
-        for (const auto &pushConstant : dispatchDataGraph.pushConstants) {
+    DispatchVgfData createData(const DispatchVgfDesc &dispatchVgf) {
+        DispatchVgfData data{getVgfId(dispatchVgf.vgfRef)};
+        data.debugName = dispatchVgf.debugName;
+        data.bindings = convertBindings(_resources, _resourceIds, dispatchVgf.bindings);
+        data.pushConstants.reserve(dispatchVgf.pushConstants.size());
+        for (const auto &pushConstant : dispatchVgf.pushConstants) {
             data.pushConstants.push_back(
                 {resolveResourceId<RawDataId>(_resourceIds, pushConstant.pushDataRef, "Raw data"),
                  pushConstant.shaderTarget});
         }
-        data.shaderSubstitutions.reserve(dispatchDataGraph.shaderSubstitutions.size());
-        for (const auto &substitution : dispatchDataGraph.shaderSubstitutions) {
+        data.shaderSubstitutions.reserve(dispatchVgf.shaderSubstitutions.size());
+        for (const auto &substitution : dispatchVgf.shaderSubstitutions) {
             data.shaderSubstitutions.push_back({getShaderId(substitution.shaderRef), substitution.target});
         }
-        data.implicitBarrier = dispatchDataGraph.implicitBarrier;
+        data.implicitBarrier = dispatchVgf.implicitBarrier;
         return data;
     }
 
-    DispatchSpirvGraphData createData(const DispatchSpirvGraphDesc &dispatchSpirvGraph) {
-        DispatchSpirvGraphData data{getShaderId(dispatchSpirvGraph.dataGraphRef)};
-        data.debugName = dispatchSpirvGraph.debugName;
-        data.bindings = convertBindings(_resources, _resourceIds, dispatchSpirvGraph.bindings);
-        data.graphConstants.reserve(dispatchSpirvGraph.graphConstants.size());
-        for (const auto &graphConstant : dispatchSpirvGraph.graphConstants) {
+    DispatchDataGraphData createData(const DispatchDataGraphDesc &dispatchDataGraph) {
+        DispatchDataGraphData data{getShaderId(dispatchDataGraph.dataGraphRef)};
+        data.debugName = dispatchDataGraph.debugName;
+        data.bindings = convertBindings(_resources, _resourceIds, dispatchDataGraph.bindings);
+        data.graphConstants.reserve(dispatchDataGraph.graphConstants.size());
+        for (const auto &graphConstant : dispatchDataGraph.graphConstants) {
             data.graphConstants.push_back(getGraphConstantResourceId(graphConstant));
         }
-        data.implicitBarrier = dispatchSpirvGraph.implicitBarrier;
+        data.implicitBarrier = dispatchDataGraph.implicitBarrier;
         return data;
     }
 
@@ -626,10 +623,10 @@ struct CommandDataFactory {
         return data;
     }
 
-    MarkBoundaryData createData(const MarkBoundaryDesc &markBoundary) {
-        MarkBoundaryData data;
+    FrameBoundaryData createData(const FrameBoundaryDesc &frameBoundary) {
+        FrameBoundaryData data;
 
-        for (const auto &resourceRef : markBoundary.resources) {
+        for (const auto &resourceRef : frameBoundary.resources) {
             const Guid guid(resourceRef);
             const auto &resource = resolveTypedResourceId(_resourceIds, guid, "Memory");
             if (const auto *buffer = std::get_if<BufferId>(&resource)) {
@@ -688,9 +685,9 @@ void populate(const ScenarioOptions &options, const ScenarioSpec &scenarioSpec, 
             registerResourceId(resourceIds, resource->guid, resource->guidStr, id);
             registerMemoryGroup(builder, jsonMemoryGroupIds, id, image->memoryGroup);
         } break;
-        case ResourceType::DataGraph: {
-            const auto &dataGraph = reinterpret_cast<const std::unique_ptr<DataGraphDesc> &>(resource);
-            const auto id = builder.addDataGraph(resourceInfoFactory.createInfo(*dataGraph));
+        case ResourceType::Vgf: {
+            const auto &vgf = reinterpret_cast<const std::unique_ptr<VgfDesc> &>(resource);
+            const auto id = builder.addVgf(resourceInfoFactory.createInfo(*vgf));
             registerResourceId(resourceIds, resource->guid, resource->guidStr, id);
         } break;
         case ResourceType::Tensor: {
@@ -798,14 +795,14 @@ void resolveCommands(ScenarioBuilderImpl &builder, const ScenarioSpec &scenarioS
         case CommandType::DispatchCompute:
             builder.addDispatchCompute(factory.createData(reinterpret_cast<DispatchComputeDesc &>(*command)));
             break;
-        case CommandType::DispatchBarrier:
-            builder.addDispatchBarrier(factory.createData(reinterpret_cast<DispatchBarrierDesc &>(*command)));
+        case CommandType::PipelineBarrier:
+            builder.addPipelineBarrier(factory.createData(reinterpret_cast<PipelineBarrierDesc &>(*command)));
+            break;
+        case CommandType::DispatchVgf:
+            builder.addDispatchVgf(factory.createData(reinterpret_cast<DispatchVgfDesc &>(*command)));
             break;
         case CommandType::DispatchDataGraph:
             builder.addDispatchDataGraph(factory.createData(reinterpret_cast<DispatchDataGraphDesc &>(*command)));
-            break;
-        case CommandType::DispatchSpirvGraph:
-            builder.addDispatchSpirvGraph(factory.createData(reinterpret_cast<DispatchSpirvGraphDesc &>(*command)));
             break;
         case CommandType::DispatchFragment:
             builder.addDispatchFragment(factory.createData(reinterpret_cast<DispatchFragmentDesc &>(*command)));
@@ -813,8 +810,8 @@ void resolveCommands(ScenarioBuilderImpl &builder, const ScenarioSpec &scenarioS
         case CommandType::DispatchOpticalFlow:
             builder.addDispatchOpticalFlow(factory.createData(reinterpret_cast<DispatchOpticalFlowDesc &>(*command)));
             break;
-        case CommandType::MarkBoundary:
-            builder.addMarkBoundary(factory.createData(reinterpret_cast<MarkBoundaryDesc &>(*command)));
+        case CommandType::FrameBoundary:
+            builder.addFrameBoundary(factory.createData(reinterpret_cast<FrameBoundaryDesc &>(*command)));
             break;
         default:
             throw std::runtime_error("Unknown CommandType in commands");

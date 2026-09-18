@@ -19,12 +19,12 @@ namespace mlsdk::scenariorunner {
 enum class CommandType {
     Unknown,
     DispatchCompute,
-    DispatchDataGraph,
+    DispatchVgf,
     DispatchOpticalFlow,
-    DispatchSpirvGraph,
+    DispatchDataGraph,
     DispatchFragment,
-    DispatchBarrier,
-    MarkBoundary
+    PipelineBarrier,
+    FrameBoundary
 };
 
 enum class DescriptorType { Unknown, Auto, StorageImage };
@@ -122,14 +122,14 @@ struct ShaderSubstitution {
 };
 
 /**
- * @brief The DispatchDataGraph command dispatches a data graph shader to execute. DispatchDataGraphDesc describes a
- * DispatchDataGraph.
+ * @brief The DispatchVgf command dispatches a VGF. DispatchVgfDesc describes a
+ * DispatchVgf.
  *
  */
-struct DispatchDataGraphDesc : CommandDesc {
-    DispatchDataGraphDesc();
+struct DispatchVgfDesc : CommandDesc {
+    DispatchVgfDesc();
 
-    Guid dataGraphRef;
+    Guid vgfRef;
     std::string debugName;
     std::vector<BindingDesc> bindings;
     std::vector<PushConstantMap> pushConstants;
@@ -138,11 +138,11 @@ struct DispatchDataGraphDesc : CommandDesc {
 };
 
 /**
- * @brief The DispatchSpirvGraph command dispatches a SPIR-V-only data graph to execute. DispatchSpirvGraphDesc
- * describes a DispatchSpirvGraph.
+ * @brief The DispatchDataGraph command dispatches a SPIR-V-only data graph to execute. DispatchDataGraphDesc
+ * describes a DispatchDataGraph.
  */
-struct DispatchSpirvGraphDesc : CommandDesc {
-    DispatchSpirvGraphDesc();
+struct DispatchDataGraphDesc : CommandDesc {
+    DispatchDataGraphDesc();
 
     Guid dataGraphRef;
     std::string debugName;
@@ -178,12 +178,12 @@ struct DispatchOpticalFlowDesc : CommandDesc {
 };
 
 /**
- * @brief The DispatchBarrier command dispatches a barrier to execute. DispatchBarrierDesc describes a
- * DispatchBarrier Command.
+ * @brief The PipelineBarrier command dispatches a barrier to execute. PipelineBarrierDesc describes a
+ * PipelineBarrier Command.
  *
  */
-struct DispatchBarrierDesc : CommandDesc {
-    DispatchBarrierDesc();
+struct PipelineBarrierDesc : CommandDesc {
+    PipelineBarrierDesc();
 
     std::vector<std::string> memoryBarriersRef;
     std::vector<std::string> imageBarriersRef;
@@ -191,8 +191,8 @@ struct DispatchBarrierDesc : CommandDesc {
     std::vector<std::string> bufferBarriersRef;
 };
 
-struct MarkBoundaryDesc : CommandDesc {
-    MarkBoundaryDesc();
+struct FrameBoundaryDesc : CommandDesc {
+    FrameBoundaryDesc();
 
     std::vector<std::string> resources;
 };

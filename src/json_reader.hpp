@@ -26,10 +26,10 @@ void readJson(ScenarioSpec &scenarioSpec, const std::string &jsonStr);
 void from_json(const json &j, DispatchComputeDesc &dispatchCompute);
 
 // Function to de-serialize DispatchGraphDesc from JSON
-void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph);
+void from_json(const json &j, DispatchVgfDesc &dispatchVgf);
 
-// Function to de-serialize DispatchSpirvGraphDesc from JSON
-void from_json(const json &j, DispatchSpirvGraphDesc &dispatchSpirvGraph);
+// Function to de-serialize DispatchDataGraphDesc from JSON
+void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph);
 
 // Function to de-serialize DispatchOpticalFlowDesc from JSON
 void from_json(const json &j, DispatchOpticalFlowDesc &dispatchOpticalFlow);
@@ -45,8 +45,8 @@ void from_json(const json &j, PushConstantMap &pushConstantMap);
 // Function to de-serialize BufferDesc from JSON
 void from_json(const json &j, BufferDesc &buffer);
 
-// Function to de-serialize DataGraphDesc from JSON
-void from_json(const json &j, DataGraphDesc &graph);
+// Function to de-serialize VgfDesc from JSON
+void from_json(const json &j, VgfDesc &vgf);
 
 // Function to de-serialize ShaderDesc from JSON
 void from_json(const json &j, ShaderDesc &shader);

@@ -25,15 +25,13 @@ namespace mlsdk::scenariorunner {
 class Scenario;
 struct ScenarioOptions;
 
-using TypedResourceId =
-    std::variant<BufferId, ImageId, TensorId, ShaderId, RawDataId, DataGraphId, GraphConstantResourceId, ImageBarrierId,
-                 BufferBarrierId, TensorBarrierId, MemoryBarrierId>;
+using TypedResourceId = std::variant<BufferId, ImageId, TensorId, ShaderId, RawDataId, VgfId, GraphConstantResourceId,
+                                     ImageBarrierId, BufferBarrierId, TensorBarrierId, MemoryBarrierId>;
 
 namespace detail {
 
-using ScenarioCommand =
-    std::variant<DispatchComputeData, DispatchFragmentData, DispatchDataGraphData, DispatchSpirvGraphData,
-                 DispatchOpticalFlowData, DispatchBarrierData, MarkBoundaryData>;
+using ScenarioCommand = std::variant<DispatchComputeData, DispatchFragmentData, DispatchVgfData, DispatchDataGraphData,
+                                     DispatchOpticalFlowData, PipelineBarrierData, FrameBoundaryData>;
 
 struct InitializationBase {
     explicit InitializationBase(std::string debugName) : debugName{std::move(debugName)} {}

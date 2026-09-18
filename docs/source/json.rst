@@ -527,15 +527,15 @@ The ``shader_substitutions`` field uses the same :ref:`shader_substitutions stru
 dispatch_data_graph
 """""""""""""""""""
 
-The ``dispatch_data_graph`` command dispatches a SPIR-V-only graph using a
-SPIR-V shader module referenced via ``graph_ref``. It supports standard
+The ``dispatch_data_graph`` command dispatches a SPIR-V™-only graph using a
+SPIR-V™ shader module referenced via ``graph_ref``. It supports standard
 descriptor ``bindings`` and optional ``graph_constants`` that provide constant
-tensor data to the SPIR-V pipeline.
+tensor data to the SPIR-V™ pipeline.
 
 .. code-block::
 
   dispatch_data_graph: {
-      graph_ref: string, // reference to the SPIR-V shader resource
+      graph_ref: string, // reference to the SPIR-V™ shader resource
       bindings: [class binding], // resource-to-descriptor set/id mappings
       graph_constants: [string](default=[]), // list of graph_constant resource UIDs
       implicit_barrier:boolean(default=true) // inclusion of implicit memory barrier

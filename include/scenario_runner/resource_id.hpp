@@ -39,7 +39,7 @@ struct ImageIdTag;
 struct TensorIdTag;
 struct ShaderIdTag;
 struct RawDataIdTag;
-struct DataGraphIdTag;
+struct VgfIdTag;
 struct GraphConstantResourceIdTag;
 struct MemoryGroupIdTag;
 struct ImageBarrierIdTag;
@@ -52,7 +52,7 @@ using ImageId = ResourceId<ImageIdTag>;                                 ///< Ima
 using TensorId = ResourceId<TensorIdTag>;                               ///< Tensor resource ID.
 using ShaderId = ResourceId<ShaderIdTag>;                               ///< Shader resource ID.
 using RawDataId = ResourceId<RawDataIdTag>;                             ///< Raw-data resource ID.
-using DataGraphId = ResourceId<DataGraphIdTag>;                         ///< Data-graph resource ID.
+using VgfId = ResourceId<VgfIdTag>;                                     ///< VGF resource ID.
 using GraphConstantResourceId = ResourceId<GraphConstantResourceIdTag>; ///< Graph-constant resource ID.
 using MemoryGroupId = ResourceId<MemoryGroupIdTag>;                     ///< Memory aliasing group ID.
 using ImageBarrierId = ResourceId<ImageBarrierIdTag>;                   ///< Image barrier ID.

@@ -20,8 +20,8 @@
 
 namespace mlsdk::scenariorunner {
 
-struct DispatchBarrierData;
-struct MarkBoundaryData;
+struct PipelineBarrierData;
+struct FrameBoundaryData;
 
 /// \brief Image attachment used by a graphics dispatch
 struct GraphicsDispatchAttachment {
@@ -126,9 +126,9 @@ class Compute {
     void registerWriteTimestamp(uint32_t query, vk::PipelineStageFlagBits2 flag);
 
     /// \brief Register a pipeline barrier for execution
-    /// \param dispatchBarrierData image barrier dispatch descriptor
+    /// \param pipelineBarrierData image barrier dispatch descriptor
     /// \param dataManager Data manager object to retrieve resource
-    void registerPipelineBarrier(const DispatchBarrierData &dispatchBarrierData, const DataManager &dataManager);
+    void registerPipelineBarrier(const PipelineBarrierData &pipelineBarrierData, const DataManager &dataManager);
 
     /// \brief Submit the command buffer for execution and wait for completion
     void submitAndWaitOnFence();
@@ -139,9 +139,9 @@ class Compute {
     void setupQueryPool(uint32_t nQueries);
 
     /// \brief Create the VkFrameBoundaryEXT struct with the correct resource
-    /// \param markBoundaryData MarkBoundary object
+    /// \param frameBoundaryData FrameBoundary object
     /// \param dataManager Data manager object to retrieve resource
-    void registerMarkBoundary(const MarkBoundaryData &markBoundaryData, const DataManager &dataManager);
+    void registerFrameBoundary(const FrameBoundaryData &frameBoundaryData, const DataManager &dataManager);
 
     vk::raii::CommandBuffer &getCommandBuffer();
     void prepareCommandBuffer();
@@ -202,8 +202,8 @@ class Compute {
         vk::PipelineStageFlagBits2 flag;
     };
 
-    struct MarkBoundary {
-        vk::FrameBoundaryEXT markBoundary;
+    struct FrameBoundary {
+        vk::FrameBoundaryEXT frameBoundary;
     };
 
     struct PushDebugMarker {
@@ -219,7 +219,7 @@ class Compute {
 
     using Command =
         std::variant<BindDescriptorSet, BindPipeline, ComputeDispatch, DataGraphDispatch, GraphicsDispatch,
-                     MemoryBarrier, PushConstants, WriteTimestamp, MarkBoundary, PushDebugMarker, PopDebugMarker>;
+                     MemoryBarrier, PushConstants, WriteTimestamp, FrameBoundary, PushDebugMarker, PopDebugMarker>;
 
     struct DebugMarker;
 
@@ -248,7 +248,7 @@ class Compute {
     std::vector<std::vector<vk::Image>> _imageArray;
     std::vector<std::vector<vk::Buffer>> _bufferArray;
     std::vector<std::vector<vk::TensorARM>> _tensorArray;
-    std::vector<std::unique_ptr<vk::FrameBoundaryTensorsARM>> _markBoundaryTensorArray;
+    std::vector<std::unique_ptr<vk::FrameBoundaryTensorsARM>> _frameBoundaryTensorArray;
     std::vector<Command> _commands;
     std::vector<vk::raii::CommandBuffer> _cmdBufferArray;
     std::vector<std::string> _debugMarkerNames;
@@ -282,7 +282,7 @@ class Compute {
 
     vk::FrameBoundaryEXT _createFrameBoundary();
 
-    void _addMarkBoundary();
+    void _addFrameBoundary();
 
     vk::PipelineBindPoint _getBindPoint(BindPoint bindPoint);
 

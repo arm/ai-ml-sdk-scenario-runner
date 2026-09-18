@@ -254,11 +254,11 @@ struct SpecializationConstantMap {
     std::string shaderTarget;
 };
 
-/// \brief Information needed to load and configure a data graph
-struct DataGraphInfo {
+/// \brief Information needed to load and configure a VGF
+struct VgfInfo {
     /// Human-readable name used in diagnostics and profiling output.
     std::string debugName;
-    /// Path to the VGF data graph.
+    /// Path to the VGF.
     std::string src;
     /// Number of push-constant bytes required by the graph.
     uint32_t pushConstantsSize{};

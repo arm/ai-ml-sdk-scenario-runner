@@ -249,7 +249,7 @@ std::string ReplaceAll(std::string input, std::string_view placeholder, std::str
 
 } // namespace
 
-TEST(JsonParser, MarkBoundaryInvalidResourcesType) {
+TEST(JsonParser, FrameBoundaryInvalidResourcesType) {
     const std::string jsonScenario =
         R""(
     {
@@ -294,7 +294,7 @@ TEST(JsonParser, DispatchComputeInvalidPushDataRefType) {
     ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json::type_error);
 }
 
-TEST(JsonParser, DispatchDataGraphInvalidGraphRefType) {
+TEST(JsonParser, DispatchVgfInvalidGraphRefType) {
     const auto jsonInput =
         R"(
     {
@@ -303,10 +303,10 @@ TEST(JsonParser, DispatchDataGraphInvalidGraphRefType) {
     }
     )"_json;
 
-    ASSERT_THROW(MakeFromJSON<DispatchDataGraphDesc>(jsonInput), nlohmann::json::type_error);
+    ASSERT_THROW(MakeFromJSON<DispatchVgfDesc>(jsonInput), nlohmann::json::type_error);
 }
 
-TEST(JsonParser, DispatchDataGraphPushConstantsInvalidType) {
+TEST(JsonParser, DispatchVgfPushConstantsInvalidType) {
     const auto jsonInput =
         R"(
     {
@@ -316,10 +316,10 @@ TEST(JsonParser, DispatchDataGraphPushConstantsInvalidType) {
     }
     )"_json;
 
-    ASSERT_THROW(MakeFromJSON<DispatchDataGraphDesc>(jsonInput), nlohmann::json::type_error);
+    ASSERT_THROW(MakeFromJSON<DispatchVgfDesc>(jsonInput), nlohmann::json::type_error);
 }
 
-TEST(JsonParser, DataGraphInvalidSpecializationConstantsMapType) {
+TEST(JsonParser, VgfInvalidSpecializationConstantsMapType) {
     const auto jsonInput =
         R"(
     {
@@ -329,7 +329,7 @@ TEST(JsonParser, DataGraphInvalidSpecializationConstantsMapType) {
     }
     )"_json;
 
-    ASSERT_THROW(MakeFromJSON<DataGraphDesc>(jsonInput), nlohmann::json::type_error);
+    ASSERT_THROW(MakeFromJSON<VgfDesc>(jsonInput), nlohmann::json::type_error);
 }
 
 TEST(JsonParser, DispatchOpticalFlowMeanFlowHintAcceptsLessThanMaxDimension) {
@@ -757,7 +757,7 @@ TEST(JsonParser, Resources) {
 
         ScenarioSpec scenarioSpec{jsonInput};
         const auto &resource = scenarioSpec.resources.at(0);
-        ASSERT_TRUE(resource->resourceType == ResourceType::DataGraph);
+        ASSERT_TRUE(resource->resourceType == ResourceType::Vgf);
     }
 
     {
@@ -900,8 +900,8 @@ TEST(JsonParser, Commands) {
 
         ScenarioSpec scenarioSpec{jsonInput};
         const auto &command = scenarioSpec.commands.at(0);
-        ASSERT_TRUE(command->commandType == CommandType::DispatchDataGraph);
-        const auto &commandPtr = reinterpret_cast<const std::unique_ptr<DispatchDataGraphDesc> &>(command);
+        ASSERT_TRUE(command->commandType == CommandType::DispatchVgf);
+        const auto &commandPtr = reinterpret_cast<const std::unique_ptr<DispatchVgfDesc> &>(command);
 
         const auto &binding = commandPtr->bindings.at(0);
         ASSERT_TRUE(binding.id == 0);
@@ -999,8 +999,8 @@ TEST(JsonParser, Commands) {
 
         ScenarioSpec scenarioSpec{jsonInput};
         const auto &command = scenarioSpec.commands.at(0);
-        ASSERT_TRUE(command->commandType == CommandType::DispatchBarrier);
-        const auto &commandPtr = reinterpret_cast<const std::unique_ptr<DispatchBarrierDesc> &>(command);
+        ASSERT_TRUE(command->commandType == CommandType::PipelineBarrier);
+        const auto &commandPtr = reinterpret_cast<const std::unique_ptr<PipelineBarrierDesc> &>(command);
 
         ASSERT_TRUE(commandPtr->imageBarriersRef.size() == 1);
         ASSERT_TRUE(commandPtr->memoryBarriersRef.size() == 2);
@@ -1021,8 +1021,8 @@ TEST(JsonParser, Commands) {
 
         ScenarioSpec scenarioSpec{jsonInput};
         const auto &command = scenarioSpec.commands.at(0);
-        ASSERT_TRUE(command->commandType == CommandType::MarkBoundary);
-        const auto &commandPtr = reinterpret_cast<const std::unique_ptr<MarkBoundaryDesc> &>(command);
+        ASSERT_TRUE(command->commandType == CommandType::FrameBoundary);
+        const auto &commandPtr = reinterpret_cast<const std::unique_ptr<FrameBoundaryDesc> &>(command);
 
         ASSERT_TRUE(commandPtr->resources.size() == 1);
     }
@@ -1040,8 +1040,8 @@ TEST(JsonParser, Commands) {
 
         ScenarioSpec scenarioSpec{jsonInput};
         const auto &command = scenarioSpec.commands.at(0);
-        ASSERT_TRUE(command->commandType == CommandType::MarkBoundary);
-        const auto &commandPtr = reinterpret_cast<const std::unique_ptr<MarkBoundaryDesc> &>(command);
+        ASSERT_TRUE(command->commandType == CommandType::FrameBoundary);
+        const auto &commandPtr = reinterpret_cast<const std::unique_ptr<FrameBoundaryDesc> &>(command);
 
         ASSERT_TRUE(commandPtr->resources.size() == 1);
     }
@@ -1063,10 +1063,10 @@ TEST(JsonParser, CommandKeywordAliases) {
     ScenarioSpec legacySpec{legacyJson};
 
     ASSERT_EQ(legacySpec.commands.size(), 4);
-    EXPECT_EQ(legacySpec.commands[0]->commandType, CommandType::DispatchDataGraph);
-    EXPECT_EQ(legacySpec.commands[1]->commandType, CommandType::DispatchSpirvGraph);
-    EXPECT_EQ(legacySpec.commands[2]->commandType, CommandType::DispatchBarrier);
-    EXPECT_EQ(legacySpec.commands[3]->commandType, CommandType::MarkBoundary);
+    EXPECT_EQ(legacySpec.commands[0]->commandType, CommandType::DispatchVgf);
+    EXPECT_EQ(legacySpec.commands[1]->commandType, CommandType::DispatchDataGraph);
+    EXPECT_EQ(legacySpec.commands[2]->commandType, CommandType::PipelineBarrier);
+    EXPECT_EQ(legacySpec.commands[3]->commandType, CommandType::FrameBoundary);
 
     const auto *const canonicalJson = R"(
     {
@@ -1084,10 +1084,10 @@ TEST(JsonParser, CommandKeywordAliases) {
     ScenarioSpec canonicalSpec{canonicalJson};
 
     ASSERT_EQ(canonicalSpec.commands.size(), 4);
-    EXPECT_EQ(canonicalSpec.commands[0]->commandType, CommandType::DispatchDataGraph);
-    EXPECT_EQ(canonicalSpec.commands[1]->commandType, CommandType::DispatchSpirvGraph);
-    EXPECT_EQ(canonicalSpec.commands[2]->commandType, CommandType::DispatchBarrier);
-    EXPECT_EQ(canonicalSpec.commands[3]->commandType, CommandType::MarkBoundary);
+    EXPECT_EQ(canonicalSpec.commands[0]->commandType, CommandType::DispatchVgf);
+    EXPECT_EQ(canonicalSpec.commands[1]->commandType, CommandType::DispatchDataGraph);
+    EXPECT_EQ(canonicalSpec.commands[2]->commandType, CommandType::PipelineBarrier);
+    EXPECT_EQ(canonicalSpec.commands[3]->commandType, CommandType::FrameBoundary);
 
     EXPECT_THROW(ScenarioSpec(R"(
         {
@@ -1100,7 +1100,7 @@ TEST(JsonParser, CommandKeywordAliases) {
                  std::runtime_error);
 }
 
-TEST(JsonParser, DispatchDataGraph) {
+TEST(JsonParser, DispatchVgf) {
     const auto jsonInput =
         R"(
     {
@@ -1115,9 +1115,9 @@ TEST(JsonParser, DispatchDataGraph) {
     }
     )"_json;
 
-    auto desc = MakeFromJSON<DispatchDataGraphDesc>(jsonInput);
+    auto desc = MakeFromJSON<DispatchVgfDesc>(jsonInput);
 
-    ASSERT_TRUE(desc.dataGraphRef.isValid());
+    ASSERT_TRUE(desc.vgfRef.isValid());
 
     ASSERT_TRUE(desc.bindings.size() == 1);
     ASSERT_TRUE(desc.bindings[0].id == 0);
@@ -1171,7 +1171,7 @@ TEST(JsonParser, DipatchCompute) {
     ASSERT_TRUE(desc.pushDataRef.value() == Guid("RawData"));
 }
 
-TEST(JsonParser, DispatchSpirvGraph) {
+TEST(JsonParser, DispatchDataGraph) {
     const auto jsonInput =
         R"(
     {
@@ -1191,7 +1191,7 @@ TEST(JsonParser, DispatchSpirvGraph) {
     }
     )"_json;
 
-    auto desc = MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput);
+    auto desc = MakeFromJSON<DispatchDataGraphDesc>(jsonInput);
 
     ASSERT_TRUE(desc.dataGraphRef.isValid());
 
@@ -1205,7 +1205,7 @@ TEST(JsonParser, DispatchSpirvGraph) {
     ASSERT_TRUE(desc.bindings[1].resourceRef.isValid());
 }
 
-TEST(JsonParser, DispatchSpirvGraphInvalidGraphRefType) {
+TEST(JsonParser, DispatchDataGraphInvalidGraphRefType) {
     const auto jsonInput =
         R"(
     {
@@ -1214,10 +1214,10 @@ TEST(JsonParser, DispatchSpirvGraphInvalidGraphRefType) {
     }
     )"_json;
 
-    ASSERT_THROW(MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput), nlohmann::json::type_error);
+    ASSERT_THROW(MakeFromJSON<DispatchDataGraphDesc>(jsonInput), nlohmann::json::type_error);
 }
 
-TEST(JsonParser, DispatchSpirvGraphMissingBindings) {
+TEST(JsonParser, DispatchDataGraphMissingBindings) {
     const auto jsonInput =
         R"(
     {
@@ -1225,10 +1225,10 @@ TEST(JsonParser, DispatchSpirvGraphMissingBindings) {
     }
     )"_json;
 
-    ASSERT_THROW(MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput), nlohmann::json::out_of_range);
+    ASSERT_THROW(MakeFromJSON<DispatchDataGraphDesc>(jsonInput), nlohmann::json::out_of_range);
 }
 
-TEST(JsonParser, DispatchSpirvGraphGraphConstantsInvalidType) {
+TEST(JsonParser, DispatchDataGraphGraphConstantsInvalidType) {
     const auto jsonInput =
         R"(
     {
@@ -1238,10 +1238,10 @@ TEST(JsonParser, DispatchSpirvGraphGraphConstantsInvalidType) {
     }
     )"_json;
 
-    ASSERT_THROW(MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput), nlohmann::json::type_error);
+    ASSERT_THROW(MakeFromJSON<DispatchDataGraphDesc>(jsonInput), nlohmann::json::type_error);
 }
 
-TEST(JsonParser, DispatchSpirvGraphGraphConstantsItemsInvalidType) {
+TEST(JsonParser, DispatchDataGraphGraphConstantsItemsInvalidType) {
     const auto jsonInput =
         R"(
     {
@@ -1251,7 +1251,7 @@ TEST(JsonParser, DispatchSpirvGraphGraphConstantsItemsInvalidType) {
     }
     )"_json;
 
-    ASSERT_THROW(MakeFromJSON<DispatchSpirvGraphDesc>(jsonInput), nlohmann::json::type_error);
+    ASSERT_THROW(MakeFromJSON<DispatchDataGraphDesc>(jsonInput), nlohmann::json::type_error);
 }
 
 TEST(JsonParser, BufferResource) {
@@ -1508,7 +1508,7 @@ TEST(JsonParser, ImageResourceDimsInvalidType) {
     ASSERT_THROW(MakeFromJSON<ImageDesc>(jsonInput), nlohmann::json::type_error);
 }
 
-TEST(JsonParser, MarkBoundaryMissingResources) {
+TEST(JsonParser, FrameBoundaryMissingResources) {
     const std::string jsonScenario =
         R""(
     {
@@ -1576,7 +1576,7 @@ TEST(JsonParser, DispatchComputeMissingBindings) {
     ASSERT_THROW(MakeFromJSON<DispatchComputeDesc>(jsonInput), nlohmann::json::out_of_range);
 }
 
-TEST(JsonParser, DispatchDataGraphMissingBindings) {
+TEST(JsonParser, DispatchVgfMissingBindings) {
 
     const auto jsonInput =
         R"(
@@ -1585,7 +1585,7 @@ TEST(JsonParser, DispatchDataGraphMissingBindings) {
     }
     )"_json;
 
-    ASSERT_THROW(MakeFromJSON<DispatchDataGraphDesc>(jsonInput), nlohmann::json::out_of_range);
+    ASSERT_THROW(MakeFromJSON<DispatchVgfDesc>(jsonInput), nlohmann::json::out_of_range);
 }
 
 TEST(JsonParser, ImageResource) {

@@ -41,13 +41,9 @@ RawDataId ResourceManager::addRawData(const RawDataInfo &info) { return addResou
 
 RawDataId ResourceManager::addRawData(RawDataInfo &&info) { return addResource<RawDataId>(_rawData, std::move(info)); }
 
-DataGraphId ResourceManager::addDataGraph(const DataGraphInfo &info) {
-    return addResource<DataGraphId>(_dataGraphs, info);
-}
+VgfId ResourceManager::addVgf(const VgfInfo &info) { return addResource<VgfId>(_vgfs, info); }
 
-DataGraphId ResourceManager::addDataGraph(DataGraphInfo &&info) {
-    return addResource<DataGraphId>(_dataGraphs, std::move(info));
-}
+VgfId ResourceManager::addVgf(VgfInfo &&info) { return addResource<VgfId>(_vgfs, std::move(info)); }
 
 GraphConstantResourceId ResourceManager::addGraphConstant(const GraphConstantInfo &info) {
     return addResource<GraphConstantResourceId>(_graphConstants, info);
@@ -92,7 +88,7 @@ const ShaderInfo &ResourceManager::get(ShaderId id) const { return getResource(_
 
 const RawDataInfo &ResourceManager::get(RawDataId id) const { return getResource(_rawData, id); }
 
-const DataGraphInfo &ResourceManager::get(DataGraphId id) const { return getResource(_dataGraphs, id); }
+const VgfInfo &ResourceManager::get(VgfId id) const { return getResource(_vgfs, id); }
 
 const GraphConstantInfo &ResourceManager::get(GraphConstantResourceId id) const {
     return getResource(_graphConstants, id);

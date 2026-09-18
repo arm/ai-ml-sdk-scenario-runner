@@ -68,12 +68,12 @@ class ScenarioImpl final : public Scenario {
 
     void runIteration(int iteration, int repeatCount, bool dryRun);
     void createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries);
+    void createVgfPipeline(const DispatchVgfData &dispatchVgf, uint32_t &nQueries);
     void createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries);
-    void createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSpirvGraph, uint32_t &nQueries);
     void createFragmentPipeline(const DispatchFragmentData &dispatchFragment, uint32_t &nQueries);
     void createOpticalFlowPipeline(const DispatchOpticalFlowData &dispatchOpticalFlow, uint32_t &nQueries);
     void createPipeline(uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
-                        const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries);
+                        const VgfView &vgfView, const DispatchVgfData &dispatchVgf, uint32_t &nQueries);
     void initializeResourceData();
     void setupResources();
     void createRuntimeResources();
@@ -93,7 +93,7 @@ class ScenarioImpl final : public Scenario {
     Context _ctx;
     ResourceManager _resources;
     std::unordered_map<Guid, TypedResourceId> _resourceIds;
-    std::unordered_map<DataGraphId, VgfResourceCreationResult> _vgfResourceCreationResults;
+    std::unordered_map<VgfId, VgfResourceCreationResult> _vgfResourceCreationResults;
     DataManager _dataManager;
     std::vector<detail::ResourceInitialization> _initializations;
     std::vector<detail::ResourceOutput> _outputs;
@@ -125,13 +125,12 @@ std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<GraphCons
     return constants;
 }
 
-void applyGraphResourceShaderMetadata(ShaderInfo &shaderInfo, const DataGraphInfo &dataGraph,
-                                      const std::string &moduleName) {
-    if (dataGraph.pushConstantsSize > 0) {
-        shaderInfo.pushConstantsSize = dataGraph.pushConstantsSize;
+void applyGraphResourceShaderMetadata(ShaderInfo &shaderInfo, const VgfInfo &vgf, const std::string &moduleName) {
+    if (vgf.pushConstantsSize > 0) {
+        shaderInfo.pushConstantsSize = vgf.pushConstantsSize;
     }
 
-    for (const auto &specializationConstantMap : dataGraph.specializationConstantMaps) {
+    for (const auto &specializationConstantMap : vgf.specializationConstantMaps) {
         if (specializationConstantMap.shaderTarget == moduleName) {
             shaderInfo.specializationConstants = specializationConstantMap.specializationConstants;
             return;
@@ -247,8 +246,8 @@ vk::QueueFlags getRequiredQueueFlags(const std::vector<detail::ScenarioCommand> 
             requiredQueueFlags |= vk::QueueFlagBits::eCompute;
         } else if (std::holds_alternative<DispatchFragmentData>(command)) {
             requiredQueueFlags |= vk::QueueFlagBits::eGraphics;
-        } else if (std::holds_alternative<DispatchDataGraphData>(command) ||
-                   std::holds_alternative<DispatchSpirvGraphData>(command) ||
+        } else if (std::holds_alternative<DispatchVgfData>(command) ||
+                   std::holds_alternative<DispatchDataGraphData>(command) ||
                    std::holds_alternative<DispatchOpticalFlowData>(command)) {
             requiredQueueFlags |= vk::QueueFlagBits::eDataGraphARM;
         }
@@ -458,7 +457,7 @@ void ScenarioImpl::createRuntimeResources() {
     for (const auto &[id, info] : _resources.rawData()) {
         _dataManager.createRawData(id, info);
     }
-    for (const auto &[id, info] : _resources.dataGraphs()) {
+    for (const auto &[id, info] : _resources.vgfs()) {
         PerfCounterGuard guard(_perfCounters, "Parse VGF: " + info.debugName, "Scenario Setup");
         _dataManager.createVgfView(id, info);
     }
@@ -523,22 +522,22 @@ void ScenarioImpl::setupResources() {
     createRuntimeResources();
 
     Creator vgfResourceCreator{_resources, _dataManager};
-    // Per data graph, map VGF alias group IDs to runtime memory group IDs.
-    std::unordered_map<DataGraphId, std::unordered_map<uint32_t, MemoryGroupId>> vgfMemoryGroupIds;
+    // Per VGF, map VGF alias group IDs to runtime memory group IDs.
+    std::unordered_map<VgfId, std::unordered_map<uint32_t, MemoryGroupId>> vgfMemoryGroupIds;
 
     for (const auto &command : _commands) {
-        const auto *dispatchDataGraph = std::get_if<DispatchDataGraphData>(&command);
-        if (dispatchDataGraph == nullptr) {
+        const auto *dispatchVgf = std::get_if<DispatchVgfData>(&command);
+        if (dispatchVgf == nullptr) {
             continue;
         }
-        const auto &vgfView = _dataManager.getVgfView(dispatchDataGraph->dataGraph);
-        auto [creationResultIt, created] = _vgfResourceCreationResults.try_emplace(dispatchDataGraph->dataGraph);
+        const auto &vgfView = _dataManager.getVgfView(dispatchVgf->vgf);
+        auto [creationResultIt, created] = _vgfResourceCreationResults.try_emplace(dispatchVgf->vgf);
         if (created) {
             creationResultIt->second = vgfView.createIntermediateResources(vgfResourceCreator);
         }
         const auto &creationResult = creationResultIt->second;
         for (const auto &[aliasGroupId, resourceIds] : creationResult.memoryGroups) {
-            auto &aliasGroupIds = vgfMemoryGroupIds[dispatchDataGraph->dataGraph];
+            auto &aliasGroupIds = vgfMemoryGroupIds[dispatchVgf->vgf];
             const auto group = getOrCreateMemoryGroup(_groupManager, aliasGroupIds, aliasGroupId);
             for (const auto &resourceId : resourceIds) {
                 _groupManager.addResourceToGroup(group, resourceId);
@@ -546,13 +545,13 @@ void ScenarioImpl::setupResources() {
         }
 
         // External resources are resolved for each dispatch because bindings may differ.
-        for (const auto &binding : dispatchDataGraph->bindings) {
+        for (const auto &binding : dispatchVgf->bindings) {
             const auto aliasGroupId = vgfView.getModelResourceAliasGroup(binding.id);
             if (!aliasGroupId.has_value()) {
                 continue;
             }
             const auto resourceId = binding.resource;
-            auto &aliasGroupIds = vgfMemoryGroupIds[dispatchDataGraph->dataGraph];
+            auto &aliasGroupIds = vgfMemoryGroupIds[dispatchVgf->vgf];
             const auto group = getOrCreateMemoryGroup(_groupManager, aliasGroupIds, *aliasGroupId);
             _groupManager.addResourceToGroup(group, resourceId);
         }
@@ -602,17 +601,17 @@ void ScenarioImpl::setupRuntimeCommands() {
     uint32_t nQueries = 0;
     const auto setupCommand = Overloaded{
         [&](const DispatchComputeData &data) { createComputePipeline(data, nQueries); },
-        [&](const DispatchBarrierData &data) { _compute.registerPipelineBarrier(data, _dataManager); },
+        [&](const PipelineBarrierData &data) { _compute.registerPipelineBarrier(data, _dataManager); },
+        [&](const DispatchVgfData &data) { createVgfPipeline(data, nQueries); },
         [&](const DispatchDataGraphData &data) { createDataGraphPipeline(data, nQueries); },
-        [&](const DispatchSpirvGraphData &data) { createSpirvGraphPipeline(data, nQueries); },
         [&](const DispatchFragmentData &data) { createFragmentPipeline(data, nQueries); },
         [&](const DispatchOpticalFlowData &data) {
             verifyOpticalFlowData(_dataManager, data);
             createOpticalFlowPipeline(data, nQueries);
         },
-        [&](const MarkBoundaryData &data) {
+        [&](const FrameBoundaryData &data) {
             if (_ctx._optionals.mark_boundary) {
-                _compute.registerMarkBoundary(data, _dataManager);
+                _compute.registerFrameBoundary(data, _dataManager);
             } else {
                 mlsdk::logging::warning("Frame boundary extension not present");
             }
@@ -686,8 +685,8 @@ void ScenarioImpl::handleAliasedLayoutTransitions() {
     };
     const auto addCommandBindings = Overloaded{
         [&](const DispatchComputeData &dispatch) { addBindings(dispatch.bindings); },
+        [&](const DispatchVgfData &dispatch) { addBindings(dispatch.bindings); },
         [&](const DispatchDataGraphData &dispatch) { addBindings(dispatch.bindings); },
-        [&](const DispatchSpirvGraphData &dispatch) { addBindings(dispatch.bindings); },
         [&](const DispatchFragmentData &dispatch) { addBindings(dispatch.bindings); },
         [&](const DispatchOpticalFlowData &dispatch) {
             usedResources.insert(dispatch.searchImage.resource);
@@ -700,8 +699,8 @@ void ScenarioImpl::handleAliasedLayoutTransitions() {
                 usedResources.insert(dispatch.outputCost->resource);
             }
         },
-        [](const DispatchBarrierData &) {},
-        [](const MarkBoundaryData &) {},
+        [](const PipelineBarrierData &) {},
+        [](const FrameBoundaryData &) {},
     };
     for (const auto &command : _commands) {
         std::visit(addCommandBindings, command);
@@ -837,20 +836,20 @@ void ScenarioImpl::createFragmentPipeline(const DispatchFragmentData &dispatchFr
     mlsdk::logging::debug("Graphics Pipeline: " + fragmentShaderInfo.debugName + " created");
 }
 
-void ScenarioImpl::createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries) {
-    const VgfView &vgfView = _dataManager.getVgfView(dispatchDataGraph.dataGraph);
+void ScenarioImpl::createVgfPipeline(const DispatchVgfData &dispatchVgf, uint32_t &nQueries) {
+    const VgfView &vgfView = _dataManager.getVgfView(dispatchVgf.vgf);
     for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
-        const auto &intermediates = _vgfResourceCreationResults.at(dispatchDataGraph.dataGraph).intermediateResources;
+        const auto &intermediates = _vgfResourceCreationResults.at(dispatchVgf.vgf).intermediateResources;
         const auto &sequenceBindings =
-            vgfView.resolveBindings(segmentIndex, _dataManager, dispatchDataGraph.bindings, intermediates);
+            vgfView.resolveBindings(segmentIndex, _dataManager, dispatchVgf.bindings, intermediates);
         auto moduleName = vgfView.getModuleName(segmentIndex);
         PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + moduleName, "Pipeline Setup");
-        createPipeline(segmentIndex, sequenceBindings, vgfView, dispatchDataGraph, nQueries);
+        createPipeline(segmentIndex, sequenceBindings, vgfView, dispatchVgf, nQueries);
     }
 }
 
-void ScenarioImpl::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispatchSpirvGraph, uint32_t &nQueries) {
-    const auto &shaderInfo = getShader(dispatchSpirvGraph.graphShader);
+void ScenarioImpl::createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries) {
+    const auto &shaderInfo = getShader(dispatchDataGraph.graphShader);
     if (shaderInfo.shaderType != ShaderType::SPIR_V) {
         throw std::runtime_error("Shader resource used to create Graph Pipeline must be of type SPIR-V");
     }
@@ -860,7 +859,7 @@ void ScenarioImpl::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispat
     }
 
     // Validate the bindings
-    const auto &sequenceBindings = dispatchSpirvGraph.bindings;
+    const auto &sequenceBindings = dispatchDataGraph.bindings;
     for (const auto &binding : sequenceBindings) {
         if (std::holds_alternative<TensorId>(binding.resource)) {
             if (binding.vkDescriptorType != vk::DescriptorType::eTensorARM) {
@@ -878,15 +877,15 @@ void ScenarioImpl::createSpirvGraphPipeline(const DispatchSpirvGraphData &dispat
         throw std::runtime_error("No resource with this guid found");
     }
 
-    const auto graphConstants = collectGraphConstants(dispatchSpirvGraph.graphConstants, _resources);
+    const auto graphConstants = collectGraphConstants(dispatchDataGraph.graphConstants, _resources);
 
     // Create pipeline and record DataGraph dispatch
     PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + shaderInfo.debugName, "Pipeline Setup");
-    const Compute::PipelineCreateArguments args{dispatchSpirvGraph.debugName, sequenceBindings, _pipelineCache};
+    const Compute::PipelineCreateArguments args{dispatchDataGraph.debugName, sequenceBindings, _pipelineCache};
     _compute.createPipeline(args, shaderInfo, _dataManager, graphConstants, _opts.shouldDumpNeuralStatistics(),
                             _opts.neuralStatisticsMode);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
-    _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchSpirvGraph.implicitBarrier);
+    _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchDataGraph.implicitBarrier);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
     mlsdk::logging::debug("Graph Pipeline: " + shaderInfo.debugName + " created");
 }
@@ -933,29 +932,28 @@ void ScenarioImpl::createOpticalFlowPipeline(const DispatchOpticalFlowData &disp
 }
 
 void ScenarioImpl::createPipeline(const uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
-                                  const VgfView &vgfView, const DispatchDataGraphData &dispatchDataGraph,
-                                  uint32_t &nQueries) {
-    const auto profileName = dispatchDataGraph.debugName + "/" + vgfView.getSegmentName(segmentIndex);
+                                  const VgfView &vgfView, const DispatchVgfData &dispatchVgf, uint32_t &nQueries) {
+    const auto profileName = dispatchVgf.debugName + '/' + vgfView.getSegmentName(segmentIndex);
     const Compute::PipelineCreateArguments args{profileName, sequenceBindings, _pipelineCache};
     switch (vgfView.getSegmentType(segmentIndex)) {
     case ModuleType::GRAPH: {
         _compute.createPipeline(args, segmentIndex, vgfView, _dataManager, _opts.shouldDumpNeuralStatistics(),
                                 _opts.neuralStatisticsMode);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
-        _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchDataGraph.implicitBarrier);
+        _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchVgf.implicitBarrier);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
         mlsdk::logging::debug("Graph Pipeline: " + vgfView.getModuleName(segmentIndex) + " created");
     } break;
     case ModuleType::SHADER: {
-        const auto &dataGraph = _resources.get(dispatchDataGraph.dataGraph);
+        const auto &vgfInfo = _resources.get(dispatchVgf.vgf);
         const auto moduleName = vgfView.getModuleName(segmentIndex);
         bool hasSPVModule = vgfView.hasSPVModule(segmentIndex);
         bool hasGLSLModule = vgfView.hasGLSLModule(segmentIndex);
         bool hasHLSLModule = vgfView.hasHLSLModule(segmentIndex);
 
-        if (!dispatchDataGraph.shaderSubstitutions.empty()) {
-            ShaderInfo shaderInfo = getSubstitutionShader(dispatchDataGraph.shaderSubstitutions, moduleName);
-            applyGraphResourceShaderMetadata(shaderInfo, dataGraph, moduleName);
+        if (!dispatchVgf.shaderSubstitutions.empty()) {
+            ShaderInfo shaderInfo = getSubstitutionShader(dispatchVgf.shaderSubstitutions, moduleName);
+            applyGraphResourceShaderMetadata(shaderInfo, vgfInfo, moduleName);
             _compute.createPipeline(args, shaderInfo);
             if (hasSPVModule || hasGLSLModule || hasHLSLModule) {
                 mlsdk::logging::warning("Performing shader substitution despite shader module containing code");
@@ -966,7 +964,7 @@ void ScenarioImpl::createPipeline(const uint32_t segmentIndex, const std::vector
             shaderInfo.entry = vgfView.getModuleEntryPoint(segmentIndex);
             shaderInfo.shaderType = ShaderType::SPIR_V;
             shaderInfo.stage = ShaderStage::Compute;
-            applyGraphResourceShaderMetadata(shaderInfo, dataGraph, moduleName);
+            applyGraphResourceShaderMetadata(shaderInfo, vgfInfo, moduleName);
 
             if (hasSPVModule) {
                 auto spv = vgfView.getSPVModuleCode(segmentIndex);
@@ -997,9 +995,9 @@ void ScenarioImpl::createPipeline(const uint32_t segmentIndex, const std::vector
         auto dispatchShape = vgfView.getDispatchShape(segmentIndex);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
         const auto [pushConstantData, pushConstantSize] =
-            getPushConstantData(getGraphPushData(dispatchDataGraph.pushConstants, moduleName), _dataManager);
+            getPushConstantData(getGraphPushData(dispatchVgf.pushConstants, moduleName), _dataManager);
         _compute.registerPipelineFenced(_dataManager, sequenceBindings, pushConstantData, pushConstantSize,
-                                        dispatchDataGraph.implicitBarrier,
+                                        dispatchVgf.implicitBarrier,
                                         {dispatchShape[0], dispatchShape[1], dispatchShape[2], profileName});
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
         mlsdk::logging::debug("Shader Pipeline: " + vgfView.getModuleName(segmentIndex) + " created");

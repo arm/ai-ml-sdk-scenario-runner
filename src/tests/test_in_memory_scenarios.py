@@ -95,15 +95,15 @@ def _write_increment_vgf(path):
         assert encoder.WriteTo(stream)
 
 
-def _add_vgf_dispatch(builder, data_graph_id, shader_id, input_id, output_id, name):
-    command = sr.DispatchDataGraphData(data_graph_id)
+def _add_vgf_dispatch(builder, vgf_id, shader_id, input_id, output_id, name):
+    command = sr.DispatchVgfData(vgf_id)
     command.debug_name = name
     command.bindings = [
         sr.TypedBinding(0, 0, input_id, sr.DescriptorType.StorageBuffer),
         sr.TypedBinding(0, 1, output_id, sr.DescriptorType.StorageBuffer),
     ]
     command.shader_substitutions = [sr.ShaderSubstitution(shader_id, "increment")]
-    builder.add_dispatch_data_graph(command)
+    builder.add_dispatch_vgf(command)
 
 
 class TestDeviceResidentChaining:
@@ -418,16 +418,16 @@ class TestVgfDeviceResidentChaining:
 
         builder = sr.ScenarioBuilder()
         shader_id = _add_increment_shader(builder, tmp_path, glsl_compiler)
-        data_graph_info = sr.DataGraphInfo()
-        data_graph_info.debug_name = "increment_graph"
-        data_graph_info.src = str(vgf_path)
-        data_graph_id = builder.add_data_graph(data_graph_info)
+        vgf_info = sr.VgfInfo()
+        vgf_info.debug_name = "increment_graph"
+        vgf_info.src = str(vgf_path)
+        vgf_id = builder.add_vgf(vgf_info)
         input_id = builder.add_buffer(16, debug_name="input")
         intermediate_id = builder.add_buffer(16, debug_name="intermediate")
         output_id = builder.add_buffer(16, debug_name="output")
         _add_vgf_dispatch(
             builder,
-            data_graph_id,
+            vgf_id,
             shader_id,
             input_id,
             intermediate_id,
@@ -435,7 +435,7 @@ class TestVgfDeviceResidentChaining:
         )
         _add_vgf_dispatch(
             builder,
-            data_graph_id,
+            vgf_id,
             shader_id,
             intermediate_id,
             output_id,
@@ -463,15 +463,15 @@ class TestVgfDeviceResidentChaining:
 
         builder = sr.ScenarioBuilder()
         shader_id = _add_increment_shader(builder, tmp_path, glsl_compiler)
-        data_graph_info = sr.DataGraphInfo()
-        data_graph_info.debug_name = "increment_graph"
-        data_graph_info.src = str(vgf_path)
-        data_graph_id = builder.add_data_graph(data_graph_info)
+        vgf_info = sr.VgfInfo()
+        vgf_info.debug_name = "increment_graph"
+        vgf_info.src = str(vgf_path)
+        vgf_id = builder.add_vgf(vgf_info)
         state_id = builder.add_buffer(16, debug_name="state")
         intermediate_id = builder.add_buffer(16, debug_name="intermediate")
         _add_vgf_dispatch(
             builder,
-            data_graph_id,
+            vgf_id,
             shader_id,
             state_id,
             intermediate_id,
@@ -479,7 +479,7 @@ class TestVgfDeviceResidentChaining:
         )
         _add_vgf_dispatch(
             builder,
-            data_graph_id,
+            vgf_id,
             shader_id,
             intermediate_id,
             state_id,
@@ -557,14 +557,14 @@ class TestInMemoryProfiling:
 
         builder = sr.ScenarioBuilder()
         shader_id = _add_increment_shader(builder, tmp_path, glsl_compiler)
-        data_graph_info = sr.DataGraphInfo()
-        data_graph_info.debug_name = "increment_graph"
-        data_graph_info.src = str(vgf_path)
-        data_graph_id = builder.add_data_graph(data_graph_info)
+        vgf_info = sr.VgfInfo()
+        vgf_info.debug_name = "increment_graph"
+        vgf_info.src = str(vgf_path)
+        vgf_id = builder.add_vgf(vgf_info)
         input_id = builder.add_buffer(16, debug_name="input")
         output_id = builder.add_buffer(16, debug_name="output")
         _add_vgf_dispatch(
-            builder, data_graph_id, shader_id, input_id, output_id, "vgf_increment"
+            builder, vgf_id, shader_id, input_id, output_id, "vgf_increment"
         )
         scenario = builder.build(options=options)
 

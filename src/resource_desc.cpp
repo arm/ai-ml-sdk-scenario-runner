@@ -34,18 +34,18 @@ BufferDesc::BufferDesc(Guid guid, const std::string &guidStr, uint32_t size, Sha
 BufferDesc::BufferDesc() : ResourceDesc(ResourceType::Buffer, Guid(), "<unnamed_buffer>") {}
 
 /**
- * @brief Construct a new DataGraphDesc object
+ * @brief Construct a new VgfDesc object
  *
  * @param guid
  * @param guidStr
  * @param src
  */
-DataGraphDesc::DataGraphDesc(Guid guid, const std::string &guidStr, std::string src)
-    : ResourceDesc(ResourceType::DataGraph, guid, guidStr) {
+VgfDesc::VgfDesc(Guid guid, const std::string &guidStr, std::string src)
+    : ResourceDesc(ResourceType::Vgf, guid, guidStr) {
     setSrc(std::move(src));
 }
 
-DataGraphDesc::DataGraphDesc() : ResourceDesc(ResourceType::DataGraph, Guid(), "<unnamed_data_graph>") {}
+VgfDesc::VgfDesc() : ResourceDesc(ResourceType::Vgf, Guid(), "<unnamed_vgf>") {}
 
 /**
  * @brief Construct a new ShaderDesc object

@@ -51,11 +51,11 @@ class ScenarioBuilder {
     /// @return The ID used to refer to the data in commands.
     /// @throws std::runtime_error If the builder has already been consumed.
     virtual RawDataId addRawData(const RawDataInfo &info) = 0;
-    /// @brief Register a data graph resource.
-    /// @param info Data-graph description to copy into the scenario.
-    /// @return The ID used to refer to the data graph in commands.
+    /// @brief Register a VGF resource.
+    /// @param info VGF description to copy into the scenario.
+    /// @return The ID used to refer to the VGF in commands.
     /// @throws std::runtime_error If the builder has already been consumed.
-    virtual DataGraphId addDataGraph(const DataGraphInfo &info) = 0;
+    virtual VgfId addVgf(const VgfInfo &info) = 0;
     /// @brief Register a graph constant resource.
     /// @param info Graph-constant description to copy into the scenario.
     /// @return The ID used to refer to the constant in graph commands.
@@ -104,11 +104,11 @@ class ScenarioBuilder {
     /// @brief Append a data graph dispatch to the execution sequence.
     /// @param command Command whose referenced resources have already been registered.
     /// @throws std::runtime_error If a resource ID is invalid or the builder was consumed.
-    virtual void addDispatchDataGraph(DispatchDataGraphData command) = 0;
+    virtual void addDispatchVgf(DispatchVgfData command) = 0;
     /// @brief Append a SPIR-V™ graph dispatch to the execution sequence.
     /// @param command Command whose referenced resources have already been registered.
     /// @throws std::runtime_error If a resource ID is invalid or the builder was consumed.
-    virtual void addDispatchSpirvGraph(DispatchSpirvGraphData command) = 0;
+    virtual void addDispatchDataGraph(DispatchDataGraphData command) = 0;
     /// @brief Append an optical flow dispatch to the execution sequence.
     /// @param command Command whose referenced resources have already been registered.
     /// @throws std::runtime_error If a resource ID is invalid or the builder was consumed.
@@ -116,11 +116,11 @@ class ScenarioBuilder {
     /// @brief Append a set of resource barriers to the execution sequence.
     /// @param command Command whose barrier IDs have already been registered.
     /// @throws std::runtime_error If a barrier ID is invalid or the builder was consumed.
-    virtual void addDispatchBarrier(DispatchBarrierData command) = 0;
+    virtual void addPipelineBarrier(PipelineBarrierData command) = 0;
     /// @brief Append a profiling boundary marker to the execution sequence.
     /// @param command Boundary whose resource IDs have already been registered.
     /// @throws std::runtime_error If a resource ID is invalid or the builder was consumed.
-    virtual void addMarkBoundary(MarkBoundaryData command) = 0;
+    virtual void addFrameBoundary(FrameBoundaryData command) = 0;
 
     /// @brief Consume the builder and return a ready-to-run scenario.
     /// @param options Runtime and diagnostic options for the scenario.
