@@ -1026,27 +1026,27 @@
                 },
                 {
                     "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:python_imaging_project:python_imaging:12.1.1:*:*:*:*:*:*:*",
+                    "referenceLocator": "cpe:2.3:a:python_imaging_project:python_imaging:12.3.0:*:*:*:*:*:*:*",
                     "referenceType": "cpe23Type"
                 },
                 {
                     "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:pypi_package:Pillow:12.1.1:*:*:*:*:*:*:*",
+                    "referenceLocator": "cpe:2.3:a:pypi_package:Pillow:12.3.0:*:*:*:*:*:*:*",
                     "referenceType": "cpe23Type"
                 },
                 {
                     "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/pillow@12.1.1",
+                    "referenceLocator": "pkg:pypi/pillow@12.3.0",
                     "referenceType": "purl"
                 },
                 {
                     "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:python:pillow:12.1.1:*:*:*:*:*:*:*",
+                    "referenceLocator": "cpe:2.3:a:python:pillow:12.3.0:*:*:*:*:*:*:*",
                     "referenceType": "cpe23Type"
                 },
                 {
                     "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:pypi_package:pillow:12.1.1:*:*:*:*:*:*:*",
+                    "referenceLocator": "cpe:2.3:a:pypi_package:pillow:12.3.0:*:*:*:*:*:*:*",
                     "referenceType": "cpe23Type"
                 }
             ],
@@ -1056,7 +1056,7 @@
             "name": "PillowPython",
             "originator": "Organization: pypi",
             "supplier": "Organization: pypi",
-            "versionInfo": "12.1.1"
+            "versionInfo": "12.3.0"
         },
         {
             "SPDXID": "SPDXRef-package-ab2de8b3-05b6-45e8-b495-044a2bd2b8c3",
