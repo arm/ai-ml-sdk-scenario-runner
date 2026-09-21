@@ -101,7 +101,7 @@ class ScenarioBuilder {
     /// @param command Command whose referenced resources have already been registered.
     /// @throws std::runtime_error If a resource ID is invalid or the builder was consumed.
     virtual void addDispatchFragment(DispatchFragmentData command) = 0;
-    /// @brief Append a data graph dispatch to the execution sequence.
+    /// @brief Append a VGF dispatch to the execution sequence.
     /// @param command Command whose referenced resources have already been registered.
     /// @throws std::runtime_error If a resource ID is invalid or the builder was consumed.
     virtual void addDispatchVgf(DispatchVgfData command) = 0;
