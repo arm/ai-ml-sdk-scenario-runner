@@ -39,6 +39,9 @@
 
 ### Bug Fixes
 
+- Fixed heap corruption when importing `scenario_runner_py` alongside `vgfpy`
+  in Windows® Debug builds with HLSL support by using compatible CRT allocation
+  for statically linked DXC and removing global `new`/`delete` overrides.
 - Fixed queue-family selection to account for every workload in a scenario and
   avoid requiring a data graph queue when there are no workload dispatches.
 - Fixed relative shader include directories being resolved from the process

@@ -38,6 +38,10 @@ target_include_directories(ScenarioRunnerTests PRIVATE
 )
 target_compile_options(ScenarioRunnerTests PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
 
+if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
+  target_sources(ScenarioRunnerTests PRIVATE hlsl_compiler_tests.cpp)
+endif()
+
 if(NOT ANDROID)
   gtest_discover_tests(ScenarioRunnerTests PROPERTIES LABELS ScenarioRunnerTests)
 
