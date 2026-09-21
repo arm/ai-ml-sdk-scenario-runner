@@ -1,48 +1,5 @@
 {
     "$id": "urn:scenario:command:dispatch_graph",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {
-        "bindings": {
-            "$ref":"urn:scenario:common#/definitions/bindings"
-        },
-        "graph_ref": {
-            "type": "string"
-        },
-        "push_constants": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                    "push_data_ref": {
-                        "type": "string"
-                    },
-                    "shader_target": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "push_data_ref",
-                    "shader_target"
-                ]
-            }
-        },
-        "implicit_barrier": {
-            "type": "boolean",
-            "default": true
-        },
-        "shader_substitutions": {
-            "type": "array",
-            "items": {
-                "shader_ref": "string",
-                "target": "string"
-            }
-        }
-    },
-    "required": [
-        "bindings",
-        "graph_ref"
-    ]
+    "$ref": "urn:scenario:command:dispatch_vgf"
 }

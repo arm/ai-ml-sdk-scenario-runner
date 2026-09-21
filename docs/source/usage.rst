@@ -114,7 +114,7 @@ The following example is a more realistic usage of the memory aliasing feature. 
         }
       },
       {
-        "dispatch_graph": {
+        "dispatch_vgf": {
           "bindings": [
             { "set": 0, "id": 2, "resource_ref": "input_tensor" },
             { "set": 0, "id": 3, "resource_ref": "output_tensor" }

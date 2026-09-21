@@ -1,0 +1,17 @@
+{
+    "commands": [
+        {
+            "dispatch_vgf": {
+                "bindings": [],
+                "graph_ref": "graph",
+                "shader_substitutions": [
+                    {
+                        "shader_ref": 1,
+                        "target": "shader"
+                    }
+                ]
+            }
+        }
+    ],
+    "resources": []
+}

@@ -125,6 +125,9 @@ graph_constant_path = resources_path / "graph_constant"
         (RequiredProperty("commands"), "no_commands.json"),
         (UnexpectedProperty("not_a_real_command"), commands_path/"invalid_command.json"),
         (InvalidMutuallyExclusive(), commands_path/"mutually_exclusive_commands.json"),
+        (Ok(), commands_path/"canonical_keywords.json"),
+        (InvalidMutuallyExclusive(), commands_path/"duplicate_command_alias.json"),
+        (InvalidType("string"), commands_path/"dispatch_vgf_invalid_shader_substitutions.json"),
 
         # dispatch_compute
         (Ok(), dispatch_compute_path/"reference.json"),

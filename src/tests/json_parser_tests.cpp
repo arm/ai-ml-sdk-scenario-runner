@@ -1046,6 +1046,59 @@ TEST(JsonParser, Commands) {
         ASSERT_TRUE(commandPtr->resources.size() == 1);
     }
 }
+TEST(JsonParser, CommandKeywordAliases) {
+    const auto *const legacyJson = R"(
+    {
+        "commands": [
+            { "dispatch_graph": { "bindings": [], "graph_ref": "graph" } },
+            { "dispatch_spirv_graph": { "bindings": [], "graph_ref": "shader" } },
+            { "dispatch_barrier": {
+                "image_barrier_refs": [], "tensor_barrier_refs": [],
+                "buffer_barrier_refs": [], "memory_barrier_refs": []
+            } },
+            { "mark_boundary": { "resources": [] } }
+        ],
+        "resources": []
+    })";
+    ScenarioSpec legacySpec{legacyJson};
+
+    ASSERT_EQ(legacySpec.commands.size(), 4);
+    EXPECT_EQ(legacySpec.commands[0]->commandType, CommandType::DispatchDataGraph);
+    EXPECT_EQ(legacySpec.commands[1]->commandType, CommandType::DispatchSpirvGraph);
+    EXPECT_EQ(legacySpec.commands[2]->commandType, CommandType::DispatchBarrier);
+    EXPECT_EQ(legacySpec.commands[3]->commandType, CommandType::MarkBoundary);
+
+    const auto *const canonicalJson = R"(
+    {
+        "commands": [
+            { "dispatch_vgf": { "bindings": [], "graph_ref": "graph" } },
+            { "dispatch_data_graph": { "bindings": [], "graph_ref": "shader" } },
+            { "pipeline_barrier": {
+                "image_barrier_refs": [], "tensor_barrier_refs": [],
+                "buffer_barrier_refs": [], "memory_barrier_refs": []
+            } },
+            { "frame_boundary": { "resources": [] } }
+        ],
+        "resources": []
+    })";
+    ScenarioSpec canonicalSpec{canonicalJson};
+
+    ASSERT_EQ(canonicalSpec.commands.size(), 4);
+    EXPECT_EQ(canonicalSpec.commands[0]->commandType, CommandType::DispatchDataGraph);
+    EXPECT_EQ(canonicalSpec.commands[1]->commandType, CommandType::DispatchSpirvGraph);
+    EXPECT_EQ(canonicalSpec.commands[2]->commandType, CommandType::DispatchBarrier);
+    EXPECT_EQ(canonicalSpec.commands[3]->commandType, CommandType::MarkBoundary);
+
+    EXPECT_THROW(ScenarioSpec(R"(
+        {
+            "commands": [{
+                "pipeline_barrier": {},
+                "dispatch_barrier": {}
+            }],
+            "resources": []
+        })"),
+                 std::runtime_error);
+}
 
 TEST(JsonParser, DispatchDataGraph) {
     const auto jsonInput =
