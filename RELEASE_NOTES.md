@@ -15,6 +15,8 @@
 - Added canonical JSON command keywords aligned with Vulkan® terminology:
   `dispatch_vgf`, `dispatch_data_graph`, `pipeline_barrier`, and
   `frame_boundary`. Their previous names remain supported but deprecated.
+- Renamed C++ and Python command data types, VGF resource types, and builder
+  methods to match canonical JSON and Vulkan® terminology.
 
 ### Build, Packaging & Developer Experience
 

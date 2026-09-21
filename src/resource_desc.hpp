@@ -15,7 +15,7 @@ namespace mlsdk::scenariorunner {
 enum class ResourceType {
     Unknown,
     Buffer,
-    DataGraph,
+    Vgf,
     Shader,
     RawData,
     Tensor,
@@ -67,12 +67,12 @@ struct BufferDesc : ResourceDesc {
 };
 
 /**
- * @brief DataGraphDesc describes a DataGraph file.
+ * @brief VgfDesc describes a VGF file.
  *
  */
-struct DataGraphDesc : ResourceDesc {
-    DataGraphDesc();
-    DataGraphDesc(Guid guid, const std::string &guidStr, std::string src);
+struct VgfDesc : ResourceDesc {
+    VgfDesc();
+    VgfDesc(Guid guid, const std::string &guidStr, std::string src);
 
     std::vector<ShaderSubstitution> shaderSubstitutions;
     std::vector<SpecializationConstantMap> specializationConstantMaps;

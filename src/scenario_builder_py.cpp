@@ -31,7 +31,7 @@ template <typename Id> void bindResourceId(py::module_ &m, const char *name) {
 void bindResourceIds(py::module_ &m) {
     bindResourceId<ShaderId>(m, "ShaderId");
     bindResourceId<RawDataId>(m, "RawDataId");
-    bindResourceId<DataGraphId>(m, "DataGraphId");
+    bindResourceId<VgfId>(m, "VgfId");
     bindResourceId<GraphConstantResourceId>(m, "GraphConstantResourceId");
     bindResourceId<MemoryGroupId>(m, "MemoryGroupId");
     bindResourceId<ImageBarrierId>(m, "ImageBarrierId");
@@ -266,12 +266,12 @@ void bindResourceInfo(py::module_ &m) {
         .def_readwrite("specialization_constants", &SpecializationConstantMap::specializationConstants)
         .def_readwrite("shader_target", &SpecializationConstantMap::shaderTarget);
 
-    py::class_<DataGraphInfo>(m, "DataGraphInfo")
+    py::class_<VgfInfo>(m, "VgfInfo")
         .def(py::init<>())
-        .def_readwrite("debug_name", &DataGraphInfo::debugName)
-        .def_readwrite("src", &DataGraphInfo::src)
-        .def_readwrite("push_constants_size", &DataGraphInfo::pushConstantsSize)
-        .def_readwrite("specialization_constant_maps", &DataGraphInfo::specializationConstantMaps);
+        .def_readwrite("debug_name", &VgfInfo::debugName)
+        .def_readwrite("src", &VgfInfo::src)
+        .def_readwrite("push_constants_size", &VgfInfo::pushConstantsSize)
+        .def_readwrite("specialization_constant_maps", &VgfInfo::specializationConstantMaps);
 
     py::class_<ShaderInfo>(m, "ShaderInfo")
         .def(py::init<>())
@@ -389,21 +389,21 @@ void bindCommands(py::module_ &m) {
         .def(py::init<ShaderId, std::string>(), py::arg("shader"), py::arg("target"))
         .def_readwrite("shader", &ResolvedShaderSubstitution::shader)
         .def_readwrite("target", &ResolvedShaderSubstitution::target);
+    py::class_<DispatchVgfData>(m, "DispatchVgfData")
+        .def(py::init<VgfId>(), py::arg("vgf"))
+        .def_readwrite("vgf", &DispatchVgfData::vgf)
+        .def_readwrite("debug_name", &DispatchVgfData::debugName)
+        .def_readwrite("bindings", &DispatchVgfData::bindings)
+        .def_readwrite("push_constants", &DispatchVgfData::pushConstants)
+        .def_readwrite("shader_substitutions", &DispatchVgfData::shaderSubstitutions)
+        .def_readwrite("implicit_barrier", &DispatchVgfData::implicitBarrier);
     py::class_<DispatchDataGraphData>(m, "DispatchDataGraphData")
-        .def(py::init<DataGraphId>(), py::arg("data_graph"))
-        .def_readwrite("data_graph", &DispatchDataGraphData::dataGraph)
+        .def(py::init<ShaderId>(), py::arg("graph_shader"))
+        .def_readwrite("graph_shader", &DispatchDataGraphData::graphShader)
         .def_readwrite("debug_name", &DispatchDataGraphData::debugName)
         .def_readwrite("bindings", &DispatchDataGraphData::bindings)
-        .def_readwrite("push_constants", &DispatchDataGraphData::pushConstants)
-        .def_readwrite("shader_substitutions", &DispatchDataGraphData::shaderSubstitutions)
+        .def_readwrite("graph_constants", &DispatchDataGraphData::graphConstants)
         .def_readwrite("implicit_barrier", &DispatchDataGraphData::implicitBarrier);
-    py::class_<DispatchSpirvGraphData>(m, "DispatchSpirvGraphData")
-        .def(py::init<ShaderId>(), py::arg("graph_shader"))
-        .def_readwrite("graph_shader", &DispatchSpirvGraphData::graphShader)
-        .def_readwrite("debug_name", &DispatchSpirvGraphData::debugName)
-        .def_readwrite("bindings", &DispatchSpirvGraphData::bindings)
-        .def_readwrite("graph_constants", &DispatchSpirvGraphData::graphConstants)
-        .def_readwrite("implicit_barrier", &DispatchSpirvGraphData::implicitBarrier);
 
     py::class_<DispatchOpticalFlowData>(m, "DispatchOpticalFlowData")
         .def(py::init<TypedBinding, TypedBinding, TypedBinding>(), py::arg("search"), py::arg("reference"),
@@ -422,17 +422,17 @@ void bindCommands(py::module_ &m) {
         .def_readwrite("mean_flow_l1_norm_hint", &DispatchOpticalFlowData::meanFlowL1NormHint)
         .def_readwrite("implicit_barrier", &DispatchOpticalFlowData::implicitBarrier);
 
-    py::class_<DispatchBarrierData>(m, "DispatchBarrierData")
+    py::class_<PipelineBarrierData>(m, "PipelineBarrierData")
         .def(py::init<>())
-        .def_readwrite("memory_barriers", &DispatchBarrierData::memoryBarriers)
-        .def_readwrite("image_barriers", &DispatchBarrierData::imageBarriers)
-        .def_readwrite("tensor_barriers", &DispatchBarrierData::tensorBarriers)
-        .def_readwrite("buffer_barriers", &DispatchBarrierData::bufferBarriers);
-    py::class_<MarkBoundaryData>(m, "MarkBoundaryData")
+        .def_readwrite("memory_barriers", &PipelineBarrierData::memoryBarriers)
+        .def_readwrite("image_barriers", &PipelineBarrierData::imageBarriers)
+        .def_readwrite("tensor_barriers", &PipelineBarrierData::tensorBarriers)
+        .def_readwrite("buffer_barriers", &PipelineBarrierData::bufferBarriers);
+    py::class_<FrameBoundaryData>(m, "FrameBoundaryData")
         .def(py::init<>())
-        .def_readwrite("buffers", &MarkBoundaryData::buffers)
-        .def_readwrite("images", &MarkBoundaryData::images)
-        .def_readwrite("tensors", &MarkBoundaryData::tensors);
+        .def_readwrite("buffers", &FrameBoundaryData::buffers)
+        .def_readwrite("images", &FrameBoundaryData::images)
+        .def_readwrite("tensors", &FrameBoundaryData::tensors);
 }
 
 void bindBuilder(py::module_ &m) {
@@ -482,7 +482,7 @@ void bindBuilder(py::module_ &m) {
             py::arg("tiling") = Tiling::Linear, py::arg("memory_offset") = 0)
         .def("add_shader", &ScenarioBuilder::addShader)
         .def("add_raw_data", &ScenarioBuilder::addRawData)
-        .def("add_data_graph", &ScenarioBuilder::addDataGraph)
+        .def("add_vgf", &ScenarioBuilder::addVgf)
         .def("add_graph_constant", &ScenarioBuilder::addGraphConstant)
         .def("add_image_barrier", &ScenarioBuilder::addImageBarrier)
         .def("add_buffer_barrier", &ScenarioBuilder::addBufferBarrier)
@@ -495,11 +495,11 @@ void bindBuilder(py::module_ &m) {
              })
         .def("add_dispatch_compute", &ScenarioBuilder::addDispatchCompute)
         .def("add_dispatch_fragment", &ScenarioBuilder::addDispatchFragment)
+        .def("add_dispatch_vgf", &ScenarioBuilder::addDispatchVgf)
         .def("add_dispatch_data_graph", &ScenarioBuilder::addDispatchDataGraph)
-        .def("add_dispatch_spirv_graph", &ScenarioBuilder::addDispatchSpirvGraph)
         .def("add_dispatch_optical_flow", &ScenarioBuilder::addDispatchOpticalFlow)
-        .def("add_dispatch_barrier", &ScenarioBuilder::addDispatchBarrier)
-        .def("add_mark_boundary", &ScenarioBuilder::addMarkBoundary)
+        .def("add_pipeline_barrier", &ScenarioBuilder::addPipelineBarrier)
+        .def("add_frame_boundary", &ScenarioBuilder::addFrameBoundary)
         .def("build", &ScenarioBuilder::build, py::kw_only(), py::arg("options") = ScenarioOptions{},
              py::call_guard<py::gil_scoped_release>());
 }

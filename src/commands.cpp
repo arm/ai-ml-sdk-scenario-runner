@@ -23,13 +23,13 @@ DispatchComputeDesc::DispatchComputeDesc() : CommandDesc(CommandType::DispatchCo
  * @brief Construct a new Dispatch Graph object
  *
  */
-DispatchDataGraphDesc::DispatchDataGraphDesc() : CommandDesc(CommandType::DispatchDataGraph) {}
+DispatchVgfDesc::DispatchVgfDesc() : CommandDesc(CommandType::DispatchVgf) {}
 
 /**
  * @brief Construct a new Dispatch Spirv Graph object
  *
  */
-DispatchSpirvGraphDesc::DispatchSpirvGraphDesc() : CommandDesc(CommandType::DispatchSpirvGraph) {}
+DispatchDataGraphDesc::DispatchDataGraphDesc() : CommandDesc(CommandType::DispatchDataGraph) {}
 
 /**
  * @brief Construct a new Dispatch Fragment object
@@ -47,12 +47,12 @@ DispatchOpticalFlowDesc::DispatchOpticalFlowDesc() : CommandDesc(CommandType::Di
  * @brief Construct a new Dispatch Barrier object
  *
  */
-DispatchBarrierDesc::DispatchBarrierDesc() : CommandDesc(CommandType::DispatchBarrier) {}
+PipelineBarrierDesc::PipelineBarrierDesc() : CommandDesc(CommandType::PipelineBarrier) {}
 
 /**
  * @brief Construct a new Mark Boundary object
  *
  */
-MarkBoundaryDesc::MarkBoundaryDesc() : CommandDesc(CommandType::MarkBoundary) {}
+FrameBoundaryDesc::FrameBoundaryDesc() : CommandDesc(CommandType::FrameBoundary) {}
 
 } // namespace mlsdk::scenariorunner

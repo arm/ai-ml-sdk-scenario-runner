@@ -94,8 +94,8 @@ void rejectDuplicateCommandAliases(const json &commandJson) {
 //==============
 // Command details
 void from_json(const json &j, DispatchFragmentDesc &dispatchFragment);
-void from_json(const json &j, DispatchBarrierDesc &dispatchBarrier);
-void from_json(const json &j, MarkBoundaryDesc &markBoundaryDesc);
+void from_json(const json &j, PipelineBarrierDesc &pipelineBarrier);
+void from_json(const json &j, FrameBoundaryDesc &frameBoundaryDesc);
 
 //==============
 // Resource details
@@ -116,7 +116,7 @@ void from_json(const json &j, SubresourceRange &subresourceRange);
 NLOHMANN_JSON_SERIALIZE_ENUM(ResourceType, {{ResourceType::Unknown, nullptr},
                                             {ResourceType::Shader, "shader"},
                                             {ResourceType::Buffer, "buffer"},
-                                            {ResourceType::DataGraph, "graph"},
+                                            {ResourceType::Vgf, "graph"},
                                             {ResourceType::RawData, "raw_data"},
                                             {ResourceType::Tensor, "tensor"},
                                             {ResourceType::Image, "image"},
@@ -128,12 +128,12 @@ NLOHMANN_JSON_SERIALIZE_ENUM(ResourceType, {{ResourceType::Unknown, nullptr},
 
 NLOHMANN_JSON_SERIALIZE_ENUM(CommandType, {{CommandType::Unknown, nullptr},
                                            {CommandType::DispatchCompute, "dispatch_compute"},
-                                           {CommandType::DispatchDataGraph, "dispatch_vgf"},
-                                           {CommandType::DispatchSpirvGraph, "dispatch_data_graph"},
+                                           {CommandType::DispatchVgf, "dispatch_vgf"},
+                                           {CommandType::DispatchDataGraph, "dispatch_data_graph"},
                                            {CommandType::DispatchFragment, "dispatch_fragment"},
-                                           {CommandType::DispatchBarrier, "pipeline_barrier"},
+                                           {CommandType::PipelineBarrier, "pipeline_barrier"},
                                            {CommandType::DispatchOpticalFlow, "dispatch_optical_flow"},
-                                           {CommandType::MarkBoundary, "frame_boundary"}})
+                                           {CommandType::FrameBoundary, "frame_boundary"}})
 
 // Map ShaderType values to JSON as strings
 NLOHMANN_JSON_SERIALIZE_ENUM(ShaderType, {{ShaderType::Unknown, nullptr},
@@ -250,9 +250,9 @@ void readJsonImpl(ScenarioSpec &scenarioSpec, const json &j) {
             auto rawData = resourceJson.at("raw_data"sv).get<RawDataDesc>();
             scenarioSpec.addResource(std::make_unique<RawDataDesc>(std::move(rawData)));
         } break;
-        case ResourceType::DataGraph: {
-            auto dataGraph = resourceJson.at("graph"sv).get<DataGraphDesc>();
-            scenarioSpec.addResource(std::make_unique<DataGraphDesc>(std::move(dataGraph)));
+        case ResourceType::Vgf: {
+            auto vgf = resourceJson.at("graph"sv).get<VgfDesc>();
+            scenarioSpec.addResource(std::make_unique<VgfDesc>(std::move(vgf)));
         } break;
         case ResourceType::Tensor: {
             auto tensor = resourceJson.at("tensor"sv).get<TensorDesc>();
@@ -298,25 +298,25 @@ void readJsonImpl(ScenarioSpec &scenarioSpec, const json &j) {
             auto dispatchCompute = commandJson.at(commandKey).get<DispatchComputeDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchComputeDesc>(std::move(dispatchCompute)));
         } break;
+        case CommandType::DispatchVgf: {
+            auto dispatchVgf = commandJson.at(commandKey).get<DispatchVgfDesc>();
+            scenarioSpec.addCommand(std::make_unique<DispatchVgfDesc>(std::move(dispatchVgf)));
+        } break;
         case CommandType::DispatchDataGraph: {
             auto dispatchDataGraph = commandJson.at(commandKey).get<DispatchDataGraphDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchDataGraphDesc>(std::move(dispatchDataGraph)));
-        } break;
-        case CommandType::DispatchSpirvGraph: {
-            auto dispatchSpirvGraph = commandJson.at(commandKey).get<DispatchSpirvGraphDesc>();
-            scenarioSpec.addCommand(std::make_unique<DispatchSpirvGraphDesc>(std::move(dispatchSpirvGraph)));
         } break;
         case CommandType::DispatchFragment: {
             auto dispatchFragment = commandJson.at(commandKey).get<DispatchFragmentDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchFragmentDesc>(std::move(dispatchFragment)));
         } break;
-        case CommandType::DispatchBarrier: {
-            auto dispatchBarrier = commandJson.at(commandKey).get<DispatchBarrierDesc>();
-            scenarioSpec.addCommand(std::make_unique<DispatchBarrierDesc>(std::move(dispatchBarrier)));
+        case CommandType::PipelineBarrier: {
+            auto pipelineBarrier = commandJson.at(commandKey).get<PipelineBarrierDesc>();
+            scenarioSpec.addCommand(std::make_unique<PipelineBarrierDesc>(std::move(pipelineBarrier)));
         } break;
-        case CommandType::MarkBoundary: {
-            auto markBoundary = commandJson.at(commandKey).get<MarkBoundaryDesc>();
-            scenarioSpec.addCommand(std::make_unique<MarkBoundaryDesc>(std::move(markBoundary)));
+        case CommandType::FrameBoundary: {
+            auto frameBoundary = commandJson.at(commandKey).get<FrameBoundaryDesc>();
+            scenarioSpec.addCommand(std::make_unique<FrameBoundaryDesc>(std::move(frameBoundary)));
         } break;
         case CommandType::DispatchOpticalFlow: {
             auto dispatchOpticalFlow = commandJson.at(commandKey).get<DispatchOpticalFlowDesc>();
@@ -374,6 +374,22 @@ void from_json(const json &j, DispatchFragmentDesc &dispatchFragment) {
 }
 
 /**
+ * @brief De-serialize DispatchVgfDesc from JSON.
+ *
+ * @param j
+ * @param dispatchVgf
+ */
+void from_json(const json &j, DispatchVgfDesc &dispatchVgf) {
+    dispatchVgf.debugName = j.at("graph_ref"sv).get<std::string>();
+    dispatchVgf.vgfRef = dispatchVgf.debugName;
+    dispatchVgf.bindings = j.at("bindings"sv).get<std::vector<BindingDesc>>();
+
+    parseOptionalField(j, "push_constants", dispatchVgf.pushConstants);
+    parseOptionalField(j, "shader_substitutions", dispatchVgf.shaderSubstitutions);
+    parseOptionalField(j, "implicit_barrier", dispatchVgf.implicitBarrier);
+}
+
+/**
  * @brief De-serialize DispatchDataGraphDesc from JSON.
  *
  * @param j
@@ -383,27 +399,11 @@ void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph) {
     dispatchDataGraph.debugName = j.at("graph_ref"sv).get<std::string>();
     dispatchDataGraph.dataGraphRef = dispatchDataGraph.debugName;
     dispatchDataGraph.bindings = j.at("bindings"sv).get<std::vector<BindingDesc>>();
-
-    parseOptionalField(j, "push_constants", dispatchDataGraph.pushConstants);
-    parseOptionalField(j, "shader_substitutions", dispatchDataGraph.shaderSubstitutions);
-    parseOptionalField(j, "implicit_barrier", dispatchDataGraph.implicitBarrier);
-}
-
-/**
- * @brief De-serialize DispatchSpirvGraphDesc from JSON.
- *
- * @param j
- * @param dispatchSpirvGraph
- */
-void from_json(const json &j, DispatchSpirvGraphDesc &dispatchSpirvGraph) {
-    dispatchSpirvGraph.debugName = j.at("graph_ref"sv).get<std::string>();
-    dispatchSpirvGraph.dataGraphRef = dispatchSpirvGraph.debugName;
-    dispatchSpirvGraph.bindings = j.at("bindings"sv).get<std::vector<BindingDesc>>();
     if (const auto it = j.find("graph_constants"sv); it != j.end()) {
         const auto graphConstants = it->get<std::vector<std::string>>();
-        dispatchSpirvGraph.graphConstants.assign(graphConstants.begin(), graphConstants.end());
+        dispatchDataGraph.graphConstants.assign(graphConstants.begin(), graphConstants.end());
     }
-    parseOptionalField(j, "implicit_barrier", dispatchSpirvGraph.implicitBarrier);
+    parseOptionalField(j, "implicit_barrier", dispatchDataGraph.implicitBarrier);
 }
 
 /**
@@ -462,30 +462,30 @@ void from_json(const json &j, DispatchOpticalFlowDesc &dispatchOpticalFlow) {
 }
 
 /**
- * @brief De-serialize DispatchBarrierDesc from JSON.
+ * @brief De-serialize PipelineBarrierDesc from JSON.
  *
  * @param j
- * @param dispatchBarrier
+ * @param pipelineBarrier
  */
-void from_json(const json &j, DispatchBarrierDesc &dispatchBarrier) {
-    dispatchBarrier.imageBarriersRef = j.at("image_barrier_refs"sv).get<std::vector<std::string>>();
+void from_json(const json &j, PipelineBarrierDesc &pipelineBarrier) {
+    pipelineBarrier.imageBarriersRef = j.at("image_barrier_refs"sv).get<std::vector<std::string>>();
 
-    parseOptionalField(j, "tensor_barrier_refs", dispatchBarrier.tensorBarriersRef);
-    dispatchBarrier.memoryBarriersRef = j.at("memory_barrier_refs"sv).get<std::vector<std::string>>();
-    dispatchBarrier.bufferBarriersRef = j.at("buffer_barrier_refs"sv).get<std::vector<std::string>>();
+    parseOptionalField(j, "tensor_barrier_refs", pipelineBarrier.tensorBarriersRef);
+    pipelineBarrier.memoryBarriersRef = j.at("memory_barrier_refs"sv).get<std::vector<std::string>>();
+    pipelineBarrier.bufferBarriersRef = j.at("buffer_barrier_refs"sv).get<std::vector<std::string>>();
 }
 
 /**
- * @brief De-serialize MarkBoundary from JSON.
+ * @brief De-serialize FrameBoundary from JSON.
  *
  * @param j
- * @param markBoundaryDesc
+ * @param frameBoundaryDesc
  */
-void from_json(const json &j, MarkBoundaryDesc &markBoundaryDesc) {
+void from_json(const json &j, FrameBoundaryDesc &frameBoundaryDesc) {
     if (j.contains("frame_id"sv)) {
         mlsdk::logging::warning("Manual setting of frameID is deprecated");
     }
-    markBoundaryDesc.resources = j.at("resources"sv).get<std::vector<std::string>>();
+    frameBoundaryDesc.resources = j.at("resources"sv).get<std::vector<std::string>>();
 }
 
 /**
@@ -598,14 +598,14 @@ void from_json(const json &j, ShaderSubstitution &shaderSubstitution) {
  * @brief De-serialize GraphDesc from JSON.
  *
  * @param j
- * @param dataGraph
+ * @param vgf
  */
-void from_json(const json &j, DataGraphDesc &dataGraph) {
-    parseResourceDescGuid(j, dataGraph);
-    dataGraph.src = j.at("src"sv).get<std::string>();
-    parseOptionalField(j, "shader_substitutions", dataGraph.shaderSubstitutions);
-    parseOptionalField(j, "specialization_constants_map", dataGraph.specializationConstantMaps);
-    parseOptionalField(j, "push_constants_size", dataGraph.pushConstantsSize);
+void from_json(const json &j, VgfDesc &vgf) {
+    parseResourceDescGuid(j, vgf);
+    vgf.src = j.at("src"sv).get<std::string>();
+    parseOptionalField(j, "shader_substitutions", vgf.shaderSubstitutions);
+    parseOptionalField(j, "specialization_constants_map", vgf.specializationConstantMaps);
+    parseOptionalField(j, "push_constants_size", vgf.pushConstantsSize);
 }
 
 /**

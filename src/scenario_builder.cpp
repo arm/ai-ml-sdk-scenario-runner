@@ -74,14 +74,13 @@ RawDataId ScenarioBuilderImpl::addRawData(RawDataInfo &&info) {
     return addResource(_data, _built, std::move(info),
                        static_cast<RawDataId (ResourceManager::*)(RawDataInfo &&)>(&ResourceManager::addRawData));
 }
-DataGraphId ScenarioBuilderImpl::addDataGraph(const DataGraphInfo &info) {
-    return addResource(
-        _data, _built, info,
-        static_cast<DataGraphId (ResourceManager::*)(const DataGraphInfo &)>(&ResourceManager::addDataGraph));
+VgfId ScenarioBuilderImpl::addVgf(const VgfInfo &info) {
+    return addResource(_data, _built, info,
+                       static_cast<VgfId (ResourceManager::*)(const VgfInfo &)>(&ResourceManager::addVgf));
 }
-DataGraphId ScenarioBuilderImpl::addDataGraph(DataGraphInfo &&info) {
+VgfId ScenarioBuilderImpl::addVgf(VgfInfo &&info) {
     return addResource(_data, _built, std::move(info),
-                       static_cast<DataGraphId (ResourceManager::*)(DataGraphInfo &&)>(&ResourceManager::addDataGraph));
+                       static_cast<VgfId (ResourceManager::*)(VgfInfo &&)>(&ResourceManager::addVgf));
 }
 GraphConstantResourceId ScenarioBuilderImpl::addGraphConstant(const GraphConstantInfo &info) {
     return addResource(_data, _built, info,
@@ -168,9 +167,9 @@ void ScenarioBuilderImpl::addDispatchFragment(DispatchFragmentData command) {
     _data.commands.emplace_back(std::move(command));
 }
 
-void ScenarioBuilderImpl::addDispatchDataGraph(DispatchDataGraphData command) {
+void ScenarioBuilderImpl::addDispatchVgf(DispatchVgfData command) {
     ensureMutable();
-    requireResource(_data.resources, command.dataGraph, "Data graph");
+    requireResource(_data.resources, command.vgf, "VGF");
     for (const auto &binding : command.bindings) {
         validateBinding(binding);
     }
@@ -183,7 +182,7 @@ void ScenarioBuilderImpl::addDispatchDataGraph(DispatchDataGraphData command) {
     _data.commands.emplace_back(std::move(command));
 }
 
-void ScenarioBuilderImpl::addDispatchSpirvGraph(DispatchSpirvGraphData command) {
+void ScenarioBuilderImpl::addDispatchDataGraph(DispatchDataGraphData command) {
     ensureMutable();
     requireResource(_data.resources, command.graphShader, "Shader");
     for (const auto &binding : command.bindings) {
@@ -209,7 +208,7 @@ void ScenarioBuilderImpl::addDispatchOpticalFlow(DispatchOpticalFlowData command
     _data.commands.emplace_back(std::move(command));
 }
 
-void ScenarioBuilderImpl::addDispatchBarrier(DispatchBarrierData command) {
+void ScenarioBuilderImpl::addPipelineBarrier(PipelineBarrierData command) {
     ensureMutable();
     for (const auto id : command.memoryBarriers) {
         requireResource(_data.resources, id, "Memory barrier");
@@ -226,7 +225,7 @@ void ScenarioBuilderImpl::addDispatchBarrier(DispatchBarrierData command) {
     _data.commands.emplace_back(std::move(command));
 }
 
-void ScenarioBuilderImpl::addMarkBoundary(MarkBoundaryData command) {
+void ScenarioBuilderImpl::addFrameBoundary(FrameBoundaryData command) {
     ensureMutable();
     for (const auto resource : command.buffers) {
         requireResource(_data.resources, resource, "Buffer");

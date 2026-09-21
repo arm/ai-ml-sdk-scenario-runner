@@ -65,10 +65,10 @@ int mlsdk::scenariorunner::samples::runVgfInferenceSample(std::string_view execu
         // Production VGF files normally come from ML SDK Model Converter. This
         // sample generates a minimal graph so it can be built and run independently.
         auto builder = createScenarioBuilder();
-        DataGraphInfo dataGraphInfo{};
-        dataGraphInfo.debugName = "increment graph";
-        dataGraphInfo.src = vgfPath.string();
-        const auto dataGraph = builder->addDataGraph(dataGraphInfo);
+        VgfInfo vgfInfo{};
+        vgfInfo.debugName = "increment graph";
+        vgfInfo.src = vgfPath.string();
+        const auto vgf = builder->addVgf(vgfInfo);
 
         ShaderInfo shaderInfo{};
         shaderInfo.debugName = "increment";
@@ -81,12 +81,12 @@ int mlsdk::scenariorunner::samples::runVgfInferenceSample(std::string_view execu
         const auto input = builder->addBuffer(BufferInfo{"input", 16});
         const auto output = builder->addBuffer(BufferInfo{"output", 16});
 
-        DispatchDataGraphData dispatch{dataGraph};
+        DispatchVgfData dispatch{vgf};
         dispatch.debugName = "increment inference";
         dispatch.bindings = {{0, 0, input, std::nullopt, vk::DescriptorType::eStorageBuffer},
                              {0, 1, output, std::nullopt, vk::DescriptorType::eStorageBuffer}};
         dispatch.shaderSubstitutions = {{shader, "increment"}};
-        builder->addDispatchDataGraph(std::move(dispatch));
+        builder->addDispatchVgf(std::move(dispatch));
 
         ScenarioOptions options{};
         options.profilingPath = profilingPath;
