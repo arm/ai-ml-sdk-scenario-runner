@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import pathlib
-import platform
 import sys
 
 from setuptools import Extension
@@ -11,12 +10,6 @@ from setuptools import setup
 from setuptools.command.build import build as setuptools_build
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_py import build_py
-
-try:
-    from setuptools.command.bdist_wheel import bdist_wheel
-except ImportError:
-    from wheel.bdist_wheel import bdist_wheel
-
 
 ROOT_DIR = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT_DIR / "pip_package"))
@@ -60,38 +53,11 @@ class BuildExt(build_ext):
         )
 
 
-class BDistWheel(bdist_wheel):
-    def finalize_options(self):
-        super().finalize_options()
-        self.root_is_pure = False
-
-    def get_tag(self):
-        system = platform.system()
-        machine = platform.machine()
-        if system == "Windows":
-            assert machine == "AMD64"
-            platformName = "win_amd64"
-        elif system == "Linux":
-            if machine == "aarch64":
-                platformName = "manylinux2014_aarch64"
-            else:
-                assert machine == "x86_64"
-                platformName = "manylinux2014_x86_64"
-        elif system == "Darwin":
-            assert machine == "arm64"
-            platformName = "macosx_11_0_arm64"
-        else:
-            raise RuntimeError(f"Unsupported platform: {system} {machine}")
-        pythonTag, abiTag, _ = super().get_tag()
-        return (pythonTag, abiTag, platformName)
-
-
 setup(
     cmdclass={
         "build": Build,
         "build_ext": BuildExt,
         "build_py": BuildPy,
-        "bdist_wheel": BDistWheel,
     },
     ext_modules=[CMakeExtension("scenario_runner.scenario_runner_py")],
 )
