@@ -7,7 +7,6 @@
 #include <cstring>
 #include <fstream>
 #include <mutex>
-#include <new>
 #include <stdexcept>
 
 #include <dxc/Support/Global.h>
@@ -27,22 +26,6 @@ HRESULT SetupRegistryPassForHLSL();
 HRESULT SetupRegistryPassForPIX();
 } // namespace hlsl
 
-#endif
-
-#if defined(_WIN32) && defined(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT) && !defined(DXC_DISABLE_ALLOCATOR_OVERRIDES)
-void *__CRTDECL operator new(std::size_t size) noexcept(false) {
-    void *ptr = DxcNew(size);
-    if (ptr == nullptr) {
-        throw std::bad_alloc();
-    }
-    return ptr;
-}
-
-void *__CRTDECL operator new(std::size_t size, const std::nothrow_t &) throw() { return DxcNew(size); }
-
-void __CRTDECL operator delete(void *ptr) throw() { DxcDelete(ptr); }
-
-void __CRTDECL operator delete(void *ptr, const std::nothrow_t &) throw() { DxcDelete(ptr); }
 #endif
 
 namespace mlsdk::scenariorunner {

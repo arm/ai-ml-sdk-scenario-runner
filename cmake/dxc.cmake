@@ -105,6 +105,10 @@ set(CLANG_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
 set(CLANG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(HLSL_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
 set(HLSL_DISABLE_SOURCE_GENERATION ON CACHE BOOL "" FORCE)
+# A statically linked DXC shares the consumer's C++ allocator. In particular,
+# Python extensions share pybind11 data with modules that use the CRT allocator.
+# Use DXC's CRT-backed allocator too, rather than replacing global new/delete.
+set(DXC_DISABLE_ALLOCATOR_OVERRIDES ON CACHE BOOL "Disable usage of allocator overrides" FORCE)
 if(MSVC AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     # DXC disables checked iterators by default on MSVC. Keep the
     # embedded DXC/LLVM build aligned with the rest of the Debug link.
