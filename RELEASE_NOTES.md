@@ -2,12 +2,13 @@
 
 ---
 
-## Unreleased
+## Version 0.11.0 – *Public APIs, Python Bindings & Profiling*
 
 ### API Changes
 
-- Added `Scenario` as the public interface for running scenarios and transferring
-  buffer, image, and tensor data in memory using typed resource IDs.
+- Added `Scenario` as the public interface for running scenarios and
+  transferring buffer, image, and tensor data in memory using typed resource
+  IDs.
 - Added `ScenarioBuilder` for registering typed resources and commands and
   constructing a `Scenario`.
 - Added `ScenarioJsonFactory` for constructing scenarios from JSON files
@@ -20,29 +21,35 @@
 
 ### Build, Packaging & Developer Experience
 
-- Added the optional pybind11-based `scenario_runner_py` module for Python clients.
+- Raised the minimum supported Python version for the pip package from 3.8 to
+  3.10.
+- Added the optional pybind11-based `scenario_runner_py` module for Python
+  clients.
 - Updated Scenario Runner to consume explicit VGF graph constant bindings.
-- Updated Scenario Runner `--version` output to report the package version and include git revision and dependency revision information.
+- Updated Scenario Runner `--version` output to report the package version and
+  include git revision and dependency revision information.
 - Added KosmicKrisp support on Darwin.
 - Added startup logging for Vulkan® API and driver versions and common device
   shader capabilities.
-- Enabled building and installing Scenario Runner, including its native binaries,
-  with `pip install .` from the repository root.
-- Improved shader compilation errors with the shader name and compiler diagnostics.
+- Enabled building and installing Scenario Runner, including its native
+  binaries, with `pip install .` from the repository root.
+- Improved shader compilation errors with the shader name and compiler
+  diagnostics.
+- Added opt-in Vulkan® robustness debugging through
+  `--enable-robustness-features`.
 - Removed VGF Runtime component. Replaced by ML Workload Library for Vulkan®
 - Added support for Android™ devices using 16KiB pages.
-- Breaking: The scenario-runner CLI alias has been removed; use scenario_runner instead.
+- Breaking: The scenario-runner CLI alias has been removed; use scenario_runner
+  instead.
 
 ### Profiling
 
-- Using --dry-run with --profiling-dump-path now outputs information about pipeline compilation
+- Using --dry-run with --profiling-dump-path now outputs information about
+  pipeline compilation
 - Add new entry "Total execution time [ms]" in json profiling.
 
 ### Bug Fixes
 
-- Fixed heap corruption when importing `scenario_runner_py` alongside `vgfpy`
-  in Windows® Debug builds with HLSL support by using compatible CRT allocation
-  for statically linked DXC and removing global `new`/`delete` overrides.
 - Fixed queue-family selection to account for every workload in a scenario and
   avoid requiring a data graph queue when there are no workload dispatches.
 - Fixed relative shader include directories being resolved from the process
@@ -54,7 +61,6 @@
   subresource offsets.
 - Fixed VGF image shape handling for custom shaders, preventing swapped image
   extents and invalid depth values.
-- Enable Vulkan® robustness features only when `--enable-robustness-features` is set.
 
 ## Version 0.10.0 – *Optical Flow, VGF Runtime & APK Packaging*
 
