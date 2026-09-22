@@ -2,36 +2,6 @@ From: svc_sdk <svc_sdk@arm.com>
 Date: Mon, 14 Sep 2026 07:04:09 +0100
 Subject: spirv-tools-for-scenario-runner-14-09-2026
 
----
- BUILD.bazel                                   |   26 +
- include/spirv-tools/libspirv.h                |   39 +
- include/spirv-tools/optimizer.hpp             |   34 +
- source/opt/CMakeLists.txt                     |   46 +
- source/opt/graph_shape_arm_motion_engine.cpp  |  281 +++
- source/opt/graph_shape_arm_motion_engine.h    |   32 +
- .../opt/graph_shape_extinst_operand_reader.h  |  136 ++
- source/opt/graph_shape_pass.cpp               |  928 ++++++++++
- source/opt/graph_shape_pass.h                 |   88 +
- source/opt/graph_shape_tosa.cpp               | 1609 +++++++++++++++++
- source/opt/graph_shape_tosa.h                 |   31 +
- source/opt/graph_shape_util.cpp               |  521 ++++++
- source/opt/graph_shape_util.h                 |   75 +
- source/opt/optimizer.cpp                      |   45 +
- source/opt/passes.h                           |    1 +
- tools/opt/opt.cpp                             |    5 +-
- utils/generate_extinst_operand_constants.py   |  203 +++
- 17 files changed, 4099 insertions(+), 1 deletion(-)
- create mode 100644 source/opt/graph_shape_arm_motion_engine.cpp
- create mode 100644 source/opt/graph_shape_arm_motion_engine.h
- create mode 100644 source/opt/graph_shape_extinst_operand_reader.h
- create mode 100644 source/opt/graph_shape_pass.cpp
- create mode 100644 source/opt/graph_shape_pass.h
- create mode 100644 source/opt/graph_shape_tosa.cpp
- create mode 100644 source/opt/graph_shape_tosa.h
- create mode 100644 source/opt/graph_shape_util.cpp
- create mode 100644 source/opt/graph_shape_util.h
- create mode 100644 utils/generate_extinst_operand_constants.py
-
 diff --git a/BUILD.bazel b/BUILD.bazel
 index 98f616752..720e640c6 100644
 --- a/BUILD.bazel
@@ -84,7 +54,7 @@ index 98f616752..720e640c6 100644
      ],
      copts = COMMON_COPTS,
 diff --git a/include/spirv-tools/libspirv.h b/include/spirv-tools/libspirv.h
-index 41f6ca754..dfb3a1e40 100644
+index 41f6ca754..198a6742a 100644
 --- a/include/spirv-tools/libspirv.h
 +++ b/include/spirv-tools/libspirv.h
 @@ -1,6 +1,7 @@
@@ -95,7 +65,7 @@ index 41f6ca754..dfb3a1e40 100644
  //
  // Licensed under the Apache License, Version 2.0 (the "License");
  // you may not use this file except in compliance with the License.
-@@ -1043,6 +1044,44 @@ SPIRV_TOOLS_EXPORT void spvOptimizerRegisterPerformancePasses(
+@@ -1043,6 +1044,55 @@ SPIRV_TOOLS_EXPORT void spvOptimizerRegisterPerformancePasses(
  SPIRV_TOOLS_EXPORT void spvOptimizerRegisterSizePasses(
      spv_optimizer_t* optimizer);
  
@@ -109,6 +79,13 @@ index 41f6ca754..dfb3a1e40 100644
 +  // Pointer to |rank| dimension sizes. Must be non-null if |rank| is nonzero.
 +  const int64_t* shape;
 +} spv_graph_interface_shape;
++
++// A callback that accepts graph outputs having both a statically known shape
++// and descriptor set/binding decorations. |output_shapes| and its shape
++// pointers are valid only for the duration of the callback.
++typedef void (*spv_graph_output_shape_consumer)(
++    void* user_data, size_t output_shape_count,
++    const spv_graph_interface_shape* output_shapes);
 +
 +// Registers a pass that attempts to shape graphs in the code.
 +//
@@ -133,27 +110,32 @@ index 41f6ca754..dfb3a1e40 100644
 +//
 +// Returns false and does not register the pass if the C shape list cannot be
 +// copied safely. Shape-entry validity is checked when the pass runs.
++// If |consumer| is non-null, it is called once after the pass succeeds with
++// graph outputs having both a statically known shape and descriptor set/binding
++// decorations. It is called with no outputs when none are reportable.
 +SPIRV_TOOLS_EXPORT bool spvOptimizerRegisterGraphShapePass(
 +    spv_optimizer_t* optimizer, const size_t num_interface_shapes,
-+    const spv_graph_interface_shape* interface_shapes);
++    const spv_graph_interface_shape* interface_shapes,
++    spv_graph_output_shape_consumer consumer, void* user_data);
 +
  // Registers a pass specified by a flag in an optimizer object.
  SPIRV_TOOLS_EXPORT bool spvOptimizerRegisterPassFromFlag(
      spv_optimizer_t* optimizer, const char* flag);
 diff --git a/include/spirv-tools/optimizer.hpp b/include/spirv-tools/optimizer.hpp
-index fd4527bf5..da0712b47 100644
+index fd4527bf5..3935bb3e3 100644
 --- a/include/spirv-tools/optimizer.hpp
 +++ b/include/spirv-tools/optimizer.hpp
-@@ -15,6 +15,8 @@
+@@ -15,6 +15,9 @@
  #ifndef INCLUDE_SPIRV_TOOLS_OPTIMIZER_HPP_
  #define INCLUDE_SPIRV_TOOLS_OPTIMIZER_HPP_
  
 +#include <cstdint>
++#include <functional>
 +#include <map>
  #include <memory>
  #include <ostream>
  #include <string>
-@@ -1037,6 +1039,38 @@ Optimizer::PassToken CreateResolveBindingConflictsPass();
+@@ -1037,6 +1040,46 @@ Optimizer::PassToken CreateResolveBindingConflictsPass();
  // --strip-debug because this pass will use OpName to canonicalize IDs. i.e. Run
  // --strip-debug after this pass.
  Optimizer::PassToken CreateCanonicalizeIdsPass();
@@ -165,6 +147,10 @@ index fd4527bf5..da0712b47 100644
 +  uint32_t binding;
 +  std::vector<int64_t> shape;
 +};
++
++// The vector is valid only for the duration of the callback.
++using GraphOutputShapeConsumer =
++    std::function<void(const std::vector<GraphInterfaceShape>&)>;
 +
 +// Creates a graph-shape pass from graph interface tensor shapes identified by
 +// descriptor set and binding.
@@ -187,8 +173,12 @@ index fd4527bf5..da0712b47 100644
 +// * Each shape contains at least one dimension.
 +// * Each dimension is positive.
 +// * Each dimension fits in a uint32_t tensor shape constant.
++// If provided, |output_shape_consumer| reports statically known, decorated
++// graph outputs after the pass succeeds. It is called with an empty vector when
++// there are no reportable outputs.
 +Optimizer::PassToken CreateGraphShapePass(
-+    const std::vector<GraphInterfaceShape>& interface_tensor_shapes);
++    const std::vector<GraphInterfaceShape>& interface_tensor_shapes,
++    GraphOutputShapeConsumer output_shape_consumer = {});
  }  // namespace spvtools
  
  #endif  // INCLUDE_SPIRV_TOOLS_OPTIMIZER_HPP_
@@ -739,10 +729,10 @@ index 000000000..1db95b671
 +#endif  // SOURCE_OPT_GRAPH_SHAPE_EXTINST_OPERAND_READER_H_
 diff --git a/source/opt/graph_shape_pass.cpp b/source/opt/graph_shape_pass.cpp
 new file mode 100644
-index 000000000..7bf05792d
+index 000000000..c909b63cf
 --- /dev/null
 +++ b/source/opt/graph_shape_pass.cpp
-@@ -0,0 +1,928 @@
+@@ -0,0 +1,939 @@
 +// Copyright (c) 2026 Arm Ltd.
 +//
 +// Licensed under the Apache License, Version 2.0 (the "License");
@@ -1319,8 +1309,8 @@ index 000000000..7bf05792d
 +}
 +
 +Pass::Status GraphShapePass::ProcessEntryPoint(
-+    Instruction& epinst,
-+    const MapOfInterfaceTensorShapes& interface_shape_map) {
++    Instruction& epinst, const MapOfInterfaceTensorShapes& interface_shape_map,
++    std::vector<GraphInterfaceShape>& output_shapes) {
 +  const auto& shapes = interface_shape_map;
 +  bool changed = false;
 +  // Get graph
@@ -1500,6 +1490,9 @@ index 000000000..7bf05792d
 +          changed = true;
 +        }
 +      }
++      if (i >= graph_type->num_inputs() && dsb.has_value()) {
++        output_shapes.push_back({dsb->first, dsb->second, graph_shape_value});
++      }
 +    }
 +    return changed ? Status::SuccessWithChange : Status::SuccessWithoutChange;
 +  }
@@ -1630,6 +1623,9 @@ index 000000000..7bf05792d
 +    if (status == Status::SuccessWithChange) {
 +      changed = true;
 +    }
++    if (dsb.has_value()) {
++      output_shapes.push_back({dsb->first, dsb->second, target_shape_value});
++    }
 +  }
 +
 +  return changed ? Status::SuccessWithChange : Status::SuccessWithoutChange;
@@ -1654,16 +1650,21 @@ index 000000000..7bf05792d
 +  }
 +
 +  bool changed = false;
++  std::vector<GraphInterfaceShape> output_shapes;
 +
 +  // For all graph entry points
 +  for (auto& ep : context()->module()->graph_entry_points()) {
-+    auto status = ProcessEntryPoint(ep, interface_shape_map);
++    auto status = ProcessEntryPoint(ep, interface_shape_map, output_shapes);
 +    if (status == Status::Failure) {
 +      return status;
 +    }
 +    if (status == Status::SuccessWithChange) {
 +      changed = true;
 +    }
++  }
++
++  if (output_shape_consumer_) {
++    output_shape_consumer_(output_shapes);
 +  }
 +
 +  return changed ? Status::SuccessWithChange : Status::SuccessWithoutChange;
@@ -1673,10 +1674,10 @@ index 000000000..7bf05792d
 +}  // namespace spvtools
 diff --git a/source/opt/graph_shape_pass.h b/source/opt/graph_shape_pass.h
 new file mode 100644
-index 000000000..f2cf333a0
+index 000000000..7f0581946
 --- /dev/null
 +++ b/source/opt/graph_shape_pass.h
-@@ -0,0 +1,88 @@
+@@ -0,0 +1,93 @@
 +// Copyright (c) 2026 Arm Ltd.
 +//
 +// Licensed under the Apache License, Version 2.0 (the "License");
@@ -1710,12 +1711,15 @@ index 000000000..f2cf333a0
 +namespace opt {
 +
 +using ::spvtools::GraphInterfaceShape;
++using ::spvtools::GraphOutputShapeConsumer;
 +
 +class GraphShapePass : public Pass {
 + public:
-+  explicit GraphShapePass(
-+      const std::vector<GraphInterfaceShape>& interface_tensor_shapes)
-+      : interface_shape_requests_(interface_tensor_shapes) {}
++  GraphShapePass(
++      const std::vector<GraphInterfaceShape>& interface_tensor_shapes,
++      GraphOutputShapeConsumer output_shape_consumer = {})
++      : interface_shape_requests_(interface_tensor_shapes),
++        output_shape_consumer_(std::move(output_shape_consumer)) {}
 +
 +  Status Process() override;
 +  const char* name() const override { return "graph-shape"; }
@@ -1750,9 +1754,11 @@ index 000000000..f2cf333a0
 +  Pass::Status ShapeGraphInstruction(Instruction* inst);
 +  Pass::Status ProcessEntryPoint(
 +      Instruction& epinst,
-+      const MapOfInterfaceTensorShapes& interface_shape_map);
++      const MapOfInterfaceTensorShapes& interface_shape_map,
++      std::vector<GraphInterfaceShape>& output_shapes);
 +
 +  std::vector<GraphInterfaceShape> interface_shape_requests_;
++  GraphOutputShapeConsumer output_shape_consumer_;
 +};
 +// Copies raw C API shape entries into the owned C++ request list. This only
 +// validates pointer/count safety; shape contents are validated by the pass.
@@ -4026,7 +4032,7 @@ index 000000000..03e3f37df
 +
 +#endif  // SOURCE_OPT_GRAPH_SHAPE_UTIL_H_
 diff --git a/source/opt/optimizer.cpp b/source/opt/optimizer.cpp
-index 6986501db..1e7abdf3a 100644
+index 6986501db..c86671f80 100644
 --- a/source/opt/optimizer.cpp
 +++ b/source/opt/optimizer.cpp
 @@ -647,6 +647,27 @@ bool Optimizer::RegisterPassFromFlag(const std::string& flag,
@@ -4057,25 +4063,27 @@ index 6986501db..1e7abdf3a 100644
    } else {
      Errorf(consumer(), nullptr, {},
             "Unknown flag '--%s'. Use --help for a list of valid flags",
-@@ -1218,6 +1239,11 @@ Optimizer::PassToken CreateCanonicalizeIdsPass() {
+@@ -1218,6 +1239,12 @@ Optimizer::PassToken CreateCanonicalizeIdsPass() {
        MakeUnique<opt::CanonicalizeIdsPass>());
  }
  
 +Optimizer::PassToken CreateGraphShapePass(
-+    const std::vector<GraphInterfaceShape>& interface_tensor_shapes) {
-+  return MakeUnique<Optimizer::PassToken::Impl>(
-+      MakeUnique<opt::GraphShapePass>(interface_tensor_shapes));
++    const std::vector<GraphInterfaceShape>& interface_tensor_shapes,
++    GraphOutputShapeConsumer output_shape_consumer) {
++  return MakeUnique<Optimizer::PassToken::Impl>(MakeUnique<opt::GraphShapePass>(
++      interface_tensor_shapes, std::move(output_shape_consumer)));
 +}
  }  // namespace spvtools
  
  extern "C" {
-@@ -1257,6 +1283,25 @@ SPIRV_TOOLS_EXPORT void spvOptimizerRegisterSizePasses(
+@@ -1257,6 +1284,45 @@ SPIRV_TOOLS_EXPORT void spvOptimizerRegisterSizePasses(
    reinterpret_cast<spvtools::Optimizer*>(optimizer)->RegisterSizePasses();
  }
  
 +SPIRV_TOOLS_EXPORT bool spvOptimizerRegisterGraphShapePass(
 +    spv_optimizer_t* optimizer, const size_t num_interface_shapes,
-+    const spv_graph_interface_shape* interface_shape_inputs) {
++    const spv_graph_interface_shape* interface_shape_inputs,
++    spv_graph_output_shape_consumer consumer, void* user_data) {
 +  auto* cpp_optimizer = reinterpret_cast<spvtools::Optimizer*>(optimizer);
 +  std::vector<spvtools::GraphInterfaceShape> interface_shapes;
 +  std::string error_msg;
@@ -4088,7 +4096,26 @@ index 6986501db..1e7abdf3a 100644
 +    return false;
 +  }
 +
-+  cpp_optimizer->RegisterPass(spvtools::CreateGraphShapePass(interface_shapes));
++  spvtools::GraphOutputShapeConsumer cpp_consumer;
++  if (consumer != nullptr) {
++    cpp_consumer =
++        [consumer, user_data](
++            const std::vector<spvtools::GraphInterfaceShape>& output_shapes) {
++          std::vector<spv_graph_interface_shape> c_output_shapes;
++          c_output_shapes.reserve(output_shapes.size());
++          for (const auto& output_shape : output_shapes) {
++            c_output_shapes.push_back(
++                {output_shape.descriptor_set, output_shape.binding,
++                 static_cast<uint32_t>(output_shape.shape.size()),
++                 output_shape.shape.data()});
++          }
++          consumer(user_data, c_output_shapes.size(),
++                   c_output_shapes.empty() ? nullptr : c_output_shapes.data());
++        };
++  }
++
++  cpp_optimizer->RegisterPass(spvtools::CreateGraphShapePass(
++      interface_shapes, std::move(cpp_consumer)));
 +  return true;
 +}
 +
@@ -4339,5 +4366,3 @@ index 000000000..cf0c4b551
 +
 +if __name__ == "__main__":
 +    main()
--- 
-2.34.1
