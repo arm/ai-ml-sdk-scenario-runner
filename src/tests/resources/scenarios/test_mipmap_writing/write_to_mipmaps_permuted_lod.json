@@ -31,7 +31,7 @@
         }
       },
       {
-        "dispatch_barrier": {
+        "pipeline_barrier": {
           "image_barrier_refs": ["lod_Barrier"],
           "tensor_barrier_refs": [],
           "memory_barrier_refs": [],

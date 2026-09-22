@@ -59,7 +59,7 @@ def scenario_repacements(implicit_barrier_enabled, default_stages, barrier_json)
 def image_scenario_repacements(implicit_barrier_enabled, default_stages):
     barrier_json = """
 {
-    "dispatch_barrier": {
+    "pipeline_barrier": {
         "image_barrier_refs": ["inDDSImageBarrier"],
         "memory_barrier_refs": [],
         "buffer_barrier_refs": []
@@ -77,7 +77,7 @@ def image_scenario_repacements(implicit_barrier_enabled, default_stages):
 def buffer_scenario_repacements(implicit_barrier_enabled, default_stages):
     barrier_json = """
 {
-    "dispatch_barrier": {
+    "pipeline_barrier": {
         "image_barrier_refs": [],
         "memory_barrier_refs": [],
         "buffer_barrier_refs": ["bufferBarrier"]

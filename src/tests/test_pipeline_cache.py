@@ -78,7 +78,7 @@ def _setup_graph_pipeline_cache_miss(sdk_tools, resources_helper, numpy_helper):
     numpy_helper.save(np.full(const_shape, 1, dtype=np.int8), "graphConstant0.npy")
 
     return (
-        "test_spv_graph/conv2d_spv.json",
+        "test_data_graph/conv2d_spv.json",
         {
             "{SPV}": json.dumps(conv2d_spv_path.as_posix()),
             "{OUT}": json.dumps(

@@ -26,7 +26,7 @@ const std::string jsonData =
 {
     "commands": [
         {
-            "dispatch_graph": {
+            "dispatch_vgf": {
                 "bindings": [
                     {
                         "id": 0,
@@ -255,7 +255,7 @@ TEST(JsonParser, FrameBoundaryInvalidResourcesType) {
     {
         "commands": [
             {
-                "mark_boundary": {
+                "frame_boundary": {
                     "resources": {}
                 }
             }
@@ -564,7 +564,7 @@ TEST(JsonParser, NoResources) {
     {
     "commands": [
         {
-            "dispatch_graph": {
+            "dispatch_vgf": {
                 "bindings": [
                     {
                         "id": 0,
@@ -878,7 +878,7 @@ TEST(JsonParser, Commands) {
         jsonInput = ReplaceAll(jsonInput, commandRegex,
                                R""(
         {
-            "dispatch_graph": {
+            "dispatch_vgf": {
                 "bindings": [
                     {
                         "id": 0,
@@ -988,7 +988,7 @@ TEST(JsonParser, Commands) {
         jsonInput = ReplaceAll(jsonInput, commandRegex,
                                R""(
         {
-            "dispatch_barrier": {
+            "pipeline_barrier": {
                 "image_barrier_refs": ["string"],
                 "memory_barrier_refs": ["string", "string"],
                 "buffer_barrier_refs": ["string"],
@@ -1013,7 +1013,7 @@ TEST(JsonParser, Commands) {
         jsonInput = ReplaceAll(jsonInput, commandRegex,
                                R""(
         {
-            "mark_boundary": {
+            "frame_boundary": {
                 "resources": ["string"]
             }
         }
@@ -1032,7 +1032,7 @@ TEST(JsonParser, Commands) {
         jsonInput = ReplaceAll(jsonInput, commandRegex,
                                R""(
         {
-            "mark_boundary": {
+            "frame_boundary": {
                 "resources": ["string"]
             }
         }
@@ -1514,7 +1514,7 @@ TEST(JsonParser, FrameBoundaryMissingResources) {
     {
         "commands": [
             {
-                "mark_boundary": {
+                "frame_boundary": {
                 }
             }
         ]

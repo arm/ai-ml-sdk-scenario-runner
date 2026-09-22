@@ -28,7 +28,7 @@
             }
         },
         {
-            "dispatch_graph": {
+            "dispatch_vgf": {
                 "graph_ref": "simple_graph",
                 "bindings": [
                     {

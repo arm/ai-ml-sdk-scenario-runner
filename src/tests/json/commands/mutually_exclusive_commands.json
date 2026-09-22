@@ -12,7 +12,7 @@
                 "rangeND": [1, 1, 1],
                 "shader_ref": "add_shader"
             },
-            "dispatch_graph": {
+            "dispatch_vgf": {
                 "bindings": [
                     {
                         "id": 0,

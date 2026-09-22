@@ -1,7 +1,7 @@
 {
     "commands": [
         {
-            "dispatch_graph": {
+            "dispatch_vgf": {
                 "bindings": [
                     {
                         "id": 4,

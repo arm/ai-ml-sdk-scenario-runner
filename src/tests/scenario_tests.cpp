@@ -117,7 +117,7 @@ TEST(ScenarioJsonFactory, ExecutesInitializedImageBarrier) {
     const std::string json = R"({
         "commands": [
             {
-                "dispatch_barrier": {
+                "pipeline_barrier": {
                     "image_barrier_refs": ["imageBarrier"],
                     "memory_barrier_refs": [],
                     "buffer_barrier_refs": [],

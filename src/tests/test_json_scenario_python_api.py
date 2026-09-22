@@ -151,7 +151,7 @@ def test_json_scenario_executes_explicit_buffer_barrier_in_memory(
     sdk_tools.compile_shader("test_barrier/add_one.comp", output="addOne.spv")
     barrier_dispatch = """
 {
-    "dispatch_barrier": {
+    "pipeline_barrier": {
         "image_barrier_refs": [],
         "memory_barrier_refs": [],
         "buffer_barrier_refs": ["bufferBarrier"]

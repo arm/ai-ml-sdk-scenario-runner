@@ -93,12 +93,12 @@ def check_scenario(schema_filename, expected_msg, json_filename):
 # define paths
 commands_path = pathlib.Path("commands")
 dispatch_compute_path = commands_path / "dispatch_compute"
-dispatch_graph_path = commands_path / "dispatch_graph"
-dispatch_spirv_graph_path = commands_path / "dispatch_spirv_graph"
+dispatch_vgf_path = commands_path / "dispatch_vgf"
+dispatch_data_graph_path = commands_path / "dispatch_data_graph"
 dispatch_optical_flow_path = commands_path / "dispatch_optical_flow"
-dispatch_barrier_path = commands_path / "dispatch_barrier"
+pipeline_barrier_path = commands_path / "pipeline_barrier"
 dispatch_fragment_path = commands_path / "dispatch_fragment"
-mark_boundary_path = commands_path / "mark_boundary"
+frame_boundary_path = commands_path / "frame_boundary"
 resources_path = pathlib.Path("resources")
 shader_path = resources_path / "shader"
 graph_path = resources_path / "graph"
@@ -126,6 +126,7 @@ graph_constant_path = resources_path / "graph_constant"
         (UnexpectedProperty("not_a_real_command"), commands_path/"invalid_command.json"),
         (InvalidMutuallyExclusive(), commands_path/"mutually_exclusive_commands.json"),
         (Ok(), commands_path/"canonical_keywords.json"),
+        (Ok(), commands_path/"deprecated_keywords.json"),
         (InvalidMutuallyExclusive(), commands_path/"duplicate_command_alias.json"),
         (InvalidType("string"), commands_path/"dispatch_vgf_invalid_shader_substitutions.json"),
 
@@ -155,21 +156,21 @@ graph_constant_path = resources_path / "graph_constant"
         (TooShort(), dispatch_fragment_path/"invalid_render_extent.json"),
         (RequiredMin(1), dispatch_fragment_path/"invalid_render_extent_value.json"),
 
-        # dispatch_graph
-        (Ok(), dispatch_graph_path/"reference.json"),
-        (UnexpectedProperty("this_is_an_invalid_property"), dispatch_graph_path/"invalid_property.json"),
-        (RequiredProperty("bindings"), dispatch_graph_path/"missing_bindings.json"),
-        (RequiredProperty("graph_ref"), dispatch_graph_path/"missing_graph_ref.json",),
-        # dispatch_graph->bindings
-        (RequiredProperty("resource_ref"),dispatch_graph_path/"binding_missing_resource_ref.json"),
-        (RequiredMin(0), dispatch_graph_path/"binding_negative_id.json"),
-        (RequiredMin(0), dispatch_graph_path/"binding_negative_set.json"),
+        # dispatch_vgf
+        (Ok(), dispatch_vgf_path/"reference.json"),
+        (UnexpectedProperty("this_is_an_invalid_property"), dispatch_vgf_path/"invalid_property.json"),
+        (RequiredProperty("bindings"), dispatch_vgf_path/"missing_bindings.json"),
+        (RequiredProperty("graph_ref"), dispatch_vgf_path/"missing_graph_ref.json",),
+        # dispatch_vgf->bindings
+        (RequiredProperty("resource_ref"),dispatch_vgf_path/"binding_missing_resource_ref.json"),
+        (RequiredMin(0), dispatch_vgf_path/"binding_negative_id.json"),
+        (RequiredMin(0), dispatch_vgf_path/"binding_negative_set.json"),
 
-        # dispatch_spirv_graph
-        (Ok(), dispatch_spirv_graph_path/"reference.json"),
-        (Ok(), dispatch_spirv_graph_path/"graph_constants_ok.json"),
-        (InvalidType("array"), dispatch_spirv_graph_path/"graph_constants_invalid_type.json"),
-        (InvalidType("string"), dispatch_spirv_graph_path/"graph_constants_items_invalid_type.json"),
+        # dispatch_data_graph
+        (Ok(), dispatch_data_graph_path/"reference.json"),
+        (Ok(), dispatch_data_graph_path/"graph_constants_ok.json"),
+        (InvalidType("array"), dispatch_data_graph_path/"graph_constants_invalid_type.json"),
+        (InvalidType("string"), dispatch_data_graph_path/"graph_constants_items_invalid_type.json"),
 
         # dispatch_optical_flow
         (Ok(), dispatch_optical_flow_path/"reference.json"),
@@ -186,19 +187,19 @@ graph_constant_path = resources_path / "graph_constant"
         (RequiredMin(0), dispatch_optical_flow_path/"binding_negative_id.json"),
         (RequiredMin(0), dispatch_optical_flow_path/"binding_negative_set.json"),
 
-        # dispatch_barrier
-        (Ok(), dispatch_barrier_path/"reference.json"),
-        (RequiredProperty("image_barrier_refs"), dispatch_barrier_path/"missing_image_barrier_refs.json"),
-        (RequiredProperty("tensor_barrier_refs"), dispatch_barrier_path/"missing_tensor_barrier_refs.json"),
-        (RequiredProperty("buffer_barrier_refs"), dispatch_barrier_path/"missing_buffer_barrier_refs.json"),
-        (RequiredProperty("memory_barrier_refs"), dispatch_barrier_path/"missing_memory_barrier_refs.json"),
-        (UnexpectedProperty("this_is_an_invalid_property"), dispatch_barrier_path/"invalid_property.json"),
+        # pipeline_barrier
+        (Ok(), pipeline_barrier_path/"reference.json"),
+        (RequiredProperty("image_barrier_refs"), pipeline_barrier_path/"missing_image_barrier_refs.json"),
+        (RequiredProperty("tensor_barrier_refs"), pipeline_barrier_path/"missing_tensor_barrier_refs.json"),
+        (RequiredProperty("buffer_barrier_refs"), pipeline_barrier_path/"missing_buffer_barrier_refs.json"),
+        (RequiredProperty("memory_barrier_refs"), pipeline_barrier_path/"missing_memory_barrier_refs.json"),
+        (UnexpectedProperty("this_is_an_invalid_property"), pipeline_barrier_path/"invalid_property.json"),
 
-        # mark_boundary
-        (Ok(), mark_boundary_path/"reference.json"),
-        (Ok(), mark_boundary_path/"minimal.json"),
-        (RequiredProperty("resources"), mark_boundary_path/"no_resource.json"),
-        (UnexpectedProperty("this_is_an_invalid_property"), mark_boundary_path/"invalid_property.json"),
+        # frame_boundary
+        (Ok(), frame_boundary_path/"reference.json"),
+        (Ok(), frame_boundary_path/"minimal.json"),
+        (RequiredProperty("resources"), frame_boundary_path/"no_resource.json"),
+        (UnexpectedProperty("this_is_an_invalid_property"), frame_boundary_path/"invalid_property.json"),
 
         ############
         # RESOURCES
