@@ -78,6 +78,18 @@ if(EXISTS "${SPIRV_TOOLS_PATH}/CMakeLists.txt")
         add_subdirectory("${SPIRV_TOOLS_PATH}" spirv-tools SYSTEM EXCLUDE_FROM_ALL)
     endif()
 
+    # Prefer the source checkout's public headers when compiling SPIR-V Tools,
+    # even if another component created the targets or CPATH contains another installation.
+    foreach(SPIRV_TOOLS_INTERNAL_TARGET IN ITEMS SPIRV-Tools SPIRV-Tools-static SPIRV-Tools-shared)
+        if(TARGET "${SPIRV_TOOLS_INTERNAL_TARGET}")
+            get_target_property(SPIRV_TOOLS_ALIASED_TARGET
+                "${SPIRV_TOOLS_INTERNAL_TARGET}" ALIASED_TARGET)
+            if(NOT SPIRV_TOOLS_ALIASED_TARGET)
+                set_property(TARGET "${SPIRV_TOOLS_INTERNAL_TARGET}" PROPERTY SYSTEM OFF)
+            endif()
+        endif()
+    endforeach()
+
     mlsdk_get_git_revision("${SPIRV_TOOLS_PATH}" SPIRV-Tools_VERSION)
 else()
     find_package(SPIRV-Tools REQUIRED CONFIG)
