@@ -21,7 +21,6 @@ dependencies = ["numpy>=1.24"]
 
 [project.scripts]
 scenario_runner = "scenario_runner.cli:main"
-scenario-runner = "scenario_runner.cli:main"
 
 [tool.setuptools]
 package-dir = { "" = "pip_package" }
