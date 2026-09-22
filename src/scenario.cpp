@@ -75,6 +75,7 @@ class ScenarioImpl final : public Scenario {
     void createPipeline(uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
                         const VgfView &vgfView, const DispatchVgfData &dispatchVgf, uint32_t &nQueries);
     void initializeResourceData();
+    void setupVgfResources();
     void setupResources();
     void createRuntimeResources();
     void createRuntimeBarriers();
@@ -84,7 +85,6 @@ class ScenarioImpl final : public Scenario {
     void resetForNextRun();
     bool hasAliasedOptimalTensors() const;
     void handleAliasedLayoutTransitions();
-    MemoryResourceId getMemoryResourceId(const Guid &guid) const;
     const ShaderInfo &getShader(ShaderId id) const;
     const ShaderInfo &getSubstitutionShader(const std::vector<ResolvedShaderSubstitution> &shaderSubstitutions,
                                             const std::string &moduleName) const;
@@ -175,41 +175,6 @@ class Creator final : public IResourceCreator {
     DataManager &_dataManager;
 };
 
-const TypedResourceId &resolveTypedResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds,
-                                              const Guid &guid, std::string_view expectedType) {
-    const auto resource = resourceIds.find(guid);
-    if (resource == resourceIds.end()) {
-        throw std::runtime_error(std::string(expectedType) + " resource not found.");
-    }
-    return resource->second;
-}
-
-template <typename Id>
-Id resolveResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds, const Guid &guid,
-                     std::string_view expectedType) {
-    const auto &resourceId = resolveTypedResourceId(resourceIds, guid, expectedType);
-    const auto *id = std::get_if<Id>(&resourceId);
-    if (id == nullptr) {
-        throw std::runtime_error("Resource UID has the wrong type; expected " + std::string(expectedType) + ".");
-    }
-    return *id;
-}
-
-MemoryResourceId resolveMemoryResourceId(const std::unordered_map<Guid, TypedResourceId> &resourceIds,
-                                         const Guid &guid) {
-    const auto &resourceId = resolveTypedResourceId(resourceIds, guid, "Memory");
-    if (const auto *id = std::get_if<BufferId>(&resourceId)) {
-        return *id;
-    }
-    if (const auto *id = std::get_if<ImageId>(&resourceId)) {
-        return *id;
-    }
-    if (const auto *id = std::get_if<TensorId>(&resourceId)) {
-        return *id;
-    }
-    throw std::runtime_error("Resource UID has the wrong type; expected a memory resource.");
-}
-
 template <typename Key>
 MemoryGroupId getOrCreateMemoryGroup(GroupManager &groupManager, std::unordered_map<Key, MemoryGroupId> &memoryGroupIds,
                                      const Key &key) {
@@ -231,12 +196,11 @@ Id resolveResourceUid(const std::unordered_map<Guid, TypedResourceId> &resourceI
                                  "' not found.");
     }
 
-    const auto *id = std::get_if<Id>(&resource->second);
-    if (id == nullptr) {
-        throw std::runtime_error("Scenario::" + std::string(operation) + ": resource UID '" + std::string(uid) +
-                                 "' does not identify a " + std::string(resourceType) + " resource.");
+    if (const auto *id = std::get_if<Id>(&resource->second)) {
+        return *id;
     }
-    return *id;
+    throw std::runtime_error("Scenario::" + std::string(operation) + ": resource UID '" + std::string(uid) +
+                             "' does not identify a " + std::string(resourceType) + " resource.");
 }
 
 vk::QueueFlags getRequiredQueueFlags(const std::vector<detail::ScenarioCommand> &commands) {
@@ -377,10 +341,6 @@ TensorData ScenarioImpl::download(TensorId id) const {
 
 const ShaderInfo &ScenarioImpl::getShader(ShaderId id) const { return _resources.get(id); }
 
-MemoryResourceId ScenarioImpl::getMemoryResourceId(const Guid &guid) const {
-    return resolveMemoryResourceId(_resourceIds, guid);
-}
-
 const ShaderInfo &
 ScenarioImpl::getSubstitutionShader(const std::vector<ResolvedShaderSubstitution> &shaderSubstitutions,
                                     const std::string &moduleName) const {
@@ -518,26 +478,20 @@ void ScenarioImpl::initializeResourceData() {
     }
 }
 
-void ScenarioImpl::setupResources() {
-    createRuntimeResources();
-
+void ScenarioImpl::setupVgfResources() {
     Creator vgfResourceCreator{_resources, _dataManager};
     // Per VGF, map VGF alias group IDs to runtime memory group IDs.
     std::unordered_map<VgfId, std::unordered_map<uint32_t, MemoryGroupId>> vgfMemoryGroupIds;
 
-    for (const auto &command : _commands) {
-        const auto *dispatchVgf = std::get_if<DispatchVgfData>(&command);
-        if (dispatchVgf == nullptr) {
-            continue;
-        }
-        const auto &vgfView = _dataManager.getVgfView(dispatchVgf->vgf);
-        auto [creationResultIt, created] = _vgfResourceCreationResults.try_emplace(dispatchVgf->vgf);
+    const auto setupVgfDispatch = [&](VgfId vgf, const std::vector<TypedBinding> &bindings) {
+        const auto &vgfView = _dataManager.getVgfView(vgf);
+        auto [creationResultIt, created] = _vgfResourceCreationResults.try_emplace(vgf);
         if (created) {
             creationResultIt->second = vgfView.createIntermediateResources(vgfResourceCreator);
         }
         const auto &creationResult = creationResultIt->second;
         for (const auto &[aliasGroupId, resourceIds] : creationResult.memoryGroups) {
-            auto &aliasGroupIds = vgfMemoryGroupIds[dispatchVgf->vgf];
+            auto &aliasGroupIds = vgfMemoryGroupIds[vgf];
             const auto group = getOrCreateMemoryGroup(_groupManager, aliasGroupIds, aliasGroupId);
             for (const auto &resourceId : resourceIds) {
                 _groupManager.addResourceToGroup(group, resourceId);
@@ -545,17 +499,29 @@ void ScenarioImpl::setupResources() {
         }
 
         // External resources are resolved for each dispatch because bindings may differ.
-        for (const auto &binding : dispatchVgf->bindings) {
+        for (const auto &binding : bindings) {
             const auto aliasGroupId = vgfView.getModelResourceAliasGroup(binding.id);
             if (!aliasGroupId.has_value()) {
                 continue;
             }
             const auto resourceId = binding.resource;
-            auto &aliasGroupIds = vgfMemoryGroupIds[dispatchVgf->vgf];
+            auto &aliasGroupIds = vgfMemoryGroupIds[vgf];
             const auto group = getOrCreateMemoryGroup(_groupManager, aliasGroupIds, *aliasGroupId);
             _groupManager.addResourceToGroup(group, resourceId);
         }
+    };
+
+    for (const auto &command : _commands) {
+        if (const auto *dispatch = std::get_if<DispatchVgfData>(&command)) {
+            setupVgfDispatch(dispatch->vgf, dispatch->bindings);
+        }
     }
+}
+
+void ScenarioImpl::setupResources() {
+    createRuntimeResources();
+
+    setupVgfResources();
     _groupManager.finalize();
 
     // Setup aliasing resources, foundation before accessing tensors
