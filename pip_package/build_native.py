@@ -32,14 +32,14 @@ def _configure_and_build(extension_output_path, install_dir=None, package_versio
             ROOT_DIR / "build" / "pip" / sys.implementation.cache_tag,
         )
     ).resolve()
-    package_dir = extension_output_path.parent
+    setuptools_build_dir = extension_output_path.parent
     if install_dir is None:
-        install_dir = package_dir / "binaries"
+        install_dir = setuptools_build_dir / "scenario_runner" / "binaries"
     build_type = os.environ.get("SCENARIO_RUNNER_PIP_BUILD_TYPE", "Release")
     generator = os.environ.get("CMAKE_GENERATOR", "Ninja")
 
     shutil.rmtree(install_dir, ignore_errors=True)
-    package_dir.mkdir(parents=True, exist_ok=True)
+    setuptools_build_dir.mkdir(parents=True, exist_ok=True)
 
     cmake_setup_cmd = [
         "cmake",
@@ -53,8 +53,8 @@ def _configure_and_build(extension_output_path, install_dir=None, package_versio
         cmake_bool_option("SCENARIO_RUNNER_BUILD_PYLIB", True),
         f"-DPYTHON_EXECUTABLE={sys.executable}",
         f"-DPython_EXECUTABLE={sys.executable}",
-        f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={package_dir}",
-        f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{build_type.upper()}={package_dir}",
+        f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={setuptools_build_dir}",
+        f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{build_type.upper()}={setuptools_build_dir}",
         f"-DVULKAN_HEADERS_PATH={_env_path('VULKAN_HEADERS_PATH', DEPENDENCY_DIR / 'Vulkan-Headers')}",
         f"-DML_SDK_VGF_LIB_PATH={_env_path('ML_SDK_VGF_LIB_PATH', ROOT_DIR / '..' / 'vgf-lib')}",
         f"-DJSON_PATH={_env_path('JSON_PATH', DEPENDENCY_DIR / 'json')}",

@@ -59,5 +59,5 @@ setup(
         "build_ext": BuildExt,
         "build_py": BuildPy,
     },
-    ext_modules=[CMakeExtension("scenario_runner.scenario_runner_py")],
+    ext_modules=[CMakeExtension("scenario_runner_py")],
 )
