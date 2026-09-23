@@ -241,7 +241,7 @@ To allow for memory aliasing, the following object is needed in each resource:
   }
 
 .. note::
-   When using ``memory_group`` with an non-zero ``offset``, the offset must satisfy Vulkan® memory alignment requirements. The offset must be a multiple of the ``VkMemoryRequirements::alignment`` returned by the Vulkan® driver for each resource bound at that offset. Failure to meet this requirement will result in a runtime error during resource setup.
+   When using ``memory_group`` with a non-zero ``offset``, the offset must satisfy Vulkan® memory alignment requirements. The offset must be a multiple of the ``VkMemoryRequirements::alignment`` returned by the Vulkan® driver for each resource bound at that offset. Failure to meet this requirement will result in a runtime error during resource setup.
 
 buffer
 """"""
