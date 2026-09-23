@@ -15,12 +15,18 @@ namespace py = pybind11;
 void pyInitScenarioJsonFactory(py::module_ &m) {
     using namespace mlsdk::scenariorunner;
 
-    py::class_<ScenarioJsonFactory>(m, "ScenarioJsonFactory")
-        .def_static("make", &ScenarioJsonFactory::make, py::arg("scenario_file"), py::kw_only(),
-                    py::arg("work_dir") = std::filesystem::path{}, py::arg("output_dir") = std::filesystem::path{},
-                    py::arg("options") = ScenarioOptions{}, py::call_guard<py::gil_scoped_release>());
+    py::class_<ScenarioJsonFactory>(m, "ScenarioJsonFactory", "Create scenarios from JSON descriptions.")
+        .def_static(
+            "make", &ScenarioJsonFactory::make, "Load a JSON scenario and return a ready-to-run :class:`Scenario`.",
+            py::arg("scenario_file"), py::kw_only(), py::arg_v("work_dir", std::filesystem::path{}, "Path('.')"),
+            py::arg_v("output_dir", std::filesystem::path{}, "Path('.')"),
+            py::arg_v("options", ScenarioOptions{}, "ScenarioOptions()"), py::call_guard<py::gil_scoped_release>());
 
-    m.def("load_scenario", &ScenarioJsonFactory::make, py::arg("scenario_file"), py::kw_only(),
-          py::arg("work_dir") = std::filesystem::path{}, py::arg("output_dir") = std::filesystem::path{},
-          py::arg("options") = ScenarioOptions{}, py::call_guard<py::gil_scoped_release>());
+    m.def("load_scenario", &ScenarioJsonFactory::make,
+          R"doc(Load a JSON scenario and return a ready-to-run :class:`Scenario`.
+
+Relative resource paths use the scenario file's parent directory unless ``work_dir`` is supplied.)doc",
+          py::arg("scenario_file"), py::kw_only(), py::arg_v("work_dir", std::filesystem::path{}, "Path('.')"),
+          py::arg_v("output_dir", std::filesystem::path{}, "Path('.')"),
+          py::arg_v("options", ScenarioOptions{}, "ScenarioOptions()"), py::call_guard<py::gil_scoped_release>());
 }

@@ -16,6 +16,7 @@ ML SDK Scenario Runner
    json.rst
    usage.rst
    api.rst
+   python_api.rst
    limitations.rst
    license.rst
    contributing.rst

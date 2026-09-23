@@ -50,6 +50,11 @@ if(SCENARIO_RUNNER_ENABLE_FUZZER)
     include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchain/gnu_compiler_options.cmake")
 endif()
 
+if(ML_SDK_BUILD_DOCS OR SCENARIO_RUNNER_BUILD_DOCS)
+    # Sphinx autodoc imports scenario_runner_py to generate the Python API reference.
+    set(SCENARIO_RUNNER_BUILD_PYLIB ON CACHE BOOL "Build Scenario Runner Python bindings" FORCE)
+endif()
+
 # Handle build type, set default as Release
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")
     message(STATUS "CMAKE_BUILD_TYPE is not defined, building for Release")
