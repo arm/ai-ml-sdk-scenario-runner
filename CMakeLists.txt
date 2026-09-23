@@ -133,7 +133,7 @@ if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
 endif()
 
 if(SCENARIO_RUNNER_ENABLE_FUZZER)
-    add_subdirectory(scenario_fuzzer)
+    add_subdirectory(fuzz)
 endif()
 
 set(SCENARIO_RUNNER_VERSION_DEPS

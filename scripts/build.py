@@ -310,6 +310,7 @@ class Builder:
 
             if self.lint:
                 src_dirs = [
+                    f"{SCENARIO_RUNNER_DIR / 'fuzz'}",
                     f"{SCENARIO_RUNNER_DIR / 'src'}",
                 ]
                 os.makedirs(f"{self.build_dir}/cppcheck", exist_ok=True)
@@ -336,7 +337,7 @@ class Builder:
 
                 clang_tidy_cmd = [
                     "run-clang-tidy",
-                    "-header-filter=scenario-runner/src/.*",
+                    r"-header-filter=scenario-runner/(fuzz|src)/.*",
                     r"-exclude-header-filter=.*\.generated\.hpp$",
                     "-quiet",
                     f"-j{self.threads}",
