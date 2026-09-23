@@ -1,0 +1,47 @@
+;
+; SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
+; SPDX-License-Identifier: Apache-2.0
+;
+               OpCapability GraphARM
+               OpCapability TensorsARM
+               OpCapability Shader
+               OpCapability VulkanMemoryModel
+               OpCapability Int8
+               OpExtension "SPV_ARM_graph"
+               OpExtension "SPV_ARM_tensors"
+               OpExtension "SPV_KHR_vulkan_memory_model"
+               OpMemoryModel Logical Vulkan
+               OpName %input "input"
+               OpName %output "output"
+               OpDecorate %input Binding 0
+               OpDecorate %input DescriptorSet 0
+               OpDecorate %output Binding 1
+               OpDecorate %output DescriptorSet 0
+      %uchar = OpTypeInt 8 0
+       %uint = OpTypeInt 32 0
+     %uint_4 = OpConstant %uint 4
+%shape_type = OpTypeArray %uint %uint_4
+%input_dim_0 = OpConstant %uint INPUT_DIM_0
+%input_dim_1 = OpConstant %uint INPUT_DIM_1
+%input_dim_2 = OpConstant %uint INPUT_DIM_2
+%input_dim_3 = OpConstant %uint INPUT_DIM_3
+%input_shape = OpConstantComposite %shape_type %input_dim_0 %input_dim_1 %input_dim_2 %input_dim_3
+%input_type = OpTypeTensorARM %uchar %uint_4 %input_shape
+%input_pointer = OpTypePointer UniformConstant %input_type
+      %input = OpVariable %input_pointer UniformConstant
+%output_dim_0 = OpConstant %uint OUTPUT_DIM_0
+%output_dim_1 = OpConstant %uint OUTPUT_DIM_1
+%output_dim_2 = OpConstant %uint OUTPUT_DIM_2
+%output_dim_3 = OpConstant %uint OUTPUT_DIM_3
+%output_shape = OpConstantComposite %shape_type %output_dim_0 %output_dim_1 %output_dim_2 %output_dim_3
+%output_type = OpTypeTensorARM %uchar %uint_4 %output_shape
+%output_pointer = OpTypePointer UniformConstant %output_type
+     %output = OpVariable %output_pointer UniformConstant
+%graph_type = OpTypeGraphARM 1 %input_type %output_type
+     %uint_0 = OpConstant %uint 0
+%output_value = OpConstantNull %output_type
+               OpGraphEntryPointARM %graph "main" %input %output
+      %graph = OpGraphARM %graph_type
+%input_value = OpGraphInputARM %input_type %uint_0
+               OpGraphSetOutputARM %output_value %uint_0
+               OpGraphEndARM

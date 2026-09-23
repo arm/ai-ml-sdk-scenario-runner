@@ -87,6 +87,19 @@ if(SCENARIO_RUNNER_BUILD_SHARED)
     set_target_properties(ScenarioRunnerLib_shared PROPERTIES OUTPUT_NAME ScenarioRunnerLib)
 endif()
 
+if(SCENARIO_RUNNER_ENABLE_FUZZER)
+    add_library(ScenarioRunnerFuzzerLib STATIC ${SCENARIO_RUNNER_LIB_SOURCES})
+    srlib_configure_target(ScenarioRunnerFuzzerLib)
+    target_compile_options(ScenarioRunnerFuzzerLib PRIVATE
+        -fsanitize=fuzzer-no-link,address,undefined
+        -fsanitize-recover=address
+        -fno-sanitize-recover=undefined
+        -fno-omit-frame-pointer
+        -fno-sanitize=leak
+        -fno-sanitize=vptr
+    )
+endif()
+
 if(SCENARIO_RUNNER_BUILD_PYLIB AND NOT ANDROID)
     include(pybind11)
     pybind11_add_module(scenario_runner_py
