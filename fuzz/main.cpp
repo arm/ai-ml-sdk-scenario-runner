@@ -3,6 +3,11 @@
 
 #include "fuzzers.hpp"
 
+extern "C" int LLVMFuzzerInitialize(int *, char ***) {
+    validateScenarioFuzzerEnvironment();
+    return 0;
+}
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (data == nullptr || size == 0) {
         return 0;

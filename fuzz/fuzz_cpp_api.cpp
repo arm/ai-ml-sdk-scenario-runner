@@ -73,16 +73,38 @@ class FuzzStats {
     void dataGraphAdded() { ++_dataGraphs; }
     void buildAttempt() { ++_buildAttempts; }
     void buildSucceeded() { ++_buildSucceeded; }
+    void buildRejected(std::string_view message) {
+        ++_buildRejected;
+        if (_firstBuildRejection.empty()) {
+            _firstBuildRejection.assign(message.substr(0, 256));
+            std::replace(_firstBuildRejection.begin(), _firstBuildRejection.end(), '\n', ' ');
+            std::replace(_firstBuildRejection.begin(), _firstBuildRejection.end(), '\r', ' ');
+        }
+    }
     void runAttempt() { ++_runAttempts; }
     void runCompleted(uint32_t iterations) {
         ++_runCompleted;
         _runIterations += iterations;
     }
     void endToEndCompleted() { ++_endToEndCompleted; }
+    void reset() {
+        _inputs = 0;
+        _operationRecords = 0;
+        _operationRejected = 0;
+        _vgfsByKind = {};
+        _dataGraphs = 0;
+        _buildAttempts = 0;
+        _buildSucceeded = 0;
+        _buildRejected = 0;
+        _runAttempts = 0;
+        _runCompleted = 0;
+        _runIterations = 0;
+        _endToEndCompleted = 0;
+        _firstBuildRejection.clear();
+    }
 
   private:
     void report(const char *kind) const {
-        const auto buildRejected = _buildAttempts - _buildSucceeded;
         std::fprintf(stderr,
                      "SCENARIO_FUZZER_STATS kind=%s inputs=%zu records=%zu record_rejections=%zu "
                      "vgf_buffers=%zu vgf_images=%zu vgf_tensors=%zu "
@@ -93,7 +115,10 @@ class FuzzStats {
                      _vgfsByKind[static_cast<size_t>(VgfResourceKind::Buffer)],
                      _vgfsByKind[static_cast<size_t>(VgfResourceKind::Image)],
                      _vgfsByKind[static_cast<size_t>(VgfResourceKind::Tensor)], _dataGraphs, _buildAttempts,
-                     _buildSucceeded, buildRejected, _runAttempts, _runCompleted, _runIterations, _endToEndCompleted);
+                     _buildSucceeded, _buildRejected, _runAttempts, _runCompleted, _runIterations, _endToEndCompleted);
+        if (!_firstBuildRejection.empty()) {
+            std::fprintf(stderr, "SCENARIO_FUZZER_FIRST_BUILD_REJECTION message=%s\n", _firstBuildRejection.c_str());
+        }
     }
 
     size_t _inputs{};
@@ -103,10 +128,12 @@ class FuzzStats {
     size_t _dataGraphs{};
     size_t _buildAttempts{};
     size_t _buildSucceeded{};
+    size_t _buildRejected{};
     size_t _runAttempts{};
     size_t _runCompleted{};
     size_t _runIterations{};
     size_t _endToEndCompleted{};
+    std::string _firstBuildRejection;
 };
 
 FuzzStats fuzzStats;
@@ -634,7 +661,7 @@ void applyAddBuffer(BuilderOperationContext &context) {
                           static_cast<uint32_t>((context.operation.next() % 32 + 1) * 4), 0};
     }
     // Consume the offset byte while keeping normal inputs aligned.
-    static_cast<void>(context.operation.next());
+    (void)context.operation.next();
     const auto id = context.builder.addBuffer(info);
     context.resources.buffers.push_back(id);
     context.resources.bufferRecords.push_back({id, info});
@@ -655,7 +682,7 @@ void applyAddTensor(BuilderOperationContext &context) {
     // Keep normal structured inputs valid for Vulkan's alignment
     // requirement. Misaligned offsets belong in the malformed-input
     // target, not in the deep execution campaign.
-    static_cast<void>(context.operation.next());
+    (void)context.operation.next();
     info.memoryOffset = 0;
     const auto id = context.builder.addTensor(info);
     context.resources.tensors.push_back(id);
@@ -1242,15 +1269,15 @@ void fuzzTransferValidation(Scenario &scenario, const FuzzResources &resources, 
             break;
         case 3:
             expectedMessage = "Scenario::download: Buffer resource not found.";
-            static_cast<void>(scenario.download(BufferId{invalid}));
+            (void)scenario.download(BufferId{invalid});
             break;
         case 4:
             expectedMessage = "Scenario::download: Image resource not found.";
-            static_cast<void>(scenario.download(ImageId{invalid}));
+            (void)scenario.download(ImageId{invalid});
             break;
         case 5:
             expectedMessage = "Scenario::download: Tensor resource not found.";
-            static_cast<void>(scenario.download(TensorId{invalid}));
+            (void)scenario.download(TensorId{invalid});
             break;
         case 6:
             expectedMessage = "Buffer::upload: size mismatch";
@@ -1309,7 +1336,7 @@ void fuzzTransferValidation(Scenario &scenario, const FuzzResources &resources, 
     std::abort();
 }
 
-void fuzzScenarioConstruction(const uint8_t *data, size_t size) {
+bool fuzzScenarioConstruction(const uint8_t *data, size_t size, std::string *buildRejectionMessage = nullptr) {
     InputStatsGuard inputStatsGuard;
     ByteCursor cursor{data, std::min(size, size_t{512})};
     const auto scenarioFlags = cursor.next();
@@ -1351,11 +1378,15 @@ void fuzzScenarioConstruction(const uint8_t *data, size_t size) {
     fuzzStats.buildAttempt();
     try {
         scenario = builder.build(options);
-    } catch (const std::runtime_error &) {
-        // Invalid generated scenarios and unavailable device features may
-        // reject construction. Once construction succeeds, runtime exceptions
-        // are fuzzer findings and are intentionally not caught below.
-        return;
+    } catch (const std::runtime_error &error) {
+        // Invalid generated scenarios and unavailable device features may reject
+        // construction. Treat these as rejected inputs; unexpected exceptions
+        // after a successful build remain fuzzer findings.
+        fuzzStats.buildRejected(error.what());
+        if (buildRejectionMessage != nullptr) {
+            *buildRejectionMessage = error.what();
+        }
+        return false;
     }
     fuzzStats.buildSucceeded();
 
@@ -1391,19 +1422,36 @@ void fuzzScenarioConstruction(const uint8_t *data, size_t size) {
             scenario->run(static_cast<int>(repeatCount), (scenarioFlags & 0x08u) != 0);
             fuzzStats.runCompleted(repeatCount);
         }
-        static_cast<void>(scenario->download(resources.buffers[1]));
-        static_cast<void>(scenario->download(resources.images[1]));
-        static_cast<void>(scenario->download(resources.tensors[0]));
+        (void)scenario->download(resources.buffers[1]);
+        (void)scenario->download(resources.images[1]);
+        (void)scenario->download(resources.tensors[0]);
     }
     if (size > 3 && data[3] == std::numeric_limits<uint8_t>::max()) {
         fuzzTransferValidation(*scenario, resources, scenarioFlags);
     }
     fuzzStats.endToEndCompleted();
+    return true;
 }
 
 } // namespace
 
-void fuzzScenario(const uint8_t *data, size_t size) { fuzzScenarioConstruction(data, size); }
+void fuzzScenario(const uint8_t *data, size_t size) { (void)fuzzScenarioConstruction(data, size); }
+
+void validateScenarioFuzzerEnvironment() {
+    constexpr std::array<uint8_t, 1> canonicalInput{};
+    std::string preflightBuildRejectionMessage;
+    try {
+        if (!fuzzScenarioConstruction(canonicalInput.data(), canonicalInput.size(), &preflightBuildRejectionMessage)) {
+            std::fprintf(stderr, "Scenario fuzzer runtime preflight failed while building the seeded scenario: %s\n",
+                         preflightBuildRejectionMessage.c_str());
+            std::abort();
+        }
+    } catch (const std::exception &error) {
+        std::fprintf(stderr, "Scenario fuzzer runtime preflight failed: %s\n", error.what());
+        std::abort();
+    }
+    fuzzStats.reset();
+}
 
 extern "C" size_t LLVMFuzzerMutate(uint8_t *data, size_t size, size_t maxSize);
 
