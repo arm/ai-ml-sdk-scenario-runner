@@ -79,7 +79,7 @@ other individual building blocks, for example, Vulkan® devices.
 
 Objects
 ^^^^^^^
-The Scenario Runner can use different type of Vulkan® objects. For ease, each object is wrapped by dedicated structures that manage their underlying variants. The
+The Scenario Runner can use different types of Vulkan® objects. For ease, each object is wrapped by dedicated structures that manage their underlying variants. The
 different types of objects that are currently supported are ``Buffer``,
 ``Image``, ``RawData`` and ``Tensor``.
 
