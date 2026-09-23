@@ -15,7 +15,7 @@ For example:
 
 ```sh
 mkdir -p corpus
-build-fuzzer/scenario_fuzzer/scenario_fuzzer -max_len=512 -max_total_time=60 corpus
+build-fuzzer/fuzz/scenario_fuzzer -max_len=512 -max_total_time=60 corpus
 ```
 
 Builder calls use fixed-size 16-byte records, up to 32 records per input. The
