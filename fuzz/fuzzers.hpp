@@ -7,4 +7,5 @@
 #include <cstdint>
 
 void fuzzScenario(const uint8_t *data, size_t size);
+void fuzzScenarioRejections(const uint8_t *data, size_t size);
 void validateScenarioFuzzerEnvironment();

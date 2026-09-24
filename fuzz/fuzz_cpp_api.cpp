@@ -5,6 +5,7 @@
 
 #include "scenario_builder_impl.hpp"
 
+#include "vgf-utils/numpy.hpp"
 #include "vgf/encoder.hpp"
 #include "vgf/vulkan_helpers.generated.hpp"
 
@@ -175,7 +176,7 @@ class FuzzFileDirectory {
         return _path / ("data_graph_" + std::to_string(index) + ".spv");
     }
     std::filesystem::path rawDataPath(size_t index) const {
-        return _path / ("raw_data_" + std::to_string(index) + ".bin");
+        return _path / ("raw_data_" + std::to_string(index) + ".npy");
     }
 
   private:
@@ -290,19 +291,13 @@ std::string writeDataGraphShader(const std::vector<int64_t> &inputShape, const s
 
 std::string writeRawData(uint8_t value, size_t index) {
     const auto path = fuzzFileDirectory().rawDataPath(index);
-    std::ofstream outputFile(path, std::ios::binary | std::ios::trunc);
-    if (!outputFile) {
-        throw std::runtime_error("Could not write raw data.");
-    }
-    outputFile.put(static_cast<char>(value));
-    outputFile.close();
-    if (!outputFile) {
-        throw std::runtime_error("Could not close raw data.");
-    }
+    const auto data = static_cast<char>(value);
+    const mlsdk::vgfutils::numpy::DataPtr dataPtr{&data, {1}, {'u', sizeof(value)}};
+    mlsdk::vgfutils::numpy::write(path.string(), dataPtr);
     return path.string();
 }
 
-enum class BuilderOperation : uint8_t {
+enum class BuilderOperation {
     AddBuffer = 0,
     AddTensor,
     AddImage,
@@ -322,7 +317,7 @@ enum class BuilderOperation : uint8_t {
     AddPipelineBarrier,
     AddOpticalFlowDispatch,
     AddFrameBoundary,
-    InvalidResourceOperation,
+    Count,
 };
 
 struct FuzzResources {
@@ -604,6 +599,40 @@ void seedDataGraphScenario(ScenarioBuilderImpl &builder, FuzzResources &resource
     dispatch.bindings = {{0, 0, input.id, std::nullopt, vk::DescriptorType::eTensorARM},
                          {0, 1, output.id, std::nullopt, vk::DescriptorType::eTensorARM}};
     builder.addDispatchDataGraph(std::move(dispatch));
+}
+
+void seedScenario(ScenarioBuilderImpl &builder, FuzzResources &resources) {
+    seedComputeScenario(builder, resources);
+    seedGraphicsScenario(builder, resources);
+    seedVgfImageResources(builder, resources);
+    const TensorInfo seedTensor{"seed_transfer_tensor", {1, 4, 4, 1}, vk::Format::eR8Uint};
+    const auto seedTensorId = builder.addTensor(seedTensor);
+    resources.tensors.push_back(seedTensorId);
+    resources.tensorRecords.push_back({seedTensorId, seedTensor});
+    for (size_t index = 0; index < 2; ++index) {
+        const TensorInfo vgfTensor{"seed_vgf_tensor_" + std::to_string(index), {1, 4, 4, 1}, vk::Format::eR8Sint};
+        const auto id = builder.addTensor(vgfTensor);
+        resources.tensors.push_back(id);
+        resources.tensorRecords.push_back({id, vgfTensor});
+    }
+    seedVgfScenario(builder, resources);
+    seedDataGraphScenario(builder, resources);
+}
+
+struct RejectionScenario {
+    RejectionScenario() {
+        seedScenario(builder, resources);
+        scenario = builder.build({});
+    }
+
+    ScenarioBuilderImpl builder;
+    FuzzResources resources;
+    std::unique_ptr<Scenario> scenario;
+};
+
+RejectionScenario &rejectionScenario() {
+    static RejectionScenario scenario;
+    return scenario;
 }
 
 struct BuilderOperationContext {
@@ -1162,10 +1191,8 @@ void fuzzBuilderOperations(ScenarioBuilderImpl &builder, ByteCursor &cursor, Fuz
         try {
             BuilderOperationContext context{builder, operation, resources};
             const auto selector = operation.next();
-            const bool useInvalidOperation = selector == std::numeric_limits<uint8_t>::max() &&
-                                             operation.next() == std::numeric_limits<uint8_t>::max();
-            const auto builderOperation = useInvalidOperation ? BuilderOperation::InvalidResourceOperation
-                                                              : static_cast<BuilderOperation>(selector % 19);
+            const auto builderOperation =
+                static_cast<BuilderOperation>(selector % static_cast<int>(BuilderOperation::Count));
             switch (builderOperation) {
             case BuilderOperation::AddBuffer:
                 applyAddBuffer(context);
@@ -1224,9 +1251,8 @@ void fuzzBuilderOperations(ScenarioBuilderImpl &builder, ByteCursor &cursor, Fuz
             case BuilderOperation::AddFrameBoundary:
                 applyAddFrameBoundary(context);
                 break;
-            case BuilderOperation::InvalidResourceOperation:
-                applyInvalidResourceOperation(context);
-                break;
+            case BuilderOperation::Count:
+                std::abort();
             }
         } catch (const std::runtime_error &error) {
             if (std::string_view{error.what()} != "Resource already belongs to a different group") {
@@ -1343,21 +1369,7 @@ bool fuzzScenarioConstruction(const uint8_t *data, size_t size, std::string *bui
     ScenarioBuilderImpl builder;
     FuzzResources resources;
 
-    seedComputeScenario(builder, resources);
-    seedGraphicsScenario(builder, resources);
-    seedVgfImageResources(builder, resources);
-    const TensorInfo seedTensor{"seed_transfer_tensor", {1, 4, 4, 1}, vk::Format::eR8Uint};
-    const auto seedTensorId = builder.addTensor(seedTensor);
-    resources.tensors.push_back(seedTensorId);
-    resources.tensorRecords.push_back({seedTensorId, seedTensor});
-    for (size_t index = 0; index < 2; ++index) {
-        const TensorInfo vgfTensor{"seed_vgf_tensor_" + std::to_string(index), {1, 4, 4, 1}, vk::Format::eR8Sint};
-        const auto id = builder.addTensor(vgfTensor);
-        resources.tensors.push_back(id);
-        resources.tensorRecords.push_back({id, vgfTensor});
-    }
-    seedVgfScenario(builder, resources);
-    seedDataGraphScenario(builder, resources);
+    seedScenario(builder, resources);
     fuzzBuilderOperations(builder, cursor, resources);
 
     ScenarioOptions options{};
@@ -1390,18 +1402,6 @@ bool fuzzScenarioConstruction(const uint8_t *data, size_t size, std::string *bui
     }
     fuzzStats.buildSucceeded();
 
-    if (size > 2 && data[2] == std::numeric_limits<uint8_t>::max()) {
-        bool rejected = false;
-        try {
-            builder.createMemoryGroup();
-        } catch (const std::runtime_error &error) {
-            rejected = std::string_view{error.what()} == "ScenarioBuilder cannot be modified after build";
-        }
-        if (!rejected) {
-            std::abort();
-        }
-    }
-
     const std::array<uint8_t, 256> initialOutput{};
     for (uint8_t iteration = 0; iteration < 1 + ((scenarioFlags >> 4u) & 1u); ++iteration) {
         const auto bufferInput = fuzzPayload(data, size, 256, iteration);
@@ -1426,16 +1426,50 @@ bool fuzzScenarioConstruction(const uint8_t *data, size_t size, std::string *bui
         (void)scenario->download(resources.images[1]);
         (void)scenario->download(resources.tensors[0]);
     }
-    if (size > 3 && data[3] == std::numeric_limits<uint8_t>::max()) {
-        fuzzTransferValidation(*scenario, resources, scenarioFlags);
-    }
     fuzzStats.endToEndCompleted();
     return true;
 }
 
+void fuzzScenarioRejectionsImpl(const uint8_t *data, size_t size) {
+    const auto operation = static_cast<uint8_t>(data[0] % 21u);
+    if (operation < 4) {
+        ScenarioBuilderImpl builder;
+        FuzzResources resources;
+        const auto buffer = builder.addBuffer(BufferInfo{"rejection_buffer", 4, 0});
+        resources.buffers.push_back(buffer);
+        const std::array<uint8_t, 2> record{size > 1 ? data[1] : uint8_t{}, operation};
+        ByteCursor cursor{record.data(), record.size()};
+        BuilderOperationContext context{builder, cursor, resources};
+        applyInvalidResourceOperation(context);
+        return;
+    }
+
+    auto &rejection = rejectionScenario();
+
+    if (operation == 4) {
+        bool rejected = false;
+        try {
+            rejection.builder.createMemoryGroup();
+        } catch (const std::runtime_error &error) {
+            rejected = std::string_view{error.what()} == "ScenarioBuilder cannot be modified after build";
+        }
+        if (!rejected) {
+            std::abort();
+        }
+        return;
+    }
+
+    fuzzTransferValidation(*rejection.scenario, rejection.resources, static_cast<uint8_t>(operation - 5u));
+}
 } // namespace
 
 void fuzzScenario(const uint8_t *data, size_t size) { (void)fuzzScenarioConstruction(data, size); }
+
+void fuzzScenarioRejections(const uint8_t *data, size_t size) {
+    if (data != nullptr && size != 0) {
+        fuzzScenarioRejectionsImpl(data, size);
+    }
+}
 
 void validateScenarioFuzzerEnvironment() {
     constexpr std::array<uint8_t, 1> canonicalInput{};
