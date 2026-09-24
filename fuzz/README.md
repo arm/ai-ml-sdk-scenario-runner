@@ -11,6 +11,8 @@ UBSan; the fuzzer executables additionally link libFuzzer.
 
 The runtime targets need a Vulkan® implementation with the required features;
 configure the SDK emulation layers as appropriate.
+Before processing the corpus, the fuzzer runs its seeded scenario once and
+terminates with a diagnostic if the runtime environment cannot complete it.
 For example:
 
 ```sh
