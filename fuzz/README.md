@@ -8,6 +8,10 @@ UBSan; the fuzzer executables additionally link libFuzzer.
   generated VGF, and native SPIR-V™ data-graph resources. It then decodes the
   remaining input as an arbitrary sequence of builder API calls before
   attempting the complete build, upload, run, and download path.
+- `scenario_rejection_fuzzer` checks that invalid resource IDs, malformed
+  uploads, invalid repeat counts, and builder changes after `build()` are
+  rejected. Keeping these checks separate lets `scenario_fuzzer` concentrate
+  its corpus on complete scenario lifecycles.
 
 The runtime targets need a Vulkan® implementation with the required features;
 configure the SDK emulation layers as appropriate.
@@ -23,12 +27,11 @@ build-fuzzer/fuzz/scenario_fuzzer -max_len=512 -max_total_time=60 corpus
 Builder calls use fixed-size 16-byte records, up to 32 records per input. The
 operation switch covers resource creation, memory groups, shaders, raw data,
 VGF, graph constants, all barrier resources, all dispatch types, pipeline
-barriers, and frame boundaries. Invalid-ID operations and malformed transfer
-checks remain available as low-probability negative tests. Those checks require
-the expected exception type and diagnostic. Scenario-construction failures are
-tolerated, but exceptions after a scenario has built, failed rejection checks,
-and sanitizer failures terminate the fuzzer. Generated files are stored in an
-exclusively created temporary directory per process and removed on normal exit.
+barriers, and frame boundaries. Scenario-construction failures are tolerated,
+but exceptions after a scenario has built and sanitizer failures terminate the
+fuzzer. Generated raw data uses NumPy format so it can reach scenario
+construction. Generated files are stored in an exclusively created temporary
+directory per process and removed on normal exit.
 
 Buffer, tensor, and image creation can either generate a new description or
 duplicate an existing compatible description. Generated VGFs use storage
