@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <exception>
 #include <filesystem>
 #include <fstream>
@@ -620,6 +621,32 @@ void seedScenario(ScenarioBuilderImpl &builder, FuzzResources &resources) {
     }
     seedVgfScenario(builder, resources);
     seedDataGraphScenario(builder, resources);
+}
+
+struct BufferOracleResources {
+    BufferId input;
+    BufferId output;
+};
+
+BufferOracleResources addBufferOracle(ScenarioBuilderImpl &builder) {
+    constexpr uint32_t kBufferSize = 256;
+    ShaderInfo shader{};
+    shader.debugName = "buffer_oracle";
+    shader.entry = "main";
+    shader.shaderType = ShaderType::GLSL;
+    shader.stage = ShaderStage::Compute;
+    shader.src = readShaderCode(SCENARIO_FUZZER_SOURCE_DIR "/variable_copy.comp", shader);
+    const auto shaderId = builder.addShader(shader);
+    const auto input = builder.addBuffer(BufferInfo{"buffer_oracle_input", kBufferSize, 0});
+    const auto output = builder.addBuffer(BufferInfo{"buffer_oracle_output", kBufferSize, 0});
+
+    DispatchComputeData dispatch{shaderId};
+    dispatch.debugName = "buffer_oracle_dispatch";
+    dispatch.bindings = {{0, 0, input, std::nullopt, vk::DescriptorType::eStorageBuffer},
+                         {0, 1, output, std::nullopt, vk::DescriptorType::eStorageBuffer}};
+    dispatch.computeDispatch.gwcx = kBufferSize;
+    builder.addDispatchCompute(std::move(dispatch));
+    return {input, output};
 }
 
 struct RejectionScenario {
@@ -1375,6 +1402,7 @@ bool fuzzScenarioConstruction(const uint8_t *data, size_t size, std::string *bui
     seedScenario(builder, resources);
     fuzzBuilderOperations(builder, cursor, resources);
 
+    const auto bufferOracle = addBufferOracle(builder);
     ScenarioOptions options{};
     // Pipeline caching requires a valid process-local cache path. Keep it
     // out of the structured campaign; cache-specific validation belongs in
@@ -1411,23 +1439,38 @@ bool fuzzScenarioConstruction(const uint8_t *data, size_t size, std::string *bui
         const auto imageInput = fuzzPayload(data, size, 64, iteration);
         const auto tensorInput = fuzzPayload(data, size, 16, iteration);
         scenario->upload(resources.buffers[0], {bufferInput.data(), bufferInput.size()});
+        auto oracleInitialOutput = bufferInput;
+        for (auto &byte : oracleInitialOutput) {
+            byte ^= 0xffu;
+        }
         scenario->upload(resources.buffers[1], {initialOutput.data(), initialOutput.size()});
         scenario->upload(resources.images[0],
                          {imageInput.data(), imageInput.size(), {1, 4, 4, 1}, vk::Format::eR8G8B8A8Unorm});
+        scenario->upload(bufferOracle.input, {bufferInput.data(), bufferInput.size()});
+        scenario->upload(bufferOracle.output, {oracleInitialOutput.data(), oracleInitialOutput.size()});
         scenario->upload(resources.tensors[0],
                          {tensorInput.data(), tensorInput.size(), {1, 4, 4, 1}, vk::Format::eR8Uint});
         fuzzStats.runAttempt();
+        const bool dryRun = iteration != 0 && (scenarioFlags & 0x08u) != 0;
         if (iteration == 0) {
             scenario->run();
             fuzzStats.runCompleted(1);
         } else {
             const auto repeatCount = static_cast<uint32_t>(1 + ((scenarioFlags >> 5u) & 1u));
-            scenario->run(static_cast<int>(repeatCount), (scenarioFlags & 0x08u) != 0);
+            scenario->run(static_cast<int>(repeatCount), dryRun);
             fuzzStats.runCompleted(repeatCount);
         }
         (void)scenario->download(resources.buffers[1]);
         (void)scenario->download(resources.images[1]);
         (void)scenario->download(resources.tensors[0]);
+        const auto oracleOutput = scenario->download(bufferOracle.output);
+        const auto &expectedOracleOutput = dryRun ? oracleInitialOutput : bufferInput;
+        if (oracleOutput.data.size() != expectedOracleOutput.size() ||
+            std::memcmp(oracleOutput.data.data(), expectedOracleOutput.data(), expectedOracleOutput.size()) != 0) {
+            std::fprintf(stderr, "Scenario fuzzer buffer oracle mismatch at iteration %u.\n",
+                         static_cast<unsigned>(iteration));
+            std::abort();
+        }
     }
     fuzzStats.endToEndCompleted();
     return true;

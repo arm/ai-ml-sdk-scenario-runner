@@ -33,6 +33,12 @@ fuzzer. Generated raw data uses NumPy format so it can reach scenario
 construction. Generated files are stored in an exclusively created temporary
 directory per process and removed on normal exit.
 
+After the generated operations, `scenario_fuzzer` appends a buffer-copy
+dispatch whose resources are not exposed to the operation generator. It
+initializes the output to the inverse of the fuzz-derived input, requires an
+exact match after execution, and requires the inverse to remain unchanged for
+dry runs, providing an end-to-end output oracle.
+
 Buffer, tensor, and image creation can either generate a new description or
 duplicate an existing compatible description. Generated VGFs use storage
 buffers, storage images, or tensors selected by the fuzz input. Compute shaders
