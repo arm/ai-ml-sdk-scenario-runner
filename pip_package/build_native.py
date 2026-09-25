@@ -48,6 +48,7 @@ def _configure_and_build(extension_output_path, install_dir=None, package_versio
         "-B",
         str(build_dir),
         f"-DCMAKE_BUILD_TYPE={build_type}",
+        "-DCMAKE_INSTALL_LIBDIR=lib",
         "-G",
         generator,
         cmake_bool_option("SCENARIO_RUNNER_BUILD_PYLIB", True),
