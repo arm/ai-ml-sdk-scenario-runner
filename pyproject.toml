@@ -23,6 +23,7 @@ dependencies = ["numpy>=1.24"]
 scenario_runner = "scenario_runner.cli:main"
 
 [tool.setuptools]
+license-files = ["LICENSES/*.txt"]
 package-dir = { "" = "pip_package" }
 include-package-data = true
 
