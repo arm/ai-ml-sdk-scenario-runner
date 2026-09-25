@@ -19,6 +19,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <memory>
 #include <numeric>
 
 namespace mlsdk::scenariorunner {
@@ -276,10 +277,11 @@ std::string lowercaseExtension(const std::string &path) {
     return ext;
 }
 
-std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo) {
+std::shared_ptr<const std::vector<uint32_t>> readShaderCode(const std::string &sourcePath,
+                                                            const ShaderInfo &shaderInfo) {
     switch (shaderInfo.shaderType) {
     case ShaderType::SPIR_V: {
-        std::ifstream shaderFile{shaderInfo.src, std::ios::binary | std::ios::ate};
+        std::ifstream shaderFile{sourcePath, std::ios::binary | std::ios::ate};
         if (!shaderFile.is_open()) {
             throw std::runtime_error("Cannot open SPIR-V shader file.");
         }
@@ -293,12 +295,12 @@ std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo) {
             throw std::runtime_error("SPIR-V shader file size must be a multiple of 4 bytes.");
         }
         shaderFile.seekg(0);
-        std::vector<uint32_t> code(static_cast<size_t>(codeSize) / sizeof(uint32_t), 0);
-        shaderFile.read(reinterpret_cast<char *>(code.data()), codeSize);
+        auto code = std::make_shared<std::vector<uint32_t>>(static_cast<size_t>(codeSize) / sizeof(uint32_t), 0);
+        shaderFile.read(reinterpret_cast<char *>(code->data()), codeSize);
         return code;
     }
     case ShaderType::GLSL: {
-        std::ifstream shaderFile{shaderInfo.src};
+        std::ifstream shaderFile{sourcePath};
         if (!shaderFile.is_open()) {
             throw std::runtime_error("Cannot open GLSL shader file.");
         }
@@ -309,11 +311,11 @@ std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo) {
         if (!spirv.first.empty()) {
             throwShaderCompilationError(shaderInfo.debugName, spirv.first);
         }
-        return spirv.second;
+        return std::make_shared<const std::vector<uint32_t>>(std::move(spirv.second));
     }
     case ShaderType::HLSL: {
 #ifdef SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT
-        std::ifstream shaderFile{shaderInfo.src};
+        std::ifstream shaderFile{sourcePath};
         if (!shaderFile.is_open()) {
             throw std::runtime_error("Cannot open HLSL shader file.");
         }
@@ -324,7 +326,7 @@ std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo) {
         if (!spirv.first.empty()) {
             throwShaderCompilationError(shaderInfo.debugName, spirv.first);
         }
-        return spirv.second;
+        return std::make_shared<const std::vector<uint32_t>>(std::move(spirv.second));
 #else
         throw std::runtime_error("HLSL shaders are not supported on this platform.");
 #endif

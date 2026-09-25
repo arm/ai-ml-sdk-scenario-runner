@@ -10,6 +10,7 @@
 #include "logging.hpp"
 #include "scenario_builder_impl.hpp"
 #include "scenario_desc.hpp"
+#include "shape_inference.hpp"
 #include "utils.hpp"
 
 #include "vgf-utils/memory_map.hpp"
@@ -18,6 +19,7 @@
 #include <algorithm>
 #include <cstring>
 #include <string_view>
+#include <unordered_set>
 
 namespace mlsdk::scenariorunner {
 namespace {
@@ -190,7 +192,8 @@ struct ResourceInfoFactory {
     RawDataInfo createInfo(const RawDataDesc &rawData) const { return {rawData.guidStr, rawData.src.value()}; }
 
     VgfInfo createInfo(const VgfDesc &vgf) const {
-        return {vgf.guidStr, vgf.src.value(), vgf.pushConstantsSize, vgf.specializationConstantMaps};
+        const auto source = vgf.resolvedSrc ? vgf.resolvedSrc : loadVgfView(vgf.src.value());
+        return {vgf.guidStr, source, vgf.pushConstantsSize, vgf.specializationConstantMaps};
     }
 
     GraphConstantInfo createInfo(const GraphConstantDesc &graphConstant) const {
@@ -325,15 +328,17 @@ struct ResourceInfoFactory {
     }
 
     ShaderInfo createInfo(const ShaderDesc &shader) const {
-        return {shader.guidStr,
-                shader.entry,
-                shader.pushConstantsSize,
-                shader.specializationConstants,
-                shader.src.value_or(std::string{}),
-                shader.shaderType,
-                shader.stage,
-                shader.buildOpts,
-                shader.includeDirs};
+        ShaderInfo info{shader.guidStr,
+                        shader.entry,
+                        shader.pushConstantsSize,
+                        shader.specializationConstants,
+                        nullptr,
+                        shader.shaderType,
+                        shader.stage,
+                        shader.buildOpts,
+                        shader.includeDirs};
+        info.src = shader.resolvedSrc ? shader.resolvedSrc : readShaderCode(shader.src.value(), info);
+        return info;
     }
 };
 
@@ -498,6 +503,33 @@ void registerMemoryGroup(ScenarioBuilderImpl &builder, std::unordered_map<Guid, 
     }
 }
 
+std::unordered_set<Guid> collectReferencedShaders(const ScenarioSpec &scenarioSpec) {
+    std::unordered_set<Guid> shaders;
+    for (const auto &command : scenarioSpec.commands) {
+        switch (command->commandType) {
+        case CommandType::DispatchCompute:
+            shaders.insert(static_cast<const DispatchComputeDesc &>(*command).shaderRef);
+            break;
+        case CommandType::DispatchFragment: {
+            const auto &dispatch = static_cast<const DispatchFragmentDesc &>(*command);
+            shaders.insert(dispatch.vertexShaderRef);
+            shaders.insert(dispatch.fragmentShaderRef);
+        } break;
+        case CommandType::DispatchVgf:
+            for (const auto &substitution : static_cast<const DispatchVgfDesc &>(*command).shaderSubstitutions) {
+                shaders.insert(substitution.shaderRef);
+            }
+            break;
+        case CommandType::DispatchDataGraph:
+            shaders.insert(static_cast<const DispatchDataGraphDesc &>(*command).dataGraphRef);
+            break;
+        default:
+            break;
+        }
+    }
+    return shaders;
+}
+
 struct CommandDataFactory {
     const ResourceManager &_resources;
     const std::unordered_map<Guid, TypedResourceId> &_resourceIds;
@@ -652,6 +684,7 @@ std::unique_ptr<Scenario> ScenarioJsonFactory::make(const std::filesystem::path 
     const auto resolvedWorkDir = workDir.empty() ? scenarioFile.parent_path() : workDir;
     ScenarioSpec scenarioSpec{scenarioFile, resolvedWorkDir, outputDir};
     mlsdk::logging::info("Scenario file parsed");
+    resolveScenarioShapes(scenarioSpec);
     ScenarioBuilderImpl builder;
     populate(options, scenarioSpec, builder);
     return builder.build(options);
@@ -659,6 +692,7 @@ std::unique_ptr<Scenario> ScenarioJsonFactory::make(const std::filesystem::path 
 
 namespace {
 void populate(const ScenarioOptions &options, const ScenarioSpec &scenarioSpec, ScenarioBuilderImpl &builder) {
+    const auto referencedShaders = collectReferencedShaders(scenarioSpec);
     mlsdk::logging::info("Setup resources, count: " + std::to_string(scenarioSpec.resources.size()));
     // Setup resource info
     // (Memory for Tensors and Images is allocated in next pass)
@@ -698,6 +732,10 @@ void populate(const ScenarioOptions &options, const ScenarioSpec &scenarioSpec, 
         } break;
         case ResourceType::Shader: {
             const auto &shader = reinterpret_cast<const std::unique_ptr<ShaderDesc> &>(resource);
+            if (referencedShaders.count(shader->guid) == 0) {
+                continue;
+            }
+
             const auto id = builder.addShader(resourceInfoFactory.createInfo(*shader));
             registerResourceId(resourceIds, resource->guid, resource->guidStr, id);
         } break;

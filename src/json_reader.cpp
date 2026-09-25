@@ -63,6 +63,26 @@ template <typename ValueType> void parseOptionalField(const json &j, std::string
     parseOptionalFieldAs<ValueType>(j, fieldName, value);
 }
 
+std::vector<int64_t> parseOptionalTensorDims(const json &j) {
+    if (!j.contains("dims"sv)) {
+        return {};
+    }
+
+    std::vector<int64_t> dims;
+    const auto &dimsJson = j.at("dims"sv).get_ref<const json::array_t &>();
+    dims.reserve(dimsJson.size());
+
+    for (const auto &dimJson : dimsJson) {
+        if (dimJson.is_string() && dimJson.get<std::string>() == "?"sv) {
+            dims.push_back(-1);
+        } else {
+            dims.push_back(dimJson.get<int64_t>());
+        }
+    }
+
+    return dims;
+}
+
 constexpr std::array commandAliases{
     std::pair{"dispatch_graph"sv, "dispatch_vgf"sv},
     std::pair{"dispatch_spirv_graph"sv, "dispatch_data_graph"sv},
@@ -671,7 +691,7 @@ void from_json(const json &j, GraphConstantDesc &graphConstant) {
  */
 void from_json(const json &j, TensorDesc &tensor) {
     parseResourceDescGuid(j, tensor);
-    tensor.dims = j.at("dims"sv).get<std::vector<int64_t>>();
+    tensor.dims = parseOptionalTensorDims(j);
     tensor.format = j.at("format"sv).get<std::string>();
     tensor.shaderAccess = j.at("shader_access"sv).get<ShaderAccessType>();
     if (tensor.shaderAccess == ShaderAccessType::Unknown) {

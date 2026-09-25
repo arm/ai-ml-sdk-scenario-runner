@@ -45,9 +45,9 @@ def _add_increment_shader(builder, tmp_path, glsl_compiler):
     shader_info = sr.ShaderInfo()
     shader_info.debug_name = "increment"
     shader_info.entry = "main"
-    shader_info.src = str(_compile_increment_shader(tmp_path, glsl_compiler))
     shader_info.shader_type = sr.ShaderType.SpirV
     shader_info.stage = sr.ShaderStage.Compute
+    shader_info.load_source(str(_compile_increment_shader(tmp_path, glsl_compiler)))
     return builder.add_shader(shader_info)
 
 
@@ -372,9 +372,9 @@ class TestTensorDispatch:
         shader_info = sr.ShaderInfo()
         shader_info.debug_name = "increment tensor"
         shader_info.entry = "main"
-        shader_info.src = str(compiled_shader)
         shader_info.shader_type = sr.ShaderType.SpirV
         shader_info.stage = sr.ShaderStage.Compute
+        shader_info.load_source(str(compiled_shader))
         shader_id = builder.add_shader(shader_info)
         input_id = builder.add_tensor(
             [1, 4, 1, 1], sr.Format.R8Sint, debug_name="input tensor"
@@ -420,7 +420,7 @@ class TestVgfDeviceResidentChaining:
         shader_id = _add_increment_shader(builder, tmp_path, glsl_compiler)
         vgf_info = sr.VgfInfo()
         vgf_info.debug_name = "increment_graph"
-        vgf_info.src = str(vgf_path)
+        vgf_info.load_source(str(vgf_path))
         vgf_id = builder.add_vgf(vgf_info)
         input_id = builder.add_buffer(16, debug_name="input")
         intermediate_id = builder.add_buffer(16, debug_name="intermediate")
@@ -465,7 +465,7 @@ class TestVgfDeviceResidentChaining:
         shader_id = _add_increment_shader(builder, tmp_path, glsl_compiler)
         vgf_info = sr.VgfInfo()
         vgf_info.debug_name = "increment_graph"
-        vgf_info.src = str(vgf_path)
+        vgf_info.load_source(str(vgf_path))
         vgf_id = builder.add_vgf(vgf_info)
         state_id = builder.add_buffer(16, debug_name="state")
         intermediate_id = builder.add_buffer(16, debug_name="intermediate")
@@ -559,7 +559,7 @@ class TestInMemoryProfiling:
         shader_id = _add_increment_shader(builder, tmp_path, glsl_compiler)
         vgf_info = sr.VgfInfo()
         vgf_info.debug_name = "increment_graph"
-        vgf_info.src = str(vgf_path)
+        vgf_info.load_source(str(vgf_path))
         vgf_id = builder.add_vgf(vgf_info)
         input_id = builder.add_buffer(16, debug_name="input")
         output_id = builder.add_buffer(16, debug_name="output")

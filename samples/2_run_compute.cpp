@@ -26,9 +26,9 @@ int mlsdk::scenariorunner::samples::runComputeSample(std::string_view executable
         ShaderInfo shaderInfo{};
         shaderInfo.debugName = "increment";
         shaderInfo.entry = "main";
-        shaderInfo.src = assetPath(executable, "increment.comp").string();
         shaderInfo.shaderType = ShaderType::GLSL;
         shaderInfo.stage = ShaderStage::Compute;
+        shaderInfo.src = readShaderCode(assetPath(executable, "increment.comp").string(), shaderInfo);
         const auto shaderId = builder->addShader(shaderInfo);
 
         const auto inputId = builder->addBuffer(BufferInfo{"input", 16});

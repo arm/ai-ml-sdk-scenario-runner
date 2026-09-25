@@ -10,6 +10,7 @@
 #include "vulkan/vulkan_raii.hpp"
 
 #include <array>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -17,6 +18,8 @@
 #include <vector>
 
 namespace mlsdk::scenariorunner {
+
+class VgfView;
 
 /// \brief Filtering operation used when sampling an image
 enum class FilterMode {
@@ -258,13 +261,18 @@ struct SpecializationConstantMap {
 struct VgfInfo {
     /// Human-readable name used in diagnostics and profiling output.
     std::string debugName;
-    /// Path to the VGF.
-    std::string src;
+    /// Immutable in-memory VGF view.
+    std::shared_ptr<const VgfView> src;
     /// Number of push-constant bytes required by the graph.
     uint32_t pushConstantsSize{};
     /// Per-shader specialization constants applied to the graph.
     std::vector<SpecializationConstantMap> specializationConstantMaps;
 };
+
+/// Load a VGF file into an immutable view.
+///
+/// The returned view can be assigned directly to VgfInfo::src.
+std::shared_ptr<const VgfView> loadVgfView(const std::string &sourcePath);
 
 /// \brief Shader source, compilation settings, and execution metadata
 struct ShaderInfo {
@@ -276,9 +284,9 @@ struct ShaderInfo {
     uint32_t pushConstantsSize{};
     /// Specialization constants applied when creating the pipeline.
     std::vector<SpecializationConstant> specializationConstants;
-    /// Path to the shader file, interpreted according to shaderType.
-    std::string src;
-    /// Representation used by src.
+    /// Immutable in-memory SPIR-V module.
+    std::shared_ptr<const std::vector<uint32_t>> src;
+    /// Representation from which src was produced.
     ShaderType shaderType{ShaderType::Unknown};
     /// Pipeline stage that executes the shader.
     ShaderStage stage{ShaderStage::Unknown};
@@ -287,6 +295,13 @@ struct ShaderInfo {
     /// Directories searched for source include files.
     std::vector<std::string> includeDirs;
 };
+
+/// Load or compile a shader file into an immutable SPIR-V module.
+///
+/// The shader type and compilation settings are taken from shaderInfo. The
+/// returned module can be assigned directly to ShaderInfo::src.
+std::shared_ptr<const std::vector<uint32_t>> readShaderCode(const std::string &sourcePath,
+                                                            const ShaderInfo &shaderInfo);
 
 /// \brief Access and pipeline-stage dependencies shared by barrier resources
 struct BaseBarrierInfo {

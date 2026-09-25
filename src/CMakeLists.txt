@@ -32,6 +32,7 @@ set(SCENARIO_RUNNER_LIB_SOURCES
     scenario.cpp
     scenario_builder.cpp
     scenario_desc.cpp
+    shape_inference.cpp
     tensor.cpp
     utils.cpp
     vgf_view.cpp

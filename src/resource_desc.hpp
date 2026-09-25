@@ -78,6 +78,7 @@ struct VgfDesc : ResourceDesc {
     std::vector<SpecializationConstantMap> specializationConstantMaps;
     uint32_t pushConstantsSize{};
     std::string entry{"main"};
+    std::shared_ptr<const VgfView> resolvedSrc;
 };
 
 /**
@@ -95,6 +96,7 @@ struct ShaderDesc : ResourceDesc {
     std::vector<SpecializationConstant> specializationConstants;
     std::string buildOpts;
     std::vector<std::string> includeDirs;
+    std::shared_ptr<const std::vector<uint32_t>> resolvedSrc;
 };
 
 /**

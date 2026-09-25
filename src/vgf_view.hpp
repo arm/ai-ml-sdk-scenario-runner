@@ -16,6 +16,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace mlsdk::scenariorunner {
@@ -32,6 +33,9 @@ struct VgfResourceCreationResult {
 
 class VgfView {
   public:
+    using DescriptorBinding = std::pair<uint32_t, uint32_t>;
+    using DescriptorBindingMrtMap = std::map<DescriptorBinding, uint32_t>;
+
     static VgfView createVgfView(std::string vgfFile);
 
     size_t getNumSegments() const;
@@ -44,9 +48,14 @@ class VgfView {
     std::string getModuleName(uint32_t segmentIndex) const;
     std::string getModuleEntryPoint(uint32_t segmentIndex) const;
     vgflib::DataView<uint32_t> getSPVModuleCode(uint32_t segmentIndex) const;
+    void setSPVModuleCode(uint32_t segmentIndex, std::vector<uint32_t> moduleCode);
     std::string getGLSLModuleCode(uint32_t segmentIndex) const;
     std::string getHLSLModuleCode(uint32_t segmentIndex) const;
     vgflib::DataView<uint32_t> getDispatchShape(uint32_t segmentIndex) const;
+    DescriptorBindingMrtMap getSegmentMrtIndexes(uint32_t segmentIndex) const;
+    std::optional<uint32_t> getModelInterfaceMrtIndex(uint32_t bindingId) const;
+    vgflib::DataView<int64_t> getTensorShape(uint32_t mrtIndex) const;
+    void setTensorShape(uint32_t mrtIndex, std::vector<int64_t> shape);
 
     std::vector<vgflib::GraphConstantBinding> getSegmentConstantBindings(uint32_t segmentIndex) const;
     vgflib::FormatType getConstantFormat(uint32_t constantIndex) const;
@@ -80,6 +89,8 @@ class VgfView {
     std::unique_ptr<vgflib::ModelSequenceTableDecoder> sequenceTableDecoder;
     std::unique_ptr<vgflib::ModelResourceTableDecoder> resourceTableDecoder;
     std::unique_ptr<vgflib::ConstantDecoder> constantTableDecoder;
+    std::map<uint32_t, std::vector<int64_t>> resolvedMrtShapes;
+    std::map<uint32_t, std::vector<uint32_t>> shapedSpirvModules;
 
     VgfView(std::string vgfFileName, std::unique_ptr<MemoryMap> mapped,
             std::unique_ptr<vgflib::ModuleTableDecoder> moduleTableDecoder,

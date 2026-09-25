@@ -13,6 +13,7 @@
   constructing a `Scenario`.
 - Added `ScenarioJsonFactory` for constructing scenarios from JSON files
   through the public API.
+- Added experimental graph shape inference.
 - Added canonical JSON command keywords aligned with Vulkan® terminology:
   `dispatch_vgf`, `dispatch_data_graph`, `pipeline_barrier`, and
   `frame_boundary`. Their previous names remain supported but deprecated.

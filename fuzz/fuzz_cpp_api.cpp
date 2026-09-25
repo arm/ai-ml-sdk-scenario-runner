@@ -429,13 +429,13 @@ ShaderId getVgfShader(ScenarioBuilderImpl &builder, FuzzResources &resources, Vg
     info.stage = ShaderStage::Compute;
     switch (kind) {
     case VgfResourceKind::Buffer:
-        info.src = SCENARIO_FUZZER_SOURCE_DIR "/variable_copy.comp";
+        info.src = readShaderCode(SCENARIO_FUZZER_SOURCE_DIR "/variable_copy.comp", info);
         break;
     case VgfResourceKind::Image:
-        info.src = SCENARIO_FUZZER_SOURCE_DIR "/variable_copy_image.comp";
+        info.src = readShaderCode(SCENARIO_FUZZER_SOURCE_DIR "/variable_copy_image.comp", info);
         break;
     case VgfResourceKind::Tensor:
-        info.src = SCENARIO_FUZZER_SOURCE_DIR "/variable_copy_tensor.comp";
+        info.src = readShaderCode(SCENARIO_FUZZER_SOURCE_DIR "/variable_copy_tensor.comp", info);
         break;
     }
     shader = builder.addShader(info);
@@ -447,8 +447,8 @@ VgfId addVgf(ScenarioBuilderImpl &builder, FuzzResources &resources, VgfResource
              vk::Format format, std::string debugName) {
     VgfInfo info{};
     info.debugName = std::move(debugName);
-    info.src = writeVgfRecipe(kind, format, vgfShape(kind, inputShape), vgfShape(kind, outputShape),
-                              vgfDispatchShape(kind, outputShape), resources.vgfs.size());
+    info.src = loadVgfView(writeVgfRecipe(kind, format, vgfShape(kind, inputShape), vgfShape(kind, outputShape),
+                                          vgfDispatchShape(kind, outputShape), resources.vgfs.size()));
     const auto id = builder.addVgf(info);
     const auto shader = getVgfShader(builder, resources, kind);
     resources.vgfs.push_back(
@@ -463,9 +463,10 @@ ShaderId addDataGraphShader(ScenarioBuilderImpl &builder, FuzzResources &resourc
     ShaderInfo info{};
     info.debugName = std::move(debugName);
     info.entry = "main";
-    info.src = writeDataGraphShader(input.info.shape, output.info.shape, resources.graphShaderRecords.size());
     info.shaderType = ShaderType::SPIR_V;
     info.stage = ShaderStage::Compute;
+    info.src = readShaderCode(
+        writeDataGraphShader(input.info.shape, output.info.shape, resources.graphShaderRecords.size()), info);
     const auto id = builder.addShader(info);
     resources.graphShaderRecords.push_back(
         {id, input.id, output.id, input.info.shape, output.info.shape, input.info.format});
@@ -481,9 +482,9 @@ void seedComputeScenario(ScenarioBuilderImpl &builder, FuzzResources &resources)
     ShaderInfo seedShader{};
     seedShader.debugName = "seed_compute";
     seedShader.entry = "main";
-    seedShader.src = SCENARIO_FUZZER_RESOURCE_DIR "/shaders/test_barrier/add_one.comp";
     seedShader.shaderType = ShaderType::GLSL;
     seedShader.stage = ShaderStage::Compute;
+    seedShader.src = readShaderCode(SCENARIO_FUZZER_RESOURCE_DIR "/shaders/test_barrier/add_one.comp", seedShader);
     const auto seedShaderId = builder.addShader(seedShader);
     const BufferInfo seedInput{"seed_input", 256, 0};
     const BufferInfo seedOutput{"seed_output", 256, 0};
@@ -511,18 +512,20 @@ void seedGraphicsScenario(ScenarioBuilderImpl &builder, FuzzResources &resources
     ShaderInfo seedVertex{};
     seedVertex.debugName = "seed_vertex";
     seedVertex.entry = "main";
-    seedVertex.src = SCENARIO_FUZZER_RESOURCE_DIR "/shaders/test_fragment/fullscreen_triangle.vert";
     seedVertex.shaderType = ShaderType::GLSL;
     seedVertex.stage = ShaderStage::Vertex;
+    seedVertex.src =
+        readShaderCode(SCENARIO_FUZZER_RESOURCE_DIR "/shaders/test_fragment/fullscreen_triangle.vert", seedVertex);
     const auto seedVertexId = builder.addShader(seedVertex);
     vertexShaders.push_back(seedVertexId);
 
     ShaderInfo seedFragment{};
     seedFragment.debugName = "seed_fragment";
     seedFragment.entry = "main";
-    seedFragment.src = SCENARIO_FUZZER_RESOURCE_DIR "/shaders/test_fragment/sampled_copy.frag";
     seedFragment.shaderType = ShaderType::GLSL;
     seedFragment.stage = ShaderStage::Fragment;
+    seedFragment.src =
+        readShaderCode(SCENARIO_FUZZER_RESOURCE_DIR "/shaders/test_fragment/sampled_copy.frag", seedFragment);
     const auto seedFragmentId = builder.addShader(seedFragment);
     fragmentShaders.push_back(seedFragmentId);
 
@@ -794,20 +797,20 @@ void applyAddShader(BuilderOperationContext &context) {
         }
         const auto &input = context.resources.bufferRecords[inputIndex];
         const auto &output = context.resources.bufferRecords[outputIndex];
-        info.src = SCENARIO_FUZZER_SOURCE_DIR "/variable_copy.comp";
         info.shaderType = ShaderType::GLSL;
         info.stage = ShaderStage::Compute;
+        info.src = readShaderCode(SCENARIO_FUZZER_SOURCE_DIR "/variable_copy.comp", info);
         const auto id = context.builder.addShader(info);
         context.resources.computeShaderRecords.push_back({id, input.id, output.id, input.info.size, output.info.size});
     } else if (kind == 1) {
-        info.src = SCENARIO_FUZZER_RESOURCE_DIR "/shaders/test_fragment/fullscreen_triangle.vert";
         info.shaderType = ShaderType::GLSL;
         info.stage = ShaderStage::Vertex;
+        info.src = readShaderCode(SCENARIO_FUZZER_RESOURCE_DIR "/shaders/test_fragment/fullscreen_triangle.vert", info);
         context.resources.vertexShaders.push_back(context.builder.addShader(info));
     } else if (kind == 2) {
-        info.src = SCENARIO_FUZZER_RESOURCE_DIR "/shaders/test_fragment/sampled_copy.frag";
         info.shaderType = ShaderType::GLSL;
         info.stage = ShaderStage::Fragment;
+        info.src = readShaderCode(SCENARIO_FUZZER_RESOURCE_DIR "/shaders/test_fragment/sampled_copy.frag", info);
         context.resources.fragmentShaders.push_back(context.builder.addShader(info));
     } else {
         std::vector<const FuzzResources::TensorRecord *> candidates;

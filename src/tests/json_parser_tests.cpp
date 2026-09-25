@@ -1457,7 +1457,8 @@ TEST(JsonParser, TensorResourceMissingDims) {
     }
     )"_json;
 
-    ASSERT_THROW(MakeFromJSON<TensorDesc>(jsonInput), nlohmann::json::out_of_range);
+    auto desc = MakeFromJSON<TensorDesc>(jsonInput);
+    ASSERT_TRUE(desc.dims.empty());
 }
 
 TEST(JsonParser, TensorResourceDimsInvalidType) {
@@ -1467,6 +1468,23 @@ TEST(JsonParser, TensorResourceDimsInvalidType) {
     {
         "src": "./graph_data/intensor1.npy",
         "dims": "1",
+        "format": "VK_FORMAT_R8_SINT",
+        "shader_access": "readonly",
+        "uid": "InTensor1",
+        "tiling": "OPTIMAL"
+    }
+    )"_json;
+
+    ASSERT_THROW(MakeFromJSON<TensorDesc>(jsonInput), nlohmann::json::type_error);
+}
+
+TEST(JsonParser, TensorResourceDimsInvalidString) {
+
+    const auto jsonInput =
+        R"(
+    {
+        "src": "./graph_data/intensor1.npy",
+        "dims": [1, "unknown", 8, 16],
         "format": "VK_FORMAT_R8_SINT",
         "shader_access": "readonly",
         "uid": "InTensor1",

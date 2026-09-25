@@ -57,8 +57,10 @@ vk::raii::ShaderModule createShaderModuleFromCode(const Context &ctx, const uint
 }
 
 vk::raii::ShaderModule createShaderModule(const Context &ctx, const ShaderInfo &shaderInfo) {
-    const std::vector<uint32_t> code = readShaderCode(shaderInfo);
-    return createShaderModuleFromCode(ctx, code.data(), code.size());
+    if (!shaderInfo.src || shaderInfo.src->empty()) {
+        throw std::runtime_error("Shader resource missing src: " + shaderInfo.debugName);
+    }
+    return createShaderModuleFromCode(ctx, shaderInfo.src->data(), shaderInfo.src->size());
 }
 
 std::vector<vk::DescriptorSetLayout>
@@ -534,9 +536,7 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, const ShaderInfo &
                                           const std::shared_ptr<PipelineCache> &pipelineCache,
                                           bool enableNeuralStatistics,
                                           vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
-    // Compile/load SPIR-V code
-    const auto spv = readShaderCode(shaderInfo);
-    _shader = createShaderModuleFromCode(ctx, spv.data(), spv.size());
+    _shader = createShaderModule(ctx, shaderInfo);
     trySetVkRaiiObjectDebugName(ctx, _shader, _debugName + " shader");
 
     buildDataGraphPipeline(ctx, shaderInfo.entry, resourceInfos, constantInfos, pipelineCache, enableNeuralStatistics,

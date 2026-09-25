@@ -34,7 +34,7 @@ TEST(ResourceManager, AssignsIdsIndependentlyPerType) {
     BufferInfo bufferB{};
     bufferB.debugName = "buffer_b";
     RawDataInfo rawData{"raw_data", "data.npy"};
-    VgfInfo vgf{"data_graph", "graph.vgf", 0, {}};
+    VgfInfo vgf{"data_graph", nullptr, 0, {}};
     GraphConstantInfo graphConstant{"constant", vk::Format::eR32Sfloat, {1}};
 
     const auto bufferAId = resources.addBuffer(std::move(bufferA));
@@ -68,7 +68,7 @@ TEST(ResourceManager, PreservesResourceInfo) {
     EXPECT_EQ(resources.get(shaderId).pushConstantsSize, 16U);
 
     const auto rawDataId = resources.addRawData({"raw_data", "data.npy"});
-    const auto vgfId = resources.addVgf({"data_graph", "graph.vgf", 0, {}});
+    const auto vgfId = resources.addVgf({"data_graph", nullptr, 0, {}});
     GraphConstantInfo graphConstant{"constant", vk::Format::eR32Sint, {2}};
     graphConstant.data = {1, 2, 3, 4, 5, 6, 7, 8};
     const auto graphConstantId = resources.addGraphConstant(std::move(graphConstant));
@@ -76,7 +76,7 @@ TEST(ResourceManager, PreservesResourceInfo) {
     EXPECT_EQ(resources.get(rawDataId).debugName, "raw_data");
     EXPECT_EQ(resources.get(rawDataId).src, "data.npy");
     EXPECT_EQ(resources.get(vgfId).debugName, "data_graph");
-    EXPECT_EQ(resources.get(vgfId).src, "graph.vgf");
+    EXPECT_EQ(resources.get(vgfId).src, nullptr);
     EXPECT_EQ(resources.get(graphConstantId).debugName, "constant");
     EXPECT_EQ(resources.get(graphConstantId).format, vk::Format::eR32Sint);
     EXPECT_EQ(resources.get(graphConstantId).dims, std::vector<int64_t>({2}));

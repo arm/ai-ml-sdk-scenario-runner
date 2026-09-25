@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <cstring>
 #include <fstream>
+#include <memory>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -285,18 +286,15 @@ TEST(Scenario, ExecutesCommandWithDifferentInputsAcrossRuns) {
         }
     )";
 
-    TempFolder tempFolder("iscenario_compute_test");
-    const auto shaderPath = tempFolder.relative("increment.spv");
-    const auto spirv = GlslCompiler::get().compile(std::string{shaderSource}, ShaderStage::Compute);
+    auto spirv = GlslCompiler::get().compile(std::string{shaderSource}, ShaderStage::Compute);
     ASSERT_TRUE(spirv.first.empty()) << spirv.first;
-    ASSERT_TRUE(GlslCompiler::get().save(spirv.second, shaderPath.string()));
 
     std::unique_ptr<ScenarioBuilder> builder = createScenarioBuilder();
 
     ShaderInfo shaderInfo{};
     shaderInfo.debugName = "increment";
     shaderInfo.entry = "main";
-    shaderInfo.src = shaderPath.string();
+    shaderInfo.src = std::make_shared<const std::vector<uint32_t>>(std::move(spirv.second));
     shaderInfo.shaderType = ShaderType::SPIR_V;
     shaderInfo.stage = ShaderStage::Compute;
     const auto shaderId = builder->addShader(shaderInfo);

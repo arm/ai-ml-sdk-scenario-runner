@@ -83,14 +83,6 @@ uint64_t totalElementsFromShape(const std::vector<int64_t> &shape);
  */
 uint32_t findMemoryIdx(const Context &ctx, uint32_t memTypeBits, vk::MemoryPropertyFlags required);
 
-/** Read the shader code from file. In case of GLSL shader, the code will be compiled into SPIR-V before being
- * returned.
- *
- * @param[in] shaderInfo Shader description meta-data. Contains the filename, file type, etc.
- * @return Bytes read from the file
- */
-std::vector<uint32_t> readShaderCode(const ShaderInfo &shaderInfo);
-
 /** Throw an error that identifies the shader and preserves its compiler diagnostics.
  *
  * @param[in] shaderName Name of the shader that failed to compile.

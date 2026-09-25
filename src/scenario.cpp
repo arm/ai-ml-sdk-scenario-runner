@@ -820,7 +820,7 @@ void ScenarioImpl::createDataGraphPipeline(const DispatchDataGraphData &dispatch
         throw std::runtime_error("Shader resource used to create Graph Pipeline must be of type SPIR-V");
     }
 
-    if (shaderInfo.src.empty()) {
+    if (!shaderInfo.src || shaderInfo.src->empty()) {
         throw std::runtime_error("Shader resource missing src: " + shaderInfo.debugName);
     }
 

@@ -3,11 +3,11 @@
     ],
     "resources": [
         {
-            "tensor":{
+            "tensor": {
                 "uid": "tensor0",
-                "dims" : [-2, 128, 256, 3],
+                "dims": [1, "?", 256, "?"],
                 "format": "vk_float32",
-                "shader_access":"readwrite"
+                "shader_access": "writeonly"
             }
         }
     ]
