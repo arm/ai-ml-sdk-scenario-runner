@@ -75,20 +75,30 @@ if(EXISTS "${SPIRV_TOOLS_PATH}/CMakeLists.txt")
     if(NOT TARGET SPIRV-Tools)
         option(SPIRV_SKIP_TESTS "" ON)
         option(SPIRV_WERROR "" OFF)
-        add_subdirectory("${SPIRV_TOOLS_PATH}" spirv-tools SYSTEM EXCLUDE_FROM_ALL)
+
+        if(APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+            add_subdirectory("${SPIRV_TOOLS_PATH}" spirv-tools EXCLUDE_FROM_ALL)
+        else()
+            add_subdirectory("${SPIRV_TOOLS_PATH}" spirv-tools SYSTEM EXCLUDE_FROM_ALL)
+        endif()
     endif()
 
-    # Prefer the source checkout's public headers when compiling SPIR-V Tools,
-    # even if another component created the targets or CPATH contains another installation.
-    foreach(SPIRV_TOOLS_INTERNAL_TARGET IN ITEMS SPIRV-Tools SPIRV-Tools-static SPIRV-Tools-shared)
-        if(TARGET "${SPIRV_TOOLS_INTERNAL_TARGET}")
-            get_target_property(SPIRV_TOOLS_ALIASED_TARGET
-                "${SPIRV_TOOLS_INTERNAL_TARGET}" ALIASED_TARGET)
-            if(NOT SPIRV_TOOLS_ALIASED_TARGET)
-                set_property(TARGET "${SPIRV_TOOLS_INTERNAL_TARGET}" PROPERTY SYSTEM OFF)
+    # AppleClang searches /usr/local/include before command-line system include
+    # paths. Use normal include ordering for the patched checkout while retaining
+    # system-header diagnostics for SPIR-V Tools headers.
+    if(APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        foreach(SPIRV_TOOLS_INTERNAL_TARGET IN ITEMS
+                SPIRV-Tools SPIRV-Tools-static SPIRV-Tools-shared SPIRV-Tools-opt)
+            if(TARGET "${SPIRV_TOOLS_INTERNAL_TARGET}")
+                get_target_property(SPIRV_TOOLS_ALIASED_TARGET
+                    "${SPIRV_TOOLS_INTERNAL_TARGET}" ALIASED_TARGET)
+                if(NOT SPIRV_TOOLS_ALIASED_TARGET)
+                    target_compile_options("${SPIRV_TOOLS_INTERNAL_TARGET}" INTERFACE
+                        "$<$<COMPILE_LANGUAGE:CXX>:--system-header-prefix=spirv-tools/>")
+                endif()
             endif()
-        endif()
-    endforeach()
+        endforeach()
+    endif()
 
     mlsdk_get_git_revision("${SPIRV_TOOLS_PATH}" SPIRV-Tools_VERSION)
 else()
