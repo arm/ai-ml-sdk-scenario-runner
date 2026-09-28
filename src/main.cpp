@@ -30,10 +30,13 @@
 using namespace mlsdk::scenariorunner;
 using namespace mlsdk::logging;
 namespace {
-constexpr std::array<std::string_view, 5> extensionList = {
-    VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, VK_EXT_FRAME_BOUNDARY_EXTENSION_NAME,
-    VK_ARM_DATA_GRAPH_NEURAL_ACCELERATOR_STATISTICS_EXTENSION_NAME, VK_KHR_MAINTENANCE_5_EXTENSION_NAME,
-    VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
+constexpr std::array<std::string_view, 6> extensionList = {
+    VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME,
+    VK_EXT_FRAME_BOUNDARY_EXTENSION_NAME,
+    VK_ARM_DATA_GRAPH_NEURAL_ACCELERATOR_STATISTICS_EXTENSION_NAME,
+    VK_KHR_MAINTENANCE_5_EXTENSION_NAME,
+    VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+    VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME};
 
 std::string printExtensionList() {
     size_t numExtensions = extensionList.size() - 1;
@@ -173,14 +176,15 @@ int runScenarioRunner(int argc, const char **argv) {
             .help("setup pipelines but skip the actual execution")
             .default_value(false)
             .implicit_value(true);
-        parser.add_argument("--disable-extension")
-            .append()
-            .store_into(scenarioOptions.disabledExtensions)
-            .choices("VK_EXT_custom_border_color", "VK_EXT_frame_boundary",
-                     "VK_ARM_data_graph_neural_accelerator_statistics", "VK_KHR_maintenance_5",
-                     "VK_KHR_deferred_host_operations")
-            .nargs(argparse::nargs_pattern::at_least_one)
-            .help("specify extensions to disable out of the following: " + printExtensionList());
+        auto &disableExtensionArg =
+            parser.add_argument("--disable-extension")
+                .append()
+                .store_into(scenarioOptions.disabledExtensions)
+                .nargs(argparse::nargs_pattern::at_least_one)
+                .help("specify extensions to disable out of the following: " + printExtensionList());
+        for (const auto &extension : extensionList) {
+            disableExtensionArg.choices(extension);
+        }
         parser.add_argument("--enable-gpu-debug-markers")
             .help("enable GPU debug markers")
             .default_value(false)
@@ -233,16 +237,6 @@ int runScenarioRunner(int argc, const char **argv) {
         }
 
         scenarioOptions.enableGPUDebugMarkers = parser.get<bool>("--enable-gpu-debug-markers");
-
-        if (!scenarioOptions.disabledExtensions.empty()) {
-            const auto &selectableExtensions = extensionList;
-            for (auto &extension : scenarioOptions.disabledExtensions) {
-                if (std::find(selectableExtensions.begin(), selectableExtensions.end(), extension) ==
-                    selectableExtensions.end()) {
-                    throw std::runtime_error("Unrecognized extension, cannot disable: " + extension);
-                }
-            }
-        }
 
         auto graphProfilingDumpDirStr = parser.get("--emulation-layer-profiling-dump-dir");
         if (!graphProfilingDumpDirStr.empty()) {
