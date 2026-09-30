@@ -16,8 +16,11 @@ license = { text = "Apache-2.0" }
 authors = [
     { name = "Arm Limited" }
 ]
-requires-python = ">=3.10"
-dependencies = ["numpy>=1.24"]
+requires-python = ">=3.10,<3.15"
+dependencies = [
+    "numpy==2.1.3; python_version < '3.14'",
+    "numpy==2.4.6; python_version >= '3.14'",
+]
 
 [project.scripts]
 scenario_runner = "scenario_runner.cli:main"
@@ -41,6 +44,30 @@ repair-wheel-command = "delvewheel repair --exclude msvcp140.dll -w {dest_dir} -
 
 [tool.black]
 target-version = ['py310']
+
+[tool.uv]
+managed = true
+
+[dependency-groups]
+test = [
+    "jsonschema==4.25.1",
+    "Pillow==12.3.0",
+    "pytest==9.0.3",
+    "pytest-xdist==3.8.0",
+    "referencing==0.37.0",
+]
+tooling = [
+    "argcomplete==3.6.2",
+    "breathe==4.36.0",
+    "build==1.3.0",
+    "debian-inspector==31.1.0",
+    "myst_parser==4.0.1",
+    "pre-commit==4.5.1",
+    "setuptools==68.0.0",
+    "sphinx==8.1.3",
+    "sphinx_rtd_theme==3.0.2",
+    "wheel==0.41.2",
+]
 
 [tool.isort]
 profile = "black"
