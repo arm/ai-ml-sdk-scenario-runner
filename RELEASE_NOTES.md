@@ -16,6 +16,7 @@
 - Added a clear error when no Vulkan® physical devices are available.
 - Fixed buffer, tensor, and image readback synchronization so staging-buffer
   writes are made visible to host reads before returning downloaded data.
+- Added support for transfer-only queues and removed the compute-only fallback.
 
 ### Build, Packaging & Dependencies
 

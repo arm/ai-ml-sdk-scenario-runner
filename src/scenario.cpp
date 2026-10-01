@@ -224,21 +224,9 @@ Id resolveResourceUid(const std::unordered_map<Guid, TypedResourceId> &resourceI
                              "' does not identify a " + std::string(resourceType) + " resource.");
 }
 
-vk::QueueFlags getRequiredQueueFlags(const std::vector<detail::ScenarioCommand> &commands) {
-    vk::QueueFlags requiredQueueFlags;
-    for (const auto &command : commands) {
-        if (std::holds_alternative<DispatchComputeData>(command)) {
-            requiredQueueFlags |= vk::QueueFlagBits::eCompute;
-        } else if (std::holds_alternative<DispatchFragmentData>(command)) {
-            requiredQueueFlags |= vk::QueueFlagBits::eGraphics;
-        } else if (std::holds_alternative<DispatchVgfData>(command) ||
-                   std::holds_alternative<DispatchDataGraphBinaryData>(command) ||
-                   std::holds_alternative<DispatchDataGraphData>(command) ||
-                   std::holds_alternative<DispatchOpticalFlowData>(command)) {
-            requiredQueueFlags |= vk::QueueFlagBits::eDataGraphARM;
-        }
-    }
-    return requiredQueueFlags ? requiredQueueFlags : vk::QueueFlagBits::eCompute;
+bool requiresDynamicRendering(const std::vector<detail::ScenarioCommand> &commands) {
+    return std::any_of(commands.begin(), commands.end(),
+                       [](const auto &command) { return std::holds_alternative<DispatchFragmentData>(command); });
 }
 
 // Map performance level to Vulkan enum
@@ -290,7 +278,97 @@ std::pair<const char *, size_t> getPushConstantData(const std::optional<RawDataI
     return std::make_pair(nullptr, 0U);
 }
 
+vk::QueueFlags getRequiredQueueFlags(const std::vector<PipelineStage> &stages, MemoryAccess access) {
+    vk::QueueFlags requiredQueueFlags;
+    bool includesAllStages = false;
+    for (const auto stage : stages) {
+        switch (stage) {
+        case PipelineStage::Compute:
+            requiredQueueFlags |= vk::QueueFlagBits::eCompute;
+            break;
+        case PipelineStage::Graphics:
+            requiredQueueFlags |= vk::QueueFlagBits::eGraphics;
+            break;
+        case PipelineStage::Graph:
+            requiredQueueFlags |= vk::QueueFlagBits::eDataGraphARM;
+            break;
+        case PipelineStage::All:
+            includesAllStages = true;
+            break;
+        default:
+            throw std::runtime_error("Invalid barrier stage flag");
+        }
+    }
+
+    if (includesAllStages) {
+        if (access == MemoryAccess::ComputeShaderRead || access == MemoryAccess::ComputeShaderWrite) {
+            requiredQueueFlags |= vk::QueueFlagBits::eCompute;
+        } else if (access == MemoryAccess::GraphRead || access == MemoryAccess::GraphWrite) {
+            requiredQueueFlags |= vk::QueueFlagBits::eDataGraphARM;
+        }
+    }
+    return requiredQueueFlags;
+}
+
+template <typename BarrierId>
+vk::QueueFlags getRequiredBarrierQueueFlags(const std::vector<BarrierId> &barriers, const ResourceManager &resources) {
+    vk::QueueFlags requiredQueueFlags;
+    for (const auto barrier : barriers) {
+        const auto &barrierInfo = resources.get(barrier);
+        requiredQueueFlags |= getRequiredQueueFlags(barrierInfo.srcStages, barrierInfo.srcAccess);
+        requiredQueueFlags |= getRequiredQueueFlags(barrierInfo.dstStages, barrierInfo.dstAccess);
+    }
+    return requiredQueueFlags;
+}
+
+vk::QueueFlags getRequiredBarrierQueueFlags(const PipelineBarrierData &pipelineBarrier,
+                                            const ResourceManager &resources) {
+    return getRequiredBarrierQueueFlags(pipelineBarrier.memoryBarriers, resources) |
+           getRequiredBarrierQueueFlags(pipelineBarrier.imageBarriers, resources) |
+           getRequiredBarrierQueueFlags(pipelineBarrier.tensorBarriers, resources) |
+           getRequiredBarrierQueueFlags(pipelineBarrier.bufferBarriers, resources);
+}
+
 } // namespace
+
+vk::QueueFlags detail::getRequiredWorkloadQueueFlags(const ScenarioBuildData &buildData) {
+    vk::QueueFlags requiredQueueFlags;
+    for (const auto &command : buildData.commands) {
+        if (std::holds_alternative<DispatchComputeData>(command)) {
+            requiredQueueFlags |= vk::QueueFlagBits::eCompute;
+        } else if (std::holds_alternative<DispatchFragmentData>(command)) {
+            requiredQueueFlags |= vk::QueueFlagBits::eGraphics;
+        } else if (std::holds_alternative<DispatchVgfData>(command) ||
+                   std::holds_alternative<DispatchDataGraphBinaryData>(command) ||
+                   std::holds_alternative<DispatchDataGraphData>(command) ||
+                   std::holds_alternative<DispatchOpticalFlowData>(command)) {
+            requiredQueueFlags |= vk::QueueFlagBits::eDataGraphARM;
+        } else if (const auto *pipelineBarrier = std::get_if<PipelineBarrierData>(&command)) {
+            requiredQueueFlags |= getRequiredBarrierQueueFlags(*pipelineBarrier, buildData.resources);
+        }
+    }
+
+    // Partial uploads to multi-mip images generate missing levels using graphics-only blit commands.
+    for (const auto &image : buildData.resources.images()) {
+        if (image.info.mips > 1) {
+            requiredQueueFlags |= vk::QueueFlagBits::eGraphics;
+            break;
+        }
+    }
+
+    // Image layout transitions during construction also contribute to queue selection.
+    for (const auto &initialization : buildData.initializations) {
+        const auto *imageInitialization = std::get_if<detail::ImageInitialization>(&initialization);
+        if (imageInitialization == nullptr) {
+            continue;
+        }
+        if (!imageInitialization->data.has_value() && buildData.groupManager.isAliased(imageInitialization->id)) {
+            // initializeResourceData calls Image::transitionLayout, whose barriers use both shader stages.
+            requiredQueueFlags |= vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eGraphics;
+        }
+    }
+    return requiredQueueFlags;
+}
 
 std::unique_ptr<Scenario> detail::createScenario(const ScenarioOptions &options, ScenarioBuildData buildData) {
     return std::unique_ptr<Scenario>{new ScenarioImpl(options, std::move(buildData))};
@@ -299,10 +377,11 @@ std::unique_ptr<Scenario> detail::createScenario(const ScenarioOptions &options,
 // ScenarioBuildData is intentionally passed by value because this constructor takes ownership of its contents.
 // cppcheck-suppress passedByValue
 ScenarioImpl::ScenarioImpl(const ScenarioOptions &opts, detail::ScenarioBuildData buildData)
-    : _opts{opts}, _ctx{opts, getRequiredQueueFlags(buildData.commands)}, _resources{std::move(buildData.resources)},
-      _resourceIds{std::move(buildData.resourceIds)}, _initializations{std::move(buildData.initializations)},
-      _outputs{std::move(buildData.outputs)}, _commands{std::move(buildData.commands)}, _compute(_ctx),
-      _groupManager{std::move(buildData.groupManager)} {
+    : _opts{opts},
+      _ctx{opts, detail::getRequiredWorkloadQueueFlags(buildData), requiresDynamicRendering(buildData.commands)},
+      _resources{std::move(buildData.resources)}, _resourceIds{std::move(buildData.resourceIds)},
+      _initializations{std::move(buildData.initializations)}, _outputs{std::move(buildData.outputs)},
+      _commands{std::move(buildData.commands)}, _compute(_ctx), _groupManager{std::move(buildData.groupManager)} {
     setupResources();
     initializeResourceData();
     setupRuntimeCommands();
