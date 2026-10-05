@@ -37,6 +37,7 @@ target_include_directories(ScenarioRunnerTests PRIVATE
   ${PROJECT_SOURCE_DIR}/src
 )
 target_compile_options(ScenarioRunnerTests PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
+scenario_runner_enable_coverage(ScenarioRunnerTests)
 
 if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
   target_sources(ScenarioRunnerTests PRIVATE hlsl_compiler_tests.cpp)

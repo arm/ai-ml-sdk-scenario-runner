@@ -218,6 +218,22 @@ For more command line options, consult the program help:
 python3 $SDK_PATH/sw/scenario-runner/scripts/build.py --help
 ```
 
+## Code coverage
+
+Sync the locked test and tooling dependencies, then run the C++ and Python unit
+tests on Linux with GCC coverage instrumentation:
+
+```bash
+uv sync --locked --no-install-project --no-default-groups --group test --group tooling
+uv run --no-sync python scripts/build.py --coverage --build-dir build-coverage
+```
+
+The coverage command writes a detailed HTML report to
+`build-coverage/coverage/index.html` and a machine-readable JSON summary to
+`build-coverage/coverage/summary.json`. Coverage is collected for Scenario
+Runner sources and public headers, including native code exercised through
+pytest. Python source-line coverage is not collected.
+
 ## Usage
 
 To run a scenario file, use the following command:

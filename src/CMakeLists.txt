@@ -77,6 +77,7 @@ function(srlib_configure_target target_name)
     endif()
 
     target_compile_options(${target_name} PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
+    scenario_runner_enable_coverage(${target_name})
 endfunction()
 
 add_library(ScenarioRunnerLib ${SCENARIO_RUNNER_LIB_SOURCES})
@@ -110,6 +111,7 @@ if(SCENARIO_RUNNER_BUILD_PYLIB AND NOT ANDROID)
         scenario_json_factory_py.cpp
     )
     target_compile_options(scenario_runner_py PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
+    scenario_runner_enable_coverage(scenario_runner_py)
     target_link_libraries(scenario_runner_py PRIVATE ScenarioRunnerLib pybind11::module)
 endif()
 

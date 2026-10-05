@@ -36,10 +36,36 @@ option(SCENARIO_RUNNER_BUILD_DOCS "Build project documentation" OFF)
 option(SCENARIO_RUNNER_BUILD_PYLIB "Build Scenario Runner Python bindings" OFF)
 option(SCENARIO_RUNNER_BUILD_SHARED "Build Scenario Runner as a shared library" OFF)
 option(SCENARIO_RUNNER_BUILD_TESTS "Build Scenario Runner unit tests" OFF)
+option(SCENARIO_RUNNER_ENABLE_COVERAGE "Enable GCC code coverage instrumentation" OFF)
 option(SCENARIO_RUNNER_ENABLE_FUZZER "Build Scenario Runner libFuzzer target" OFF)
 option(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT "HLSL only supported on Windows and Linux" OFF)
 option(SCENARIO_RUNNER_ENABLE_RDOC "Build Scenario Runner w/ RDoc support enabled" OFF)
 option(SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT "Enable support for experimental image formats in DDS reader" OFF)
+
+if(SCENARIO_RUNNER_ENABLE_COVERAGE)
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        message(FATAL_ERROR "SCENARIO_RUNNER_ENABLE_COVERAGE requires GCC")
+    endif()
+    if(CMAKE_CROSSCOMPILING)
+        message(FATAL_ERROR "SCENARIO_RUNNER_ENABLE_COVERAGE is only supported for native builds")
+    endif()
+endif()
+
+function(scenario_runner_enable_coverage target_name)
+    if(NOT SCENARIO_RUNNER_ENABLE_COVERAGE)
+        return()
+    endif()
+
+    target_compile_options(${target_name} PRIVATE --coverage -O0 -g)
+
+    set(coverage_private_link_types EXECUTABLE SHARED_LIBRARY MODULE_LIBRARY)
+    get_target_property(target_type ${target_name} TYPE)
+    if(target_type STREQUAL "STATIC_LIBRARY")
+        target_link_options(${target_name} INTERFACE --coverage)
+    elseif(target_type IN_LIST coverage_private_link_types)
+        target_link_options(${target_name} PRIVATE --coverage)
+    endif()
+endfunction()
 
 if(SCENARIO_RUNNER_ENABLE_FUZZER)
     if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -101,6 +127,7 @@ target_link_libraries(scenario-runner PRIVATE
     ${CMAKE_DL_LIBS}
 )
 target_compile_options(scenario-runner PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
+scenario_runner_enable_coverage(scenario-runner)
 
 add_subdirectory(samples)
 

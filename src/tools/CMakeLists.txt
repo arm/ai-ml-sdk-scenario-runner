@@ -16,6 +16,7 @@ if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
             argparse::argparse
     )
     target_compile_options(hlslc PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
+    scenario_runner_enable_coverage(hlslc)
     target_compile_definitions(hlslc PRIVATE SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
     add_dependencies(hlslc dxc)
 endif()
@@ -36,6 +37,7 @@ target_link_libraries(glslc
     argparse::argparse
 )
 target_compile_options(glslc PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
+scenario_runner_enable_coverage(glslc)
 
 
 add_executable(dds_utils
@@ -49,6 +51,7 @@ target_link_libraries(dds_utils
     ${CMAKE_DL_LIBS}
 )
 target_compile_options(dds_utils PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
+scenario_runner_enable_coverage(dds_utils)
 
 
 add_executable(png_utils
@@ -64,6 +67,7 @@ target_link_libraries(png_utils
     stb::stb
 )
 target_compile_options(png_utils PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
+scenario_runner_enable_coverage(png_utils)
 
 
 if(NOT (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR) AND ML_SDK_GENERATE_CPACK)
