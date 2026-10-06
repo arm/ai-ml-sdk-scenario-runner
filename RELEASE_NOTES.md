@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+### Bug Fixes
+
+- Fixed buffer, tensor, and image readback synchronization so staging-buffer
+  writes are made visible to host reads before returning downloaded data.
+
 ### Build, Packaging & Dependencies
 
 - Windows® wheels no longer bundle `MSVCP140.dll`; they use the C++ runtime

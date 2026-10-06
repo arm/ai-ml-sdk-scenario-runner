@@ -669,6 +669,9 @@ std::vector<std::byte> Image::getImageData(const Context &ctx) {
                      static_cast<uint32_t>(_imageInfo.shape[3]));
 
     cmdBuffer.copyImageToBuffer(_image, vk::ImageLayout::eGeneral, _memoryManager->getStagingBuffer(), {region});
+    const vk::MemoryBarrier2 hostReadBarrier{vk::PipelineStageFlagBits2::eCopy, vk::AccessFlagBits2::eTransferWrite,
+                                             vk::PipelineStageFlagBits2::eHost, vk::AccessFlagBits2::eHostRead};
+    cmdBuffer.pipelineBarrier2(vk::DependencyInfo({}, hostReadBarrier));
     cmdBuffer.end();
 
     vk::SubmitInfo submitInfo({}, {}, *cmdBuffer);
