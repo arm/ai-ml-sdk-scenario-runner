@@ -6,6 +6,7 @@
 
 ### Bug Fixes
 
+- Added a clear error when no Vulkan® physical devices are available.
 - Fixed buffer, tensor, and image readback synchronization so staging-buffer
   writes are made visible to host reads before returning downloaded data.
 

@@ -65,6 +65,9 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags required
 
     // Create physical device
     auto physicalDevices = vk::raii::PhysicalDevices(_instance);
+    if (physicalDevices.empty()) {
+        throw std::runtime_error("No Vulkan physical devices found");
+    }
 
     // Sort physical devices prioritizing discrete GPUs
     _physicalDev =
