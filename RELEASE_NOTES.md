@@ -15,6 +15,8 @@
   installed on the target system.
 - Locked Python runtime, development, and test dependencies with `uv.lock` in
   place of the requirements files.
+- Added GCC code coverage reporting for native Linux C++ and Python unit-test
+  builds.
 
 ## Version 0.11.0 – *Public APIs, Python Bindings & Profiling*
 

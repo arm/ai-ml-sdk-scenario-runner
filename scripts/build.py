@@ -46,7 +46,8 @@ class Builder:
         self.prefix_path = args.prefix_path
         self.test_dir = pathlib.Path(self.build_dir) / "src" / "tests"
         self.threads = args.threads
-        self.run_tests = args.test
+        self.coverage = args.coverage
+        self.run_tests = args.test or self.coverage
         self.build_pylib = args.build_pylib
         self.build_type = args.build_type
         self.target_platform = args.target_platform
@@ -231,6 +232,15 @@ class Builder:
             cmake_setup_cmd.append("-DSCENARIO_RUNNER_BUILD_TESTS=ON")
             cmake_setup_cmd.append(f"-DGTEST_PATH={self.gtest_path}")
 
+        if self.coverage:
+            if self.target_platform != "host" or platform.system() != "Linux":
+                print(
+                    "ERROR: Coverage requires a native Linux GCC build",
+                    file=sys.stderr,
+                )
+                return 1
+            cmake_setup_cmd.append("-DSCENARIO_RUNNER_ENABLE_COVERAGE=ON")
+
         if self.build_pylib or self.run_tests or self.doc:
             cmake_setup_cmd.append(f"-DPYBIND11_PATH={self.pybind11_path}")
             cmake_setup_cmd.append("-DSCENARIO_RUNNER_BUILD_PYLIB=ON")
@@ -363,6 +373,10 @@ class Builder:
                 subprocess.run(cmake_install_cmd, check=True)
 
             if self.run_tests and self.target_platform != "android":
+                if self.coverage:
+                    for coverage_data in pathlib.Path(self.build_dir).rglob("*.gcda"):
+                        coverage_data.unlink()
+
                 test_cmd = [
                     "ctest",
                     "--test-dir",
@@ -440,6 +454,31 @@ class Builder:
                 if self.enable_sanitizers:
                     pytest_cmd.append("--sanitizers")
                 subprocess.run(pytest_cmd, cwd=SCENARIO_RUNNER_DIR, check=True)
+
+            if self.coverage:
+                coverage_dir = pathlib.Path(self.build_dir, "coverage")
+                coverage_dir.mkdir(parents=True, exist_ok=True)
+                coverage_cmd = [
+                    "gcovr",
+                    "--root",
+                    str(SCENARIO_RUNNER_DIR),
+                    "--filter",
+                    str(SCENARIO_RUNNER_DIR / "src"),
+                    "--filter",
+                    str(SCENARIO_RUNNER_DIR / "include"),
+                    "--exclude",
+                    str(SCENARIO_RUNNER_DIR / "src" / "tests"),
+                    "--object-directory",
+                    self.build_dir,
+                    "--html-details",
+                    str(coverage_dir / "index.html"),
+                    "--json-summary-pretty",
+                    "--json-summary",
+                    str(coverage_dir / "summary.json"),
+                    "--print-summary",
+                    self.build_dir,
+                ]
+                subprocess.run(coverage_cmd, check=True)
 
             if self.package_tgz:
                 self.generate_cmake_package("TGZ")
@@ -603,6 +642,12 @@ def parse_arguments(argv=None):
         "-t",
         "--test",
         help="Run unit tests after build. Default: %(default)s",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--coverage",
+        help="Run unit tests with GCC coverage and generate reports. Default: %(default)s",
         action="store_true",
         default=False,
     )
