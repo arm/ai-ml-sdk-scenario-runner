@@ -619,6 +619,17 @@ struct CommandDataFactory {
         return data;
     }
 
+    DispatchDataGraphBinaryData createData(const DispatchDataGraphBinaryDesc &dispatchDataGraphBinary) {
+        DispatchDataGraphBinaryData data{
+            resolveResourceId<RawDataId>(_resourceIds, dispatchDataGraphBinary.binaryRef, "Raw data")};
+        data.debugName = dispatchDataGraphBinary.debugName;
+        data.bindings = convertBindings(_resources, _resourceIds, dispatchDataGraphBinary.bindings);
+        data.pipelineIdentifier = dispatchDataGraphBinary.pipelineIdentifier;
+        data.useApplicationStorage = dispatchDataGraphBinary.useApplicationStorage;
+        data.implicitBarrier = dispatchDataGraphBinary.implicitBarrier;
+        return data;
+    }
+
     DispatchDataGraphData createData(const DispatchDataGraphDesc &dispatchDataGraph) {
         DispatchDataGraphData data{getShaderId(dispatchDataGraph.dataGraphRef)};
         data.debugName = dispatchDataGraph.debugName;
@@ -838,6 +849,10 @@ void resolveCommands(ScenarioBuilderImpl &builder, const ScenarioSpec &scenarioS
             break;
         case CommandType::DispatchVgf:
             builder.addDispatchVgf(factory.createData(reinterpret_cast<DispatchVgfDesc &>(*command)));
+            break;
+        case CommandType::DispatchDataGraphBinary:
+            builder.addDispatchDataGraphBinary(
+                factory.createData(reinterpret_cast<DispatchDataGraphBinaryDesc &>(*command)));
             break;
         case CommandType::DispatchDataGraph:
             builder.addDispatchDataGraph(factory.createData(reinterpret_cast<DispatchDataGraphDesc &>(*command)));

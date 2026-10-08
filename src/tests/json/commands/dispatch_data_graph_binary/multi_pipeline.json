@@ -1,0 +1,18 @@
+{
+    "commands": [
+        {"dispatch_data_graph_binary": {
+            "binary_ref": "model_binary",
+            "bindings": [
+                {"set": 0, "id": 0, "resource_ref": "input"},
+                {"set": 0, "id": 1, "resource_ref": "output"}
+            ],
+            "pipeline_identifier": [17, 34],
+            "use_application_storage": true
+        }}
+    ],
+    "resources": [
+        {"raw_data": {"uid": "model_binary", "src": "model.dgb"}},
+        {"tensor": {"uid": "input", "dims": [1], "format": "VK_FORMAT_R32_SFLOAT", "shader_access": "readonly", "src": "input.npy"}},
+        {"tensor": {"uid": "output", "dims": [1], "format": "VK_FORMAT_R32_SFLOAT", "shader_access": "writeonly", "dst": "output.npy"}}
+    ]
+}

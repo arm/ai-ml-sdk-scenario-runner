@@ -34,6 +34,10 @@ def RequiredMin(value):
     return f"is less than the minimum of {value}"
 
 
+def RequiredMax(value):
+    return f"is greater than the maximum of {value}"
+
+
 def IsEmpty():
     return "should be non-empty"
 
@@ -94,6 +98,7 @@ def check_scenario(schema_filename, expected_msg, json_filename):
 commands_path = pathlib.Path("commands")
 dispatch_compute_path = commands_path / "dispatch_compute"
 dispatch_vgf_path = commands_path / "dispatch_vgf"
+dispatch_data_graph_binary_path = commands_path / "dispatch_data_graph_binary"
 dispatch_data_graph_path = commands_path / "dispatch_data_graph"
 dispatch_optical_flow_path = commands_path / "dispatch_optical_flow"
 pipeline_barrier_path = commands_path / "pipeline_barrier"
@@ -165,6 +170,16 @@ graph_constant_path = resources_path / "graph_constant"
         (RequiredProperty("resource_ref"),dispatch_vgf_path/"binding_missing_resource_ref.json"),
         (RequiredMin(0), dispatch_vgf_path/"binding_negative_id.json"),
         (RequiredMin(0), dispatch_vgf_path/"binding_negative_set.json"),
+
+        # dispatch_data_graph_binary
+        (Ok(), dispatch_data_graph_binary_path/"reference.json"),
+        (Ok(), dispatch_data_graph_binary_path/"multi_pipeline.json"),
+        (RequiredProperty("binary_ref"), dispatch_data_graph_binary_path/"missing_binary_ref.json"),
+        (RequiredProperty("bindings"), dispatch_data_graph_binary_path/"missing_bindings.json"),
+        (UnexpectedProperty("this_is_an_invalid_property"), dispatch_data_graph_binary_path/"invalid_property.json"),
+        (UnexpectedProperty("graph_constants"), dispatch_data_graph_binary_path/"graph_constants.json"),
+        (ShouldBeNonEmpty(), dispatch_data_graph_binary_path/"identifier_empty.json"),
+        (RequiredMax(255), dispatch_data_graph_binary_path/"identifier_byte_out_of_range.json"),
 
         # dispatch_data_graph
         (Ok(), dispatch_data_graph_path/"reference.json"),
@@ -241,6 +256,7 @@ graph_constant_path = resources_path / "graph_constant"
         (Ok(), raw_data_path/"reference.json"),
         (RequiredProperty("uid"), raw_data_path/"missing_uid.json"),
         (RequiredProperty("src"), raw_data_path/"missing_src.json"),
+        (ShouldBeNonEmpty(), raw_data_path/"empty_src.json"),
         (UnexpectedProperty("this_is_an_invalid_property"), raw_data_path/"invalid_property.json"),
         # tensor
         (Ok(), tensor_path/"reference.json"),

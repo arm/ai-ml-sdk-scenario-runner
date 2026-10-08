@@ -21,6 +21,7 @@ enum class CommandType {
     DispatchCompute,
     DispatchVgf,
     DispatchOpticalFlow,
+    DispatchDataGraphBinary,
     DispatchDataGraph,
     DispatchFragment,
     PipelineBarrier,
@@ -134,6 +135,18 @@ struct DispatchVgfDesc : CommandDesc {
     std::vector<BindingDesc> bindings;
     std::vector<PushConstantMap> pushConstants;
     std::vector<ShaderSubstitution> shaderSubstitutions;
+    bool implicitBarrier{true};
+};
+
+/// @brief Describes a standalone data graph binary dispatch.
+struct DispatchDataGraphBinaryDesc : CommandDesc {
+    DispatchDataGraphBinaryDesc();
+
+    Guid binaryRef;
+    std::string debugName;
+    std::vector<BindingDesc> bindings;
+    std::optional<std::vector<uint8_t>> pipelineIdentifier;
+    bool useApplicationStorage{false};
     bool implicitBarrier{true};
 };
 

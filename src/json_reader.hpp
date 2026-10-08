@@ -28,6 +28,9 @@ void from_json(const json &j, DispatchComputeDesc &dispatchCompute);
 // Function to de-serialize DispatchGraphDesc from JSON
 void from_json(const json &j, DispatchVgfDesc &dispatchVgf);
 
+// Function to de-serialize DispatchDataGraphBinaryDesc from JSON
+void from_json(const json &j, DispatchDataGraphBinaryDesc &dispatchDataGraphBinary);
+
 // Function to de-serialize DispatchDataGraphDesc from JSON
 void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph);
 

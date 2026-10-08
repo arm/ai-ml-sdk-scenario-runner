@@ -12,6 +12,10 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <utility>
 
 namespace mlsdk::scenariorunner {
 
@@ -411,6 +415,39 @@ Pipeline::Pipeline(const CommonArguments &args, const uint32_t segmentIndex, con
                                enableNeuralStatistics, neuralStatisticsMode);
 }
 
+Pipeline::Pipeline(const CommonArguments &args, const MemoryMap &binary,
+                   const std::optional<std::vector<uint8_t>> &identifier, bool useApplicationStorage,
+                   bool enableNeuralStatistics, vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode)
+    : _type{PipelineType::GraphCompute}, _debugName(args.debugName) {
+    constexpr size_t headerSize = 16;
+    if (binary.size() < headerSize) {
+        throw std::runtime_error("Data graph binary header is truncated");
+    }
+    if (reinterpret_cast<std::uintptr_t>(binary.ptr()) % args.ctx.dataGraphPipelineBinaryDataAlignment() != 0) {
+        throw std::runtime_error("Data graph binary mapping does not satisfy the device-required alignment");
+    }
+    const auto *bytes = static_cast<const uint8_t *>(binary.ptr());
+    const auto readLittleEndian = [](const uint8_t *data, size_t count) {
+        uint64_t value = 0;
+        for (size_t index = 0; index < count; ++index) {
+            value |= static_cast<uint64_t>(data[index]) << (index * 8);
+        }
+        return value;
+    };
+    // The little-endian magic word appears as FF DD 22 11 in the file.
+    if (readLittleEndian(bytes, 4) != 0x1122DDFF) {
+        throw std::runtime_error("Data graph binary header has an invalid magic value");
+    }
+    if (readLittleEndian(bytes + 8, 8) != binary.size() - headerSize) {
+        throw std::runtime_error("Data graph binary payload size does not match its header");
+    }
+
+    createDescriptorSetLayouts(args.ctx, args.bindings);
+    _pipelineLayout = createPipelineLayout(args.ctx, _descriptorSetLayouts);
+    buildDataGraphBinaryPipeline(args.ctx, binary, identifier, useApplicationStorage, enableNeuralStatistics,
+                                 neuralStatisticsMode);
+}
+
 Pipeline::Pipeline(const CommonArguments &args, const DataManager &dataManager, const TypedBinding &inputSearch,
                    const TypedBinding &inputTemplate, const TypedBinding &outputFlow,
                    const std::optional<TypedBinding> &inputHintMV, const std::optional<TypedBinding> &outputCost,
@@ -702,6 +739,51 @@ void Pipeline::buildDataGraphPipeline(const Context &ctx, const std::string &ent
     trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
 
     initSession(ctx, enableNeuralStatistics, neuralStatisticsMode);
+}
+
+void Pipeline::buildDataGraphBinaryPipeline(const Context &ctx, const MemoryMap &binary,
+                                            const std::optional<std::vector<uint8_t>> &identifier,
+                                            bool useApplicationStorage, bool enableNeuralStatistics,
+                                            vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
+#ifdef VK_ARM_data_graph_binaries
+    vk::DataGraphPipelineBinaryCreateInfoARM binaryInfo(useApplicationStorage, binary.size(), binary.ptr());
+    vk::DataGraphPipelineIdentifierCreateInfoARM identifierInfo;
+    if (identifier) {
+        if (identifier->empty() || identifier->size() > std::numeric_limits<uint32_t>::max()) {
+            throw std::runtime_error("Data graph binary pipeline identifier size is invalid");
+        }
+        identifierInfo =
+            vk::DataGraphPipelineIdentifierCreateInfoARM(static_cast<uint32_t>(identifier->size()), identifier->data());
+        insertAfter(&binaryInfo, &identifierInfo);
+    }
+    vk::DataGraphPipelineNeuralStatisticsCreateInfoARM neuralStatsCreateInfo(enableNeuralStatistics);
+    if (enableNeuralStatistics) {
+        insertAfter(&binaryInfo, &neuralStatsCreateInfo);
+    }
+
+    const vk::DataGraphPipelineCreateInfoARM pipelineCreateInfo({}, *_pipelineLayout, 0, nullptr, &binaryInfo);
+    const vk::raii::DeferredOperationKHR deferredOperation(nullptr);
+    _pipeline = vk::raii::Pipeline(ctx.device(), deferredOperation, nullptr, pipelineCreateInfo);
+    const auto result = _pipeline.getConstructorSuccessCode();
+    if (result != vk::Result::eSuccess) {
+        throw std::runtime_error("Data graph binary pipeline '" + _debugName + "' creation returned " +
+                                 vk::to_string(result));
+    }
+    if (!*_pipeline) {
+        throw std::runtime_error("Data graph binary pipeline '" + _debugName + "' creation returned a null pipeline");
+    }
+
+    trySetVkRaiiObjectDebugName(ctx, _pipeline, _debugName);
+    initSession(ctx, enableNeuralStatistics, neuralStatisticsMode);
+#else
+    (void)ctx;
+    (void)binary;
+    (void)identifier;
+    (void)useApplicationStorage;
+    (void)enableNeuralStatistics;
+    (void)neuralStatisticsMode;
+    throw std::runtime_error("dispatch_data_graph_binary requires VK_ARM_data_graph_binaries");
+#endif
 }
 
 bool Pipeline::hasGraphPipelineProperty(const vk::raii::Device &device,

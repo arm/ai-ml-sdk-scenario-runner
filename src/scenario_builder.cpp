@@ -4,6 +4,8 @@
  */
 
 #include "scenario_builder_impl.hpp"
+
+#include <limits>
 #include <stdexcept>
 #include <utility>
 
@@ -67,10 +69,16 @@ ShaderId ScenarioBuilderImpl::addShader(ShaderInfo &&info) {
                        static_cast<ShaderId (ResourceManager::*)(ShaderInfo &&)>(&ResourceManager::addShader));
 }
 RawDataId ScenarioBuilderImpl::addRawData(const RawDataInfo &info) {
+    if (info.src.empty()) {
+        throw std::runtime_error("Raw data source path is empty");
+    }
     return addResource(_data, _built, info,
                        static_cast<RawDataId (ResourceManager::*)(const RawDataInfo &)>(&ResourceManager::addRawData));
 }
 RawDataId ScenarioBuilderImpl::addRawData(RawDataInfo &&info) {
+    if (info.src.empty()) {
+        throw std::runtime_error("Raw data source path is empty");
+    }
     return addResource(_data, _built, std::move(info),
                        static_cast<RawDataId (ResourceManager::*)(RawDataInfo &&)>(&ResourceManager::addRawData));
 }
@@ -178,6 +186,20 @@ void ScenarioBuilderImpl::addDispatchVgf(DispatchVgfData command) {
     }
     for (const auto &shader : command.shaderSubstitutions) {
         requireResource(_data.resources, shader.shader, "Shader");
+    }
+    _data.commands.emplace_back(std::move(command));
+}
+
+void ScenarioBuilderImpl::addDispatchDataGraphBinary(DispatchDataGraphBinaryData command) {
+    ensureMutable();
+    requireResource(_data.resources, command.binary, "Raw data");
+    for (const auto &binding : command.bindings) {
+        validateBinding(binding);
+    }
+    if (command.pipelineIdentifier.has_value() &&
+        (command.pipelineIdentifier->empty() ||
+         command.pipelineIdentifier->size() > std::numeric_limits<uint32_t>::max())) {
+        throw std::runtime_error("Data graph binary pipeline identifier size is invalid");
     }
     _data.commands.emplace_back(std::move(command));
 }

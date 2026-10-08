@@ -20,6 +20,7 @@ add_executable(ScenarioRunnerTests
   perf_counter_tests.cpp
   png_reader_tests.cpp
   public_api_tests.cpp
+  raw_data_tests.cpp
   resource_manager_tests.cpp
   scenario_tests.cpp
   tensor_tests.cpp

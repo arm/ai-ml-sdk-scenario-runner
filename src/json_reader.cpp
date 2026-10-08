@@ -9,6 +9,7 @@
 #include "scenario_desc.hpp"
 
 #include <array>
+#include <limits>
 #include <string_view>
 #include <utility>
 
@@ -61,6 +62,24 @@ void parseOptionalFieldAs(const json &j, std::string_view fieldName, ValueType &
 
 template <typename ValueType> void parseOptionalField(const json &j, std::string_view fieldName, ValueType &value) {
     parseOptionalFieldAs<ValueType>(j, fieldName, value);
+}
+
+std::vector<uint8_t> parsePipelineIdentifier(const json &value) {
+    if (!value.is_array()) {
+        throw std::runtime_error("Data graph binary identifier must be an array of bytes");
+    }
+    std::vector<uint8_t> identifier;
+    identifier.reserve(value.size());
+    for (const auto &byte : value) {
+        if (!byte.is_number_unsigned() || byte.get<uint64_t>() > std::numeric_limits<uint8_t>::max()) {
+            throw std::runtime_error("Data graph binary identifier must contain bytes");
+        }
+        identifier.push_back(byte.get<uint8_t>());
+    }
+    if (identifier.empty()) {
+        throw std::runtime_error("Data graph binary identifier must not be empty");
+    }
+    return identifier;
 }
 
 std::vector<int64_t> parseOptionalTensorDims(const json &j) {
@@ -149,6 +168,7 @@ NLOHMANN_JSON_SERIALIZE_ENUM(ResourceType, {{ResourceType::Unknown, nullptr},
 NLOHMANN_JSON_SERIALIZE_ENUM(CommandType, {{CommandType::Unknown, nullptr},
                                            {CommandType::DispatchCompute, "dispatch_compute"},
                                            {CommandType::DispatchVgf, "dispatch_vgf"},
+                                           {CommandType::DispatchDataGraphBinary, "dispatch_data_graph_binary"},
                                            {CommandType::DispatchDataGraph, "dispatch_data_graph"},
                                            {CommandType::DispatchFragment, "dispatch_fragment"},
                                            {CommandType::PipelineBarrier, "pipeline_barrier"},
@@ -322,6 +342,10 @@ void readJsonImpl(ScenarioSpec &scenarioSpec, const json &j) {
             auto dispatchVgf = commandJson.at(commandKey).get<DispatchVgfDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchVgfDesc>(std::move(dispatchVgf)));
         } break;
+        case CommandType::DispatchDataGraphBinary: {
+            auto dispatchDataGraphBinary = commandJson.at(commandKey).get<DispatchDataGraphBinaryDesc>();
+            scenarioSpec.addCommand(std::make_unique<DispatchDataGraphBinaryDesc>(std::move(dispatchDataGraphBinary)));
+        } break;
         case CommandType::DispatchDataGraph: {
             auto dispatchDataGraph = commandJson.at(commandKey).get<DispatchDataGraphDesc>();
             scenarioSpec.addCommand(std::make_unique<DispatchDataGraphDesc>(std::move(dispatchDataGraph)));
@@ -407,6 +431,23 @@ void from_json(const json &j, DispatchVgfDesc &dispatchVgf) {
     parseOptionalField(j, "push_constants", dispatchVgf.pushConstants);
     parseOptionalField(j, "shader_substitutions", dispatchVgf.shaderSubstitutions);
     parseOptionalField(j, "implicit_barrier", dispatchVgf.implicitBarrier);
+}
+
+/**
+ * @brief De-serialize DispatchDataGraphBinaryDesc from JSON.
+ *
+ * @param j
+ * @param dispatchDataGraphBinary
+ */
+void from_json(const json &j, DispatchDataGraphBinaryDesc &dispatchDataGraphBinary) {
+    dispatchDataGraphBinary.debugName = j.at("binary_ref"sv).get<std::string>();
+    dispatchDataGraphBinary.binaryRef = dispatchDataGraphBinary.debugName;
+    dispatchDataGraphBinary.bindings = j.at("bindings"sv).get<std::vector<BindingDesc>>();
+    if (const auto it = j.find("pipeline_identifier"sv); it != j.end()) {
+        dispatchDataGraphBinary.pipelineIdentifier = parsePipelineIdentifier(*it);
+    }
+    parseOptionalField(j, "use_application_storage", dispatchDataGraphBinary.useApplicationStorage);
+    parseOptionalField(j, "implicit_barrier", dispatchDataGraphBinary.implicitBarrier);
 }
 
 /**
@@ -664,6 +705,9 @@ void from_json(const json &j, ShaderDesc &shader) {
 void from_json(const json &j, RawDataDesc &rawData) {
     parseResourceDescGuid(j, rawData);
     rawData.src = j.at("src"sv).get<std::string>();
+    if (rawData.src->empty()) {
+        throw std::runtime_error("Raw data source path is empty");
+    }
 }
 
 /**

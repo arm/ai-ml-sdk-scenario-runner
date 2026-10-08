@@ -5,7 +5,8 @@
     "additionalProperties": false,
     "properties": {
         "src": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
         },
         "uid": {
             "type": "string"

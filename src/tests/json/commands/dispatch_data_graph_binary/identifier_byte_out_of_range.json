@@ -1,0 +1,6 @@
+{
+    "commands": [
+        {"dispatch_data_graph_binary": {"binary_ref": "model_binary", "bindings": [], "pipeline_identifier": [256]}}
+    ],
+    "resources": []
+}

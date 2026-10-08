@@ -223,6 +223,14 @@ void Compute::createPipeline(const PipelineCreateArguments &args, uint32_t segme
                                   neuralStatisticsMode);
 }
 
+void Compute::createPipeline(const PipelineCreateArguments &args, const MemoryMap &binary,
+                             const std::optional<std::vector<uint8_t>> &identifier, bool useApplicationStorage,
+                             bool enableNeuralStatistics, vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
+    const Pipeline::CommonArguments commonArgs{_ctx, args.debugName, args.bindings, args.pipelineCache};
+    (void)_pipelines.emplace_back(commonArgs, binary, identifier, useApplicationStorage, enableNeuralStatistics,
+                                  neuralStatisticsMode);
+}
+
 void Compute::createPipeline(const PipelineCreateArguments &args, const ShaderInfo &shaderInfo,
                              const DataManager &dataManager, const std::vector<GraphConstantInfo> &constants,
                              bool enableNeuralStatistics, vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {

@@ -26,6 +26,12 @@ DispatchComputeDesc::DispatchComputeDesc() : CommandDesc(CommandType::DispatchCo
 DispatchVgfDesc::DispatchVgfDesc() : CommandDesc(CommandType::DispatchVgf) {}
 
 /**
+ * @brief Construct a new data graph binary dispatch object
+ *
+ */
+DispatchDataGraphBinaryDesc::DispatchDataGraphBinaryDesc() : CommandDesc(CommandType::DispatchDataGraphBinary) {}
+
+/**
  * @brief Construct a new Dispatch Spirv Graph object
  *
  */

@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <iterator>
+#include <limits>
 #include <map>
 #include <sstream>
 #include <vector>
@@ -133,6 +134,10 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags required
         hasExtension(extensions, VK_EXT_PIPELINE_ROBUSTNESS_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.portability_subset =
         hasExtension(extensions, VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+#ifdef VK_ARM_data_graph_binaries
+    _optionals.data_graph_binaries =
+        hasExtension(extensions, VK_ARM_DATA_GRAPH_BINARIES_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+#endif
 
     // Create device
     const float queuePriority = 1.0f;
@@ -160,6 +165,9 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags required
         vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR,
         vk::PhysicalDeviceShaderFloat8FeaturesEXT, vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM,
         vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM, vk::PhysicalDeviceRobustness2FeaturesKHR,
+#ifdef VK_ARM_data_graph_binaries
+        vk::PhysicalDeviceDataGraphBinariesFeaturesARM,
+#endif
         vk::PhysicalDeviceDescriptorIndexingFeatures, vk::PhysicalDevicePipelineRobustnessFeatures>();
 
     const auto &availableCoreFeatures = availableFeatures.template get<vk::PhysicalDeviceFeatures2>().features;
@@ -186,6 +194,10 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags required
     const auto &availableRobustness2 = availableFeatures.template get<vk::PhysicalDeviceRobustness2FeaturesKHR>();
     const auto &availablePipelineRobustness =
         availableFeatures.template get<vk::PhysicalDevicePipelineRobustnessFeatures>();
+#ifdef VK_ARM_data_graph_binaries
+    const auto &availableDataGraphBinaries =
+        availableFeatures.template get<vk::PhysicalDeviceDataGraphBinariesFeaturesARM>();
+#endif
     if (_optionals.optical_flow && !availableDataGraphOpticalFlow.dataGraphOpticalFlow) {
         mlsdk::logging::warning("VK_ARM_data_graph_optical_flow extension is present, but "
                                 "dataGraphOpticalFlow feature is not supported. "
@@ -210,6 +222,13 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags required
                                 "Disabling pipeline robustness support.");
         _optionals.pipeline_robustness = false;
     }
+#ifdef VK_ARM_data_graph_binaries
+    if (_optionals.data_graph_binaries && !availableDataGraphBinaries.dataGraphBinaries) {
+        mlsdk::logging::warning("VK_ARM_data_graph_binaries extension is present, but dataGraphBinaries feature "
+                                "is not supported. Disabling data graph binary support.");
+        _optionals.data_graph_binaries = false;
+    }
+#endif
 
     const bool requiresDynamicRendering =
         (requiredQueueFlags & vk::QueueFlagBits::eGraphics) == vk::QueueFlagBits::eGraphics;
@@ -307,6 +326,23 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags required
         featureChain = &pipelineRobustnessFeat;
     }
 
+#ifdef VK_ARM_data_graph_binaries
+    vk::PhysicalDeviceDataGraphBinariesFeaturesARM dataGraphBinariesFeat{};
+    if (_optionals.data_graph_binaries) {
+        dataGraphBinariesFeat.dataGraphBinaries = availableDataGraphBinaries.dataGraphBinaries;
+        dataGraphBinariesFeat.pNext = featureChain;
+        featureChain = &dataGraphBinariesFeat;
+
+        using DgbProperties = vk::PhysicalDeviceDataGraphBinariesPropertiesARM;
+        const auto binaryProperties = _physicalDev.getProperties2<vk::PhysicalDeviceProperties2, DgbProperties>();
+        const auto alignment = binaryProperties.template get<DgbProperties>().dataGraphPipelineBinaryDataAlignment;
+        if (alignment == 0 || alignment > std::numeric_limits<size_t>::max() || (alignment & (alignment - 1)) != 0) {
+            throw std::runtime_error("Invalid dataGraphPipelineBinaryDataAlignment reported by the device");
+        }
+        _dataGraphPipelineBinaryDataAlignment = static_cast<size_t>(alignment);
+    }
+#endif
+
     vk::PhysicalDeviceFeatures deviceFeat;
     deviceFeat.shaderInt16 = true;
     deviceFeat.shaderInt64 = true;
@@ -357,6 +393,11 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags required
     if (_optionals.portability_subset) {
         vulkanDeviceExtensions.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
     }
+#ifdef VK_ARM_data_graph_binaries
+    if (_optionals.data_graph_binaries) {
+        vulkanDeviceExtensions.push_back(VK_ARM_DATA_GRAPH_BINARIES_EXTENSION_NAME);
+    }
+#endif
 
     const vk::DeviceCreateInfo deviceCreateInfo = {
         vk::DeviceCreateFlags(),

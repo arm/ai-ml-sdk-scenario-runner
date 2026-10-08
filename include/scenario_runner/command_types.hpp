@@ -132,6 +132,26 @@ struct DispatchVgfData {
     bool implicitBarrier{true};
 };
 
+/// \brief Command that dispatches a precompiled data graph binary
+struct DispatchDataGraphBinaryData {
+    /// @brief Construct a command for a registered data graph binary.
+    /// @param binary Registered raw data containing the binary to dispatch.
+    explicit DispatchDataGraphBinaryData(RawDataId binary) : binary(binary) {}
+
+    /// @brief Raw data containing the precompiled binary to dispatch.
+    RawDataId binary;
+    /// @brief Human-readable name used in diagnostics.
+    std::string debugName;
+    /// @brief External resources bound to graph interfaces.
+    std::vector<TypedBinding> bindings;
+    /// @brief Optional opaque selector for a pipeline in the binary.
+    std::optional<std::vector<uint8_t>> pipelineIdentifier;
+    /// @brief Let Vulkan use mapped binary bytes until the pipeline is destroyed.
+    bool useApplicationStorage{false};
+    /// @brief Insert implicit synchronization around the dispatch.
+    bool implicitBarrier{true};
+};
+
 /// \brief Command that dispatches a SPIR-V™ data graph
 struct DispatchDataGraphData {
     /// @brief Construct a command for a SPIR-V™ data graph.
