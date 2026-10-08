@@ -52,7 +52,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags required
 
     vk::InstanceCreateFlags flags{};
     const auto instanceExtensions = _ctx.enumerateInstanceExtensionProperties();
-    if (hasExtension(instanceExtensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)) {
+    if (hasExtension(instanceExtensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
+                     scenarioOptions.disabledExtensions)) {
         enabledExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
         flags = vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
     }

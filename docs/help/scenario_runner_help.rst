@@ -18,7 +18,7 @@ Optional arguments:
   --log-level                           set logging level [default: info]
   --wait-for-key-stroke-before-run      wait for a key stroke before run
   --dry-run                             setup pipelines but skip the actual execution
-  --disable-extension                   specify extensions to disable out of the following: VK_EXT_custom_border_color, VK_EXT_frame_boundary, VK_ARM_data_graph_neural_accelerator_statistics, VK_KHR_maintenance5, VK_KHR_deferred_host_operations [nargs: 1 or more] [may be repeated]
+  --disable-extension                   specify extensions to disable out of the following: VK_EXT_custom_border_color, VK_EXT_frame_boundary, VK_ARM_data_graph_neural_accelerator_statistics, VK_KHR_maintenance5, VK_KHR_deferred_host_operations, VK_KHR_portability_enumeration [nargs: 1 or more] [may be repeated]
   --enable-gpu-debug-markers            enable GPU debug markers
   --session-memory-dump-dir             path to dump the contents of the sessions ram after inference completes
   --repeat                              optional repeat count for scenario execution

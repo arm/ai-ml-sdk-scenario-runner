@@ -193,6 +193,25 @@ To build with RenderDoc support, add `--enable-rdoc`. If RenderDoc is
 installed outside the default search locations, also pass
 `--renderdoc-path <renderdoc-install-root>`.
 
+At runtime, pass `--capture-frame` and enable the RenderDoc Vulkan® layer. When
+capturing a workload through the ML Emulation Layer for Vulkan®, order
+RenderDoc after the Graph and Tensor layers so it records the translated
+Vulkan® commands:
+
+```shell
+export VK_INSTANCE_LAYERS=VK_LAYER_ML_Graph_Emulation:VK_LAYER_ML_Tensor_Emulation:VK_LAYER_RENDERDOC_Capture
+scenario-runner --capture-frame \
+    --scenario scenario.json
+```
+
+Some RenderDoc configurations may not support
+`VK_KHR_portability_enumeration`. If RenderDoc reports that the extension is
+unsupported and the Vulkan® device does not require it, disable it with:
+
+```shell
+--disable-extension VK_KHR_portability_enumeration
+```
+
 To enable and run tests, use the `--test` flag. To lint the tests, use the
 `--lint` flag. To enable tests and documentation building python dependencies
 must be installed:

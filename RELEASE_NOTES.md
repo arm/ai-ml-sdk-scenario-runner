@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+### Features
+
+- Added `VK_KHR_portability_enumeration` to the extensions accepted by
+  `--disable-extension`.
+
 ### Bug Fixes
 
 - Added a clear error when no Vulkan® physical devices are available.
