@@ -32,6 +32,7 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["pip_package"]
+exclude = ["tests*"]
 
 [tool.setuptools.package-data]
 scenario_runner = ["binaries/**"]

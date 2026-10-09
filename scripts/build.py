@@ -12,6 +12,7 @@ import re
 import shutil
 import subprocess
 import sys
+import sysconfig
 from datetime import datetime
 from datetime import timezone
 
@@ -25,6 +26,7 @@ SCENARIO_RUNNER_DIR = SCENARIO_RUNNER_DIR.resolve()
 DEPENDENCY_DIR = SCENARIO_RUNNER_DIR / ".." / ".." / "dependencies"
 DEPENDENCY_DIR = DEPENDENCY_DIR.resolve()
 CMAKE_TOOLCHAIN_PATH = SCENARIO_RUNNER_DIR / "cmake" / "toolchain"
+PYTHON_ABI_TAG = sysconfig.get_config_var("SOABI") or sys.implementation.cache_tag
 
 
 def absolute(path):
@@ -115,6 +117,7 @@ class Builder:
         )
 
         self.package_dir = args.package_dir or self.build_dir
+        self.pip_package_dir = args.pip_package_dir
         self.package_tgz = "tgz" in args.package_type
         self.package_zip = "zip" in args.package_type
         self.package_pip = "pip" in args.package_type
@@ -429,6 +432,7 @@ class Builder:
                     "-n",
                     str(self.threads),
                     f"{SCENARIO_RUNNER_DIR / 'src' / 'tests'}",
+                    f"{SCENARIO_RUNNER_DIR / 'pip_package' / 'tests'}",
                     "--build-dir",
                     self.build_dir,
                 ]
@@ -554,9 +558,10 @@ class Builder:
                     "SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AI_ML_SDK_SCENARIO_RUNNER"
                 ] = package_version
                 build_env["SCENARIO_RUNNER_PIP_BUILD_DIR"] = str(
-                    pathlib.Path(self.build_dir) / "pip"
+                    pathlib.Path(self.build_dir) / "pip" / PYTHON_ABI_TAG
                 )
                 build_env["SCENARIO_RUNNER_PIP_BUILD_TYPE"] = self.build_type
+                build_env["MLSDK_WHEEL_BUILD_MODE"] = "source"
                 if self.enable_hlsl_support:
                     build_env["SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT"] = "ON"
                 if self.experimental_image_format_support:
@@ -587,7 +592,7 @@ class Builder:
                         "build",
                         "--wheel",
                         "--outdir",
-                        str(SCENARIO_RUNNER_DIR / "pip_package" / "dist"),
+                        self.pip_package_dir,
                         str(SCENARIO_RUNNER_DIR),
                     ],
                     env=build_env,
@@ -818,6 +823,11 @@ def parse_arguments(argv=None):
         "--package-dir",
         help="Specify location for packages to be created. Default path is the build directory",
         default="",
+    )
+    parser.add_argument(
+        "--pip-package-dir",
+        help="Specify location for pip packages to be created. Default: %(default)s",
+        default="pip_package/dist",
     )
     parser.add_argument(
         "--package-type",

@@ -8,10 +8,14 @@ import platform
 import shutil
 import subprocess
 import sys
+import sysconfig
 
 ROOT_DIR = pathlib.Path(__file__).resolve().parents[1]
 DEPENDENCY_DIR = (ROOT_DIR / ".." / ".." / "dependencies").resolve()
 CMAKE_TOOLCHAIN_PATH = ROOT_DIR / "cmake" / "toolchain"
+WHEEL_BUILD_MODE_ENV = "MLSDK_WHEEL_BUILD_MODE"
+WHEEL_INSTALL_COMPONENT = "mlsdk_wheel"
+PYTHON_ABI_TAG = sysconfig.get_config_var("SOABI") or sys.implementation.cache_tag
 
 
 def cmake_bool_option(name, enabled):
@@ -19,6 +23,12 @@ def cmake_bool_option(name, enabled):
 
 
 def build_native(extension_output_path, install_dir=None, package_version=None):
+    build_mode = os.environ.get(WHEEL_BUILD_MODE_ENV, "source")
+    if build_mode != "source":
+        raise RuntimeError(
+            "Scenario Runner Python extension wheels require source mode, "
+            f"got '{build_mode}'"
+        )
     extension_output_path = pathlib.Path(extension_output_path).resolve()
     if install_dir is not None:
         install_dir = pathlib.Path(install_dir).resolve()
@@ -29,7 +39,7 @@ def _configure_and_build(extension_output_path, install_dir=None, package_versio
     build_dir = pathlib.Path(
         os.environ.get(
             "SCENARIO_RUNNER_PIP_BUILD_DIR",
-            ROOT_DIR / "build" / "pip" / sys.implementation.cache_tag,
+            ROOT_DIR / "build" / "pip" / PYTHON_ABI_TAG,
         )
     ).resolve()
     setuptools_build_dir = extension_output_path.parent
@@ -108,6 +118,13 @@ def _configure_and_build(extension_output_path, install_dir=None, package_versio
         str(build_dir),
         "--config",
         build_type,
+        "--target",
+        "scenario_runner_py",
+        "scenario-runner",
+        "glslc",
+        "dds_utils",
+        "png_utils",
+        *(["hlslc"] if hlsl_enabled else []),
         "--parallel",
         os.environ.get("CMAKE_BUILD_PARALLEL_LEVEL", str(os.cpu_count() or 1)),
     ]
@@ -117,6 +134,8 @@ def _configure_and_build(extension_output_path, install_dir=None, package_versio
         str(build_dir),
         "--prefix",
         str(install_dir),
+        "--component",
+        WHEEL_INSTALL_COMPONENT,
         "--config",
         build_type,
     ]
