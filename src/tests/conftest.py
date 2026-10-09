@@ -592,10 +592,26 @@ def pytest_collection_modifyitems(config, items):
 
 
 def pytest_configure(config):
-    config.addinivalue_line(
-        "markers",
+    for marker in (
+        "shaders",
+        "pipeline_cache",
+        "frame_boundary",
+        "tensor_aliasing",
+        "memory_aliasing",
+        "dds",
+        "barrier",
+        "mipmaps_writing",
+        "vgf_graph",
+        "vgf_shader",
+        "shader_and_vgf_graph",
+        "tiling",
+        "spec_const",
+        "repeated_runs",
+        "png",
+        "optical_flow",
         "emulation_layer_incompatible: mark test as incompatible with emulation-layer",
-    )
+    ):
+        config.addinivalue_line("markers", marker)
     scenario_runner_build_path = config.getoption("--build-dir")
     if scenario_runner_build_path:
         vgf_pylib_path = Path(scenario_runner_build_path) / "vgf-lib" / "src"
