@@ -31,6 +31,38 @@ def absolute(path):
     return pathlib.Path(path).resolve().as_posix()
 
 
+def _resolve_preload_library(compiler: str, library: str) -> str:
+    def compiler_library_path(name: str) -> pathlib.Path:
+        return pathlib.Path(
+            subprocess.run(
+                [compiler, f"-print-file-name={name}"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+        )
+
+    def is_elf(path: pathlib.Path) -> bool:
+        if not path.is_file():
+            return False
+        with path.open("rb") as library_file:
+            return library_file.read(4) == b"\x7fELF"
+
+    library_path = compiler_library_path(library)
+    if is_elf(library_path):
+        return str(library_path)
+
+    if library_path.is_file():
+        linker_script = library_path.read_text(errors="replace")
+        sonames = re.findall(rf"{re.escape(library)}\.\d+(?:\.\d+)*", linker_script)
+        for soname in dict.fromkeys(sonames):
+            runtime_path = compiler_library_path(soname)
+            if is_elf(runtime_path):
+                return str(runtime_path)
+
+    raise RuntimeError(f"Unable to locate preloadable {library} for {compiler}")
+
+
 class Builder:
     """
     A  class that builds the Scenario Runner.
@@ -451,9 +483,24 @@ class Builder:
                         ]
                 if self.emulation_layer:
                     pytest_cmd.append("--emulation-layer")
+                pytest_env = None
                 if self.enable_sanitizers:
                     pytest_cmd.append("--sanitizers")
-                subprocess.run(pytest_cmd, cwd=SCENARIO_RUNNER_DIR, check=True)
+                    if platform.system() == "Linux":
+                        # Keep libstdc++ after ASan so C++ exception interceptors resolve.
+                        preload_libraries = [
+                            _resolve_preload_library("gcc", "libasan.so"),
+                            _resolve_preload_library("g++", "libstdc++.so"),
+                        ]
+
+                        pytest_env = os.environ.copy()
+                        current_preload = pytest_env.get("LD_PRELOAD")
+                        pytest_env["LD_PRELOAD"] = os.pathsep.join(
+                            filter(None, [*preload_libraries, current_preload])
+                        )
+                subprocess.run(
+                    pytest_cmd, cwd=SCENARIO_RUNNER_DIR, check=True, env=pytest_env
+                )
 
             if self.coverage:
                 coverage_dir = pathlib.Path(self.build_dir, "coverage")
