@@ -75,21 +75,3 @@ profile = "black"
 force_single_line = true
 
 [tool.pytest.ini_options]
-markers = [
-    "shaders",
-    "pipeline_cache",
-    "frame_boundary",
-    "tensor_aliasing",
-    "memory_aliasing",
-    "dds",
-    "barrier",
-    "mipmaps_writing",
-    "vgf_graph",
-    "vgf_shader",
-    "shader_and_vgf_graph",
-    "tiling",
-    "spec_const",
-    "repeated_runs",
-    "png",
-    "optical_flow",
-]
