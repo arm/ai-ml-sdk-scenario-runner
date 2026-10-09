@@ -1,1368 +1,289 @@
 {
-    "SPDXID": "SPDXRef-DOCUMENT",
-    "spdxVersion": "SPDX-2.3",
-    "creationInfo": {
-        "created": "2025-09-19T06:05:40Z",
-        "creators": [
-            "Organization: Arm Limited.",
-            "Tool: Black Duck Hub - 2025.4.1"
-        ],
-        "licenseListVersion": "3.20",
-        "comment": "NOTICE: THIS SOFTWARE BILL OF MATERIALS (“SBOM”) IS PROVIDED BY ARM LIMITED 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT ARE DISCLAIMED. IN NO EVENT SHALL ARM LIMITED BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SBOM, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "spdxVersion": "SPDX-2.3",
+  "name": "ai-ml-sdk-scenario-runner",
+  "dataLicense": "CC0-1.0",
+  "documentNamespace": "https://spdx.org/spdxdocs/ai-ml-sdk-scenario-runner-94996c824c847f989fcd",
+  "creationInfo": {
+    "created": "2026-10-05T09:14:55Z",
+    "creators": [
+      "Organization: Arm Limited",
+      "Tool: mlsdk-source-sbom-generator"
+    ],
+    "comment": "Potential product dependencies across supported scenario-runner configurations; CI and test tools are excluded."
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-component-scenario-runner",
+      "name": "ai-ml-sdk-scenario-runner",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "Copyright (c) Arm Limited"
     },
-    "name": "ai-ml-sdk-scenario-runner",
-    "dataLicense": "CC0-1.0",
-    "hasExtractedLicensingInfos": [
-        {
-            "licenseId": "LicenseRef-57f553be-1865-4577-a5d4-6461aad8472a",
-            "extractedText": "Spencer License 97\n==================\n\nCopyright 1992, 1993, 1994, 1997 Henry Spencer. All rights reserved.\nThis software is not subject to any license of the American Telephone and\nTelegraph Company or of the Regents of the University of California.\n\nPermission is granted to anyone to use this software for any purpose on any\ncomputer system, and to alter it and redistribute it, subject to the following\nrestrictions:\n\n1. The author is not responsible for the consequences of use of this software, no\nmatter how awful, even if they arise from flaws in it.\n\n2. The origin of this software must not be misrepresented, either by explicit\nclaim or by omission. Since few users ever read sources, credits must appear in\nthe documentation.\n\n3. Altered versions must be plainly marked as such, and must not be\nmisrepresented as being the original software. Since few users ever read sources,\ncredits must appear in the documentation.\n\n4. This notice may not be removed or altered.",
-            "name": "Spencer License 97"
-        },
-        {
-            "licenseId": "LicenseRef-6f1ab4e9-b0ed-4b83-b7bd-aff972ed4db3",
-            "extractedText": "Python Imaging Library Software License\n=======================================\n\nThe Python Imaging Library (PIL) is\n\nCopyright © 1997-2011 by Secret Labs AB\nCopyright © 1995-2011 by Fredrik Lundh\n\nPillow is the friendly PIL fork. It is\n\nCopyright © 2010-2018 by Alex Clark and contributors\n\nLike PIL, Pillow is licensed under the open source PIL Software License:\n\nBy obtaining, using, and/or copying this software and/or its associated\ndocumentation, you agree that you have read, understood, and will comply with the\nfollowing terms and conditions:\n\nPermission to use, copy, modify, and distribute this software and its associated\ndocumentation for any purpose and without fee is hereby granted, provided that\nthe above copyright notice appears in all copies, and that both that copyright\nnotice and this permission notice appear in supporting documentation, and that\nthe name of Secret Labs AB or the author not be used in advertising or publicity\npertaining to distribution of the software without specific, written prior\npermission.\n\nSECRET LABS AB AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS\nSOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO\nEVENT SHALL SECRET LABS AB OR THE AUTHOR BE LIABLE FOR ANY SPECIAL, INDIRECT OR\nCONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA\nOR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS\nACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS\nSOFTWARE.",
-            "name": "Python Imaging Library Software License"
-        },
-        {
-            "licenseId": "LicenseRef-b9b05e9b-4079-403d-87f2-1741dba216a6",
-            "extractedText": "This is the Android Software Development Kit License Agreement\n==============================================================\n\n1. Introduction\n\n1.1 The Android Software Development Kit (referred to in the License Agreement as\nthe \"SDK\" and specifically including the Android system files, packaged APIs, and\nGoogle APIs add-ons) is licensed to you subject to the terms of the License\nAgreement. The License Agreement forms a legally binding contract between you and\nGoogle in relation to your use of the SDK.\n\n1.2 \"Android\" means the Android software stack for devices, as made available\nunder the Android Open Source Project, which is located at the following URL:\nhttp://source.android.com/, as updated from time to time.\n\n1.3 A \"compatible implementation\" means any Android device that (i) complies with\nthe Android Compatibility Definition document, which can be found at the Android\ncompatibility website (http://source.android.com/compatibility) and which may be\nupdated from time to time; and (ii) successfully passes the Android Compatibility\nTest Suite (CTS).\n\n1.4 \"Google\" means Google LLC, a Delaware corporation with principal place of\nbusiness at 1600 Amphitheatre Parkway, Mountain View, CA 94043, United States.\n\n\n2. Accepting this License Agreement\n\n2.1 In order to use the SDK, you must first agree to the License Agreement. You\nmay not use the SDK if you do not accept the License Agreement.\n\n2.2 By clicking to accept, you hereby agree to the terms of the License\nAgreement.\n\n2.3 You may not use the SDK and may not accept the License Agreement if you are a\nperson barred from receiving the SDK under the laws of the United States or other\ncountries, including the country in which you are resident or from which you use\nthe SDK.\n\n2.4 If you are agreeing to be bound by the License Agreement on behalf of your\nemployer or other entity, you represent and warrant that you have full legal\nauthority to bind your employer or such entity to the License Agreement. If you\ndo not have the requisite authority, you may not accept the License Agreement or\nuse the SDK on behalf of your employer or other entity.\n\n\n3. SDK License from Google\n\n3.1 Subject to the terms of the License Agreement, Google grants you a limited,\nworldwide, royalty-free, non-assignable, non-exclusive, and non-sublicensable\nlicense to use the SDK solely to develop applications for compatible\nimplementations of Android.\n\n3.2 You may not use this SDK to develop applications for other platforms\n(including non-compatible implementations of Android) or to develop another SDK.\nYou are of course free to develop applications for other platforms, including\nnon-compatible implementations of Android, provided that this SDK is not used for\nthat purpose.\n\n3.3 You agree that Google or third parties own all legal right, title and\ninterest in and to the SDK, including any Intellectual Property Rights that\nsubsist in the SDK. \"Intellectual Property Rights\" means any and all rights under\npatent law, copyright law, trade secret law, trademark law, and any and all other\nproprietary rights. Google reserves all rights not expressly granted to you.\n\n3.4 You may not use the SDK for any purpose not expressly permitted by the\nLicense Agreement. Except to the extent required by applicable third party\nlicenses, you may not copy (except for backup purposes), modify, adapt,\nredistribute, decompile, reverse engineer, disassemble, or create derivative\nworks of the SDK or any part of the SDK.\n\n3.5 Use, reproduction and distribution of components of the SDK licensed under an\nopen source software license are governed solely by the terms of that open source\nsoftware license and not the License Agreement.\n\n3.6 You agree that the form and nature of the SDK that Google provides may change\nwithout prior notice to you and that future versions of the SDK may be\nincompatible with applications developed on previous versions of the SDK. You\nagree that Google may stop (permanently or temporarily) providing the SDK (or any\nfeatures within the SDK) to you or to users generally at Google's sole\ndiscretion, without prior notice to you.\n\n3.7 Nothing in the License Agreement gives you a right to use any of Google's\ntrade names, trademarks, service marks, logos, domain names, or other distinctive\nbrand features.\n\n3.8 You agree that you will not remove, obscure, or alter any proprietary rights\nnotices (including copyright and trademark notices) that may be affixed to or\ncontained within the SDK.\n\n\n4. Use of the SDK by You\n\n4.1 Google agrees that it obtains no right, title or interest from you (or your\nlicensors) under the License Agreement in or to any software applications that\nyou develop using the SDK, including any intellectual property rights that\nsubsist in those applications.\n\n4.2 You agree to use the SDK and write applications only for purposes that are\npermitted by (a) the License Agreement and (b) any applicable law, regulation or\ngenerally accepted practices or guidelines in the relevant jurisdictions\n(including any laws regarding the export of data or software to and from the\nUnited States or other relevant countries).\n\n4.3 You agree that if you use the SDK to develop applications for general public\nusers, you will protect the privacy and legal rights of those users. If the users\nprovide you with user names, passwords, or other login information or personal\ninformation, you must make the users aware that the information will be available\nto your application, and you must provide legally adequate privacy notice and\nprotection for those users. If your application stores personal or sensitive\ninformation provided by users, it must do so securely. If the user provides your\napplication with Google Account information, your application may only use that\ninformation to access the user's Google Account when, and for the limited\npurposes for which, the user has given you permission to do so.\n\n4.4 You agree that you will not engage in any activity with the SDK, including\nthe development or distribution of an application, that interferes with,\ndisrupts, damages, or accesses in an unauthorized manner the servers, networks,\nor other properties or services of any third party including, but not limited to,\nGoogle or any mobile communications carrier.\n\n4.5 You agree that you are solely responsible for (and that Google has no\nresponsibility to you or to any third party for) any data, content, or resources\nthat you create, transmit or display through Android and/or applications for\nAndroid, and for the consequences of your actions (including any loss or damage\nwhich Google may suffer) by doing so.\n\n4.6 You agree that you are solely responsible for (and that Google has no\nresponsibility to you or to any third party for) any breach of your obligations\nunder the License Agreement, any applicable third party contract or Terms of\nService, or any applicable law or regulation, and for the consequences (including\nany loss or damage which Google or any third party may suffer) of any such\nbreach.\n\n\n5. Your Developer Credentials\n\n5.1 You agree that you are responsible for maintaining the confidentiality of any\ndeveloper credentials that may be issued to you by Google or which you may choose\nyourself and that you will be solely responsible for all applications that are\ndeveloped under your developer credentials.\n\n\n6. Privacy and Information\n\n6.1 In order to continually innovate and improve the SDK, Google may collect\ncertain usage statistics from the software including but not limited to a unique\nidentifier, associated IP address, version number of the software, and\ninformation on which tools and/or services in the SDK are being used and how they\nare being used. Before any of this information is collected, the SDK will notify\nyou and seek your consent. If you withhold consent, the information will not be\ncollected.\n\n6.2 The data collected is examined in the aggregate to improve the SDK and is\nmaintained in accordance with Google's Privacy Policy.\n\n\n7. Third Party Applications\n\n7.1 If you use the SDK to run applications developed by a third party or that\naccess data, content or resources provided by a third party, you agree that\nGoogle is not responsible for those applications, data, content, or resources.\nYou understand that all data, content or resources which you may access through\nsuch third party applications are the sole responsibility of the person from\nwhich they originated and that Google is not liable for any loss or damage that\nyou may experience as a result of the use or access of any of those third party\napplications, data, content, or resources.\n\n7.2 You should be aware the data, content, and resources presented to you through\nsuch a third party application may be protected by intellectual property rights\nwhich are owned by the providers (or by other persons or companies on their\nbehalf). You may not modify, rent, lease, loan, sell, distribute or create\nderivative works based on these data, content, or resources (either in whole or\nin part) unless you have been specifically given permission to do so by the\nrelevant owners.\n\n7.3 You acknowledge that your use of such third party applications, data,\ncontent, or resources may be subject to separate terms between you and the\nrelevant third party. In that case, the License Agreement does not affect your\nlegal relationship with these third parties.\n\n\n8. Using Android APIs\n\n8.1 Google Data APIs\n\n8.1.1 If you use any API to retrieve data from Google, you acknowledge that the\ndata may be protected by intellectual property rights which are owned by Google\nor those parties that provide the data (or by other persons or companies on their\nbehalf). Your use of any such API may be subject to additional Terms of Service.\nYou may not modify, rent, lease, loan, sell, distribute or create derivative\nworks based on this data (either in whole or in part) unless allowed by the\nrelevant Terms of Service.\n\n8.1.2 If you use any API to retrieve a user's data from Google, you acknowledge\nand agree that you shall retrieve data only with the user's explicit consent and\nonly when, and for the limited purposes for which, the user has given you\npermission to do so. If you use the Android Recognition Service API, documented\nat the following URL:\nhttps://developer.android.com/reference/android/speech/RecognitionService, as\nupdated from time to time, you acknowledge that the use of the API is subject to\nthe Data Processing Addendum for Products where Google is a Data Processor, which\nis located at the following URL:\nhttps://privacy.google.com/businesses/gdprprocessorterms/, as updated from time\nto time. By clicking to accept, you hereby agree to the terms of the Data\nProcessing Addendum for Products where Google is a Data Processor.\n\n\n9. Terminating this License Agreement\n\n9.1 The License Agreement will continue to apply until terminated by either you\nor Google as set out below.\n\n9.2 If you want to terminate the License Agreement, you may do so by ceasing your\nuse of the SDK and any relevant developer credentials.\n\n9.3 Google may at any time, terminate the License Agreement with you if:\n(A) you have breached any provision of the License Agreement; or\n(B) Google is required to do so by law; or\n(C) the partner with whom Google offered certain parts of SDK (such as APIs) to\nyou has terminated its relationship with Google or ceased to offer certain parts\nof the SDK to you; or\n(D) Google decides to no longer provide the SDK or certain parts of the SDK to\nusers in the country in which you are resident or from which you use the service,\nor the provision of the SDK or certain SDK services to you by Google is, in\nGoogle's sole discretion, no longer commercially viable.\n\n9.4 When the License Agreement comes to an end, all of the legal rights,\nobligations and liabilities that you and Google have benefited from, been subject\nto (or which have accrued over time whilst the License Agreement has been in\nforce) or which are expressed to continue indefinitely, shall be unaffected by\nthis cessation, and the provisions of paragraph 14.7 shall continue to apply to\nsuch rights, obligations and liabilities indefinitely.\n\n\n10. DISCLAIMER OF WARRANTIES\n\n10.1 YOU EXPRESSLY UNDERSTAND AND AGREE THAT YOUR USE OF THE SDK IS AT YOUR SOLE\nRISK AND THAT THE SDK IS PROVIDED \"AS IS\" AND \"AS AVAILABLE\" WITHOUT WARRANTY OF\nANY KIND FROM GOOGLE.\n\n10.2 YOUR USE OF THE SDK AND ANY MATERIAL DOWNLOADED OR OTHERWISE OBTAINED\nTHROUGH THE USE OF THE SDK IS AT YOUR OWN DISCRETION AND RISK AND YOU ARE SOLELY\nRESPONSIBLE FOR ANY DAMAGE TO YOUR COMPUTER SYSTEM OR OTHER DEVICE OR LOSS OF\nDATA THAT RESULTS FROM SUCH USE.\n\n10.3 GOOGLE FURTHER EXPRESSLY DISCLAIMS ALL WARRANTIES AND CONDITIONS OF ANY\nKIND, WHETHER EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO THE IMPLIED\nWARRANTIES AND CONDITIONS OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE\nAND NON-INFRINGEMENT.\n\n\n11. LIMITATION OF LIABILITY\n\n11.1 YOU EXPRESSLY UNDERSTAND AND AGREE THAT GOOGLE, ITS SUBSIDIARIES AND\nAFFILIATES, AND ITS LICENSORS SHALL NOT BE LIABLE TO YOU UNDER ANY THEORY OF\nLIABILITY FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL OR\nEXEMPLARY DAMAGES THAT MAY BE INCURRED BY YOU, INCLUDING ANY LOSS OF DATA,\nWHETHER OR NOT GOOGLE OR ITS REPRESENTATIVES HAVE BEEN ADVISED OF OR SHOULD HAVE\nBEEN AWARE OF THE POSSIBILITY OF ANY SUCH LOSSES ARISING.\n\n\n12. Indemnification\n\n12.1 To the maximum extent permitted by law, you agree to defend, indemnify and\nhold harmless Google, its affiliates and their respective directors, officers,\nemployees and agents from and against any and all claims, actions, suits or\nproceedings, as well as any and all losses, liabilities, damages, costs and\nexpenses (including reasonable attorneys fees) arising out of or accruing from\n(a) your use of the SDK, (b) any application you develop on the SDK that\ninfringes any copyright, trademark, trade secret, trade dress, patent or other\nintellectual property right of any person or defames any person or violates their\nrights of publicity or privacy, and (c) any non-compliance by you with the\nLicense Agreement.\n\n\n13. Changes to the License Agreement\n\n13.1 Google may make changes to the License Agreement as it distributes new\nversions of the SDK. When these changes are made, Google will make a new version\nof the License Agreement available on the website where the SDK is made\navailable.\n\n\n14. General Legal Terms\n\n14.1 The License Agreement constitutes the whole legal agreement between you and\nGoogle and governs your use of the SDK (excluding any services which Google may\nprovide to you under a separate written agreement), and completely replaces any\nprior agreements between you and Google in relation to the SDK.\n\n14.2 You agree that if Google does not exercise or enforce any legal right or\nremedy which is contained in the License Agreement (or which Google has the\nbenefit of under any applicable law), this will not be taken to be a formal\nwaiver of Google's rights and that those rights or remedies will still be\navailable to Google.\n\n14.3 If any court of law, having the jurisdiction to decide on this matter, rules\nthat any provision of the License Agreement is invalid, then that provision will\nbe removed from the License Agreement without affecting the rest of the License\nAgreement. The remaining provisions of the License Agreement will continue to be\nvalid and enforceable.\n\n14.4 You acknowledge and agree that each member of the group of companies of\nwhich Google is the parent shall be third party beneficiaries to the License\nAgreement and that such other companies shall be entitled to directly enforce,\nand rely upon, any provision of the License Agreement that confers a benefit on\n(or rights in favor of) them. Other than this, no other person or company shall\nbe third party beneficiaries to the License Agreement.\n\n14.5 EXPORT RESTRICTIONS. THE SDK IS SUBJECT TO UNITED STATES EXPORT LAWS AND\nREGULATIONS. YOU MUST COMPLY WITH ALL DOMESTIC AND INTERNATIONAL EXPORT LAWS AND\nREGULATIONS THAT APPLY TO THE SDK. THESE LAWS INCLUDE RESTRICTIONS ON\nDESTINATIONS, END USERS AND END USE.\n\n14.6 The rights granted in the License Agreement may not be assigned or\ntransferred by either you or Google without the prior written approval of the\nother party. Neither you nor Google shall be permitted to delegate their\nresponsibilities or obligations under the License Agreement without the prior\nwritten approval of the other party.\n\n14.7 The License Agreement, and your relationship with Google under the License\nAgreement, shall be governed by the laws of the State of California without\nregard to its conflict of laws provisions. You and Google agree to submit to the\nexclusive jurisdiction of the courts located within the county of Santa Clara,\nCalifornia to resolve any legal matter arising from the License Agreement.\nNotwithstanding this, you agree that Google shall still be allowed to apply for\ninjunctive remedies (or an equivalent type of urgent legal relief) in any\njurisdiction.",
-            "name": "Android Software Development Kit License"
-        }
-    ],
-    "documentNamespace": "https://blackducksoftware.github.io/spdx/ML%3AMLSDKforVulkan-04167a40-145f-43dc-943e-d30984add6bf",
-    "packages": [
-        {
-            "SPDXID": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-                    "referenceType": "BlackDuck-Version"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "(Apache-2.0)",
-            "licenseDeclared": "(Apache-2.0)",
-            "name": "ai-ml-sdk-scenario-runner",
-            "originator": "Organization: Arm Limited.",
-            "copyrightText": "Copyright (c) Arm Limited",
-            "supplier": "Organization: Arm Limited.",
-            "versionInfo": "ai-ml-sdk-scenario-runner"
-        },
-        {
-            "SPDXID": "SPDXRef-package-18e36ba3-5553-495c-afa3-ef67a7b417c1",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "c4b64693-2caf-45d7-abfb-fd1490491a7c",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "18e36ba3-5553-495c-afa3-ef67a7b417c1",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "11ad566d-e0a2-4e11-98a7-08ad33356f4e",
-                    "referenceType": "BlackDuck-Component"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "BSD-3-Clause",
-            "licenseDeclared": "BSD-3-Clause",
-            "name": "CMake",
-            "supplier": "Organization: CMake",
-            "versionInfo": "v3.31.8"
-        },
-        {
-            "SPDXID": "SPDXRef-package-b5e8d763-2306-40ca-b3fe-16ca34951016",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/exceptiongroup@1.3.1",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "b2beca41-3270-4189-a419-6006aad86d86",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "b5e8d763-2306-40ca-b3fe-16ca34951016",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "18c0b6d1-8426-4bc1-9dc1-3993c12ee6dc",
-                    "referenceType": "BlackDuck-Component"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "MIT",
-            "licenseDeclared": "MIT",
-            "name": "exceptiongroup",
-            "supplier": "Organization: pypi",
-            "versionInfo": "1.3.1"
-        },
-        {
-            "SPDXID": "SPDXRef-package-fce6259f-49f5-4d19-b10e-5d1b72b32415",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "fce6259f-49f5-4d19-b10e-5d1b72b32415",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "0fc9d255-c8e5-4d7c-ad60-5f78f2a5bd51",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "97548717-4139-4867-9be6-4e6c72263dd6",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/execnet@2.1.2",
-                    "referenceType": "purl"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "MIT",
-            "licenseDeclared": "MIT",
-            "name": "execnet",
-            "supplier": "Organization: pypi",
-            "versionInfo": "2.1.2"
-        },
-        {
-            "SPDXID": "SPDXRef-package-10f5ab36-ffd4-49fe-b59a-a10d0f0c5a7b",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "4650ef8c-6b7e-439d-b7a0-3b38f279090f",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "10f5ab36-ffd4-49fe-b59a-a10d0f0c5a7b",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:google:flatbuffers:25.2.10:*:*:*:*:*:*:*",
-                    "referenceType": "cpe23Type"
-                },
-                {
-                    "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:crates_package:flatbuffers:25.2.10:*:*:*:*:*:*:*",
-                    "referenceType": "cpe23Type"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "ae906881-37fd-4af4-8fe7-e435fd2056af",
-                    "referenceType": "BlackDuck-Component"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "Apache-2.0",
-            "licenseDeclared": "Apache-2.0",
-            "name": "FlatBuffers",
-            "supplier": "Organization: google",
-            "copyrightText": "Copyright Google Inc. All rights reserved.",
-            "versionInfo": "25.2.10"
-        },
-        {
-            "SPDXID": "SPDXRef-package-683c8c7b-3a1c-4cf9-bdea-a1c76433772e",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "683c8c7b-3a1c-4cf9-bdea-a1c76433772e",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "d14db7d7-15e4-4a44-9fe5-1780d6d922af",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "11f827cc-4e0e-4f5f-ade6-1b04f625ab3e",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "BSD-3-Clause AND BSD-2-Clause AND MIT AND Apache-2.0 AND (GPL-3.0-or-later WITH Bison-exception-2.2) AND AML-glslang AND MIT-Khronos-old",
-            "licenseDeclared": "BSD-3-Clause AND BSD-2-Clause AND MIT AND Apache-2.0 AND (GPL-3.0-or-later WITH Bison-exception-2.2) AND AML-glslang AND MIT-Khronos-old",
-            "name": "glslang",
-            "copyrightText": "Copyright (c) The Khronos Group Inc.",
-            "supplier": "Organization: Khronos Group",
-            "versionInfo": "vulkan-sdk-1.4.357.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-edd58207-4b2b-4095-b0a5-cf41f1d9d6dd",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "edd58207-4b2b-4095-b0a5-cf41f1d9d6dd",
-                    "referenceType": "BlackDuck-Version"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "(Apache-2.0)",
-            "licenseDeclared": "(Apache-2.0)",
-            "name": "ai-ml-sdk-vgf-lib",
-            "originator": "Organization: Arm Limited.",
-            "copyrightText": "Copyright (c) Arm Limited",
-            "supplier": "Organization: Arm Limited.",
-            "versionInfo": "ai-ml-sdk-vgf-lib"
-        },
-        {
-            "SPDXID": "SPDXRef-package-a22316c0-1153-40f0-94e4-b7cf02232d85",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "a22316c0-1153-40f0-94e4-b7cf02232d85",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "ac3331eb-2aa8-4867-ab91-8226042a13e4",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "434f992a-656e-4c70-965f-c9e50bb5e372",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "BSD-3-Clause",
-            "licenseDeclared": "BSD-3-Clause",
-            "name": "Google C++ Testing Framework",
-            "copyrightText": "Copyright Google Inc.",
-            "supplier": "Organization: google",
-            "versionInfo": "v1.17.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-9d624f94-c22a-485b-bd11-5150107799af",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "9d624f94-c22a-485b-bd11-5150107799af",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "7355d1e8-3e81-447c-a726-fa23a3541ac2",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "cbe14b28-cfaf-4356-be88-fac2cca69180",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "MIT",
-            "licenseDeclared": "MIT",
-            "name": "JSON for Modern Cpp",
-            "copyrightText": "Copyright (c) 2013-2022 Niels Lohmann",
-            "supplier": "Organization: nlohmann",
-            "versionInfo": "3.12.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-c711bef8-4db1-4a77-8fda-b691e751b6ef",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/jsonschema-specifications@2025.9.1",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "7fb7b6e6-5efe-42c4-aea2-cb30ae99c922",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "483f31e6-d6a3-49b6-a882-8ff86fe21630",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "c711bef8-4db1-4a77-8fda-b691e751b6ef",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "MIT",
-            "licenseDeclared": "MIT",
-            "name": "jsonschema-specifications",
-            "supplier": "Organization: pypi",
-            "versionInfo": "2025.9.1"
-        },
-        {
-            "SPDXID": "SPDXRef-package-3c53bb1a-f1ad-4f37-9f56-e59f0e9ef333",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/numpy@1.26.4",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "4f899c74-a646-4687-a056-3bbcc16bdb04",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "5f9c99ea-8bf9-4bac-9506-0e650cd9386f",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "3c53bb1a-f1ad-4f37-9f56-e59f0e9ef333",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:numpy:numpy:1.26.4:*:*:*:*:*:*:*",
-                    "referenceType": "cpe23Type"
-                },
-                {
-                    "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:pypi_package:numpy:1.26.4:*:*:*:*:*:*:*",
-                    "referenceType": "cpe23Type"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "BSD-3-Clause",
-            "licenseDeclared": "BSD-3-Clause",
-            "name": "NumPy",
-            "supplier": "Organization: pypi",
-            "versionInfo": "1.26.4"
-        },
-        {
-            "SPDXID": "SPDXRef-package-d58a27a6-bae7-4758-a981-c7daabde9e3b",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/packaging@26.0",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "935f693d-59c4-447b-ac88-fd2efc476368",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "81491b61-e29f-46bb-b7a3-ffe86add9e74",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "d58a27a6-bae7-4758-a981-c7daabde9e3b",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "(BSD-3-Clause AND Apache-2.0)",
-            "licenseDeclared": "(BSD-3-Clause AND Apache-2.0)",
-            "name": "Packaging",
-            "supplier": "Organization: pypi",
-            "versionInfo": "26.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-c09f44fc-54e5-4448-89ba-aa690b673906",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "d0051fc6-5023-4f14-8059-3fbc4710dca1",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "698d4ec9-73a7-4461-859d-8da49406f4d5",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "c09f44fc-54e5-4448-89ba-aa690b673906",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "MIT",
-            "licenseDeclared": "MIT",
-            "name": "p-ranav/argparse",
-            "copyrightText": "Copyright (c) 2018 Pranav Srinivas Kumar",
-            "supplier": "Organization: p-ranav",
-            "versionInfo": "v3.2"
-        },
-        {
-            "SPDXID": "SPDXRef-package-d68de693-37ca-4589-a088-91167bd3e408",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "d68de693-37ca-4589-a088-91167bd3e408",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "d04c4a54-3c58-494c-8be8-aa8697895683",
-                    "referenceType": "BlackDuck-Component"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "BSD-3-Clause",
-            "licenseDeclared": "BSD-3-Clause",
-            "name": "pybind11",
-            "supplier": "Organization: pybind11",
-            "versionInfo": "3.1.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-19c1c0dd-fcb5-4363-ab62-c81727a5da98",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/pygments@2.19.2",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "42e006fd-bfd2-4b78-a8b0-4b657b64c4ff",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:pypi_package:Pygments:2.19.2:*:*:*:*:*:*:*",
-                    "referenceType": "cpe23Type"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "19c1c0dd-fcb5-4363-ab62-c81727a5da98",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "60d59a36-7623-422e-80f0-d43da6d673d3",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:pygments:pygments:2.19.2:*:*:*:*:*:*:*",
-                    "referenceType": "cpe23Type"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "BSD-2-Clause",
-            "licenseDeclared": "BSD-2-Clause",
-            "name": "Pygments - Python syntax highlighter",
-            "supplier": "Organization: pypi",
-            "versionInfo": "2.19.2"
-        },
-        {
-            "SPDXID": "SPDXRef-package-7338ea34-f921-45db-ab46-cf7223ba31e4",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/pytest@9.0.3",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "50b11cf7-bb6c-4d2b-86bd-c4c43548ef76",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "71932970-f8e0-40f8-9e27-1a957253e49b",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "7338ea34-f921-45db-ab46-cf7223ba31e4",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "MIT",
-            "licenseDeclared": "MIT",
-            "name": "pytest",
-            "supplier": "Organization: pypi",
-            "versionInfo": "9.0.3"
-        },
-        {
-            "SPDXID": "SPDXRef-package-294e1b93-c201-4680-ae6f-a345ea9e21ee",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "294e1b93-c201-4680-ae6f-a345ea9e21ee",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "6cb0170d-8184-4704-bb88-36647e878309",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/pytest-xdist@3.8.0",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "2665786b-d6c0-48c7-800f-d39baa146ceb",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "MIT",
-            "licenseDeclared": "MIT",
-            "name": "pytest-xdist",
-            "supplier": "Organization: pypi",
-            "versionInfo": "3.8.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-56c53438-b8ca-4513-9267-be6bd96ff873",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "56c53438-b8ca-4513-9267-be6bd96ff873",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "7b146d8b-6955-44b7-ae48-d9f38864735f",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/attrs@26.1.0",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "3d1029a2-9613-40a6-94f0-cca2d39e0591",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "MIT",
-            "licenseDeclared": "MIT",
-            "name": "python-attrs",
-            "supplier": "Organization: pypi",
-            "versionInfo": "26.1.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-4e35f71e-ae74-42bd-88c9-0d41ac1bba41",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "a906a016-dcca-43a4-8104-0752d6758918",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "4e35f71e-ae74-42bd-88c9-0d41ac1bba41",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "55550cde-1496-4b27-8ae6-97f22883ddb0",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/jsonschema@4.25.1",
-                    "referenceType": "purl"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "MIT",
-            "licenseDeclared": "MIT",
-            "name": "python-jsonschema",
-            "supplier": "Organization: pypi",
-            "versionInfo": "4.25.1"
-        },
-        {
-            "SPDXID": "SPDXRef-package-3db57fec-6349-4e46-bf6b-9a11a1d919f1",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "8be3f7eb-34f6-496a-a538-2eb4bf1cca89",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "3db57fec-6349-4e46-bf6b-9a11a1d919f1",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/pluggy@1.6.0",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "db4e5b27-c87a-4493-9ce4-7240f01490d4",
-                    "referenceType": "BlackDuck-Component"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "MIT",
-            "licenseDeclared": "MIT",
-            "name": "python-pluggy",
-            "supplier": "Organization: pypi",
-            "versionInfo": "1.6.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-ca6780ed-0b2a-4e99-8f2f-f84f404f0a88",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "ca6780ed-0b2a-4e99-8f2f-f84f404f0a88",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "44bc70cc-eda9-475d-acf1-584efb2f7d3f",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/typing-extensions@4.15.0",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "415549d4-ec3d-4cdf-8f78-9d6073840a58",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "PSF-2.0",
-            "licenseDeclared": "PSF-2.0",
-            "name": "python-typing-extensions",
-            "supplier": "Organization: pypi",
-            "versionInfo": "4.15.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-abefa75c-aff4-41f2-b2d1-0de61c51f4d9",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "abefa75c-aff4-41f2-b2d1-0de61c51f4d9",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "81faf9b2-2429-4e81-b1e6-a98750c221c3",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/referencing@0.37.0",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "7f869469-4406-4433-96d4-a16edc5fba1b",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "MIT",
-            "licenseDeclared": "MIT",
-            "name": "referencing",
-            "supplier": "Organization: pypi",
-            "versionInfo": "0.37.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-771f263c-4199-4684-b11a-7894e65f74bd",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "771f263c-4199-4684-b11a-7894e65f74bd",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "6ead4e8a-ac79-4403-bf49-b7ee459369b2",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/iniconfig@2.3.0",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "83d2a420-d624-44c0-921c-cb97cb17725c",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "MIT",
-            "licenseDeclared": "MIT",
-            "name": "RonnyPfannschmidt/iniconfig",
-            "supplier": "Organization: pypi",
-            "versionInfo": "2.3.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-954e8df1-20e0-4478-a31b-b5a411fd3e5f",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/rpds-py@0.30.0",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "add33e96-1a10-4914-9ca8-1fd6d4137421",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "f820a3e4-1da8-4187-943b-a8b8d5558c7e",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "954e8df1-20e0-4478-a31b-b5a411fd3e5f",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "MIT",
-            "licenseDeclared": "MIT",
-            "name": "rpds-py",
-            "supplier": "Organization: pypi",
-            "versionInfo": "0.30.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-c5af8272-fb0c-4b55-a344-7330045b54e4",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "9f5c9a65-3d23-4377-837c-5f18c05337db",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "c5af8272-fb0c-4b55-a344-7330045b54e4",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "f891c8fd-fd5b-46ef-b545-8cee3b9efc01",
-                    "referenceType": "BlackDuck-Component"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "MIT",
-            "licenseDeclared": "MIT",
-            "name": "SPIRV-Headers",
-            "supplier": "Organization: Khronos Group",
-            "copyrightText": "Copyright (c) The Khronos Group Inc.",
-            "versionInfo": "vulkan-sdk-1.4.357.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-53317521-4f29-449d-b3c8-ae0d339cacd4",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "fd3f8515-4925-4e6d-9896-d204878efe7e",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "4558479a-2bb0-4113-93ef-e392c18dd0c7",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "53317521-4f29-449d-b3c8-ae0d339cacd4",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "Apache-2.0",
-            "licenseDeclared": "Apache-2.0",
-            "name": "SPIRV-Tools",
-            "supplier": "Organization: Khronos Group",
-            "copyrightText": "Copyright (c) The Khronos Group Inc.",
-            "versionInfo": "vulkan-sdk-1.4.357.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-7244dee8-6675-4803-84f7-457f0340346c",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/tomli@2.4.0",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "dc03569d-27fe-440c-a40e-a43a05830474",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "e3d5374c-9719-48b5-9948-6812ff3873e3",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "7244dee8-6675-4803-84f7-457f0340346c",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "MIT",
-            "licenseDeclared": "MIT",
-            "name": "tomli",
-            "supplier": "Organization: pypi",
-            "versionInfo": "2.4.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-ebe0c66e-2c6c-46fb-b7a2-0b65fb2c4ca8",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "ebe0c66e-2c6c-46fb-b7a2-0b65fb2c4ca8",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "caf839c6-257e-4280-b853-31165dbd8762",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "d9c13dbb-b4f9-4ba7-b463-80365e1c7e4f",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "(MIT OR Apache-2.0)",
-            "licenseDeclared": "Apache-2.0",
-            "name": "Vulkan-Headers",
-            "supplier": "Organization: Khronos Group",
-            "versionInfo": "vulkan-sdk-1.4.357.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-4c708758-3e83-4a7d-b53e-107ba1e7e049",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "04463384-33c6-4d25-920e-30125d55335a",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "83e652d9-007c-4f4a-bf0e-6eada14f5b0a",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "4c708758-3e83-4a7d-b53e-107ba1e7e049",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:microsoft:directxshadercompiler:v1.9.2607:*:*:*:*:*:*:*",
-                    "referenceType": "cpe23Type"
-                },
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:github/microsoft/directxshadercompiler@v1.9.2607",
-                    "referenceType": "purl"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "(BSD-3-Clause AND LicenseRef-57f553be-1865-4577-a5d4-6461aad8472a AND MIT AND NCSA)",
-            "licenseDeclared": "(BSD-3-Clause AND LicenseRef-57f553be-1865-4577-a5d4-6461aad8472a AND MIT AND NCSA)",
-            "name": "Microsoft/DirectXShaderCompiler",
-            "originator": "Organization: microsoft",
-            "supplier": "Organization: microsoft",
-            "versionInfo": "v1.9.2607"
-        },
-        {
-            "SPDXID": "SPDXRef-package-00c84c86-74bc-4ab5-bdd5-0b788b3b2577",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "15d462e0-642a-4629-afb3-2d96a1add1d6",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "00c84c86-74bc-4ab5-bdd5-0b788b3b2577",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:maven/com.android.tools.build/gradle@8.2.2",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "ff2247f6-e602-4466-9029-241bb0fcfeb1",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "Apache-2.0",
-            "licenseDeclared": "Apache-2.0",
-            "name": "Gradle Plug-in for Android",
-            "originator": "Organization: com.android.tools.build",
-            "supplier": "Organization: com.android.tools.build",
-            "versionInfo": "8.2.2"
-        },
-        {
-            "SPDXID": "SPDXRef-package-06ec01b3-dd54-494c-a4f2-5dc42bad7e60",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "26c6f1b3-fbd5-4e9b-858f-2fee07c82a06",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "06ec01b3-dd54-494c-a4f2-5dc42bad7e60",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "c5e39990-6f75-4c21-a748-340f7603c836",
-                    "referenceType": "BlackDuck-Component"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "LicenseRef-b9b05e9b-4079-403d-87f2-1741dba216a6",
-            "licenseDeclared": "LicenseRef-b9b05e9b-4079-403d-87f2-1741dba216a6",
-            "name": "Android SDK Platform 34",
-            "originator": "Organization: android_sdk",
-            "supplier": "Organization: android_sdk",
-            "versionInfo": "34-3"
-        },
-        {
-            "SPDXID": "SPDXRef-package-34286d13-af83-44f1-aaf8-8c7b4b8d831a",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "34286d13-af83-44f1-aaf8-8c7b4b8d831a",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "47423b03-b751-4ebe-922e-c66b92f69596",
-                    "referenceType": "BlackDuck-Component"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "(MIT OR Unlicense)",
-            "licenseDeclared": "(MIT OR Unlicense)",
-            "name": "stb",
-            "originator": "Organization: stb",
-            "supplier": "Organization: stb",
-            "versionInfo": "2.30^20251025gitf1c79c0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-6415299d-fe9c-40e7-845c-201b8eef29dd",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "e49f99ed-e7ec-4962-a815-7be62cc986d1",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "6415299d-fe9c-40e7-845c-201b8eef29dd",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "ce465a43-2ccb-42c0-820e-7c514872a948",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:python_imaging_project:python_imaging:12.3.0:*:*:*:*:*:*:*",
-                    "referenceType": "cpe23Type"
-                },
-                {
-                    "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:pypi_package:Pillow:12.3.0:*:*:*:*:*:*:*",
-                    "referenceType": "cpe23Type"
-                },
-                {
-                    "referenceCategory": "PACKAGE-MANAGER",
-                    "referenceLocator": "pkg:pypi/pillow@12.3.0",
-                    "referenceType": "purl"
-                },
-                {
-                    "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:python:pillow:12.3.0:*:*:*:*:*:*:*",
-                    "referenceType": "cpe23Type"
-                },
-                {
-                    "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:pypi_package:pillow:12.3.0:*:*:*:*:*:*:*",
-                    "referenceType": "cpe23Type"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "LicenseRef-6f1ab4e9-b0ed-4b83-b7bd-aff972ed4db3",
-            "licenseDeclared": "LicenseRef-6f1ab4e9-b0ed-4b83-b7bd-aff972ed4db3",
-            "name": "PillowPython",
-            "originator": "Organization: pypi",
-            "supplier": "Organization: pypi",
-            "versionInfo": "12.3.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-ab2de8b3-05b6-45e8-b495-044a2bd2b8c3",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "SECURITY",
-                    "referenceLocator": "cpe:2.3:a:gradle:gradle:9.4.1:*:*:*:*:*:*:*",
-                    "referenceType": "cpe23Type"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "42b46742-8c4e-44f7-9860-5a867d9dd9fc",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "45792879-287b-4823-96ed-eca8409746e8",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "ab2de8b3-05b6-45e8-b495-044a2bd2b8c3",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "Apache-2.0",
-            "licenseDeclared": "Apache-2.0",
-            "name": "Gradle",
-            "originator": "Organization: cpe",
-            "supplier": "Organization: cpe",
-            "versionInfo": "9.4.1"
-        },
-        {
-            "SPDXID": "SPDXRef-package-c4c12231-a681-4d0c-8925-7fa0f954a4a0",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "ba7e43c8-3fd9-4b4b-b12e-a9d10de6aa5e",
-                    "referenceType": "BlackDuck-ComponentOrigin"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "c4c12231-a681-4d0c-8925-7fa0f954a4a0",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "b3ffe698-242c-4022-aac1-8076a6b4bc33",
-                    "referenceType": "BlackDuck-Component"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "LicenseRef-b9b05e9b-4079-403d-87f2-1741dba216a6",
-            "licenseDeclared": "LicenseRef-b9b05e9b-4079-403d-87f2-1741dba216a6",
-            "name": "Android SDK Command-line Tools",
-            "originator": "Organization: android_sdk",
-            "supplier": "Organization: android_sdk",
-            "versionInfo": "12.0"
-        },
-        {
-            "SPDXID": "SPDXRef-package-ed5bab19-e52d-4450-9109-3cd958570835",
-            "downloadLocation": "NOASSERTION",
-            "externalRefs": [
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "47423b03-b751-4ebe-922e-c66b92f69596",
-                    "referenceType": "BlackDuck-Component"
-                },
-                {
-                    "referenceCategory": "OTHER",
-                    "referenceLocator": "ed5bab19-e52d-4450-9109-3cd958570835",
-                    "referenceType": "BlackDuck-ComponentVersion"
-                }
-            ],
-            "filesAnalyzed": false,
-            "licenseConcluded": "(MIT OR Unlicense)",
-            "licenseDeclared": "(MIT OR Unlicense)",
-            "name": "stb",
-            "originator": "Organization: stb",
-            "supplier": "Organization: stb",
-            "versionInfo": "1.16^20251025gitf1c79c0"
-        }
-    ],
-    "relationships": [
-        {
-            "spdxElementId": "SPDXRef-DOCUMENT",
-            "relationshipType": "DESCRIBES",
-            "relatedSpdxElement": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-10f5ab36-ffd4-49fe-b59a-a10d0f0c5a7b"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-a22316c0-1153-40f0-94e4-b7cf02232d85"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-53317521-4f29-449d-b3c8-ae0d339cacd4"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-ebe0c66e-2c6c-46fb-b7a2-0b65fb2c4ca8"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-c5af8272-fb0c-4b55-a344-7330045b54e4"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-abefa75c-aff4-41f2-b2d1-0de61c51f4d9"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-7338ea34-f921-45db-ab46-cf7223ba31e4"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-9d624f94-c22a-485b-bd11-5150107799af"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-3c53bb1a-f1ad-4f37-9f56-e59f0e9ef333"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-d68de693-37ca-4589-a088-91167bd3e408"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-683c8c7b-3a1c-4cf9-bdea-a1c76433772e"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-edd58207-4b2b-4095-b0a5-cf41f1d9d6dd"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-4c708758-3e83-4a7d-b53e-107ba1e7e049"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-c09f44fc-54e5-4448-89ba-aa690b673906"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-4e35f71e-ae74-42bd-88c9-0d41ac1bba41"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-294e1b93-c201-4680-ae6f-a345ea9e21ee"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-7338ea34-f921-45db-ab46-cf7223ba31e4",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-7244dee8-6675-4803-84f7-457f0340346c"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-7338ea34-f921-45db-ab46-cf7223ba31e4",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-19c1c0dd-fcb5-4363-ab62-c81727a5da98"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-7338ea34-f921-45db-ab46-cf7223ba31e4",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-d58a27a6-bae7-4758-a981-c7daabde9e3b"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-7338ea34-f921-45db-ab46-cf7223ba31e4",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-3db57fec-6349-4e46-bf6b-9a11a1d919f1"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-7338ea34-f921-45db-ab46-cf7223ba31e4",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-b5e8d763-2306-40ca-b3fe-16ca34951016"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-7338ea34-f921-45db-ab46-cf7223ba31e4",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-771f263c-4199-4684-b11a-7894e65f74bd"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-294e1b93-c201-4680-ae6f-a345ea9e21ee",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-fce6259f-49f5-4d19-b10e-5d1b72b32415"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-4e35f71e-ae74-42bd-88c9-0d41ac1bba41",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-c711bef8-4db1-4a77-8fda-b691e751b6ef"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-abefa75c-aff4-41f2-b2d1-0de61c51f4d9",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-ca6780ed-0b2a-4e99-8f2f-f84f404f0a88"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-abefa75c-aff4-41f2-b2d1-0de61c51f4d9",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-56c53438-b8ca-4513-9267-be6bd96ff873"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-abefa75c-aff4-41f2-b2d1-0de61c51f4d9",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-954e8df1-20e0-4478-a31b-b5a411fd3e5f"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-53317521-4f29-449d-b3c8-ae0d339cacd4",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-18e36ba3-5553-495c-afa3-ef67a7b417c1"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DEPENDS_ON",
-            "relatedSpdxElement": "SPDXRef-package-c5af8272-fb0c-4b55-a344-7330045b54e4"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DEPENDS_ON",
-            "relatedSpdxElement": "SPDXRef-package-53317521-4f29-449d-b3c8-ae0d339cacd4"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DEPENDS_ON",
-            "relatedSpdxElement": "SPDXRef-package-ebe0c66e-2c6c-46fb-b7a2-0b65fb2c4ca8"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DEPENDS_ON",
-            "relatedSpdxElement": "SPDXRef-package-10f5ab36-ffd4-49fe-b59a-a10d0f0c5a7b"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DEPENDS_ON",
-            "relatedSpdxElement": "SPDXRef-package-683c8c7b-3a1c-4cf9-bdea-a1c76433772e"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DEPENDS_ON",
-            "relatedSpdxElement": "SPDXRef-package-d68de693-37ca-4589-a088-91167bd3e408"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DEPENDS_ON",
-            "relatedSpdxElement": "SPDXRef-package-edd58207-4b2b-4095-b0a5-cf41f1d9d6dd"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DEPENDS_ON",
-            "relatedSpdxElement": "SPDXRef-package-4c708758-3e83-4a7d-b53e-107ba1e7e049"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-00c84c86-74bc-4ab5-bdd5-0b788b3b2577"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-06ec01b3-dd54-494c-a4f2-5dc42bad7e60"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-34286d13-af83-44f1-aaf8-8c7b4b8d831a"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-6415299d-fe9c-40e7-845c-201b8eef29dd"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-ab2de8b3-05b6-45e8-b495-044a2bd2b8c3"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-c4c12231-a681-4d0c-8925-7fa0f954a4a0"
-        },
-        {
-            "spdxElementId": "SPDXRef-package-2ec3faed-97bd-4ac6-9b67-f59c38eea286",
-            "relationshipType": "DYNAMIC_LINK",
-            "relatedSpdxElement": "SPDXRef-package-ed5bab19-e52d-4450-9109-3cd958570835"
-        }
-    ]
+    {
+      "SPDXID": "SPDXRef-argparse",
+      "name": "p-ranav/argparse",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "v3.2"
+    },
+    {
+      "SPDXID": "SPDXRef-component-vgf-lib",
+      "name": "arm/ai-ml-sdk-vgf-library",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "2ac59a7135f8a4b1ae3ec8a95557ba73ff1ba9c2"
+    },
+    {
+      "SPDXID": "SPDXRef-directxshadercompiler",
+      "name": "microsoft/DirectXShaderCompiler",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "BSD-3-Clause AND Spencer-94 AND MIT AND NCSA",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "v1.9.2607"
+    },
+    {
+      "SPDXID": "SPDXRef-download-stb",
+      "name": "nothings/stb",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Unlicense",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "f1c79c02822848a9bed4315b12c8c8f3761e1296"
+    },
+    {
+      "SPDXID": "SPDXRef-flatbuffers",
+      "name": "google/flatbuffers",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "v25.2.10"
+    },
+    {
+      "SPDXID": "SPDXRef-found-renderdoc",
+      "name": "RenderDoc",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-glslang",
+      "name": "KhronosGroup/glslang",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "BSD-3-Clause AND BSD-2-Clause AND MIT AND Apache-2.0 AND (GPL-3.0-or-later WITH Bison-exception-2.2) AND AML-glslang AND MIT-Khronos-old",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "vulkan-sdk-1.4.357.0"
+    },
+    {
+      "SPDXID": "SPDXRef-json",
+      "name": "nlohmann/json",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "v3.12.0"
+    },
+    {
+      "SPDXID": "SPDXRef-pybind11",
+      "name": "pybind/pybind11",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "BSD-3-Clause",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "v3.1.0"
+    },
+    {
+      "SPDXID": "SPDXRef-python-numpy-2.1.3",
+      "name": "numpy",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "BSD-3-Clause",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "2.1.3",
+      "comment": "Runtime requirement applies when python_version < '3.14'."
+    },
+    {
+      "SPDXID": "SPDXRef-python-numpy-2.4.6",
+      "name": "numpy",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "2.4.6",
+      "comment": "Runtime requirement applies when python_version >= '3.14'."
+    },
+    {
+      "SPDXID": "SPDXRef-spirv-headers",
+      "name": "KhronosGroup/SPIRV-Headers",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "vulkan-sdk-1.4.357.0"
+    },
+    {
+      "SPDXID": "SPDXRef-spirv-tools",
+      "name": "KhronosGroup/SPIRV-Tools",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "9a49b0883b9b635689a85b5647dbfcb223268151"
+    },
+    {
+      "SPDXID": "SPDXRef-submodule-directxshadercompiler-directx-headers",
+      "name": "DirectX-Headers",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "980971e835876dc0cde415e8f9bc646e64667bf7"
+    },
+    {
+      "SPDXID": "SPDXRef-submodule-directxshadercompiler-spirv-headers",
+      "name": "SPIRV-Headers",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "29981f65241605e08b0ede4cfeb999fe3b723c6a"
+    },
+    {
+      "SPDXID": "SPDXRef-submodule-directxshadercompiler-spirv-tools",
+      "name": "SPIRV-Tools",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "b707790a898e44038547df54580022fc1cf89c3d"
+    },
+    {
+      "SPDXID": "SPDXRef-vulkan-headers",
+      "name": "KhronosGroup/Vulkan-Headers",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "vulkan-sdk-1.4.357.0"
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-component-scenario-runner"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-argparse"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-component-vgf-lib"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-directxshadercompiler"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-download-stb"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-flatbuffers"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-found-renderdoc"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-glslang"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-json"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-pybind11"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-python-numpy-2.1.3"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-python-numpy-2.4.6"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-spirv-headers"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-spirv-tools"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-submodule-directxshadercompiler-directx-headers"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-submodule-directxshadercompiler-spirv-headers"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-submodule-directxshadercompiler-spirv-tools"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-vulkan-headers"
+    }
+  ]
 }
