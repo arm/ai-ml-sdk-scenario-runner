@@ -490,6 +490,22 @@ void bindCommands(py::module_ &m) {
         .def_readwrite("push_constants", &DispatchVgfData::pushConstants)
         .def_readwrite("shader_substitutions", &DispatchVgfData::shaderSubstitutions)
         .def_readwrite("implicit_barrier", &DispatchVgfData::implicitBarrier);
+    auto dispatchDataGraphBinaryData = py::class_<DispatchDataGraphBinaryData>(
+        m, "DispatchDataGraphBinaryData", "Describe a standalone precompiled graph dispatch.");
+    dispatchDataGraphBinaryData.def(py::init<RawDataId>(), py::arg("binary"))
+        .def_readwrite("binary", &DispatchDataGraphBinaryData::binary)
+        .def_readwrite("debug_name", &DispatchDataGraphBinaryData::debugName)
+        .def_readwrite("bindings", &DispatchDataGraphBinaryData::bindings)
+        .def_readwrite("pipeline_identifier", &DispatchDataGraphBinaryData::pipelineIdentifier)
+        .def_readwrite("use_application_storage", &DispatchDataGraphBinaryData::useApplicationStorage)
+        .def_readwrite("implicit_barrier", &DispatchDataGraphBinaryData::implicitBarrier);
+    setAttributeAnnotations(dispatchDataGraphBinaryData, {{"binary", "RawDataId"},
+                                                          {"debug_name", "str"},
+                                                          {"bindings", "list[TypedBinding]"},
+                                                          {"pipeline_identifier", "list[int] | None"},
+                                                          {"use_application_storage", "bool"},
+                                                          {"implicit_barrier", "bool"}});
+
     auto dispatchDataGraphData =
         py::class_<DispatchDataGraphData>(m, "DispatchDataGraphData", "Describe a dispatch of a SPIR-V graph shader.");
     dispatchDataGraphData.def(py::init<ShaderId>(), py::arg("graph_shader"), "Create a dispatch for ``graph_shader``.")
@@ -669,6 +685,8 @@ void bindBuilder(py::module_ &m) {
              "Append a :class:`DispatchFragmentData` command.", py::arg("command"))
         .def("add_dispatch_vgf", &ScenarioBuilder::addDispatchVgf, "Append a :class:`DispatchVgfData` command.",
              py::arg("command"))
+        .def("add_dispatch_data_graph_binary", &ScenarioBuilder::addDispatchDataGraphBinary,
+             "Append a :class:`DispatchDataGraphBinaryData` command.", py::arg("command"))
         .def("add_dispatch_data_graph", &ScenarioBuilder::addDispatchDataGraph,
              "Append a :class:`DispatchDataGraphData` command.", py::arg("command"))
         .def("add_dispatch_optical_flow", &ScenarioBuilder::addDispatchOpticalFlow,

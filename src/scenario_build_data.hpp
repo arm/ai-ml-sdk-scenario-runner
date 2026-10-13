@@ -30,8 +30,9 @@ using TypedResourceId = std::variant<BufferId, ImageId, TensorId, ShaderId, RawD
 
 namespace detail {
 
-using ScenarioCommand = std::variant<DispatchComputeData, DispatchFragmentData, DispatchVgfData, DispatchDataGraphData,
-                                     DispatchOpticalFlowData, PipelineBarrierData, FrameBoundaryData>;
+using ScenarioCommand =
+    std::variant<DispatchComputeData, DispatchFragmentData, DispatchVgfData, DispatchDataGraphBinaryData,
+                 DispatchDataGraphData, DispatchOpticalFlowData, PipelineBarrierData, FrameBoundaryData>;
 
 struct InitializationBase {
     explicit InitializationBase(std::string debugName) : debugName{std::move(debugName)} {}

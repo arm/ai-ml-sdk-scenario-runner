@@ -53,6 +53,7 @@ class ScenarioBuilderImpl final : public ScenarioBuilder {
     void addDispatchCompute(DispatchComputeData command) override;
     void addDispatchFragment(DispatchFragmentData command) override;
     void addDispatchVgf(DispatchVgfData command) override;
+    void addDispatchDataGraphBinary(DispatchDataGraphBinaryData command) override;
     void addDispatchDataGraph(DispatchDataGraphData command) override;
     void addDispatchOpticalFlow(DispatchOpticalFlowData command) override;
     void addPipelineBarrier(PipelineBarrierData command) override;

@@ -1,0 +1,35 @@
+{
+    "$id": "urn:scenario:command:dispatch_data_graph_binary",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "binary_ref": {
+            "type": "string"
+        },
+        "bindings": {
+            "$ref": "urn:scenario:common#/definitions/bindings"
+        },
+        "pipeline_identifier": {
+            "type": "array",
+            "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+            },
+            "minItems": 1
+        },
+        "use_application_storage": {
+            "type": "boolean",
+            "default": false
+        },
+        "implicit_barrier": {
+            "type": "boolean",
+            "default": true
+        }
+    },
+    "required": [
+        "binary_ref",
+        "bindings"
+    ]
+}

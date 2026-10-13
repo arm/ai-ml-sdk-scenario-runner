@@ -30,13 +30,14 @@
 using namespace mlsdk::scenariorunner;
 using namespace mlsdk::logging;
 namespace {
-constexpr std::array<std::string_view, 6> extensionList = {
-    VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME,
-    VK_EXT_FRAME_BOUNDARY_EXTENSION_NAME,
-    VK_ARM_DATA_GRAPH_NEURAL_ACCELERATOR_STATISTICS_EXTENSION_NAME,
-    VK_KHR_MAINTENANCE_5_EXTENSION_NAME,
-    VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
-    VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME};
+constexpr auto extensionList = std::array{
+    std::string_view{VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME}, std::string_view{VK_EXT_FRAME_BOUNDARY_EXTENSION_NAME},
+    std::string_view{VK_ARM_DATA_GRAPH_NEURAL_ACCELERATOR_STATISTICS_EXTENSION_NAME},
+    std::string_view{VK_KHR_MAINTENANCE_5_EXTENSION_NAME},
+    std::string_view{VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME},
+    std::string_view{VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME},
+    // Keep the CLI help stable when Vulkan headers lack the DGB extension.
+    std::string_view{"VK_ARM_data_graph_binaries"}};
 
 std::string printExtensionList() {
     size_t numExtensions = extensionList.size() - 1;
@@ -181,7 +182,9 @@ int runScenarioRunner(int argc, const char **argv) {
                 .append()
                 .store_into(scenarioOptions.disabledExtensions)
                 .nargs(argparse::nargs_pattern::at_least_one)
-                .help("specify extensions to disable out of the following: " + printExtensionList());
+                .help("disable extension names recognized by this build (not a device extension or feature support "
+                      "list): " +
+                      printExtensionList());
         for (const auto &extension : extensionList) {
             disableExtensionArg.choices(extension);
         }

@@ -82,7 +82,7 @@ The root of the JSON file has two blocks.
                    class buffer_barrier | class tensor_barrier | class image_barrier
                    | class graph_constant ],
       commands: [ class dispatch_compute | class dispatch_fragment | class dispatch_vgf |
-            class dispatch_data_graph | class dispatch_optical_flow |
+            class dispatch_data_graph | class dispatch_data_graph_binary | class dispatch_optical_flow |
             class pipeline_barrier | class frame_boundary ]
   }
 
@@ -109,6 +109,7 @@ array can be any of the following types:
 * :ref:`dispatch_fragment`
 * :ref:`dispatch_vgf`
 * :ref:`dispatch_data_graph`
+* :ref:`dispatch_data_graph_binary`
 * :ref:`dispatch_optical_flow`
 * :ref:`pipeline_barrier`
 * :ref:`frame_boundary`
@@ -276,7 +277,7 @@ example, push constant or specialization constants.
 
   raw_data: {
       uid:string, // globally unique identifier for the resource
-      src:path, // path to the NumPy file to initialize the resource from
+      src:path, // path to the data file
   }
 
 shader
@@ -542,6 +543,33 @@ tensor data to the SPIR-V™ pipeline.
   }
 
 .. note:: ``graph_ref`` must reference a ``shader`` resource with ``type`` set to ``SPIR-V``. GLSL is not supported for this command.
+
+dispatch_data_graph_binary
+""""""""""""""""""""""""""
+
+The ``dispatch_data_graph_binary`` command dispatches a standalone graph from
+a precompiled :ref:`raw_data` resource.
+
+.. code-block::
+
+  dispatch_data_graph_binary: {
+      binary_ref: string, // reference to the raw_data resource containing the binary
+      bindings: [class binding], // resource-to-descriptor set/id mappings
+      pipeline_identifier: [integer], // optional opaque pipeline selector
+      use_application_storage: boolean(default=false), // allow use of mapped binary storage
+      implicit_barrier:boolean(default=true) // inclusion of implicit memory barrier
+  }
+
+For a multi-pipeline binary, supply the producer's ``pipeline_identifier`` as
+byte values (0-255). It may be omitted for a single-pipeline binary. This
+command requires ``VK_ARM_data_graph_binaries``.
+
+Binary-backed pipelines do not use Vulkan® pipeline caches. ``--pipeline-caching``
+still applies to other dispatches in the scenario, but
+``--fail-on-pipeline-cache-miss`` is not supported with this command.
+
+With ``use_application_storage: true``, the mapped data must remain unchanged
+until the pipeline is destroyed.
 
 dispatch_optical_flow
 """""""""""""""""""""

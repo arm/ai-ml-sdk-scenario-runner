@@ -49,7 +49,7 @@ class ScenarioBuilder {
     /// @brief Register raw command data.
     /// @param info Raw-data description to copy into the scenario.
     /// @return The ID used to refer to the data in commands.
-    /// @throws std::runtime_error If the builder has already been consumed.
+    /// @throws std::runtime_error If the source path is empty or the builder was consumed.
     virtual RawDataId addRawData(const RawDataInfo &info) = 0;
     /// @brief Register a VGF resource.
     /// @param info VGF description to copy into the scenario.
@@ -105,6 +105,10 @@ class ScenarioBuilder {
     /// @param command Command whose referenced resources have already been registered.
     /// @throws std::runtime_error If a resource ID is invalid or the builder was consumed.
     virtual void addDispatchVgf(DispatchVgfData command) = 0;
+    /// @brief Append a data graph binary dispatch to the execution sequence.
+    /// @param command Command whose referenced resources have already been registered.
+    /// @throws std::runtime_error If a resource ID is invalid or the builder was consumed.
+    virtual void addDispatchDataGraphBinary(DispatchDataGraphBinaryData command) = 0;
     /// @brief Append a SPIR-V™ graph dispatch to the execution sequence.
     /// @param command Command whose referenced resources have already been registered.
     /// @throws std::runtime_error If a resource ID is invalid or the builder was consumed.

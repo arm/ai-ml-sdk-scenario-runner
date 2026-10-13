@@ -8,6 +8,8 @@
 
 - Added `VK_KHR_portability_enumeration` to the extensions accepted by
   `--disable-extension`.
+- Added experimental standalone data-graph-binary dispatch from a file-backed
+  binary resource with an optional pipeline selector.
 
 ### Bug Fixes
 

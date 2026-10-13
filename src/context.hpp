@@ -7,6 +7,8 @@
 
 #include "vulkan/vulkan_raii.hpp"
 
+#include <cstddef>
+
 namespace mlsdk::scenariorunner {
 
 struct ScenarioOptions;
@@ -27,6 +29,7 @@ struct OptionalExtensions {
     bool descriptor_indexing = false;
     bool pipeline_robustness = false;
     bool portability_subset = false;
+    bool data_graph_binaries = false;
 };
 
 /// \brief Context that contains device related information
@@ -68,6 +71,10 @@ class Context {
     /// @return Whether robustness features should be enabled where supported
     bool robustnessFeaturesEnabled() const { return _robustnessFeaturesEnabled; }
 
+    /// @brief Required data graph binary alignment for the selected device.
+    /// @return Alignment in bytes, or 1 when binary support is unavailable.
+    size_t dataGraphPipelineBinaryDataAlignment() const { return _dataGraphPipelineBinaryDataAlignment; }
+
   private:
     bool _gpuDebugMarkersEnabled;
     bool _sessionMemoryDumpEnabled;
@@ -77,6 +84,7 @@ class Context {
     vk::raii::PhysicalDevice _physicalDev{nullptr};
     vk::raii::Device _dev{nullptr};
     uint32_t _familyQueueIdx{0};
+    size_t _dataGraphPipelineBinaryDataAlignment{1};
 };
 
 } // namespace mlsdk::scenariorunner

@@ -10,6 +10,8 @@
 #include "resource_desc.hpp"
 #include "scenario_desc.hpp"
 
+#include <cstdint>
+#include <filesystem>
 #include <string_view>
 
 /**
@@ -1125,6 +1127,34 @@ TEST(JsonParser, DispatchVgf) {
     ASSERT_TRUE(desc.bindings[0].resourceRef.isValid());
 }
 
+TEST(JsonParser, DispatchDataGraphBinary) {
+    const std::string jsonInput =
+        R""(
+    {
+        "commands": [
+            {
+                "dispatch_data_graph_binary": {
+                    "bindings": [],
+                    "binary_ref": "binary1"
+                }
+            }
+        ],
+        "resources": [
+            {"raw_data": {"uid": "binary1", "src": "model.dgb"}}
+        ]
+    }
+    )"";
+
+    ScenarioSpec scenarioSpec{jsonInput};
+    const auto &command = scenarioSpec.commands.at(0);
+    ASSERT_EQ(command->commandType, CommandType::DispatchDataGraphBinary);
+    const auto &desc = static_cast<const DispatchDataGraphBinaryDesc &>(*command);
+    ASSERT_EQ(desc.binaryRef, Guid("binary1"));
+    ASSERT_FALSE(desc.useApplicationStorage);
+    ASSERT_EQ(scenarioSpec.resources.at(0)->resourceType, ResourceType::RawData);
+    ASSERT_EQ(std::filesystem::path(scenarioSpec.resources.at(0)->getSource().value()).filename(), "model.dgb");
+}
+
 TEST(JsonParser, DipatchCompute) {
 
     const auto jsonInput =
@@ -1203,6 +1233,21 @@ TEST(JsonParser, DispatchDataGraph) {
     ASSERT_TRUE(desc.bindings[1].id == 1);
     ASSERT_TRUE(desc.bindings[1].set == 0);
     ASSERT_TRUE(desc.bindings[1].resourceRef.isValid());
+}
+
+TEST(JsonParser, DispatchDataGraphBinaryOptions) {
+    const auto jsonInput = R"({"bindings": [], "binary_ref": "binary1", "pipeline_identifier": [0, 255],
+                              "use_application_storage": true})"_json;
+    const auto desc = MakeFromJSON<DispatchDataGraphBinaryDesc>(jsonInput);
+
+    EXPECT_EQ(desc.binaryRef, Guid("binary1"));
+    EXPECT_EQ(desc.pipelineIdentifier, (std::vector<uint8_t>{0, 255}));
+    EXPECT_TRUE(desc.useApplicationStorage);
+}
+
+TEST(JsonParser, DispatchDataGraphBinaryRejectsInvalidIdentifierByte) {
+    const auto jsonInput = R"({"bindings": [], "binary_ref": "binary1", "pipeline_identifier": [256]})"_json;
+    EXPECT_THROW(MakeFromJSON<DispatchDataGraphBinaryDesc>(jsonInput), std::runtime_error);
 }
 
 TEST(JsonParser, DispatchDataGraphInvalidGraphRefType) {

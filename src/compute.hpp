@@ -13,6 +13,7 @@
 #include "pipeline.hpp"
 
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <string>
 #include <variant>
@@ -73,6 +74,11 @@ class Compute {
     void createPipeline(const PipelineCreateArguments &args, uint32_t segmentIndex, const VgfView &vgfView,
                         const DataManager &dataManager, bool enableNeuralStatistics,
                         vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
+
+    /// \brief Create a data graph pipeline from a binary and optional opaque identifier.
+    void createPipeline(const PipelineCreateArguments &args, const MemoryMap &binary,
+                        const std::optional<std::vector<uint8_t>> &identifier, bool useApplicationStorage,
+                        bool enableNeuralStatistics, vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
 
     /// \brief Create a graphics pipeline
     void createPipeline(const PipelineCreateArguments &args, const ShaderInfo &vertexShaderInfo,

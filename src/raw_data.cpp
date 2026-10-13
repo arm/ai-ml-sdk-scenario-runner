@@ -9,13 +9,11 @@
 
 namespace mlsdk::scenariorunner {
 
-RawData::RawData(std::string debugName, const std::string &src)
-    : _debugName(std::move(debugName)), _mapped{std::make_unique<MemoryMap>(src)},
-      _dataptr(vgfutils::numpy::parse(*_mapped)) {}
+RawData::RawData(std::string debugName, const std::string &src) : _debugName(std::move(debugName)), _mapped(src) {}
 
-const char *RawData::data() const { return _dataptr.ptr; }
+vgfutils::numpy::DataPtr RawData::numpyData() const { return vgfutils::numpy::parse(_mapped); }
 
-size_t RawData::size() const { return _dataptr.size(); }
+const MemoryMap &RawData::mapping() const { return _mapped; }
 
 const std::string &RawData::debugName() const { return _debugName; }
 } // namespace mlsdk::scenariorunner

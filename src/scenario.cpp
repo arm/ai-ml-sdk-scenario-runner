@@ -28,6 +28,7 @@
 #include "utils.hpp"
 
 #include <algorithm>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -69,6 +70,7 @@ class ScenarioImpl final : public Scenario {
     void runIteration(int iteration, int repeatCount, bool dryRun);
     void createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries);
     void createVgfPipeline(const DispatchVgfData &dispatchVgf, uint32_t &nQueries);
+    void createDataGraphBinaryPipeline(const DispatchDataGraphBinaryData &dispatchDataGraphBinary, uint32_t &nQueries);
     void createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries);
     void createFragmentPipeline(const DispatchFragmentData &dispatchFragment, uint32_t &nQueries);
     void createOpticalFlowPipeline(const DispatchOpticalFlowData &dispatchOpticalFlow, uint32_t &nQueries);
@@ -123,6 +125,25 @@ std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<GraphCons
     }
 
     return constants;
+}
+
+void validateDataGraphBindings(const std::vector<TypedBinding> &bindings) {
+    for (const auto &binding : bindings) {
+        if (std::holds_alternative<TensorId>(binding.resource)) {
+            if (binding.vkDescriptorType != vk::DescriptorType::eTensorARM) {
+                throw std::runtime_error("DataGraph tensor binding must use a tensor descriptor");
+            }
+            continue;
+        }
+        if (std::holds_alternative<ImageId>(binding.resource)) {
+            if (binding.vkDescriptorType != vk::DescriptorType::eStorageImage &&
+                binding.vkDescriptorType != vk::DescriptorType::eCombinedImageSampler) {
+                throw std::runtime_error("DataGraph image binding must use an image descriptor");
+            }
+            continue;
+        }
+        throw std::runtime_error("DataGraph bindings must reference tensors or images");
+    }
 }
 
 void applyGraphResourceShaderMetadata(ShaderInfo &shaderInfo, const VgfInfo &vgf, const std::string &moduleName) {
@@ -211,6 +232,7 @@ vk::QueueFlags getRequiredQueueFlags(const std::vector<detail::ScenarioCommand> 
         } else if (std::holds_alternative<DispatchFragmentData>(command)) {
             requiredQueueFlags |= vk::QueueFlagBits::eGraphics;
         } else if (std::holds_alternative<DispatchVgfData>(command) ||
+                   std::holds_alternative<DispatchDataGraphBinaryData>(command) ||
                    std::holds_alternative<DispatchDataGraphData>(command) ||
                    std::holds_alternative<DispatchOpticalFlowData>(command)) {
             requiredQueueFlags |= vk::QueueFlagBits::eDataGraphARM;
@@ -262,7 +284,8 @@ std::pair<const char *, size_t> getPushConstantData(const std::optional<RawDataI
                                                     const DataManager &dataManager) {
     if (pushData) {
         const auto &rawData = dataManager.getRawData(pushData.value());
-        return std::make_pair(rawData.data(), rawData.size());
+        const auto numpyData = rawData.numpyData();
+        return std::make_pair(numpyData.ptr, numpyData.size());
     }
     return std::make_pair(nullptr, 0U);
 }
@@ -569,6 +592,7 @@ void ScenarioImpl::setupRuntimeCommands() {
         [&](const DispatchComputeData &data) { createComputePipeline(data, nQueries); },
         [&](const PipelineBarrierData &data) { _compute.registerPipelineBarrier(data, _dataManager); },
         [&](const DispatchVgfData &data) { createVgfPipeline(data, nQueries); },
+        [&](const DispatchDataGraphBinaryData &data) { createDataGraphBinaryPipeline(data, nQueries); },
         [&](const DispatchDataGraphData &data) { createDataGraphPipeline(data, nQueries); },
         [&](const DispatchFragmentData &data) { createFragmentPipeline(data, nQueries); },
         [&](const DispatchOpticalFlowData &data) {
@@ -652,6 +676,7 @@ void ScenarioImpl::handleAliasedLayoutTransitions() {
     const auto addCommandBindings = Overloaded{
         [&](const DispatchComputeData &dispatch) { addBindings(dispatch.bindings); },
         [&](const DispatchVgfData &dispatch) { addBindings(dispatch.bindings); },
+        [&](const DispatchDataGraphBinaryData &dispatch) { addBindings(dispatch.bindings); },
         [&](const DispatchDataGraphData &dispatch) { addBindings(dispatch.bindings); },
         [&](const DispatchFragmentData &dispatch) { addBindings(dispatch.bindings); },
         [&](const DispatchOpticalFlowData &dispatch) {
@@ -814,6 +839,31 @@ void ScenarioImpl::createVgfPipeline(const DispatchVgfData &dispatchVgf, uint32_
     }
 }
 
+void ScenarioImpl::createDataGraphBinaryPipeline(const DispatchDataGraphBinaryData &dispatchDataGraphBinary,
+                                                 uint32_t &nQueries) {
+    if (!_ctx._optionals.data_graph_binaries) {
+        throw std::runtime_error("dispatch_data_graph_binary requires VK_ARM_data_graph_binaries");
+    }
+    if (_opts.failOnPipelineCacheMiss) {
+        throw std::runtime_error("dispatch_data_graph_binary cannot be used with --fail-on-pipeline-cache-miss: "
+                                 "binary pipelines ignore Vulkan pipeline caches");
+    }
+    validateDataGraphBindings(dispatchDataGraphBinary.bindings);
+
+    const auto &binary = _dataManager.getRawData(dispatchDataGraphBinary.binary);
+    PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + binary.debugName(), "Pipeline Setup");
+    const Compute::PipelineCreateArguments args{dispatchDataGraphBinary.debugName, dispatchDataGraphBinary.bindings,
+                                                nullptr};
+    _compute.createPipeline(args, binary.mapping(), dispatchDataGraphBinary.pipelineIdentifier,
+                            dispatchDataGraphBinary.useApplicationStorage, _opts.shouldDumpNeuralStatistics(),
+                            _opts.neuralStatisticsMode);
+    _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
+    _compute.registerPipelineFenced(_dataManager, dispatchDataGraphBinary.bindings, nullptr, 0,
+                                    dispatchDataGraphBinary.implicitBarrier);
+    _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
+    mlsdk::logging::debug("Graph Pipeline: " + binary.debugName() + " created");
+}
+
 void ScenarioImpl::createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries) {
     const auto &shaderInfo = getShader(dispatchDataGraph.graphShader);
     if (shaderInfo.shaderType != ShaderType::SPIR_V) {
@@ -826,22 +876,7 @@ void ScenarioImpl::createDataGraphPipeline(const DispatchDataGraphData &dispatch
 
     // Validate the bindings
     const auto &sequenceBindings = dispatchDataGraph.bindings;
-    for (const auto &binding : sequenceBindings) {
-        if (std::holds_alternative<TensorId>(binding.resource)) {
-            if (binding.vkDescriptorType != vk::DescriptorType::eTensorARM) {
-                throw std::runtime_error("DataGraph tensor binding must use a tensor descriptor");
-            }
-            continue;
-        }
-        if (std::holds_alternative<ImageId>(binding.resource)) {
-            if ((binding.vkDescriptorType != vk::DescriptorType::eStorageImage) &&
-                (binding.vkDescriptorType != vk::DescriptorType::eCombinedImageSampler)) {
-                throw std::runtime_error("DataGraph image binding must use an image descriptor");
-            }
-            continue;
-        }
-        throw std::runtime_error("No resource with this guid found");
-    }
+    validateDataGraphBindings(sequenceBindings);
 
     const auto graphConstants = collectGraphConstants(dispatchDataGraph.graphConstants, _resources);
 

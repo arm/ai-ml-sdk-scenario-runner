@@ -16,6 +16,9 @@
             "dispatch_data_graph": {
                 "$ref": "urn:scenario:command:dispatch_data_graph"
             },
+            "dispatch_data_graph_binary": {
+                "$ref": "urn:scenario:command:dispatch_data_graph_binary"
+            },
             "dispatch_spirv_graph": {
                 "$ref": "urn:scenario:command:dispatch_spirv_graph",
                 "deprecated": true
@@ -48,6 +51,7 @@
             { "required": ["dispatch_vgf"] },
             { "required": ["dispatch_graph"] },
             { "required": ["dispatch_data_graph"] },
+            { "required": ["dispatch_data_graph_binary"] },
             { "required": ["dispatch_spirv_graph"] },
             { "required": ["dispatch_compute"] },
             { "required": ["dispatch_fragment"] },

@@ -25,6 +25,17 @@ def test_python_scenario_and_builder_types(sr):
     assert isinstance(scenario, sr.Scenario)
 
 
+def test_data_graph_binary_dispatch_uses_raw_data(sr):
+    builder = sr.ScenarioBuilder()
+    info = sr.RawDataInfo()
+    info.debug_name = "binary"
+    info.src = "model.dgb"
+    binary_id = builder.add_raw_data(info)
+
+    assert isinstance(binary_id, sr.RawDataId)
+    builder.add_dispatch_data_graph_binary(sr.DispatchDataGraphBinaryData(binary_id))
+
+
 def test_numpy_image_upload_supports_single_mip(sr):
     builder = sr.ScenarioBuilder()
     image_id = builder.add_image(
