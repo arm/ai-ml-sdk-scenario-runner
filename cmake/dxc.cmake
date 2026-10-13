@@ -122,7 +122,16 @@ endif()
 add_subdirectory("${DXC_PATH}" "${DXC_BUILD_DIR}" EXCLUDE_FROM_ALL)
 
 add_library(scenario_runner_dxc INTERFACE)
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+if(APPLE)
+    # Darwin's linker does not support the GNU archive group options.
+    target_link_libraries(scenario_runner_dxc INTERFACE
+        dxcompiler_static
+        LLVMHLSL
+        LLVMScalarOpts
+        LLVMPassPrinters
+        LLVMipo
+    )
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_link_libraries(scenario_runner_dxc INTERFACE
         "-Wl,--start-group"
         dxcompiler_static

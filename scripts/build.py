@@ -146,6 +146,8 @@ class Builder:
                 cmake_cmd.append(
                     f"-DCMAKE_TOOLCHAIN_FILE={CMAKE_TOOLCHAIN_PATH / 'clang.cmake'}"
                 )
+                if self.enable_hlsl_support:
+                    cmake_cmd.append("-DSCENARIO_RUNNER_ENABLE_HLSL_SUPPORT=ON")
                 return True
 
             if system == "Windows":
@@ -455,6 +457,7 @@ class Builder:
                     if self.enable_hlsl_support and platform.system() in [
                         "Linux",
                         "Windows",
+                        "Darwin",
                     ]:
                         pytest_cmd += [
                             "--hlsl-compiler",
@@ -478,6 +481,7 @@ class Builder:
                     if self.enable_hlsl_support and platform.system() in [
                         "Linux",
                         "Windows",
+                        "Darwin",
                     ]:
                         pytest_cmd += [
                             "--hlsl-compiler",

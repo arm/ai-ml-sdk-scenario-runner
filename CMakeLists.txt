@@ -40,7 +40,7 @@ option(SCENARIO_RUNNER_BUILD_SHARED "Build Scenario Runner as a shared library" 
 option(SCENARIO_RUNNER_BUILD_TESTS "Build Scenario Runner unit tests" OFF)
 option(SCENARIO_RUNNER_ENABLE_COVERAGE "Enable GCC code coverage instrumentation" OFF)
 option(SCENARIO_RUNNER_ENABLE_FUZZER "Build Scenario Runner libFuzzer target" OFF)
-option(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT "HLSL only supported on Windows and Linux" OFF)
+option(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT "Enable HLSL to SPIR-V compilation" OFF)
 option(SCENARIO_RUNNER_ENABLE_RDOC "Build Scenario Runner w/ RDoc support enabled" OFF)
 option(SCENARIO_RUNNER_EXPERIMENTAL_IMAGE_FORMAT_SUPPORT "Enable support for experimental image formats in DDS reader" OFF)
 

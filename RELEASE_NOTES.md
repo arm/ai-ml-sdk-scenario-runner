@@ -38,6 +38,8 @@
 - Reused native libraries and tools across Python wheel builds in the same
   platform and build configuration, keeping binding objects separate per ABI.
   Preserved the object paths used by ordinary source and coverage builds.
+- Fixed HLSL backend linking on Darwin and enabled the HLSL option for native
+  and wheel builds on Darwin.
 
 ## Version 0.11.0 – *Public APIs, Python Bindings & Profiling*
 

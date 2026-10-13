@@ -96,9 +96,7 @@ def _configure_and_build(extension_output_path, install_dir=None, package_versio
     )
     if package_version:
         cmake_setup_cmd.append(f"-DML_SDK_PACKAGE_VERSION={package_version}")
-    hlsl_enabled = platform.system() != "Darwin" and _env_flag_enabled(
-        "SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT"
-    )
+    hlsl_enabled = _env_flag_enabled("SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT")
     cmake_setup_cmd.append(
         cmake_bool_option("SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT", hlsl_enabled)
     )
