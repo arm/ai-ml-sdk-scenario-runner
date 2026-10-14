@@ -510,8 +510,8 @@ Pipeline::Pipeline(const CommonArguments &args, const DataManager &dataManager, 
         resourceInfos.emplace_back(resInfo);
     };
 
-    addConnection(inputSearch, vk::DataGraphPipelineNodeConnectionTypeARM::eOpticalFlowInput);
-    addConnection(inputTemplate, vk::DataGraphPipelineNodeConnectionTypeARM::eOpticalFlowReference);
+    addConnection(inputSearch, vk::DataGraphPipelineNodeConnectionTypeARM::eOpticalFlowReference);
+    addConnection(inputTemplate, vk::DataGraphPipelineNodeConnectionTypeARM::eOpticalFlowInput);
     addConnection(outputFlow, vk::DataGraphPipelineNodeConnectionTypeARM::eOpticalFlowFlowVector);
     if (inputHintMV.has_value()) {
         addConnection(inputHintMV.value(), vk::DataGraphPipelineNodeConnectionTypeARM::eOpticalFlowHint);

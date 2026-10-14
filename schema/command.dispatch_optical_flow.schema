@@ -55,12 +55,18 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-                "search_image": { "$ref": "#/$defs/image_binding" },
+                "search_image": {
+                    "$ref": "#/$defs/image_binding",
+                    "description": "Search image, connected to Vulkan OPTICAL_FLOW_REFERENCE_ARM. Flow points into this image."
+                },
                 "template_image": {
                     "$ref": "#/$defs/image_binding",
-                    "description": "Binding for optical-flow reference input image."
+                    "description": "Template image, connected to Vulkan OPTICAL_FLOW_INPUT_ARM. Flow is defined on this image."
                 },
-                "output_image": { "$ref": "#/$defs/image_binding" },
+                "output_image": {
+                    "$ref": "#/$defs/image_binding",
+                    "description": "Forward (horizontal, vertical) displacement from template_image to search_image, in input-image pixels."
+                },
                 "hint_motion_vectors": {
                     "$ref": "#/$defs/image_binding",
                     "description": "Optional."
