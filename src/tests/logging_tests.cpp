@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -13,7 +13,16 @@
 
 using namespace mlsdk::logging;
 
-TEST(Logging, CreateMessages) {
+class Logging : public testing::Test {
+  protected:
+    void TearDown() override {
+        setDefaultHandler([](const std::string &, LogLevel, const std::string &) {});
+        setDefaultLoggerName("");
+        setDefaultLogLevel(LogLevel::Info);
+    }
+};
+
+TEST_F(Logging, CreateMessages) {
     std::vector<std::string> logMessages;
     auto logHandler = [&logMessages](const std::string &logger, LogLevel logLevel, const std::string &message) {
         std::stringstream stream;
@@ -41,7 +50,7 @@ TEST(Logging, CreateMessages) {
     ASSERT_TRUE(std::equal(logMessages.begin(), logMessages.end(), expected.begin(), expected.end()));
 }
 
-TEST(Logging, MessageFiltering) {
+TEST_F(Logging, MessageFiltering) {
     std::vector<std::string> logMessages;
     auto logHandler = [&logMessages](const std::string &logger, LogLevel logLevel, const std::string &message) {
         std::stringstream stream;
