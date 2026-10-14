@@ -37,7 +37,22 @@ std::string formatVersion(uint32_t version) {
 std::string_view formatFeature(VkBool32 supported) { return supported == VK_TRUE ? "true" : "false"; }
 } // namespace
 
-Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags requiredQueueFlags)
+bool detail::supportsQueueRequirements(vk::QueueFlags availableFlags, vk::QueueFlags workloadFlags) {
+    const auto requiredWorkloadFlags = workloadFlags & ~vk::QueueFlagBits::eTransfer;
+    if ((availableFlags & requiredWorkloadFlags) != requiredWorkloadFlags) {
+        return false;
+    }
+
+    // Resource initialization and readback require the selected queue to support transfers.
+    // Vulkan guarantees transfer support for graphics and compute queues even when
+    // VK_QUEUE_TRANSFER_BIT is not reported for the queue family.
+    constexpr vk::QueueFlags transferCapableFlags =
+        vk::QueueFlagBits::eTransfer | vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute;
+    return (availableFlags & transferCapableFlags) != vk::QueueFlags{};
+}
+
+Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags workloadQueueFlags,
+                 bool requiresDynamicRendering)
     : _gpuDebugMarkersEnabled(scenarioOptions.enableGPUDebugMarkers),
       _sessionMemoryDumpEnabled(!scenarioOptions.sessionRAMsDumpDir.empty()),
       _robustnessFeaturesEnabled(scenarioOptions.enableRobustnessFeatures) {
@@ -96,7 +111,7 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags required
 
     const std::vector<vk::QueueFamilyProperties> queueProps = _physicalDev.getQueueFamilyProperties();
     const auto queueFamily = std::find_if(queueProps.cbegin(), queueProps.cend(), [&](const auto &properties) {
-        return (properties.queueFlags & requiredQueueFlags) == requiredQueueFlags;
+        return detail::supportsQueueRequirements(properties.queueFlags, workloadQueueFlags);
     });
     if (queueFamily == queueProps.cend()) {
         throw std::runtime_error("Cannot find queue index");
@@ -230,8 +245,6 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags required
     }
 #endif
 
-    const bool requiresDynamicRendering =
-        (requiredQueueFlags & vk::QueueFlagBits::eGraphics) == vk::QueueFlagBits::eGraphics;
     if (requiresDynamicRendering && !available13Features.dynamicRendering) {
         throw std::runtime_error("Graphics scenarios require Vulkan dynamicRendering support");
     }

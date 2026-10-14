@@ -13,6 +13,10 @@ namespace mlsdk::scenariorunner {
 
 struct ScenarioOptions;
 
+namespace detail {
+bool supportsQueueRequirements(vk::QueueFlags availableFlags, vk::QueueFlags workloadFlags);
+}
+
 /// \brief Vulkan extensions structure
 struct OptionalExtensions {
     bool custom_border_color = false;
@@ -40,9 +44,11 @@ class Context {
   public:
     /// \brief Constructor
     /// \param scenarioOptions configuration options
-    /// \param requiredQueueFlags capabilities required from the queue family
+    /// \param workloadQueueFlags workload capabilities required from the queue family
+    /// \param requiresDynamicRendering whether fragment dispatch requires dynamic rendering
     explicit Context(const ScenarioOptions &scenarioOptions,
-                     vk::QueueFlags requiredQueueFlags = vk::QueueFlagBits::eCompute);
+                     vk::QueueFlags workloadQueueFlags = vk::QueueFlagBits::eCompute,
+                     bool requiresDynamicRendering = false);
 
     /// \brief Logical device accessor
     /// \return Reference to the Vulkan logical device
