@@ -26,6 +26,10 @@
   place of the requirements files.
 - Added GCC code coverage reporting for native Linux C++ and Python unit-test
   builds.
+- Added `scripts/build.py --pip-package-dir` to select where generated wheels
+  are written.
+- Limited wheel-native builds to the Python extension and packaged CLI payload
+  instead of building every default CMake target.
 
 ## Version 0.11.0 – *Public APIs, Python Bindings & Profiling*
 
