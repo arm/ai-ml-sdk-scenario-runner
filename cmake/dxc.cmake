@@ -16,6 +16,7 @@ endif()
 
 set(DXC_PATCH_FILES
     "${CMAKE_CURRENT_LIST_DIR}/../patches/dxc-static-link.patch"
+    "${CMAKE_CURRENT_LIST_DIR}/../patches/dxc-readonly-versioning.patch"
 )
 
 if(DXC_PATCH_FILES)
