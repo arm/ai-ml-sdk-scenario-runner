@@ -579,6 +579,15 @@ It consumes a search image and a template image, and writes motion vectors to
 an output image. Optional bindings can supply input hints and receive matching
 cost output.
 
+``template_image`` is connected to Vulkan® ``OPTICAL_FLOW_INPUT_ARM`` and
+``search_image`` to ``OPTICAL_FLOW_REFERENCE_ARM``. A flow vector ``(u, v)`` at
+template pixel ``(x, y)`` points to search pixel ``(x + u, y + v)``. Components
+are horizontal and vertical displacement in input-image pixels, independent of
+``grid_size``. For forward flow from frame ``tm1`` to frame ``t``, bind ``tm1``
+as the template and ``t`` as the search image. Hints use the same convention.
+See the `Vulkan optical-flow specification
+<https://docs.vulkan.org/spec/latest/chapters/VK_ARM_data_graph/graphs.html#graphs-opticalflow>`_.
+
 .. code-block::
 
   dispatch_optical_flow: {
@@ -593,8 +602,8 @@ cost output.
   }
 
   optical_flow_bindings: {
-      search_image: class image_binding, // required binding for the current/input search image
-      template_image: class image_binding, // required binding for the reference/template image
+      search_image: class image_binding, // required search image (Vulkan REFERENCE)
+      template_image: class image_binding, // required template image (Vulkan INPUT)
       output_image: class image_binding, // required binding for motion-vector output
       hint_motion_vectors: class image_binding(default=), // optional binding for hint motion vectors
       output_cost: class image_binding(default=) // optional binding for cost output

@@ -181,11 +181,11 @@ struct DispatchOpticalFlowData {
 
     /// @brief Human-readable name used in diagnostics.
     std::string debugName;
-    /// @brief Search image.
+    /// @brief Search image (Vulkan REFERENCE)
     TypedBinding searchImage;
-    /// @brief Template image.
+    /// @brief Template image (Vulkan INPUT)
     TypedBinding templateImage;
-    /// @brief Output motion-vector image.
+    /// @brief Forward (horizontal, vertical) displacement from template to search, in input-image pixels.
     TypedBinding outputImage;
     /// @brief Optional motion-vector hints.
     std::optional<TypedBinding> hintMotionVectors;

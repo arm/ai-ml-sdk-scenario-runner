@@ -1,0 +1,39 @@
+{
+    "commands": [
+        {
+            "dispatch_optical_flow": {
+                "width": 128,
+                "height": 128,
+                "grid_size": "4x4",
+                "bindings": {
+                    "search_image": {"id": 0, "set": 0, "resource_ref": "input_search"},
+                    "template_image": {"id": 1, "set": 0, "resource_ref": "input_template"},
+                    "output_image": {"id": 2, "set": 0, "resource_ref": "output_flow"}
+                }
+            }
+        }
+    ],
+    "resources": [
+        {
+            "image": {
+                "uid": "input_search", "dims": [1, 128, 128, 1],
+                "format": "VK_FORMAT_R8G8B8A8_UNORM", "shader_access": "readonly",
+                "src": "input_search.png"
+            }
+        },
+        {
+            "image": {
+                "uid": "input_template", "dims": [1, 128, 128, 1],
+                "format": "VK_FORMAT_R8G8B8A8_UNORM", "shader_access": "readonly",
+                "src": "input_template.png"
+            }
+        },
+        {
+            "image": {
+                "uid": "output_flow", "dims": [1, 32, 32, 1],
+                "format": "VK_FORMAT_R16G16_SFLOAT", "shader_access": "writeonly",
+                "dst": "output_flow.dds"
+            }
+        }
+    ]
+}

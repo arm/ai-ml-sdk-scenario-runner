@@ -51,6 +51,29 @@ def test_optical_flow_png(sdk_tools, resources_helper, numpy_helper):
 @pytest.mark.skipif(
     sys.platform == "darwin", reason="Optical flow is not supported on Darwin"
 )
+def test_optical_flow_template_to_search_vectors(
+    sdk_tools, resources_helper, numpy_helper
+):
+    texture = np.random.default_rng(0).integers(0, 256, (32, 32), dtype=np.uint8)
+    template = np.repeat(np.repeat(texture, 4, axis=0), 4, axis=1)
+    template = np.repeat(template[..., np.newaxis], 4, axis=2)
+    search = np.roll(template, shift=(-4, 8), axis=(0, 1))
+    sdk_tools.generate_png_file(128, 128, "input_template.png", template.tobytes())
+    sdk_tools.generate_png_file(128, 128, "input_search.png", search.tobytes())
+
+    sdk_tools.run_scenario("test_optical_flow/optical_flow_direction.json")
+    output = resources_helper.get_testenv_path("output_flow.dds")
+    converted = sdk_tools.convert_dds_to_npy(output, "output_flow.npy", 2)
+    flow = numpy_helper.load(converted, np.float16).reshape(32, 32, 2)
+
+    np.testing.assert_allclose(
+        np.median(flow[8:-8, 8:-8], axis=(0, 1)), (8, -4), atol=1, rtol=0
+    )
+
+
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="Optical flow is not supported on Darwin"
+)
 def test_optical_flow_dds(sdk_tools, resources_helper, numpy_helper):
     width, height = 64, 64
     out_w, out_h = 16, 16

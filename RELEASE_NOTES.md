@@ -19,6 +19,9 @@
 - Added support for transfer-only queues and removed the compute-only fallback.
 - Fixed HLSL-enabled wheel builds with read-only DXC dependency sources while
   preserving embedded compiler revision information.
+- Corrected `dispatch_optical_flow` image connections: `template_image` is now
+  Vulkan® INPUT and `search_image` is REFERENCE. Output and hint vectors use
+  template-to-search displacement in input-image pixels.
 
 ### Build, Packaging & Dependencies
 
