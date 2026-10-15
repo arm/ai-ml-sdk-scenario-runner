@@ -1,0 +1,37 @@
+From: svc_sdk <svc_sdk@arm.com>
+Date: Thu Oct 15 00:00:00 2026
+Subject: Generate DXC commit information without touching source files
+
+Run the write-if-changed generator on every build instead of touching its
+source script. Declare its output and order clangBasic after generation so
+Ninja and Make can build against read-only dependency sources while keeping
+unchanged version information from recompiling native objects.
+
+diff --git a/tools/clang/lib/Basic/CMakeLists.txt b/tools/clang/lib/Basic/CMakeLists.txt
+--- a/tools/clang/lib/Basic/CMakeLists.txt
++++ b/tools/clang/lib/Basic/CMakeLists.txt
+@@ -100,20 +100,16 @@
+ if ( HLSL_SUPPORT_QUERY_GIT_COMMIT_INFO )
+   set(GIT_COMMIT_INFO_FILE ${CMAKE_CURRENT_BINARY_DIR}/GitCommitInfo.inc)
+   set(GET_GIT_COMMIT_SCRIPT ${PROJECT_SOURCE_DIR}/utils/GetCommitInfo.py)
+-  add_custom_command(
+-    OUTPUT  ${GIT_COMMIT_INFO_FILE}
++  add_custom_target(
++    GIT_COMMIT_INFO_ALWAYS_REBUILD
+     COMMAND ${Python3_EXECUTABLE} ${GET_GIT_COMMIT_SCRIPT}
+             ${PROJECT_SOURCE_DIR} ${GIT_COMMIT_INFO_FILE}
+-    DEPENDS ${GET_GIT_COMMIT_SCRIPT} GIT_COMMIT_INFO_ALWAYS_REBUILD
++    BYPRODUCTS ${GIT_COMMIT_INFO_FILE}
+     COMMENT "Collect Git commit info for versioning"
+   )
+-  add_custom_target(
+-    GIT_COMMIT_INFO_ALWAYS_REBUILD
+-    ${CMAKE_COMMAND} -E touch ${GET_GIT_COMMIT_SCRIPT}
+-    COMMENT "Touch GetCommitInfo.py to trigger rebuild"
+-  )
++  add_dependencies(clangBasic GIT_COMMIT_INFO_ALWAYS_REBUILD)
+   set_property(TARGET GIT_COMMIT_INFO_ALWAYS_REBUILD
+     PROPERTY FOLDER "Utils")
+   set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/Version.cpp
+     PROPERTIES OBJECT_DEPENDS "${GIT_COMMIT_INFO_FILE}")
+ endif()

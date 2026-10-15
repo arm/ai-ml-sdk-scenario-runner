@@ -17,6 +17,8 @@
 - Fixed buffer, tensor, and image readback synchronization so staging-buffer
   writes are made visible to host reads before returning downloaded data.
 - Added support for transfer-only queues and removed the compute-only fallback.
+- Fixed HLSL-enabled wheel builds with read-only DXC dependency sources while
+  preserving embedded compiler revision information.
 
 ### Build, Packaging & Dependencies
 
