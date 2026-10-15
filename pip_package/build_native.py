@@ -36,16 +36,20 @@ def build_native(extension_output_path, install_dir=None, package_version=None):
 
 
 def _configure_and_build(extension_output_path, install_dir=None, package_version=None):
-    build_dir = pathlib.Path(
-        os.environ.get(
-            "SCENARIO_RUNNER_PIP_BUILD_DIR",
-            ROOT_DIR / "build" / "pip" / PYTHON_ABI_TAG,
+    build_type = os.environ.get("SCENARIO_RUNNER_PIP_BUILD_TYPE", "Release")
+    platform_tag = os.environ.get(
+        "AUDITWHEEL_PLAT", f"{platform.system().lower()}-{platform.machine().lower()}"
+    )
+    build_dir = (
+        pathlib.Path(
+            os.environ.get("SCENARIO_RUNNER_PIP_BUILD_DIR", ROOT_DIR / "build" / "pip")
         )
+        / platform_tag
+        / build_type.lower()
     ).resolve()
     setuptools_build_dir = extension_output_path.parent
     if install_dir is None:
         install_dir = setuptools_build_dir / "scenario_runner" / "binaries"
-    build_type = os.environ.get("SCENARIO_RUNNER_PIP_BUILD_TYPE", "Release")
     generator = os.environ.get("CMAKE_GENERATOR", "Ninja")
 
     shutil.rmtree(install_dir, ignore_errors=True)
@@ -61,8 +65,14 @@ def _configure_and_build(extension_output_path, install_dir=None, package_versio
         "-DCMAKE_INSTALL_LIBDIR=lib",
         "-G",
         generator,
+        # Refresh interpreter discovery without discarding native build objects.
+        "-UPython_*",
+        "-U_Python_*",
+        "-UPYTHON_*",
+        "-U_Python3_*",
+        "-DPYBIND11_FINDPYTHON=ON",
+        f"-DMLSDK_WHEEL_PYTHON_ABI={PYTHON_ABI_TAG}",
         cmake_bool_option("SCENARIO_RUNNER_BUILD_PYLIB", True),
-        f"-DPYTHON_EXECUTABLE={sys.executable}",
         f"-DPython_EXECUTABLE={sys.executable}",
         f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={setuptools_build_dir}",
         f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{build_type.upper()}={setuptools_build_dir}",
@@ -81,6 +91,9 @@ def _configure_and_build(extension_output_path, install_dir=None, package_versio
         if ninja is None:
             raise RuntimeError("Ninja is required for the selected CMake generator")
         cmake_setup_cmd.append(f"-DCMAKE_MAKE_PROGRAM={ninja}")
+    cmake_setup_cmd.append(
+        f"-DPython3_EXECUTABLE={_native_generator_python(build_dir)}"
+    )
     if package_version:
         cmake_setup_cmd.append(f"-DML_SDK_PACKAGE_VERSION={package_version}")
     hlsl_enabled = platform.system() != "Darwin" and _env_flag_enabled(
@@ -148,6 +161,30 @@ def _configure_and_build(extension_output_path, install_dir=None, package_versio
         raise RuntimeError(
             f"CMake did not write the extension to {extension_output_path}"
         )
+
+
+def _native_generator_python(build_dir):
+    cache = build_dir / "CMakeCache.txt"
+    if cache.is_file():
+        for line in cache.read_text(encoding="utf-8").splitlines():
+            if line.startswith("Python3_EXECUTABLE:"):
+                interpreter = pathlib.Path(line.partition("=")[2])
+                if interpreter.is_file():
+                    return interpreter
+
+    # Isolated build frontends can copy Python rather than symlink it, so even
+    # sys._base_executable may point into their temporary environment.
+    python_name = (
+        "python.exe"
+        if platform.system() == "Windows"
+        else f"bin/python{sys.version_info.major}.{sys.version_info.minor}"
+    )
+    interpreter = pathlib.Path(sys.base_prefix, python_name).resolve()
+    if not interpreter.is_file():
+        raise RuntimeError(
+            f"Native code-generator Python does not exist: {interpreter}"
+        )
+    return interpreter
 
 
 def _env_flag_enabled(name):
