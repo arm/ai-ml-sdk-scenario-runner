@@ -6,13 +6,12 @@
 
 #include "scenario_runner/scenario_options.hpp"
 
+#include "device_selection.hpp"
 #include "logging.hpp"
 
 #include <algorithm>
 #include <iomanip>
-#include <iterator>
 #include <limits>
-#include <map>
 #include <sstream>
 #include <vector>
 #include <vulkan/vulkan_beta.h>
@@ -35,24 +34,97 @@ std::string formatVersion(uint32_t version) {
 }
 
 std::string_view formatFeature(VkBool32 supported) { return supported == VK_TRUE ? "true" : "false"; }
+
+detail::DeviceCandidate queryDeviceCandidate(const vk::raii::PhysicalDevice &device,
+                                             const ScenarioOptions &scenarioOptions) {
+    // Fetch the properties used to rank the device and select its queue.
+    const auto properties = device.getProperties();
+    detail::DeviceCandidate candidate;
+    candidate.type = properties.deviceType;
+
+    // Fetch the extensions needed by scenario capabilities.
+    const auto extensions = device.enumerateDeviceExtensionProperties(nullptr);
+    const bool dataGraphExtension =
+        hasExtension(extensions, VK_ARM_DATA_GRAPH_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+    const bool tensorsExtension =
+        hasExtension(extensions, VK_ARM_TENSORS_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+    const bool opticalFlowExtension =
+        hasExtension(extensions, VK_ARM_DATA_GRAPH_OPTICAL_FLOW_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+    const bool neuralAcceleratorStatisticsExtension = hasExtension(
+        extensions, VK_ARM_DATA_GRAPH_NEURAL_ACCELERATOR_STATISTICS_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+#ifdef VK_ARM_data_graph_binaries
+    const bool dataGraphBinariesExtension =
+        hasExtension(extensions, VK_ARM_DATA_GRAPH_BINARIES_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+#endif
+
+    // Fetch the features needed by scenario capabilities.
+    const auto features =
+        device.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features,
+                            vk::PhysicalDeviceDataGraphFeaturesARM, vk::PhysicalDeviceTensorFeaturesARM,
+                            vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM,
+                            vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM
+#ifdef VK_ARM_data_graph_binaries
+                            ,
+                            vk::PhysicalDeviceDataGraphBinariesFeaturesARM
+#endif
+                            >();
+    const auto &dataGraphFeatures = features.template get<vk::PhysicalDeviceDataGraphFeaturesARM>();
+    const auto &tensorFeatures = features.template get<vk::PhysicalDeviceTensorFeaturesARM>();
+
+    // Record capabilities supported by their required extensions and features.
+    if (dataGraphExtension && dataGraphFeatures.dataGraph) {
+        candidate.capabilities |= detail::DeviceCapability::DataGraph;
+        if (dataGraphFeatures.dataGraphShaderModule) {
+            candidate.capabilities |= detail::DeviceCapability::DataGraphShaderModules;
+        }
+    }
+    if (tensorsExtension && tensorFeatures.tensors && tensorFeatures.tensorNonPacked &&
+        tensorFeatures.shaderTensorAccess) {
+        candidate.capabilities |= detail::DeviceCapability::Tensors;
+    }
+    if (detail::hasCapabilities(candidate.capabilities, detail::DeviceCapability::DataGraph) && opticalFlowExtension &&
+        features.template get<vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM>().dataGraphOpticalFlow) {
+        candidate.capabilities |= detail::DeviceCapability::DataGraphOpticalFlow;
+    }
+    if (detail::hasCapabilities(candidate.capabilities, detail::DeviceCapability::DataGraph) &&
+        neuralAcceleratorStatisticsExtension &&
+        features.template get<vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM>()
+            .dataGraphNeuralAcceleratorStatistics) {
+        candidate.capabilities |= detail::DeviceCapability::DataGraphNeuralAcceleratorStatistics;
+    }
+    if (features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering) {
+        candidate.capabilities |= detail::DeviceCapability::DynamicRendering;
+    }
+#ifdef VK_ARM_data_graph_binaries
+    if (detail::hasCapabilities(candidate.capabilities, detail::DeviceCapability::DataGraph) &&
+        dataGraphBinariesExtension &&
+        features.template get<vk::PhysicalDeviceDataGraphBinariesFeaturesARM>().dataGraphBinaries) {
+        candidate.capabilities |= detail::DeviceCapability::DataGraphBinaries;
+    }
+#endif
+
+    // Fetch the queue-family properties and data graph operations used for queue selection.
+    candidate.queueFamilies = device.getQueueFamilyProperties();
+    for (uint32_t index = 0; index < static_cast<uint32_t>(candidate.queueFamilies.size()); ++index) {
+        const auto &queueFamily = candidate.queueFamilies[index];
+        if (detail::hasCapabilities(candidate.capabilities, detail::DeviceCapability::DataGraphOpticalFlow) &&
+            (queueFamily.queueFlags & vk::QueueFlagBits::eDataGraphARM) != vk::QueueFlags{}) {
+            const auto dataGraphProperties = device.getQueueFamilyDataGraphPropertiesARM(index);
+            const bool supportsOpticalFlow =
+                std::any_of(dataGraphProperties.begin(), dataGraphProperties.end(), [](const auto &properties) {
+                    return properties.operation.operationType ==
+                           vk::PhysicalDeviceDataGraphOperationTypeARM::eOpticalFlow;
+                });
+            if (supportsOpticalFlow) {
+                candidate.opticalFlowQueueFamilyIndices.push_back(index);
+            }
+        }
+    }
+    return candidate;
+}
 } // namespace
 
-bool detail::supportsQueueRequirements(vk::QueueFlags availableFlags, vk::QueueFlags workloadFlags) {
-    const auto requiredWorkloadFlags = workloadFlags & ~vk::QueueFlagBits::eTransfer;
-    if ((availableFlags & requiredWorkloadFlags) != requiredWorkloadFlags) {
-        return false;
-    }
-
-    // Resource initialization and readback require the selected queue to support transfers.
-    // Vulkan guarantees transfer support for graphics and compute queues even when
-    // VK_QUEUE_TRANSFER_BIT is not reported for the queue family.
-    constexpr vk::QueueFlags transferCapableFlags =
-        vk::QueueFlagBits::eTransfer | vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute;
-    return (availableFlags & transferCapableFlags) != vk::QueueFlags{};
-}
-
-Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags workloadQueueFlags,
-                 bool requiresDynamicRendering)
+Context::Context(const ScenarioOptions &scenarioOptions, const detail::DeviceRequirements &requirements)
     : _gpuDebugMarkersEnabled(scenarioOptions.enableGPUDebugMarkers),
       _sessionMemoryDumpEnabled(!scenarioOptions.sessionRAMsDumpDir.empty()),
       _robustnessFeaturesEnabled(scenarioOptions.enableRobustnessFeatures) {
@@ -82,24 +154,15 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags workload
 
     // Create physical device
     auto physicalDevices = vk::raii::PhysicalDevices(_instance);
-    if (physicalDevices.empty()) {
-        throw std::runtime_error("No Vulkan physical devices found");
+
+    std::vector<detail::DeviceCandidate> candidates;
+    candidates.reserve(physicalDevices.size());
+    for (const auto &candidateDevice : physicalDevices) {
+        candidates.emplace_back(queryDeviceCandidate(candidateDevice, scenarioOptions));
     }
-
-    // Sort physical devices prioritizing discrete GPUs
-    _physicalDev =
-        *std::max_element(physicalDevices.begin(), physicalDevices.end(), [](const auto &left, const auto &right) {
-            // Select discrete GPU
-            std::map<vk::PhysicalDeviceType, int> priorityOrder = {
-                {vk::PhysicalDeviceType::eDiscreteGpu, 5},   //
-                {vk::PhysicalDeviceType::eIntegratedGpu, 4}, //
-                {vk::PhysicalDeviceType::eVirtualGpu, 3},    //
-                {vk::PhysicalDeviceType::eCpu, 2},           //
-                {vk::PhysicalDeviceType::eOther, 1},         //
-            };
-
-            return priorityOrder[left.getProperties().deviceType] < priorityOrder[right.getProperties().deviceType];
-        });
+    const auto selection = detail::selectDevice(candidates, requirements);
+    _physicalDev = physicalDevices[selection.deviceIndex];
+    _familyQueueIdx = selection.queueFamilyIndex;
 
     vk::PhysicalDeviceProperties properties = _physicalDev.getProperties();
     std::string deviceName = std::string(properties.deviceName.data());
@@ -109,15 +172,6 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags workload
 
     mlsdk::logging::info("Device: " + deviceName + ", Type: " + deviceType + ", Vendor: 0x" + vendorID.str());
 
-    const std::vector<vk::QueueFamilyProperties> queueProps = _physicalDev.getQueueFamilyProperties();
-    const auto queueFamily = std::find_if(queueProps.cbegin(), queueProps.cend(), [&](const auto &properties) {
-        return detail::supportsQueueRequirements(properties.queueFlags, workloadQueueFlags);
-    });
-    if (queueFamily == queueProps.cend()) {
-        throw std::runtime_error("Cannot find queue index");
-    }
-    _familyQueueIdx = static_cast<uint32_t>(std::distance(queueProps.cbegin(), queueFamily));
-
     // Get device capabilities
     const std::vector<vk::ExtensionProperties> &extensions = _physicalDev.enumerateDeviceExtensionProperties(nullptr);
 
@@ -125,8 +179,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags workload
         hasExtension(extensions, VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.mark_boundary =
         hasExtension(extensions, VK_EXT_FRAME_BOUNDARY_EXTENSION_NAME, scenarioOptions.disabledExtensions);
-    _optionals.neural_accelerator_statistics = hasExtension(
-        extensions, VK_ARM_DATA_GRAPH_NEURAL_ACCELERATOR_STATISTICS_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+    _optionals.neural_accelerator_statistics = detail::hasCapabilities(
+        requirements.capabilities, detail::DeviceCapability::DataGraphNeuralAcceleratorStatistics);
     _optionals.maintenance4 =
         hasExtension(extensions, VK_KHR_MAINTENANCE_4_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.maintenance5 =
@@ -140,7 +194,7 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags workload
     _optionals.shader_float8 =
         hasExtension(extensions, VK_EXT_SHADER_FLOAT8_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.optical_flow =
-        hasExtension(extensions, VK_ARM_DATA_GRAPH_OPTICAL_FLOW_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+        detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::DataGraphOpticalFlow);
     _optionals.robustness2 =
         hasExtension(extensions, VK_KHR_ROBUSTNESS_2_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.descriptor_indexing =
@@ -151,7 +205,7 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags workload
         hasExtension(extensions, VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME, scenarioOptions.disabledExtensions);
 #ifdef VK_ARM_data_graph_binaries
     _optionals.data_graph_binaries =
-        hasExtension(extensions, VK_ARM_DATA_GRAPH_BINARIES_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+        detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::DataGraphBinaries);
 #endif
 
     // Create device
@@ -175,21 +229,18 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags workload
         prevPNext = &physicalDevReplicateCompositesFeat;
     }
 
-    const auto availableFeatures = _physicalDev.getFeatures2<
-        vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features,
-        vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR,
-        vk::PhysicalDeviceShaderFloat8FeaturesEXT, vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM,
-        vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM, vk::PhysicalDeviceRobustness2FeaturesKHR,
-#ifdef VK_ARM_data_graph_binaries
-        vk::PhysicalDeviceDataGraphBinariesFeaturesARM,
-#endif
-        vk::PhysicalDeviceDescriptorIndexingFeatures, vk::PhysicalDevicePipelineRobustnessFeatures>();
+    const auto availableFeatures =
+        _physicalDev
+            .getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features,
+                          vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR,
+                          vk::PhysicalDeviceShaderFloat8FeaturesEXT, vk::PhysicalDeviceRobustness2FeaturesKHR,
+                          vk::PhysicalDeviceDescriptorIndexingFeatures, vk::PhysicalDevicePipelineRobustnessFeatures>();
 
     const auto &availableCoreFeatures = availableFeatures.template get<vk::PhysicalDeviceFeatures2>().features;
-    const auto &[available11Features, available12Features, available13Features, availableBfloat16, availableFloat8] =
-        availableFeatures.template get<vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features,
-                                       vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR,
-                                       vk::PhysicalDeviceShaderFloat8FeaturesEXT>();
+    const auto &[available11Features, available12Features, availableBfloat16, availableFloat8] =
+        availableFeatures
+            .template get<vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features,
+                          vk::PhysicalDeviceShaderBfloat16FeaturesKHR, vk::PhysicalDeviceShaderFloat8FeaturesEXT>();
 
     std::ostringstream deviceCapabilities;
     deviceCapabilities << "Vulkan device shader capabilities: apiVersion=" << formatVersion(properties.apiVersion)
@@ -202,30 +253,9 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags workload
                        << ", bufferDeviceAddress=" << formatFeature(available12Features.bufferDeviceAddress);
     mlsdk::logging::info(deviceCapabilities.str());
 
-    const auto &availableDataGraphOpticalFlow =
-        availableFeatures.template get<vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM>();
-    const auto &availableDataGraphNeuralAcceleratorStatistics =
-        availableFeatures.template get<vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM>();
     const auto &availableRobustness2 = availableFeatures.template get<vk::PhysicalDeviceRobustness2FeaturesKHR>();
     const auto &availablePipelineRobustness =
         availableFeatures.template get<vk::PhysicalDevicePipelineRobustnessFeatures>();
-#ifdef VK_ARM_data_graph_binaries
-    const auto &availableDataGraphBinaries =
-        availableFeatures.template get<vk::PhysicalDeviceDataGraphBinariesFeaturesARM>();
-#endif
-    if (_optionals.optical_flow && !availableDataGraphOpticalFlow.dataGraphOpticalFlow) {
-        mlsdk::logging::warning("VK_ARM_data_graph_optical_flow extension is present, but "
-                                "dataGraphOpticalFlow feature is not supported. "
-                                "Disabling optical flow support.");
-        _optionals.optical_flow = false;
-    }
-    if (_optionals.neural_accelerator_statistics &&
-        !availableDataGraphNeuralAcceleratorStatistics.dataGraphNeuralAcceleratorStatistics) {
-        mlsdk::logging::warning("VK_ARM_data_graph_neural_accelerator_statistics extension is present, but "
-                                "dataGraphNeuralAcceleratorStatistics feature is not supported. "
-                                "Disabling Neural Accelerator statistics support.");
-        _optionals.neural_accelerator_statistics = false;
-    }
     if (!_optionals.neural_accelerator_statistics &&
         (scenarioOptions.shouldDumpNeuralDebugDatabase() || scenarioOptions.shouldDumpNeuralStatistics())) {
         throw std::runtime_error("Neural Accelerator dump requested, but "
@@ -237,18 +267,6 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags workload
                                 "Disabling pipeline robustness support.");
         _optionals.pipeline_robustness = false;
     }
-#ifdef VK_ARM_data_graph_binaries
-    if (_optionals.data_graph_binaries && !availableDataGraphBinaries.dataGraphBinaries) {
-        mlsdk::logging::warning("VK_ARM_data_graph_binaries extension is present, but dataGraphBinaries feature "
-                                "is not supported. Disabling data graph binary support.");
-        _optionals.data_graph_binaries = false;
-    }
-#endif
-
-    if (requiresDynamicRendering && !available13Features.dynamicRendering) {
-        throw std::runtime_error("Graphics scenarios require Vulkan dynamicRendering support");
-    }
-
     const bool enableRobustness2 = scenarioOptions.enableRobustnessFeatures && _optionals.robustness2;
     const bool enableDescriptorIndexing = scenarioOptions.enableRobustnessFeatures && _optionals.descriptor_indexing &&
                                           available12Features.descriptorIndexing;
@@ -277,16 +295,20 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags workload
     physicalDev3Feat.synchronization2 = true;
     physicalDev3Feat.maintenance4 = true;
     physicalDev3Feat.pipelineCreationCacheControl = true;
-    physicalDev3Feat.dynamicRendering = requiresDynamicRendering;
+    physicalDev3Feat.dynamicRendering =
+        detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::DynamicRendering);
     physicalDev3Feat.pNext = &physicalDev2Feat;
 
-    vk::PhysicalDeviceTensorFeaturesARM tensorFeat;
-    tensorFeat.tensorNonPacked = true;
-    tensorFeat.shaderTensorAccess = true;
-    tensorFeat.tensors = true;
-    tensorFeat.pNext = &physicalDev3Feat;
+    void *featureChain = &physicalDev3Feat;
 
-    void *featureChain = &tensorFeat;
+    vk::PhysicalDeviceTensorFeaturesARM tensorFeat{};
+    if (detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::Tensors)) {
+        tensorFeat.tensorNonPacked = true;
+        tensorFeat.shaderTensorAccess = true;
+        tensorFeat.tensors = true;
+        tensorFeat.pNext = featureChain;
+        featureChain = &tensorFeat;
+    }
 
     vk::PhysicalDeviceShaderFloat8FeaturesEXT float8Feat{};
     if (_optionals.shader_float8) {
@@ -297,22 +319,22 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags workload
 
     vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM dataGraphOpticalFlowFeat{};
     if (_optionals.optical_flow) {
-        dataGraphOpticalFlowFeat.dataGraphOpticalFlow = availableDataGraphOpticalFlow.dataGraphOpticalFlow;
+        dataGraphOpticalFlowFeat.dataGraphOpticalFlow = true;
         dataGraphOpticalFlowFeat.pNext = featureChain;
         featureChain = &dataGraphOpticalFlowFeat;
     }
 
     vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM dataGraphNeuralAcceleratorStatisticsFeat{};
     if (_optionals.neural_accelerator_statistics) {
-        dataGraphNeuralAcceleratorStatisticsFeat.dataGraphNeuralAcceleratorStatistics =
-            availableDataGraphNeuralAcceleratorStatistics.dataGraphNeuralAcceleratorStatistics;
+        dataGraphNeuralAcceleratorStatisticsFeat.dataGraphNeuralAcceleratorStatistics = true;
         dataGraphNeuralAcceleratorStatisticsFeat.pNext = featureChain;
         featureChain = &dataGraphNeuralAcceleratorStatisticsFeat;
     }
 
     vk::PhysicalDeviceDataGraphFeaturesARM dataGraphFeat{};
     dataGraphFeat.dataGraph = true;
-    dataGraphFeat.dataGraphShaderModule = true;
+    dataGraphFeat.dataGraphShaderModule =
+        detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::DataGraphShaderModules);
     dataGraphFeat.pNext = featureChain;
     featureChain = &dataGraphFeat;
 
@@ -342,7 +364,7 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags workload
 #ifdef VK_ARM_data_graph_binaries
     vk::PhysicalDeviceDataGraphBinariesFeaturesARM dataGraphBinariesFeat{};
     if (_optionals.data_graph_binaries) {
-        dataGraphBinariesFeat.dataGraphBinaries = availableDataGraphBinaries.dataGraphBinaries;
+        dataGraphBinariesFeat.dataGraphBinaries = true;
         dataGraphBinariesFeat.pNext = featureChain;
         featureChain = &dataGraphBinariesFeat;
 
@@ -361,8 +383,10 @@ Context::Context(const ScenarioOptions &scenarioOptions, vk::QueueFlags workload
     deviceFeat.shaderInt64 = true;
     deviceFeat.fragmentStoresAndAtomics = availableCoreFeatures.fragmentStoresAndAtomics;
 
-    std::vector<const char *> vulkanDeviceExtensions = {VK_ARM_DATA_GRAPH_EXTENSION_NAME,
-                                                        VK_ARM_TENSORS_EXTENSION_NAME};
+    std::vector<const char *> vulkanDeviceExtensions = {VK_ARM_DATA_GRAPH_EXTENSION_NAME};
+    if (detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::Tensors)) {
+        vulkanDeviceExtensions.push_back(VK_ARM_TENSORS_EXTENSION_NAME);
+    }
 
     if (_optionals.custom_border_color) {
         vulkanDeviceExtensions.push_back(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME);

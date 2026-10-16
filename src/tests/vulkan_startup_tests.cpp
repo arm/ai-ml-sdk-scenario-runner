@@ -7,6 +7,7 @@
 #include "commands.hpp"
 #include "compute.hpp"
 #include "context.hpp"
+#include "device_selection.hpp"
 #include "glsl_compiler.hpp"
 
 #include <gtest/gtest.h>
@@ -50,7 +51,7 @@ void runShader(const ScenarioOptions &scenarioOptions) {
     auto spirv = GlslCompiler::get().compile(add_shader, ShaderStage::Compute);
     EXPECT_TRUE(spirv.first.empty());
 
-    Context ctx{scenarioOptions};
+    Context ctx{scenarioOptions, detail::DeviceRequirements{}};
 
     DataManager dataManager;
     std::vector<float> inDataA(numElements);

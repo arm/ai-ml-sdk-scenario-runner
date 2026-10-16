@@ -8,6 +8,7 @@
 
 #include "context.hpp"
 #include "data_manager.hpp"
+#include "device_selection.hpp"
 #include "tensor.hpp"
 #include "utils.hpp"
 
@@ -21,6 +22,12 @@
 
 namespace {
 using namespace mlsdk::scenariorunner;
+
+detail::DeviceRequirements tensorRequirements() {
+    detail::DeviceRequirements requirements;
+    requirements.capabilities |= detail::DeviceCapability::Tensors;
+    return requirements;
+}
 
 Tensor &prepareTensor(Context &ctx, DataManager &dm, TensorId id, const std::vector<int64_t> &shape, vk::Format format,
                       uint64_t memoryOffset = 0) {
@@ -50,7 +57,7 @@ std::vector<std::byte> sequence(size_t size, uint8_t first = 0) {
 
 TEST(TensorInMemoryTransfer, UploadThrowsOnShapeMismatch) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, tensorRequirements()};
     DataManager dm;
     const std::vector<int64_t> shape{2, 2};
     const vk::Format fmt = vk::Format::eR8Uint;
@@ -67,7 +74,7 @@ TEST(TensorInMemoryTransfer, UploadThrowsOnShapeMismatch) {
 
 TEST(TensorInMemoryTransfer, UploadThrowsOnIncompatibleFormatWhenProvided) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, tensorRequirements()};
     DataManager dm;
     const std::vector<int64_t> shape{2, 2};
     const vk::Format fmt = vk::Format::eR8Uint;
@@ -83,7 +90,7 @@ TEST(TensorInMemoryTransfer, UploadThrowsOnIncompatibleFormatWhenProvided) {
 
 TEST(TensorInMemoryTransfer, UploadThrowsOnSizeMismatch) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, tensorRequirements()};
     DataManager dm;
     const std::vector<int64_t> shape{2, 2};
     const vk::Format fmt = vk::Format::eR8Uint;
@@ -98,7 +105,7 @@ TEST(TensorInMemoryTransfer, UploadThrowsOnSizeMismatch) {
 
 TEST(TensorInMemoryTransfer, UploadSucceedsAndPersistsCopyFormatOptional) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, tensorRequirements()};
     DataManager dm;
     const std::vector<int64_t> shape{3, 2};
     const vk::Format fmt = vk::Format::eR8Uint; // 6 bytes
@@ -125,7 +132,7 @@ TEST(TensorInMemoryTransfer, UploadSucceedsAndPersistsCopyFormatOptional) {
 
 TEST(TensorInMemoryTransfer, UploadAcceptsRankConvertedEmptyShape) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, tensorRequirements()};
     DataManager dm;
     const std::vector<int64_t> emptyShape{};    // will be converted to [1]
     const vk::Format fmt = vk::Format::eR8Uint; // 1 byte
@@ -148,7 +155,7 @@ TEST(TensorInMemoryTransfer, UploadAcceptsRankConvertedEmptyShape) {
 
 TEST(TensorInMemoryTransfer, DownloadReturnsUploadedData) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, tensorRequirements()};
     DataManager dm;
     const std::vector<int64_t> shape{2, 3, 1};
     const vk::Format fmt = vk::Format::eR8Uint; // 6 bytes
@@ -170,7 +177,7 @@ TEST(TensorInMemoryTransfer, DownloadReturnsUploadedData) {
 
 TEST(TensorInMemoryTransfer, UploadAndDownloadRespectMemoryOffset) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, tensorRequirements()};
     DataManager dm;
     const std::vector<int64_t> shape{2, 3, 1};
     const vk::Format format = vk::Format::eR8Uint;
@@ -188,7 +195,7 @@ TEST(TensorInMemoryTransfer, UploadAndDownloadRespectMemoryOffset) {
 
 TEST(TensorInMemoryTransfer, UploadAndDownloadRespectImageSubresourceOffset) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, tensorRequirements()};
     DataManager dm;
     const TensorId id{0};
     const std::vector<int64_t> shape{2, 3, 1};

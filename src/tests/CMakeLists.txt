@@ -9,6 +9,7 @@ include(CTest)
 add_executable(ScenarioRunnerTests
   buffer_tests.cpp
   dds_reader_tests.cpp
+  device_selection_tests.cpp
   guid_tests.cpp
   group_manager_tests.cpp
   image_formats_tests.cpp

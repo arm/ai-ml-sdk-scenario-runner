@@ -9,6 +9,7 @@
 #include "buffer.hpp"
 #include "context.hpp"
 #include "data_manager.hpp"
+#include "device_selection.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -34,7 +35,7 @@ Buffer &prepareBuffer(Context &ctx, DataManager &dm, BufferId id, uint32_t sizeB
 
 TEST(BufferInMemoryTransfer, UploadThrowsOnSizeMismatch) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, detail::DeviceRequirements{}};
     DataManager dm;
 
     auto &buf = prepareBuffer(ctx, dm, BufferId{0}, /*sizeBytes*/ 16);
@@ -46,7 +47,7 @@ TEST(BufferInMemoryTransfer, UploadThrowsOnSizeMismatch) {
 
 TEST(BufferInMemoryTransfer, UploadSucceedsAndPersistsCopy) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, detail::DeviceRequirements{}};
     DataManager dm;
 
     auto &buf = prepareBuffer(ctx, dm, BufferId{0}, /*sizeBytes*/ 16);
@@ -71,7 +72,7 @@ TEST(BufferInMemoryTransfer, UploadSucceedsAndPersistsCopy) {
 
 TEST(BufferInMemoryTransfer, DownloadReturnsUploadedData) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, detail::DeviceRequirements{}};
     DataManager dm;
 
     auto &buf = prepareBuffer(ctx, dm, BufferId{0}, /*sizeBytes*/ 12);
