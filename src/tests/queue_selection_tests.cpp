@@ -3,13 +3,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "context.hpp"
+#include "device_selection.hpp"
 #include "scenario_build_data.hpp"
+#include "scenario_runner/scenario_options.hpp"
 
 #include <gtest/gtest.h>
 
 namespace mlsdk::scenariorunner {
 namespace {
+
+vk::QueueFlags getRequiredQueueFlags(const detail::ScenarioBuildData &buildData) {
+    return detail::getDeviceRequirements(buildData, ScenarioOptions{}).queueFlags;
+}
 
 TEST(QueueSelection, TransferOnlyWorkloadAcceptsExplicitOrImplicitTransferSupport) {
     const vk::QueueFlags noWorkload;
@@ -41,7 +46,7 @@ TEST(QueueSelection, PipelineBarrierStagesDetermineWorkloadRequirements) {
     command.memoryBarriers.push_back(buildData.resources.addMemoryBarrier(std::move(barrierInfo)));
     buildData.commands.emplace_back(std::move(command));
 
-    const auto requiredFlags = detail::getRequiredWorkloadQueueFlags(buildData);
+    const auto requiredFlags = getRequiredQueueFlags(buildData);
     EXPECT_FALSE(detail::supportsQueueRequirements(vk::QueueFlagBits::eCompute, requiredFlags));
     EXPECT_FALSE(detail::supportsQueueRequirements(vk::QueueFlagBits::eGraphics, requiredFlags));
     EXPECT_FALSE(detail::supportsQueueRequirements(vk::QueueFlagBits::eDataGraphARM | vk::QueueFlagBits::eTransfer,
@@ -60,7 +65,7 @@ TEST(QueueSelection, ComputePipelineBarrierRequiresComputeCapability) {
     command.memoryBarriers.push_back(buildData.resources.addMemoryBarrier(std::move(barrierInfo)));
     buildData.commands.emplace_back(std::move(command));
 
-    const auto requiredFlags = detail::getRequiredWorkloadQueueFlags(buildData);
+    const auto requiredFlags = getRequiredQueueFlags(buildData);
     EXPECT_FALSE(detail::supportsQueueRequirements(vk::QueueFlagBits::eTransfer, requiredFlags));
     EXPECT_TRUE(detail::supportsQueueRequirements(vk::QueueFlagBits::eCompute, requiredFlags));
 }
@@ -75,7 +80,7 @@ TEST(QueueSelection, DataGraphAccessWithAllStagesRequiresDataGraphCapability) {
     command.memoryBarriers.push_back(buildData.resources.addMemoryBarrier(std::move(barrierInfo)));
     buildData.commands.emplace_back(std::move(command));
 
-    const auto requiredFlags = detail::getRequiredWorkloadQueueFlags(buildData);
+    const auto requiredFlags = getRequiredQueueFlags(buildData);
     EXPECT_FALSE(detail::supportsQueueRequirements(vk::QueueFlagBits::eTransfer, requiredFlags));
     EXPECT_TRUE(detail::supportsQueueRequirements(vk::QueueFlagBits::eDataGraphARM | vk::QueueFlagBits::eTransfer,
                                                   requiredFlags));
@@ -91,8 +96,7 @@ TEST(QueueSelection, GenericMemoryAccessWithAllStagesAllowsTransferCapability) {
     command.memoryBarriers.push_back(buildData.resources.addMemoryBarrier(std::move(barrierInfo)));
     buildData.commands.emplace_back(std::move(command));
 
-    EXPECT_TRUE(detail::supportsQueueRequirements(vk::QueueFlagBits::eTransfer,
-                                                  detail::getRequiredWorkloadQueueFlags(buildData)));
+    EXPECT_TRUE(detail::supportsQueueRequirements(vk::QueueFlagBits::eTransfer, getRequiredQueueFlags(buildData)));
 }
 
 TEST(QueueSelection, DataGraphQueueAlsoNeedsTransferCapability) {
@@ -107,7 +111,7 @@ TEST(QueueSelection, MultiMipImageRequiresGraphicsCapability) {
     imageInfo.mips = 2;
     buildData.resources.addImage(std::move(imageInfo));
 
-    const auto requiredFlags = detail::getRequiredWorkloadQueueFlags(buildData);
+    const auto requiredFlags = getRequiredQueueFlags(buildData);
     EXPECT_FALSE(detail::supportsQueueRequirements(vk::QueueFlagBits::eTransfer, requiredFlags));
     EXPECT_FALSE(detail::supportsQueueRequirements(vk::QueueFlagBits::eCompute, requiredFlags));
     EXPECT_TRUE(detail::supportsQueueRequirements(vk::QueueFlagBits::eGraphics, requiredFlags));
@@ -125,8 +129,7 @@ TEST(QueueSelection, AliasedImageLayoutTransitionRequiresGraphicsAndCompute) {
     buildData.initializations.emplace_back(detail::ImageInitialization{image, std::nullopt, "image"});
 
     // An unaliased image is zero-initialized by upload, which only needs transfer support.
-    EXPECT_TRUE(detail::supportsQueueRequirements(vk::QueueFlagBits::eTransfer,
-                                                  detail::getRequiredWorkloadQueueFlags(buildData)));
+    EXPECT_TRUE(detail::supportsQueueRequirements(vk::QueueFlagBits::eTransfer, getRequiredQueueFlags(buildData)));
 
     const auto buffer = buildData.resources.addBuffer(BufferInfo{"buffer", 4, 0});
     const auto group = buildData.groupManager.createMemoryGroup();
@@ -134,7 +137,7 @@ TEST(QueueSelection, AliasedImageLayoutTransitionRequiresGraphicsAndCompute) {
     buildData.groupManager.addResourceToGroup(group, buffer);
 
     // Without initial data, an aliased image instead records a shader-stage layout transition.
-    const auto requiredFlags = detail::getRequiredWorkloadQueueFlags(buildData);
+    const auto requiredFlags = getRequiredQueueFlags(buildData);
     EXPECT_FALSE(detail::supportsQueueRequirements(vk::QueueFlagBits::eTransfer, requiredFlags));
     EXPECT_FALSE(
         detail::supportsQueueRequirements(vk::QueueFlagBits::eTransfer | vk::QueueFlagBits::eCompute, requiredFlags));
@@ -146,8 +149,7 @@ TEST(QueueSelection, AliasedImageLayoutTransitionRequiresGraphicsAndCompute) {
     // Supplying initial data takes the upload path even when the image is aliased.
     auto &initialization = std::get<detail::ImageInitialization>(buildData.initializations.front());
     initialization.data = ImageData{std::vector<std::byte>(4), imageInfo.shape, imageInfo.format, 1};
-    EXPECT_TRUE(detail::supportsQueueRequirements(vk::QueueFlagBits::eTransfer,
-                                                  detail::getRequiredWorkloadQueueFlags(buildData)));
+    EXPECT_TRUE(detail::supportsQueueRequirements(vk::QueueFlagBits::eTransfer, getRequiredQueueFlags(buildData)));
 }
 
 } // namespace

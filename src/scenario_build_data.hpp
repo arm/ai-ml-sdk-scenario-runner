@@ -77,8 +77,6 @@ struct ScenarioBuildData {
     std::vector<ResourceOutput> outputs;
 };
 
-vk::QueueFlags getRequiredWorkloadQueueFlags(const ScenarioBuildData &buildData);
-
 std::unique_ptr<Scenario> createScenario(const ScenarioOptions &options, ScenarioBuildData buildData);
 
 } // namespace detail

@@ -18,6 +18,10 @@
   mip levels. Automatic tiling selection preserves support for later partial
   mip uploads whenever a compatible tiling is available.
 - Added a clear error when no Vulkan® physical devices are available.
+- Fixed DGB scenario device selection to reject devices without the required
+  data graph capabilities or a nonempty compatible queue, and to avoid
+  shader-module support and tensor capabilities when bindings do not require
+  them.
 - Fixed buffer, tensor, and image readback synchronization so staging-buffer
   writes are made visible to host reads before returning downloaded data.
 - Added support for transfer-only queues and removed the compute-only fallback.

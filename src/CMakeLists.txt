@@ -14,6 +14,7 @@ set(SCENARIO_RUNNER_LIB_SOURCES
     compute.cpp
     context.cpp
     data_manager.cpp
+    device_selection.cpp
     dds_reader.cpp
     glsl_compiler.cpp
     group_manager.cpp

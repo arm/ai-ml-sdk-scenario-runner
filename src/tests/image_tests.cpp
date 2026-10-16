@@ -9,6 +9,7 @@
 
 #include "data_manager.hpp"
 #include "dds_reader.hpp"
+#include "device_selection.hpp"
 #include "image.hpp"
 #include "utils.hpp"
 
@@ -146,7 +147,7 @@ TEST(Scenario, ScenarioSupportsImageTransfers) {
 
 TEST(ImageInMemoryTransfer, UploadValidatesMetadataAndSize) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, detail::DeviceRequirements{}};
     DataManager dataManager;
     const ImageId imageId{0};
     const std::vector<int64_t> shape{1, 3, 2, 1};
@@ -164,7 +165,7 @@ TEST(ImageInMemoryTransfer, UploadValidatesMetadataAndSize) {
 
 TEST(ImageInMemoryTransfer, CanUploadAndDownloadRepeatedly) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, detail::DeviceRequirements{}};
     DataManager dataManager;
     const ImageId imageId{0};
     const std::vector<int64_t> shape{1, 3, 2, 1};
@@ -203,7 +204,7 @@ TEST(ImageInMemoryTransfer, CanUploadAndDownloadRepeatedly) {
 
 TEST(ImageInMemoryTransfer, CanUploadCompleteMipChainAndDownloadBaseMip) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, detail::DeviceRequirements{}};
     DataManager dataManager;
     const ImageId imageId{0};
     const std::vector<int64_t> shape{1, 4, 4, 1};
@@ -228,7 +229,7 @@ TEST(ImageInMemoryTransfer, CanUploadCompleteMipChainAndDownloadBaseMip) {
 
 TEST(Scenario, InitializesEveryPackedFloatMipWithoutBlitting) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, detail::DeviceRequirements{}};
     const auto features = ctx.physicalDevice().getFormatProperties(packedFloatFormat).optimalTilingFeatures;
     if ((features & imageTransferFeatures) != imageTransferFeatures) {
         GTEST_SKIP() << "Packed float sampled image transfers unavailable";
@@ -285,7 +286,7 @@ TEST(Scenario, InitializesEveryPackedFloatMipWithoutBlitting) {
 
 TEST(ImageInMemoryTransfer, CompleteMipChainDoesNotRequireBlitSupport) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, detail::DeviceRequirements{}};
     const auto features = ctx.physicalDevice().getFormatProperties(packedFloatFormat).optimalTilingFeatures;
     if ((features & imageTransferFeatures) != imageTransferFeatures) {
         GTEST_SKIP() << "Packed float sampled image transfers unavailable";
@@ -325,7 +326,7 @@ TEST(ImageInMemoryTransfer, CompleteMipChainDoesNotRequireBlitSupport) {
 
 TEST(Scenario, SelectsMipGenerationRequirementsFromSourceMipCount) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, detail::DeviceRequirements{}};
     const auto props = ctx.physicalDevice().getFormatProperties(packedFloatFormat);
     if ((props.optimalTilingFeatures & imageTransferFeatures) != imageTransferFeatures) {
         GTEST_SKIP() << "Packed float sampled image transfers unavailable";
@@ -381,7 +382,7 @@ TEST(Scenario, SelectsMipGenerationRequirementsFromSourceMipCount) {
 
 TEST_P(ImageAutomaticTiling, GeneratesMissingMipsWithAutomaticTiling) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, detail::DeviceRequirements{}};
     constexpr auto format = vk::Format::eR8G8B8A8Unorm;
     const auto props = ctx.physicalDevice().getFormatProperties(format);
     const auto required = imageTransferFeatures | mipGenerationFeatures;
@@ -430,7 +431,7 @@ INSTANTIATE_TEST_SUITE_P(InitialOrLaterMipGeneration, ImageAutomaticTiling, test
 
 TEST(Scenario, GeneratesMissingMipsAfterZeroOrCompleteInitialization) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, detail::DeviceRequirements{}};
     constexpr auto format = vk::Format::eR8G8B8A8Unorm;
     const auto features = ctx.physicalDevice().getFormatProperties(format).optimalTilingFeatures;
     const auto required = imageTransferFeatures | mipGenerationFeatures;
@@ -471,7 +472,7 @@ TEST(Scenario, GeneratesMissingMipsAfterZeroOrCompleteInitialization) {
 
 TEST(ImageInMemoryTransfer, RejectsMipGenerationWithoutLinearFiltering) {
     ScenarioOptions opts{};
-    Context ctx{opts};
+    Context ctx{opts, detail::DeviceRequirements{}};
     constexpr auto format = vk::Format::eR8G8B8A8Uint;
     const auto features = ctx.physicalDevice().getFormatProperties(format).optimalTilingFeatures;
     const auto required =

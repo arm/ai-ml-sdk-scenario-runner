@@ -14,7 +14,7 @@ namespace mlsdk::scenariorunner {
 struct ScenarioOptions;
 
 namespace detail {
-bool supportsQueueRequirements(vk::QueueFlags availableFlags, vk::QueueFlags workloadFlags);
+struct DeviceRequirements;
 }
 
 /// \brief Vulkan extensions structure
@@ -42,13 +42,10 @@ struct OptionalExtensions {
 /// Example objects are the Vulkan® instance/device etc.
 class Context {
   public:
-    /// \brief Constructor
+    /// \brief Construct a Context for the capabilities required by a scenario.
     /// \param scenarioOptions configuration options
-    /// \param workloadQueueFlags workload capabilities required from the queue family
-    /// \param requiresDynamicRendering whether fragment dispatch requires dynamic rendering
-    explicit Context(const ScenarioOptions &scenarioOptions,
-                     vk::QueueFlags workloadQueueFlags = vk::QueueFlagBits::eCompute,
-                     bool requiresDynamicRendering = false);
+    /// \param requirements queue, extension, and feature requirements
+    Context(const ScenarioOptions &scenarioOptions, const detail::DeviceRequirements &requirements);
 
     /// \brief Logical device accessor
     /// \return Reference to the Vulkan logical device
