@@ -7,6 +7,8 @@
 
 #include "scenario_runner/scenario_options.hpp"
 
+#include "vgf_view.hpp"
+
 #include <algorithm>
 #include <optional>
 #include <stdexcept>
@@ -125,7 +127,7 @@ bool supportsQueueRequirements(vk::QueueFlags availableFlags, vk::QueueFlags wor
 }
 
 DeviceRequirements getDeviceRequirements(const ScenarioBuildData &buildData, const ScenarioOptions &scenarioOptions) {
-    DeviceRequirements requirements{vk::QueueFlags{}, DeviceCapability::DataGraph};
+    DeviceRequirements requirements{vk::QueueFlags{}};
     const auto tensors = buildData.resources.tensors();
     if (tensors.begin() != tensors.end()) {
         requirements.capabilities |= DeviceCapability::Tensors;
@@ -141,19 +143,43 @@ DeviceRequirements getDeviceRequirements(const ScenarioBuildData &buildData, con
                            requirements.queueFlags |= vk::QueueFlagBits::eGraphics;
                            requirements.capabilities |= DeviceCapability::DynamicRendering;
                        },
-                       [&](const DispatchVgfData &) {
-                           // Preserve the requirements historically used for VGF dispatch.
-                           requirements.queueFlags |= vk::QueueFlagBits::eDataGraphARM;
-                           requirements.capabilities |=
-                               DeviceCapability::DataGraphShaderModules | DeviceCapability::Tensors;
+                       [&](const DispatchVgfData &dispatch) {
+                           const auto &vgf = buildData.resources.get(dispatch.vgf);
+                           if (!vgf.src) {
+                               throw std::runtime_error("VGF source missing: " + vgf.debugName);
+                           }
+                           for (uint32_t segmentIndex = 0; segmentIndex < vgf.src->getNumSegments(); ++segmentIndex) {
+                               switch (vgf.src->getSegmentType(segmentIndex)) {
+                               case ModuleType::GRAPH:
+                                   requirements.queueFlags |= vk::QueueFlagBits::eDataGraphARM;
+                                   requirements.capabilities |=
+                                       DeviceCapability::DataGraphShaderModules | DeviceCapability::ShaderTensorAccess;
+                                   if (vgf.src->hasImageBindings(segmentIndex)) {
+                                       requirements.capabilities |= DeviceCapability::DataGraphImageLayouts;
+                                   }
+                                   break;
+                               case ModuleType::SHADER:
+                                   requirements.queueFlags |= vk::QueueFlagBits::eCompute;
+                                   break;
+                               }
+                           }
+                           if (vgf.src->hasTensorIntermediates()) {
+                               requirements.capabilities |= DeviceCapability::Tensors;
+                           }
                        },
                        [&](const DispatchDataGraphBinaryData &) {
                            requirements.queueFlags |= vk::QueueFlagBits::eDataGraphARM;
                            requirements.capabilities |= DeviceCapability::DataGraphBinaries;
                        },
-                       [&](const DispatchDataGraphData &) {
+                       [&](const DispatchDataGraphData &dispatch) {
                            requirements.queueFlags |= vk::QueueFlagBits::eDataGraphARM;
-                           requirements.capabilities |= DeviceCapability::DataGraphShaderModules;
+                           requirements.capabilities |=
+                               DeviceCapability::DataGraphShaderModules | DeviceCapability::ShaderTensorAccess;
+                           if (std::any_of(dispatch.bindings.begin(), dispatch.bindings.end(), [](const auto &binding) {
+                                   return std::holds_alternative<ImageId>(binding.resource);
+                               })) {
+                               requirements.capabilities |= DeviceCapability::DataGraphImageLayouts;
+                           }
                        },
                        [&](const DispatchOpticalFlowData &) {
                            requirements.queueFlags |= vk::QueueFlagBits::eDataGraphARM;
@@ -186,6 +212,11 @@ DeviceRequirements getDeviceRequirements(const ScenarioBuildData &buildData, con
             // initializeResourceData calls Image::transitionLayout, whose barriers use both shader stages.
             requirements.queueFlags |= vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eGraphics;
         }
+    }
+
+    // Treat graph-stage barriers as data-graph workloads for device selection.
+    if ((requirements.queueFlags & vk::QueueFlagBits::eDataGraphARM) != vk::QueueFlags{}) {
+        requirements.capabilities |= DeviceCapability::DataGraph;
     }
 
     return requirements;

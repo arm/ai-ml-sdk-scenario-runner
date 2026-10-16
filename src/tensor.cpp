@@ -40,9 +40,12 @@ void Tensor::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> me
     }
 
     // Create tensor
-    vk::TensorUsageFlagsARM usageFlags =
-        vk::TensorUsageFlagBitsARM::eShader | vk::TensorUsageFlagBitsARM::eTransferSrc |
-        vk::TensorUsageFlagBitsARM::eTransferDst | vk::TensorUsageFlagBitsARM::eDataGraph;
+    vk::TensorUsageFlagsARM usageFlags = vk::TensorUsageFlagBitsARM::eShader |
+                                         vk::TensorUsageFlagBitsARM::eTransferSrc |
+                                         vk::TensorUsageFlagBitsARM::eTransferDst;
+    if (ctx._optionals.data_graph) {
+        usageFlags |= vk::TensorUsageFlagBitsARM::eDataGraph;
+    }
 
     auto rank = static_cast<uint32_t>(_shape.size());
 

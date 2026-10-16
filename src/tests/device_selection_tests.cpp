@@ -7,8 +7,16 @@
 
 #include "scenario_runner/scenario_options.hpp"
 
+#include "vgf/encoder.hpp"
+#include "vgf/vulkan_helpers.generated.hpp"
+
+#include "vgf-utils/temp_folder.hpp"
+
 #include <gtest/gtest.h>
 
+#include <filesystem>
+#include <fstream>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -18,6 +26,66 @@
 namespace {
 using namespace mlsdk::scenariorunner;
 using namespace mlsdk::scenariorunner::detail;
+namespace vgflib = mlsdk::vgflib;
+
+std::shared_ptr<const VgfView> createVgf(TempFolder &tempFolder, const std::string &filename,
+                                         const std::vector<vgflib::ModuleType> &moduleTypes, bool hasTensorIntermediate,
+                                         std::optional<int64_t> constantSparsityDimension = std::nullopt,
+                                         std::optional<vk::DescriptorType> imageDescriptorType = std::nullopt,
+                                         std::optional<uint32_t> imageSegmentIndex = std::nullopt) {
+    auto encoder = vgflib::CreateEncoder(123);
+
+    std::vector<vgflib::DescriptorSetInfoRef> descriptorSets;
+    std::vector<vgflib::BindingSlotRef> segmentOutputs;
+    if (hasTensorIntermediate) {
+        const auto tensor = encoder->AddIntermediateResource(vgflib::ToDescriptorType(VK_DESCRIPTOR_TYPE_TENSOR_ARM),
+                                                             vgflib::ToFormatType(VK_FORMAT_R8_SINT), {1}, {});
+        const auto binding = encoder->AddBindingSlot(0, tensor);
+        descriptorSets.emplace_back(encoder->AddDescriptorSetInfo({binding}));
+        segmentOutputs.emplace_back(binding);
+    }
+
+    std::optional<vgflib::BindingSlotRef> imageBinding;
+    std::optional<vgflib::DescriptorSetInfoRef> imageDescriptorSet;
+    if (imageDescriptorType) {
+        const auto image = encoder->AddIntermediateResource(
+            vgflib::ToDescriptorType(static_cast<VkDescriptorType>(*imageDescriptorType)),
+            vgflib::ToFormatType(VK_FORMAT_R8_UINT), {1, 2, 2, 1}, {});
+        imageBinding.emplace(encoder->AddBindingSlot(0, image));
+        imageDescriptorSet.emplace(encoder->AddDescriptorSetInfo({*imageBinding}));
+    }
+
+    std::vector<vgflib::GraphConstantBindingRef> constantBindings;
+    if (constantSparsityDimension) {
+        const auto resource = encoder->AddConstantResource(vgflib::ToFormatType(VK_FORMAT_R8_SINT), {4}, {});
+        const std::vector<uint8_t> data{1, 0, 2, 0};
+        const auto constant = encoder->AddConstant(resource, data.data(), data.size(), *constantSparsityDimension);
+        // NOLINTNEXTLINE(modernize-use-emplace)
+        constantBindings.push_back({0, constant});
+    }
+
+    encoder->AddModelSequenceInputsOutputs({}, {}, {}, {});
+    for (size_t index = 0; index < moduleTypes.size(); ++index) {
+        const auto module = encoder->AddModule(moduleTypes[index], "module_" + std::to_string(index), "main");
+        auto segmentDescriptorSets = descriptorSets;
+        auto outputs = segmentOutputs;
+        if (imageDescriptorSet && (!imageSegmentIndex || index == *imageSegmentIndex)) {
+            segmentDescriptorSets.emplace_back(*imageDescriptorSet);
+            outputs.emplace_back(*imageBinding);
+        }
+        encoder->AddSegmentInfo(module, "segment_" + std::to_string(index), segmentDescriptorSets, {}, outputs,
+                                constantBindings, {1, 1, 1});
+    }
+    encoder->Finish();
+
+    const std::filesystem::path path = tempFolder.relative(filename);
+    {
+        std::ofstream output(path, std::ios::binary);
+        encoder->WriteTo(output);
+    }
+    return loadVgfView(path.string());
+}
+
 vk::QueueFamilyProperties queueFamily(vk::QueueFlags flags, uint32_t count = 1) {
     vk::QueueFamilyProperties properties;
     properties.queueFlags = flags;
@@ -38,7 +106,7 @@ DeviceCandidate candidate(vk::PhysicalDeviceType type, DeviceCapability capabili
 TEST(DeviceRequirements, DgbOnlyDoesNotRequireUnrelatedCapabilities) {
     ScenarioBuildData buildData;
     DispatchDataGraphBinaryData dispatch{RawDataId{0}};
-    dispatch.bindings.push_back({0, 0, ImageId{0}, std::nullopt, vk::DescriptorType::eStorageImage});
+    dispatch.bindings.emplace_back(TypedBinding{0, 0, ImageId{0}, std::nullopt, vk::DescriptorType::eStorageImage});
     buildData.commands.emplace_back(std::move(dispatch));
 
     const auto requirements = getDeviceRequirements(buildData, ScenarioOptions{});
@@ -75,6 +143,30 @@ TEST(DeviceRequirements, MixedScenarioCombinesRequirements) {
               DeviceCapability::DataGraphBinaries | DeviceCapability::DataGraphShaderModules |
                   DeviceCapability::Tensors | DeviceCapability::DataGraphOpticalFlow |
                   DeviceCapability::DataGraphNeuralAcceleratorStatistics | DeviceCapability::DynamicRendering);
+}
+
+TEST(DeviceRequirements, VgfUsesOnlyCapabilitiesRequiredByItsContents) {
+    TempFolder tempFolder("device_requirements");
+
+    ScenarioBuildData computeBuildData;
+    const auto computeVgf = computeBuildData.resources.addVgf(
+        VgfInfo{"compute VGF", createVgf(tempFolder, "compute.vgf", {vgflib::ModuleType::COMPUTE}, false), 0, {}});
+    computeBuildData.commands.emplace_back(DispatchVgfData{computeVgf});
+    const auto computeRequirements = getDeviceRequirements(computeBuildData, ScenarioOptions{});
+    EXPECT_EQ(computeRequirements.queueFlags, vk::QueueFlags{vk::QueueFlagBits::eCompute});
+    EXPECT_EQ(computeRequirements.capabilities, DeviceCapability{});
+
+    ScenarioBuildData mixedBuildData;
+    const auto mixedVgf = mixedBuildData.resources.addVgf(
+        VgfInfo{"mixed VGF",
+                createVgf(tempFolder, "mixed.vgf", {vgflib::ModuleType::GRAPH, vgflib::ModuleType::COMPUTE}, true),
+                0,
+                {}});
+    mixedBuildData.commands.emplace_back(DispatchVgfData{mixedVgf});
+    const auto mixedRequirements = getDeviceRequirements(mixedBuildData, ScenarioOptions{});
+    EXPECT_EQ(mixedRequirements.queueFlags,
+              vk::QueueFlags{vk::QueueFlagBits::eDataGraphARM | vk::QueueFlagBits::eCompute});
+    EXPECT_EQ(mixedRequirements.capabilities, DeviceCapability::DataGraphShaderModules | DeviceCapability::Tensors);
 }
 
 TEST(DeviceSelection, RejectsUnsupportedPreferredDevices) {

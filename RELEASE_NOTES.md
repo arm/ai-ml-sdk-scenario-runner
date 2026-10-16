@@ -22,6 +22,8 @@
   data graph capabilities or a nonempty compatible queue, and to avoid
   shader-module support and tensor capabilities when bindings do not require
   them.
+- Fixed VGF device requirements to account for each segment's module type and
+  tensor intermediate resources.
 - Fixed buffer, tensor, and image readback synchronization so staging-buffer
   writes are made visible to host reads before returning downloaded data.
 - Added support for transfer-only queues and removed the compute-only fallback.

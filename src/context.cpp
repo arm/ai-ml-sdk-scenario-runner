@@ -78,13 +78,17 @@ detail::DeviceCandidate queryDeviceCandidate(const vk::raii::PhysicalDevice &dev
             candidate.capabilities |= detail::DeviceCapability::DataGraphShaderModules;
         }
     }
-    if (tensorsExtension && tensorFeatures.tensors && tensorFeatures.tensorNonPacked &&
-        tensorFeatures.shaderTensorAccess) {
-        candidate.capabilities |= detail::DeviceCapability::Tensors;
+    if (tensorsExtension && tensorFeatures.shaderTensorAccess) {
+        candidate.capabilities |= detail::DeviceCapability::ShaderTensorAccess;
+        if (tensorFeatures.tensors && tensorFeatures.tensorNonPacked) {
+            candidate.capabilities |= detail::DeviceCapability::Tensors;
+        }
     }
-    if (detail::hasCapabilities(candidate.capabilities, detail::DeviceCapability::DataGraph) && opticalFlowExtension &&
-        features.template get<vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM>().dataGraphOpticalFlow) {
-        candidate.capabilities |= detail::DeviceCapability::DataGraphOpticalFlow;
+    if (detail::hasCapabilities(candidate.capabilities, detail::DeviceCapability::DataGraph) && opticalFlowExtension) {
+        candidate.capabilities |= detail::DeviceCapability::DataGraphImageLayouts;
+        if (features.template get<vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM>().dataGraphOpticalFlow) {
+            candidate.capabilities |= detail::DeviceCapability::DataGraphOpticalFlow;
+        }
     }
     if (detail::hasCapabilities(candidate.capabilities, detail::DeviceCapability::DataGraph) &&
         neuralAcceleratorStatisticsExtension &&
@@ -175,6 +179,7 @@ Context::Context(const ScenarioOptions &scenarioOptions, const detail::DeviceReq
     // Get device capabilities
     const std::vector<vk::ExtensionProperties> &extensions = _physicalDev.enumerateDeviceExtensionProperties(nullptr);
 
+    _optionals.data_graph = detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::DataGraph);
     _optionals.custom_border_color =
         hasExtension(extensions, VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.mark_boundary =
@@ -302,10 +307,12 @@ Context::Context(const ScenarioOptions &scenarioOptions, const detail::DeviceReq
     void *featureChain = &physicalDev3Feat;
 
     vk::PhysicalDeviceTensorFeaturesARM tensorFeat{};
-    if (detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::Tensors)) {
-        tensorFeat.tensorNonPacked = true;
+    if (detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::ShaderTensorAccess)) {
+        const bool tensorResources =
+            detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::Tensors);
+        tensorFeat.tensorNonPacked = tensorResources;
         tensorFeat.shaderTensorAccess = true;
-        tensorFeat.tensors = true;
+        tensorFeat.tensors = tensorResources;
         tensorFeat.pNext = featureChain;
         featureChain = &tensorFeat;
     }
@@ -332,11 +339,13 @@ Context::Context(const ScenarioOptions &scenarioOptions, const detail::DeviceReq
     }
 
     vk::PhysicalDeviceDataGraphFeaturesARM dataGraphFeat{};
-    dataGraphFeat.dataGraph = true;
-    dataGraphFeat.dataGraphShaderModule =
-        detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::DataGraphShaderModules);
-    dataGraphFeat.pNext = featureChain;
-    featureChain = &dataGraphFeat;
+    if (_optionals.data_graph) {
+        dataGraphFeat.dataGraph = true;
+        dataGraphFeat.dataGraphShaderModule =
+            detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::DataGraphShaderModules);
+        dataGraphFeat.pNext = featureChain;
+        featureChain = &dataGraphFeat;
+    }
 
     vk::PhysicalDeviceShaderBfloat16FeaturesKHR bfloat16Feat{};
     if (_optionals.shader_bfloat16) {
@@ -383,8 +392,11 @@ Context::Context(const ScenarioOptions &scenarioOptions, const detail::DeviceReq
     deviceFeat.shaderInt64 = true;
     deviceFeat.fragmentStoresAndAtomics = availableCoreFeatures.fragmentStoresAndAtomics;
 
-    std::vector<const char *> vulkanDeviceExtensions = {VK_ARM_DATA_GRAPH_EXTENSION_NAME};
-    if (detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::Tensors)) {
+    std::vector<const char *> vulkanDeviceExtensions;
+    if (_optionals.data_graph) {
+        vulkanDeviceExtensions.push_back(VK_ARM_DATA_GRAPH_EXTENSION_NAME);
+    }
+    if (detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::ShaderTensorAccess)) {
         vulkanDeviceExtensions.push_back(VK_ARM_TENSORS_EXTENSION_NAME);
     }
 
@@ -415,7 +427,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, const detail::DeviceReq
     if (_optionals.shader_float8) {
         vulkanDeviceExtensions.push_back(VK_EXT_SHADER_FLOAT8_EXTENSION_NAME);
     }
-    if (_optionals.optical_flow) {
+    if (_optionals.optical_flow ||
+        detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::DataGraphImageLayouts)) {
         vulkanDeviceExtensions.push_back(VK_ARM_DATA_GRAPH_OPTICAL_FLOW_EXTENSION_NAME);
     }
     if (enableRobustness2) {

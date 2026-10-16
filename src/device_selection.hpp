@@ -16,12 +16,14 @@ namespace mlsdk::scenariorunner::detail {
 
 enum class DeviceCapability : uint32_t {
     DataGraph = 0x01,
-    Tensors = 0x02,
+    ShaderTensorAccess = 0x80,
+    Tensors = 0x82,                              // Includes ShaderTensorAccess.
     DataGraphShaderModules = 0x05,               // Includes DataGraph.
     DataGraphBinaries = 0x09,                    // Includes DataGraph.
     DataGraphOpticalFlow = 0x11,                 // Includes DataGraph.
     DataGraphNeuralAcceleratorStatistics = 0x21, // Includes DataGraph.
     DynamicRendering = 0x40,
+    DataGraphImageLayouts = 0x101, // Includes DataGraph; requires only the optical-flow extension.
 };
 
 constexpr DeviceCapability operator|(DeviceCapability lhs, DeviceCapability rhs) noexcept {
@@ -35,7 +37,7 @@ constexpr DeviceCapability &operator|=(DeviceCapability &lhs, DeviceCapability r
 
 struct DeviceRequirements {
     vk::QueueFlags queueFlags{vk::QueueFlagBits::eCompute};
-    DeviceCapability capabilities{DeviceCapability::DataGraph};
+    DeviceCapability capabilities{};
 };
 
 struct DeviceCandidate {

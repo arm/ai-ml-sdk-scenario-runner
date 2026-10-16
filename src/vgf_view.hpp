@@ -41,6 +41,8 @@ class VgfView {
     size_t getNumSegments() const;
     ModuleType getSegmentType(uint32_t segmentIndex) const;
     std::string getSegmentName(uint32_t segmentIndex) const;
+    bool hasTensorIntermediates() const;
+    bool hasImageBindings(uint32_t segmentIndex) const;
 
     bool hasSPVModule(uint32_t segmentIndex) const;
     bool hasGLSLModule(uint32_t segmentIndex) const;
