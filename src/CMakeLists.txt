@@ -103,16 +103,12 @@ if(SCENARIO_RUNNER_ENABLE_FUZZER)
 endif()
 
 if(SCENARIO_RUNNER_BUILD_PYLIB AND NOT ANDROID)
-    include(pybind11)
-    pybind11_add_module(scenario_runner_py
-        scenario_runner_py.cpp
-        scenario_py.cpp
-        scenario_builder_py.cpp
-        scenario_json_factory_py.cpp
-    )
-    target_compile_options(scenario_runner_py PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
-    scenario_runner_enable_coverage(scenario_runner_py)
-    target_link_libraries(scenario_runner_py PRIVATE ScenarioRunnerLib pybind11::module)
+    if(MLSDK_WHEEL_PYTHON_ABI)
+        add_subdirectory(python "python/${MLSDK_WHEEL_PYTHON_ABI}")
+    else()
+        # Preserve native coverage paths, including those embedded in cached objects.
+        include("${CMAKE_CURRENT_LIST_DIR}/python/bindings.cmake")
+    endif()
 endif()
 
 add_subdirectory(tools)

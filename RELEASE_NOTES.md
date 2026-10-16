@@ -35,6 +35,9 @@
   are written.
 - Limited wheel-native builds to the Python extension and packaged CLI payload
   instead of building every default CMake target.
+- Reused native libraries and tools across Python wheel builds in the same
+  platform and build configuration, keeping binding objects separate per ABI.
+  Preserved the object paths used by ordinary source and coverage builds.
 
 ## Version 0.11.0 – *Public APIs, Python Bindings & Profiling*
 

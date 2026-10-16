@@ -332,6 +332,13 @@ resulting Python package. Ensure the prerequisites listed in
 [Building Scenario Runner from source](#building-scenario-runner-from-source)
 are installed and the repository dependencies have been initialized.
 
+Sequential wheel builds reuse native libraries and tools in a shared CMake
+tree under `build/pip/<platform>/<build-type>`. Python binding objects are kept
+in separate ABI directories, and Python discovery is refreshed for each build.
+Linux manylinux builds use their own platform directory instead of reusing
+host-built artifacts. Changing native build options still rebuilds affected
+targets through CMake.
+
 ## Graph Shape Inference
 
 Graph shape inference is experimental. A scenario requests graph shape inference

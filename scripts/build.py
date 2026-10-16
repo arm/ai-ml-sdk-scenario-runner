@@ -12,7 +12,6 @@ import re
 import shutil
 import subprocess
 import sys
-import sysconfig
 from datetime import datetime
 from datetime import timezone
 
@@ -26,7 +25,6 @@ SCENARIO_RUNNER_DIR = SCENARIO_RUNNER_DIR.resolve()
 DEPENDENCY_DIR = SCENARIO_RUNNER_DIR / ".." / ".." / "dependencies"
 DEPENDENCY_DIR = DEPENDENCY_DIR.resolve()
 CMAKE_TOOLCHAIN_PATH = SCENARIO_RUNNER_DIR / "cmake" / "toolchain"
-PYTHON_ABI_TAG = sysconfig.get_config_var("SOABI") or sys.implementation.cache_tag
 
 
 def absolute(path):
@@ -558,7 +556,7 @@ class Builder:
                     "SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AI_ML_SDK_SCENARIO_RUNNER"
                 ] = package_version
                 build_env["SCENARIO_RUNNER_PIP_BUILD_DIR"] = str(
-                    pathlib.Path(self.build_dir) / "pip" / PYTHON_ABI_TAG
+                    pathlib.Path(self.build_dir) / "pip"
                 )
                 build_env["SCENARIO_RUNNER_PIP_BUILD_TYPE"] = self.build_type
                 build_env["MLSDK_WHEEL_BUILD_MODE"] = "source"
