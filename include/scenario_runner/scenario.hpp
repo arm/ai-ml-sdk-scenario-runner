@@ -63,7 +63,11 @@ class Scenario {
     /// @param id Image registered in this scenario.
     /// @param data Non-owning view of the image bytes and validation metadata.
     /// @note The data is copied before this function returns.
+    /// @note Missing mip levels are generated using linear-filtered blits. Automatic tiling
+    /// selection prefers support for this operation; explicitly configured tiling is respected.
     /// @throws std::runtime_error If the ID or supplied resource metadata is invalid.
+    /// @throws std::runtime_error If mip levels are missing and the image's format and tiling
+    /// do not support linear-filtered blits. Supply the complete mip chain in this case.
     virtual void upload(ImageId id, const ImageDataView &data) = 0;
 
     /// @brief Upload data to an existing tensor resource.

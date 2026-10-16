@@ -14,6 +14,46 @@
 
 namespace mlsdk::scenariorunner {
 namespace {
+constexpr auto mipGenerationFeatures = vk::FormatFeatureFlagBits::eBlitSrc | vk::FormatFeatureFlagBits::eBlitDst |
+                                       vk::FormatFeatureFlagBits::eSampledImageFilterLinear;
+
+void requireFormatFeatures(vk::FormatFeatureFlags supported, vk::FormatFeatureFlags required,
+                           const std::string &debugName, vk::Format format, vk::ImageTiling tiling,
+                           const std::string &operation) {
+    const auto missing = required & ~supported;
+    if (missing) {
+        throw std::runtime_error("Image '" + debugName + "' (" + vk::to_string(format) + ", " + vk::to_string(tiling) +
+                                 " tiling) cannot " + operation + ": missing format features " +
+                                 vk::to_string(missing));
+    }
+}
+
+uint32_t getFormatMaxMipLevels(const Context &ctx, vk::Format format, vk::ImageTiling tiling,
+                               vk::ImageUsageFlags usageFlags) {
+    try {
+        const auto formatProps =
+            ctx.physicalDevice().getImageFormatProperties(format, vk::ImageType::e2D, tiling, usageFlags, {});
+        return formatProps.maxMipLevels;
+    } catch (const vk::FormatNotSupportedError &) {
+        // Format is not supported, return 0 to disallow image creation
+        return 0;
+    }
+}
+
+std::optional<vk::ImageTiling> selectTiling(const Context &ctx, vk::Format format,
+                                            const vk::FormatProperties &formatProperties,
+                                            vk::FormatFeatureFlags required, uint32_t mipLevels,
+                                            vk::ImageUsageFlags usageFlags) {
+    for (const auto tiling : {vk::ImageTiling::eLinear, vk::ImageTiling::eOptimal}) {
+        const auto supported = tiling == vk::ImageTiling::eLinear ? formatProperties.linearTilingFeatures
+                                                                  : formatProperties.optimalTilingFeatures;
+        if ((supported & required) == required && mipLevels <= getFormatMaxMipLevels(ctx, format, tiling, usageFlags)) {
+            return tiling;
+        }
+    }
+    return std::nullopt;
+}
+
 constexpr vk::Filter convertFilter(const FilterMode filter) {
     switch (filter) {
     case FilterMode::Linear:
@@ -103,7 +143,7 @@ Image::Image(const ImageInfo &imageInfo) : _imageInfo(imageInfo) {}
 
 Image::Image(ImageInfo &&imageInfo) : _imageInfo(std::move(imageInfo)) {}
 
-void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> memoryManager) {
+void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> memoryManager, bool generateMipmaps) {
     _memoryManager = std::move(memoryManager);
 
     // Create image
@@ -140,8 +180,8 @@ void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> mem
         usageFlags |= vk::ImageUsageFlagBits::eColorAttachment;
         requiredFormatFlags |= vk::FormatFeatureFlagBits::eColorAttachment;
     }
-    if (_imageInfo.mips > 1) {
-        requiredFormatFlags |= vk::FormatFeatureFlagBits::eBlitSrc | vk::FormatFeatureFlagBits::eBlitDst;
+    if (generateMipmaps && _imageInfo.mips > 1) {
+        requiredFormatFlags |= mipGenerationFeatures;
     }
 
     // Force D32S8 to D32 because of limited tiling support for stencil formats.
@@ -152,28 +192,40 @@ void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> mem
     if (_imageInfo.tiling.has_value()) {
         // Set tiling based on JSON file if set and then validate
         _tiling = convertTiling(_imageInfo.tiling.value());
-        if (_tiling == vk::ImageTiling::eLinear &&
-            ((featProps.linearTilingFeatures & requiredFormatFlags) != requiredFormatFlags)) {
-            throw std::runtime_error("Tiling type: LINEAR is not supported for this format type");
-        }
+        const auto supportedFeatures =
+            _tiling == vk::ImageTiling::eLinear ? featProps.linearTilingFeatures : featProps.optimalTilingFeatures;
+        const auto *operation = generateMipmaps ? "initialize with mip generation" : "create image";
+        requireFormatFeatures(supportedFeatures, requiredFormatFlags, _imageInfo.debugName, _dataType, _tiling,
+                              operation);
         if (_tiling == vk::ImageTiling::eOptimal) {
-            if ((featProps.optimalTilingFeatures & requiredFormatFlags) != requiredFormatFlags) {
-                throw std::runtime_error("Tiling type: OPTIMAL is not supported for this formatType");
-            }
             if (_memoryManager->isShared()) {
                 mlsdk::logging::info("Allowing OPTIMAL tiling with aliasing for image");
             }
         }
-    } else if ((featProps.linearTilingFeatures & requiredFormatFlags) == requiredFormatFlags &&
-               _imageInfo.mips <= getFormatMaxMipLevels(ctx, vk::ImageTiling::eLinear, usageFlags)) {
-        _tiling = vk::ImageTiling::eLinear;
-    } else if ((featProps.optimalTilingFeatures & requiredFormatFlags) == requiredFormatFlags) {
-        _tiling = vk::ImageTiling::eOptimal;
     } else {
-        throw std::runtime_error("No supported tiling for this data type");
+        // Preserve support for later partial uploads whenever a suitable tiling exists.
+        const auto preferredFormatFlags =
+            _imageInfo.mips > 1 ? requiredFormatFlags | mipGenerationFeatures : requiredFormatFlags;
+        auto selectedTiling =
+            selectTiling(ctx, _dataType, featProps, preferredFormatFlags, _imageInfo.mips, usageFlags);
+        if (!selectedTiling) {
+            selectedTiling = selectTiling(ctx, _dataType, featProps, requiredFormatFlags, _imageInfo.mips, usageFlags);
+        }
+        if (!selectedTiling) {
+            throw std::runtime_error(
+                "No supported tiling for image '" + _imageInfo.debugName + "' (" + vk::to_string(_dataType) +
+                "): requested " + std::to_string(_imageInfo.mips) + " mip levels; maximum supported for Linear " +
+                std::to_string(getFormatMaxMipLevels(ctx, _dataType, vk::ImageTiling::eLinear, usageFlags)) +
+                ", Optimal " +
+                std::to_string(getFormatMaxMipLevels(ctx, _dataType, vk::ImageTiling::eOptimal, usageFlags)) +
+                "; missing format features for Linear " +
+                vk::to_string(requiredFormatFlags & ~featProps.linearTilingFeatures) + ", Optimal " +
+                vk::to_string(requiredFormatFlags & ~featProps.optimalTilingFeatures));
+        }
+        _tiling = *selectedTiling;
     }
 
-    if (_imageInfo.mips > getFormatMaxMipLevels(ctx, _tiling, usageFlags)) {
+    if (_imageInfo.mips > getFormatMaxMipLevels(ctx, _dataType, _tiling, usageFlags)) {
         throw std::runtime_error("The mip level provided is not supported for " + _imageInfo.debugName);
     }
 
@@ -241,19 +293,6 @@ void Image::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> mem
     _memoryManager->updateImageType(vk::ImageType::e2D);
 }
 
-uint32_t Image::getFormatMaxMipLevels(const Context &ctx, vk::ImageTiling tiling, vk::ImageUsageFlags usageFlags) {
-    try {
-        vk::ImageFormatProperties formatProps;
-        formatProps =
-            ctx.physicalDevice().getImageFormatProperties(_dataType, vk::ImageType::e2D, tiling, usageFlags, {});
-
-        return formatProps.maxMipLevels;
-    } catch (const vk::FormatNotSupportedError &) {
-        // Format is not supported, return 0 to disallow image creation
-        return 0;
-    }
-}
-
 vk::Image Image::image() const { return *_image; }
 
 vk::ImageView Image::imageView() const { return *_imageView; }
@@ -274,6 +313,8 @@ vk::ImageView Image::imageView(uint32_t lod) const {
 }
 
 vk::Sampler Image::sampler() const { return *_sampler; }
+
+uint64_t Image::dataSize() const { return mipChainDataSize(_imageInfo.mips); }
 
 uint64_t Image::baseDataSize() const {
     uint64_t size = elementSizeFromVkFormat(_dataType) * totalElementsFromShape(_imageInfo.shape);
@@ -402,6 +443,15 @@ void Image::allocateMemory(const Context &ctx) {
 void Image::resetLayout() { _targetLayout = vk::ImageLayout::eUndefined; }
 
 void Image::uploadData(const Context &ctx, const void *data, size_t size, uint32_t mipLevels) {
+    // Complete mip chains only need buffer copies; partial chains use linear-filtered blits.
+    // Check before staging writes or recording commands, including uploads after setup.
+    if (mipLevels < _imageInfo.mips) {
+        const auto properties = ctx.physicalDevice().getFormatProperties(_dataType);
+        const auto supported =
+            _tiling == vk::ImageTiling::eLinear ? properties.linearTilingFeatures : properties.optimalTilingFeatures;
+        requireFormatFeatures(supported, mipGenerationFeatures, _imageInfo.debugName, _dataType, _tiling,
+                              "generate missing mip levels");
+    }
     const auto elementSize = elementSizeFromVkFormat(_dataType);
     const auto baseWidth = static_cast<uint32_t>(_imageInfo.shape[1]);
     const auto baseHeight = static_cast<uint32_t>(_imageInfo.shape[2]);

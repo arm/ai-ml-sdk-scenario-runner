@@ -564,10 +564,10 @@ void ScenarioImpl::initializeResourceData() {
                     upload(resource.id, {data.data.data(), data.data.size(), data.shape, data.format, data.mipLevels});
                 } else if (!_groupManager.isAliased(resource.id)) {
                     const auto &image = _dataManager.getImage(resource.id);
-                    const auto dataSize = static_cast<size_t>(elementSizeFromVkFormat(image.dataType()) *
-                                                              totalElementsFromShape(image.shape()));
+                    const auto mipLevels = image.getInfo().mips;
+                    const auto dataSize = static_cast<size_t>(image.dataSize());
                     const std::vector<char> data(dataSize, 0);
-                    upload(resource.id, {data.data(), data.size(), image.shape(), image.dataType(), /*mipLevels=*/1});
+                    upload(resource.id, {data.data(), data.size(), image.shape(), image.dataType(), mipLevels});
                 } else {
                     _dataManager.getImageMut(resource.id).transitionLayout(_ctx, vk::ImageLayout::eGeneral);
                 }
@@ -633,7 +633,13 @@ void ScenarioImpl::setupResources() {
     }
     for (const auto &entry : _resources.images()) {
         const auto id = entry.id;
-        _dataManager.getImageMut(id).setup(_ctx, _groupManager.getMemoryManager(id));
+        // Require blit capabilities for initial uploads with missing mips; otherwise prefer them for later uploads.
+        const auto generatesMips = std::any_of(_initializations.begin(), _initializations.end(), [&](const auto &init) {
+            const auto *imageInit = std::get_if<detail::ImageInitialization>(&init);
+            return imageInit && imageInit->id == id && imageInit->data.has_value() &&
+                   imageInit->data->mipLevels < entry.info.mips;
+        });
+        _dataManager.getImageMut(id).setup(_ctx, _groupManager.getMemoryManager(id), generatesMips);
     }
 
     // Setup tensors, aliasing tensors are dependent on other resources having been constructed

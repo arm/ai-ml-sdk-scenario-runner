@@ -27,8 +27,10 @@ class Image {
     /// \brief Setup instance, assumes all aliasing objects have been constructed
     /// \param ctx           Contextual information about the Vulkan instance
     /// \param memoryManager Memory manager for this resource
+    /// \param generateMipmaps Whether known initialization data requires mip generation
     void setup(const Context &ctx,
-               std::shared_ptr<ResourceMemoryManager> memoryManager = std::make_shared<ResourceMemoryManager>());
+               std::shared_ptr<ResourceMemoryManager> memoryManager = std::make_shared<ResourceMemoryManager>(),
+               bool generateMipmaps = false);
 
     /// \brief Image accessor
     /// \return The underlying Vulkan® image
@@ -59,6 +61,8 @@ class Image {
     /// \brief Upload packed image data (host -> device)
     /// Validates byte size, shape, mip count, and (when provided) format. Any configured
     /// mip levels not supplied by the payload are generated from the supplied levels.
+    /// Partial uploads require linear-filtered blit support for the image's format and tiling;
+    /// otherwise they throw std::runtime_error before modifying the image.
     void upload(const Context &ctx, const ImageDataView &data);
 
     /// \brief Download packed base-mip image data (device -> host)
@@ -75,12 +79,14 @@ class Image {
     const std::string &debugName() const;
     const ImageInfo &getInfo() const { return _imageInfo; }
 
+    /// Packed byte size of all configured mip levels.
+    uint64_t dataSize() const;
+
   private:
     uint64_t baseDataSize() const;
     uint64_t mipChainDataSize(uint32_t mipLevels) const;
     void uploadData(const Context &ctx, const void *data, size_t size, uint32_t mipLevels);
     std::vector<std::byte> getImageData(const Context &ctx);
-    uint32_t getFormatMaxMipLevels(const Context &ctx, vk::ImageTiling tiling, vk::ImageUsageFlags usageFlags);
 
     vk::raii::Image _image{nullptr};
     vk::raii::ImageView _imageView{nullptr};
