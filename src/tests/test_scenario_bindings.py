@@ -33,7 +33,13 @@ def test_data_graph_binary_dispatch_uses_raw_data(sr):
     binary_id = builder.add_raw_data(info)
 
     assert isinstance(binary_id, sr.RawDataId)
-    builder.add_dispatch_data_graph_binary(sr.DispatchDataGraphBinaryData(binary_id))
+    dispatch = sr.DispatchDataGraphBinaryData(binary_id)
+    dispatch.binary_data.pipeline_identifier = [17, 34]
+    dispatch.binary_data.use_application_storage = True
+    assert dispatch.binary_data.binary.value == binary_id.value
+    assert dispatch.binary_data.pipeline_identifier == [17, 34]
+    assert dispatch.binary_data.use_application_storage
+    builder.add_dispatch_data_graph_binary(dispatch)
 
 
 def test_numpy_image_upload_supports_single_mip(sr):

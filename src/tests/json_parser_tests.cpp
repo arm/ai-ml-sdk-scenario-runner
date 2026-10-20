@@ -1149,8 +1149,8 @@ TEST(JsonParser, DispatchDataGraphBinary) {
     const auto &command = scenarioSpec.commands.at(0);
     ASSERT_EQ(command->commandType, CommandType::DispatchDataGraphBinary);
     const auto &desc = static_cast<const DispatchDataGraphBinaryDesc &>(*command);
-    ASSERT_EQ(desc.binaryRef, Guid("binary1"));
-    ASSERT_FALSE(desc.useApplicationStorage);
+    ASSERT_EQ(desc.binaryData.binaryRef, Guid("binary1"));
+    ASSERT_FALSE(desc.binaryData.useApplicationStorage);
     ASSERT_EQ(scenarioSpec.resources.at(0)->resourceType, ResourceType::RawData);
     ASSERT_EQ(std::filesystem::path(scenarioSpec.resources.at(0)->getSource().value()).filename(), "model.dgb");
 }
@@ -1240,9 +1240,14 @@ TEST(JsonParser, DispatchDataGraphBinaryOptions) {
                               "use_application_storage": true})"_json;
     const auto desc = MakeFromJSON<DispatchDataGraphBinaryDesc>(jsonInput);
 
-    EXPECT_EQ(desc.binaryRef, Guid("binary1"));
-    EXPECT_EQ(desc.pipelineIdentifier, (std::vector<uint8_t>{0, 255}));
-    EXPECT_TRUE(desc.useApplicationStorage);
+    EXPECT_EQ(desc.binaryData.binaryRef, Guid("binary1"));
+    EXPECT_EQ(desc.binaryData.pipelineIdentifier, (std::vector<uint8_t>{0, 255}));
+    EXPECT_TRUE(desc.binaryData.useApplicationStorage);
+}
+
+TEST(JsonParser, DispatchDataGraphBinaryRejectsEmptyReference) {
+    const auto jsonInput = R"({"bindings": [], "binary_ref": ""})"_json;
+    EXPECT_THROW(MakeFromJSON<DispatchDataGraphBinaryDesc>(jsonInput), std::runtime_error);
 }
 
 TEST(JsonParser, DispatchDataGraphBinaryRejectsInvalidIdentifierByte) {

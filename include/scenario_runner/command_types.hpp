@@ -112,6 +112,18 @@ struct ResolvedShaderSubstitution {
     std::string target;
 };
 
+/// \brief External binary source and pipeline selection for a data-graph executable
+struct ExternalDataGraphBinary {
+    explicit ExternalDataGraphBinary(RawDataId binaryIn) : binary(binaryIn) {}
+
+    /// @brief Raw data containing the selected pipeline.
+    RawDataId binary;
+    /// @brief Optional opaque selector supplied by the binary producer.
+    std::optional<std::vector<uint8_t>> pipelineIdentifier;
+    /// @brief Let Vulkan use mapped binary bytes until the pipeline is destroyed.
+    bool useApplicationStorage{false};
+};
+
 /// \brief Command that dispatches a VGF
 struct DispatchVgfData {
     /// @brief Construct a command for a VGF.
@@ -136,18 +148,14 @@ struct DispatchVgfData {
 struct DispatchDataGraphBinaryData {
     /// @brief Construct a command for a registered data graph binary.
     /// @param binary Registered raw data containing the binary to dispatch.
-    explicit DispatchDataGraphBinaryData(RawDataId binary) : binary(binary) {}
+    explicit DispatchDataGraphBinaryData(RawDataId binary) : binaryData(binary) {}
 
-    /// @brief Raw data containing the precompiled binary to dispatch.
-    RawDataId binary;
+    /// @brief Binary input for this standalone graph.
+    ExternalDataGraphBinary binaryData;
     /// @brief Human-readable name used in diagnostics.
     std::string debugName;
     /// @brief External resources bound to graph interfaces.
     std::vector<TypedBinding> bindings;
-    /// @brief Optional opaque selector for a pipeline in the binary.
-    std::optional<std::vector<uint8_t>> pipelineIdentifier;
-    /// @brief Let Vulkan use mapped binary bytes until the pipeline is destroyed.
-    bool useApplicationStorage{false};
     /// @brief Insert implicit synchronization around the dispatch.
     bool implicitBarrier{true};
 };

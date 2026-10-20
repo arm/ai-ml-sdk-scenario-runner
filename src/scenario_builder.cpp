@@ -5,7 +5,6 @@
 
 #include "scenario_builder_impl.hpp"
 
-#include <limits>
 #include <stdexcept>
 #include <utility>
 
@@ -192,14 +191,9 @@ void ScenarioBuilderImpl::addDispatchVgf(DispatchVgfData command) {
 
 void ScenarioBuilderImpl::addDispatchDataGraphBinary(DispatchDataGraphBinaryData command) {
     ensureMutable();
-    requireResource(_data.resources, command.binary, "Raw data");
+    requireResource(_data.resources, command.binaryData.binary, "Raw data");
     for (const auto &binding : command.bindings) {
         validateBinding(binding);
-    }
-    if (command.pipelineIdentifier.has_value() &&
-        (command.pipelineIdentifier->empty() ||
-         command.pipelineIdentifier->size() > std::numeric_limits<uint32_t>::max())) {
-        throw std::runtime_error("Data graph binary pipeline identifier size is invalid");
     }
     _data.commands.emplace_back(std::move(command));
 }
