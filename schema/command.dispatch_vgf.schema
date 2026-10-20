@@ -10,6 +10,12 @@
         "graph_ref": {
             "type": "string"
         },
+        "data_graph_binaries": {
+            "type": "array",
+            "items": {
+                "$ref": "urn:scenario:vgf_data_graph_binary"
+            }
+        },
         "push_constants": {
             "type": "array",
             "items": {

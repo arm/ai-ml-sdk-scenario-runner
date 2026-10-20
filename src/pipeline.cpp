@@ -7,6 +7,8 @@
 #include "logging.hpp"
 #include "utils.hpp"
 
+#include "scenario_runner/command_types.hpp"
+
 #include "spirv-tools/libspirv.hpp"
 #include "vulkan_debug_utils.hpp"
 
@@ -415,10 +417,11 @@ Pipeline::Pipeline(const CommonArguments &args, const uint32_t segmentIndex, con
                                enableNeuralStatistics, neuralStatisticsMode);
 }
 
-Pipeline::Pipeline(const CommonArguments &args, const MemoryMap &binary,
-                   const std::optional<std::vector<uint8_t>> &identifier, bool useApplicationStorage,
-                   bool enableNeuralStatistics, vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode)
+Pipeline::Pipeline(const CommonArguments &args, const ExternalDataGraphBinary &binaryData,
+                   const DataManager &dataManager, bool enableNeuralStatistics,
+                   vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode)
     : _type{PipelineType::GraphCompute}, _debugName(args.debugName) {
+    const auto &binary = dataManager.getRawData(binaryData.binary).mapping();
     constexpr size_t headerSize = 16;
     if (binary.size() < headerSize) {
         throw std::runtime_error("Data graph binary header is truncated");
@@ -444,8 +447,8 @@ Pipeline::Pipeline(const CommonArguments &args, const MemoryMap &binary,
 
     createDescriptorSetLayouts(args.ctx, args.bindings);
     _pipelineLayout = createPipelineLayout(args.ctx, _descriptorSetLayouts);
-    buildDataGraphBinaryPipeline(args.ctx, binary, identifier, useApplicationStorage, enableNeuralStatistics,
-                                 neuralStatisticsMode);
+    buildDataGraphBinaryPipeline(args.ctx, binary, binaryData.pipelineIdentifier, binaryData.useApplicationStorage,
+                                 enableNeuralStatistics, neuralStatisticsMode);
 }
 
 Pipeline::Pipeline(const CommonArguments &args, const DataManager &dataManager, const TypedBinding &inputSearch,

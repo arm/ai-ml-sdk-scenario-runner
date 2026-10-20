@@ -1148,6 +1148,15 @@
       Writable.
 
 
+   .. py:property:: DispatchVgfData.data_graph_binaries
+      :module: scenario_runner_py
+
+      :type: dict[int, ExternalDataGraphBinary]
+
+
+      Writable.
+
+
    .. py:property:: DispatchVgfData.debug_name
       :module: scenario_runner_py
 

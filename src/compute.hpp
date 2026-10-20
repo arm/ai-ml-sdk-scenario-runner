@@ -75,10 +75,10 @@ class Compute {
                         const DataManager &dataManager, bool enableNeuralStatistics,
                         vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
 
-    /// \brief Create a data graph pipeline from a binary and optional opaque identifier.
-    void createPipeline(const PipelineCreateArguments &args, const MemoryMap &binary,
-                        const std::optional<std::vector<uint8_t>> &identifier, bool useApplicationStorage,
-                        bool enableNeuralStatistics, vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
+    /// \brief Create a data graph pipeline from a selected external binary.
+    void createPipeline(const PipelineCreateArguments &args, const ExternalDataGraphBinary &binary,
+                        const DataManager &dataManager, bool enableNeuralStatistics,
+                        vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
 
     /// \brief Create a graphics pipeline
     void createPipeline(const PipelineCreateArguments &args, const ShaderInfo &vertexShaderInfo,

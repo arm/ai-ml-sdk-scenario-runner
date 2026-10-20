@@ -11,6 +11,7 @@
 
 #include <array>
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <vector>
 
@@ -141,6 +142,7 @@ struct DispatchVgfDesc : CommandDesc {
     std::vector<BindingDesc> bindings;
     std::vector<PushConstantMap> pushConstants;
     std::vector<ShaderSubstitution> shaderSubstitutions;
+    std::map<uint32_t, ExternalDataGraphBinaryDesc> dataGraphBinaries;
     bool implicitBarrier{true};
 };
 

@@ -223,12 +223,11 @@ void Compute::createPipeline(const PipelineCreateArguments &args, uint32_t segme
                                   neuralStatisticsMode);
 }
 
-void Compute::createPipeline(const PipelineCreateArguments &args, const MemoryMap &binary,
-                             const std::optional<std::vector<uint8_t>> &identifier, bool useApplicationStorage,
-                             bool enableNeuralStatistics, vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
+void Compute::createPipeline(const PipelineCreateArguments &args, const ExternalDataGraphBinary &binary,
+                             const DataManager &dataManager, bool enableNeuralStatistics,
+                             vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
     const Pipeline::CommonArguments commonArgs{_ctx, args.debugName, args.bindings, args.pipelineCache};
-    (void)_pipelines.emplace_back(commonArgs, binary, identifier, useApplicationStorage, enableNeuralStatistics,
-                                  neuralStatisticsMode);
+    (void)_pipelines.emplace_back(commonArgs, binary, dataManager, enableNeuralStatistics, neuralStatisticsMode);
 }
 
 void Compute::createPipeline(const PipelineCreateArguments &args, const ShaderInfo &shaderInfo,

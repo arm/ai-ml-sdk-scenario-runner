@@ -430,6 +430,24 @@ void from_json(const json &j, DispatchVgfDesc &dispatchVgf) {
 
     parseOptionalField(j, "push_constants", dispatchVgf.pushConstants);
     parseOptionalField(j, "shader_substitutions", dispatchVgf.shaderSubstitutions);
+    if (const auto binarySegmentsJson = j.find("data_graph_binaries"sv); binarySegmentsJson != j.end()) {
+        if (!binarySegmentsJson->is_array()) {
+            throw std::runtime_error("dispatch_vgf data_graph_binaries must be an array");
+        }
+        std::map<uint32_t, ExternalDataGraphBinaryDesc> dataGraphBinaries;
+        for (const auto &segment : *binarySegmentsJson) {
+            const auto &segmentId = segment.at("segment_id"sv);
+            if (!segmentId.is_number_unsigned() || segmentId.get<uint64_t>() > std::numeric_limits<uint32_t>::max()) {
+                throw std::runtime_error("VGF data graph binary segment_id is invalid");
+            }
+            const auto segmentIndex = segmentId.get<uint32_t>();
+            if (!dataGraphBinaries.emplace(segmentIndex, segment.get<ExternalDataGraphBinaryDesc>()).second) {
+                throw std::runtime_error("VGF data graph binary segment_id is duplicated: " +
+                                         std::to_string(segmentIndex));
+            }
+        }
+        dispatchVgf.dataGraphBinaries = std::move(dataGraphBinaries);
+    }
     parseOptionalField(j, "implicit_barrier", dispatchVgf.implicitBarrier);
 }
 
