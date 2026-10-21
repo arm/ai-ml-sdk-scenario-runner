@@ -1,0 +1,57 @@
+{
+    "commands": [
+        {
+            "dispatch_vgf": {
+                "graph_ref": "graph",
+                "bindings": [
+                    {
+                        "id": 0,
+                        "set": 0,
+                        "resource_ref": "blockScaledInput"
+                    },
+                    {
+                        "id": 1,
+                        "set": 0,
+                        "resource_ref": "blockScaledOutput"
+                    }
+                ]
+            }
+        }
+    ],
+    "resources": [
+        {
+            "graph": {
+                "uid": "graph",
+                "src": "graph.vgf"
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "readonly",
+                "dims": [2, 32],
+                "src": "blockScaledInput.npy",
+                "format": "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM",
+                "uid": "blockScaledInput",
+                "block_scaling": {
+                    "block_shape": [16],
+                    "format": "E8M0",
+                    "src": "blockScaledInputScale.npy"
+                }
+            }
+        },
+        {
+            "tensor": {
+                "shader_access": "writeonly",
+                "dims": [2, 32],
+                "dst": "blockScaledOutput.npy",
+                "format": "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM",
+                "uid": "blockScaledOutput",
+                "block_scaling": {
+                    "block_shape": [32],
+                    "format": "E8M0",
+                    "dst": "blockScaledOutputScale.npy"
+                }
+            }
+        }
+    ]
+}

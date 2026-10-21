@@ -1,0 +1,18 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "tensor": {
+                "uid": "block_scaled_tensor",
+                "dims": [2, 32],
+                "format": "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM",
+                "shader_access": "writeonly",
+                "dst": "values.npy",
+                "block_scaling": {
+                    "block_shape": [32],
+                    "format": "E8M0"
+                }
+            }
+        }
+    ]
+}

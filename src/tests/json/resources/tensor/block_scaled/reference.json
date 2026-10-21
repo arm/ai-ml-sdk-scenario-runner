@@ -1,0 +1,45 @@
+{
+    "commands": [],
+    "resources": [
+        {
+            "tensor": {
+                "uid": "block_scaled_input",
+                "dims": [2, 32],
+                "format": "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM",
+                "shader_access": "readonly",
+                "src": "TEMPLATE_PATH_INPUT_VALUES",
+                "block_scaling": {
+                    "block_shape": [32],
+                    "format": "E8M0",
+                    "src": "TEMPLATE_PATH_INPUT_SCALES"
+                }
+            }
+        },
+        {
+            "tensor": {
+                "uid": "block_scaled_output",
+                "dims": [2, 32],
+                "format": "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM",
+                "shader_access": "writeonly",
+                "dst": "output_values.npy",
+                "block_scaling": {
+                    "block_shape": [32],
+                    "format": "E8M0",
+                    "dst": "output_scales.npy"
+                }
+            }
+        },
+        {
+            "tensor": {
+                "uid": "block_scaled_intermediate",
+                "dims": [2, 32],
+                "format": "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM",
+                "shader_access": "readwrite",
+                "block_scaling": {
+                    "block_shape": [32],
+                    "format": "E8M0"
+                }
+            }
+        }
+    ]
+}

@@ -743,6 +743,10 @@ void from_json(const json &j, GraphConstantDesc &graphConstant) {
  */
 void from_json(const json &j, TensorDesc &tensor) {
     parseResourceDescGuid(j, tensor);
+    if (j.contains("block_scaling"sv)) {
+        throw std::runtime_error("Tensor block_scaling is not supported: " + tensor.guidStr);
+    }
+
     tensor.dims = parseOptionalTensorDims(j);
     tensor.format = j.at("format"sv).get<std::string>();
     tensor.shaderAccess = j.at("shader_access"sv).get<ShaderAccessType>();

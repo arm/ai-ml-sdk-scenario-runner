@@ -6,6 +6,9 @@
 
 ### Features
 
+- Added schema validation for block-scaled tensor resources with separate value
+  and scale NumPy files. Scenario Runner reports an explicit error until scale
+  loading and execution support lands.
 - Added `VK_KHR_portability_enumeration` to the extensions accepted by
   `--disable-extension`.
 - Added experimental standalone data-graph-binary dispatch from a file-backed

@@ -109,6 +109,7 @@ shader_path = resources_path / "shader"
 graph_path = resources_path / "graph"
 buffer_path = resources_path / "buffer"
 tensor_path = resources_path / "tensor"
+block_scaled_path = tensor_path / "block_scaled"
 image_path = resources_path / "image"
 memory_group_path = resources_path / "memory_group"
 raw_data_path = resources_path / "raw_data"
@@ -260,6 +261,8 @@ graph_constant_path = resources_path / "graph_constant"
         (UnexpectedProperty("this_is_an_invalid_property"), raw_data_path/"invalid_property.json"),
         # tensor
         (Ok(), tensor_path/"reference.json"),
+        (Ok(), block_scaled_path/"reference.json"),
+        (Ok(), block_scaled_path/"multidimensional_shape.json"),
         (Ok(), tensor_path/"minimal.json"),
         (Ok(), tensor_path/"unresolved_dims.json"),
         (RequiredProperty("uid"), tensor_path/"missing_uid.json"),
@@ -271,6 +274,19 @@ graph_constant_path = resources_path / "graph_constant"
         (RequiredMin(1), tensor_path/"invalid_dim_value.json"),
         (InvalidConstValue("?"), tensor_path/"invalid_mixed_dims.json"),
         (InvalidMutuallyExclusive(), tensor_path/"mutually_exclusive_src_dst.json"),
+        (InvalidAnyOf(), block_scaled_path/"missing_scale_source.json"),
+        (InvalidAnyOf(), block_scaled_path/"missing_scale_destination.json"),
+        (InvalidAnyOf(), block_scaled_path/"orphan_scale_source.json"),
+        (InvalidAnyOf(), block_scaled_path/"mismatched_scale_direction.json"),
+        (InvalidMutuallyExclusive(), block_scaled_path/"mutually_exclusive_scale_paths.json"),
+        (ShouldBeNonEmpty(), block_scaled_path/"empty_scale_source.json"),
+        (RequiredProperty("block_shape"), block_scaled_path/"missing_block_shape.json"),
+        (RequiredProperty("format"), block_scaled_path/"missing_scale_format.json"),
+        (RequiredMin(1), block_scaled_path/"invalid_block_shape.json"),
+        (TooLong(), block_scaled_path/"invalid_block_shape_length.json"),
+        (RequiredMax(4294967295), block_scaled_path/"block_shape_too_large.json"),
+        (InvalidEnum(), block_scaled_path/"invalid_scale_format.json"),
+        (UnexpectedProperty("unknown"), block_scaled_path/"unexpected_property.json"),
         # image
         (Ok(), image_path/"reference.json"),
         (Ok(), image_path/"minimal.json"),
