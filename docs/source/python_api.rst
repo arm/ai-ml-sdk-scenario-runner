@@ -216,7 +216,11 @@ Python bindings and commands
 
 .. autoclass:: scenario_runner_py.ShaderSubstitution
 
+.. autoclass:: scenario_runner_py.ExternalDataGraphBinary
+
 .. autoclass:: scenario_runner_py.DispatchVgfData
+
+.. autoclass:: scenario_runner_py.DispatchDataGraphBinaryData
 
 .. autoclass:: scenario_runner_py.DispatchDataGraphData
 

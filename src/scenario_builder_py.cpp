@@ -482,6 +482,11 @@ void bindCommands(py::module_ &m) {
         .def(py::init<ShaderId, std::string>(), py::arg("shader"), py::arg("target"))
         .def_readwrite("shader", &ResolvedShaderSubstitution::shader)
         .def_readwrite("target", &ResolvedShaderSubstitution::target);
+    py::class_<ExternalDataGraphBinary>(m, "ExternalDataGraphBinary")
+        .def(py::init<RawDataId>(), py::arg("binary"))
+        .def_readwrite("binary", &ExternalDataGraphBinary::binary)
+        .def_readwrite("pipeline_identifier", &ExternalDataGraphBinary::pipelineIdentifier)
+        .def_readwrite("use_application_storage", &ExternalDataGraphBinary::useApplicationStorage);
     py::class_<DispatchVgfData>(m, "DispatchVgfData")
         .def(py::init<VgfId>(), py::arg("vgf"))
         .def_readwrite("vgf", &DispatchVgfData::vgf)
@@ -493,17 +498,13 @@ void bindCommands(py::module_ &m) {
     auto dispatchDataGraphBinaryData = py::class_<DispatchDataGraphBinaryData>(
         m, "DispatchDataGraphBinaryData", "Describe a standalone precompiled graph dispatch.");
     dispatchDataGraphBinaryData.def(py::init<RawDataId>(), py::arg("binary"))
-        .def_readwrite("binary", &DispatchDataGraphBinaryData::binary)
+        .def_readwrite("binary_data", &DispatchDataGraphBinaryData::binaryData)
         .def_readwrite("debug_name", &DispatchDataGraphBinaryData::debugName)
         .def_readwrite("bindings", &DispatchDataGraphBinaryData::bindings)
-        .def_readwrite("pipeline_identifier", &DispatchDataGraphBinaryData::pipelineIdentifier)
-        .def_readwrite("use_application_storage", &DispatchDataGraphBinaryData::useApplicationStorage)
         .def_readwrite("implicit_barrier", &DispatchDataGraphBinaryData::implicitBarrier);
-    setAttributeAnnotations(dispatchDataGraphBinaryData, {{"binary", "RawDataId"},
+    setAttributeAnnotations(dispatchDataGraphBinaryData, {{"binary_data", "ExternalDataGraphBinary"},
                                                           {"debug_name", "str"},
                                                           {"bindings", "list[TypedBinding]"},
-                                                          {"pipeline_identifier", "list[int] | None"},
-                                                          {"use_application_storage", "bool"},
                                                           {"implicit_barrier", "bool"}});
 
     auto dispatchDataGraphData =
@@ -579,6 +580,9 @@ void bindCommands(py::module_ &m) {
                                                              {"push_data", "RawDataId | None"}});
     setAttributeAnnotations(m.attr("PushConstantMap"), {{"push_data", "RawDataId"}, {"shader_target", "str"}});
     setAttributeAnnotations(m.attr("ShaderSubstitution"), {{"shader", "ShaderId"}, {"target", "str"}});
+    setAttributeAnnotations(
+        m.attr("ExternalDataGraphBinary"),
+        {{"binary", "RawDataId"}, {"pipeline_identifier", "list[int] | None"}, {"use_application_storage", "bool"}});
     setAttributeAnnotations(m.attr("DispatchVgfData"), {{"vgf", "VgfId"},
                                                         {"debug_name", "str"},
                                                         {"bindings", "list[TypedBinding]"},

@@ -37,6 +37,11 @@ void from_json(const json &j, DispatchDataGraphDesc &dispatchDataGraph);
 // Function to de-serialize DispatchOpticalFlowDesc from JSON
 void from_json(const json &j, DispatchOpticalFlowDesc &dispatchOpticalFlow);
 
+//==============
+// Command details
+// Function to de-serialize an ExternalDataGraphBinaryDesc from JSON
+void from_json(const json &j, ExternalDataGraphBinaryDesc &binaryData);
+
 // Function to de-serialize a BindingDesc from JSON
 void from_json(const json &j, BindingDesc &binding);
 

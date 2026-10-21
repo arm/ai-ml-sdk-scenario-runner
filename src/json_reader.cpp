@@ -441,12 +441,8 @@ void from_json(const json &j, DispatchVgfDesc &dispatchVgf) {
  */
 void from_json(const json &j, DispatchDataGraphBinaryDesc &dispatchDataGraphBinary) {
     dispatchDataGraphBinary.debugName = j.at("binary_ref"sv).get<std::string>();
-    dispatchDataGraphBinary.binaryRef = dispatchDataGraphBinary.debugName;
+    dispatchDataGraphBinary.binaryData = j.get<ExternalDataGraphBinaryDesc>();
     dispatchDataGraphBinary.bindings = j.at("bindings"sv).get<std::vector<BindingDesc>>();
-    if (const auto it = j.find("pipeline_identifier"sv); it != j.end()) {
-        dispatchDataGraphBinary.pipelineIdentifier = parsePipelineIdentifier(*it);
-    }
-    parseOptionalField(j, "use_application_storage", dispatchDataGraphBinary.useApplicationStorage);
     parseOptionalField(j, "implicit_barrier", dispatchDataGraphBinary.implicitBarrier);
 }
 
@@ -547,6 +543,18 @@ void from_json(const json &j, FrameBoundaryDesc &frameBoundaryDesc) {
         mlsdk::logging::warning("Manual setting of frameID is deprecated");
     }
     frameBoundaryDesc.resources = j.at("resources"sv).get<std::vector<std::string>>();
+}
+
+void from_json(const json &j, ExternalDataGraphBinaryDesc &binaryData) {
+    const auto binaryRef = j.at("binary_ref"sv).get<std::string>();
+    if (binaryRef.empty()) {
+        throw std::runtime_error("Data graph binary_ref must not be empty");
+    }
+    binaryData.binaryRef = binaryRef;
+    if (const auto it = j.find("pipeline_identifier"sv); it != j.end()) {
+        binaryData.pipelineIdentifier = parsePipelineIdentifier(*it);
+    }
+    parseOptionalField(j, "use_application_storage", binaryData.useApplicationStorage);
 }
 
 /**

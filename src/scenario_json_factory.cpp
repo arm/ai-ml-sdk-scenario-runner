@@ -601,6 +601,13 @@ struct CommandDataFactory {
         return data;
     }
 
+    ExternalDataGraphBinary createData(const ExternalDataGraphBinaryDesc &binaryInput) {
+        ExternalDataGraphBinary data{resolveResourceId<RawDataId>(_resourceIds, binaryInput.binaryRef, "Raw data")};
+        data.pipelineIdentifier = binaryInput.pipelineIdentifier;
+        data.useApplicationStorage = binaryInput.useApplicationStorage;
+        return data;
+    }
+
     DispatchVgfData createData(const DispatchVgfDesc &dispatchVgf) {
         DispatchVgfData data{getVgfId(dispatchVgf.vgfRef)};
         data.debugName = dispatchVgf.debugName;
@@ -620,12 +627,11 @@ struct CommandDataFactory {
     }
 
     DispatchDataGraphBinaryData createData(const DispatchDataGraphBinaryDesc &dispatchDataGraphBinary) {
-        DispatchDataGraphBinaryData data{
-            resolveResourceId<RawDataId>(_resourceIds, dispatchDataGraphBinary.binaryRef, "Raw data")};
+        auto externalBinary = createData(dispatchDataGraphBinary.binaryData);
+        DispatchDataGraphBinaryData data{externalBinary.binary};
+        data.binaryData = std::move(externalBinary);
         data.debugName = dispatchDataGraphBinary.debugName;
         data.bindings = convertBindings(_resources, _resourceIds, dispatchDataGraphBinary.bindings);
-        data.pipelineIdentifier = dispatchDataGraphBinary.pipelineIdentifier;
-        data.useApplicationStorage = dispatchDataGraphBinary.useApplicationStorage;
         data.implicitBarrier = dispatchDataGraphBinary.implicitBarrier;
         return data;
     }

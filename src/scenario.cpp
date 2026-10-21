@@ -840,13 +840,13 @@ void ScenarioImpl::createDataGraphBinaryPipeline(const DispatchDataGraphBinaryDa
     }
     validateDataGraphBindings(dispatchDataGraphBinary.bindings);
 
-    const auto &binary = _dataManager.getRawData(dispatchDataGraphBinary.binary);
+    const auto &binary = _dataManager.getRawData(dispatchDataGraphBinary.binaryData.binary);
     PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + binary.debugName(), "Pipeline Setup");
     const Compute::PipelineCreateArguments args{dispatchDataGraphBinary.debugName, dispatchDataGraphBinary.bindings,
                                                 nullptr};
-    _compute.createPipeline(args, binary.mapping(), dispatchDataGraphBinary.pipelineIdentifier,
-                            dispatchDataGraphBinary.useApplicationStorage, _opts.shouldDumpNeuralStatistics(),
-                            _opts.neuralStatisticsMode);
+    _compute.createPipeline(args, binary.mapping(), dispatchDataGraphBinary.binaryData.pipelineIdentifier,
+                            dispatchDataGraphBinary.binaryData.useApplicationStorage,
+                            _opts.shouldDumpNeuralStatistics(), _opts.neuralStatisticsMode);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
     _compute.registerPipelineFenced(_dataManager, dispatchDataGraphBinary.bindings, nullptr, 0,
                                     dispatchDataGraphBinary.implicitBarrier);

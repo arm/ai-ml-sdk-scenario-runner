@@ -122,6 +122,12 @@ struct ShaderSubstitution {
     std::string target;
 };
 
+struct ExternalDataGraphBinaryDesc {
+    Guid binaryRef;
+    std::optional<std::vector<uint8_t>> pipelineIdentifier;
+    bool useApplicationStorage{false};
+};
+
 /**
  * @brief The DispatchVgf command dispatches a VGF. DispatchVgfDesc describes a
  * DispatchVgf.
@@ -142,11 +148,9 @@ struct DispatchVgfDesc : CommandDesc {
 struct DispatchDataGraphBinaryDesc : CommandDesc {
     DispatchDataGraphBinaryDesc();
 
-    Guid binaryRef;
+    ExternalDataGraphBinaryDesc binaryData;
     std::string debugName;
     std::vector<BindingDesc> bindings;
-    std::optional<std::vector<uint8_t>> pipelineIdentifier;
-    bool useApplicationStorage{false};
     bool implicitBarrier{true};
 };
 
