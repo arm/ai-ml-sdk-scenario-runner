@@ -13,7 +13,7 @@ The Python API is provided by the ``scenario_runner_py`` extension module. It
 supports both loading existing JSON scenarios and constructing scenarios
 programmatically. Resource uploads and downloads use C-contiguous NumPy arrays.
 
-.. py:currentmodule:: scenario_runner_py
+.. py:module:: scenario_runner_py
 
 Build and import the bindings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -77,20 +77,24 @@ Python entry points
 Scenario creation and execution
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. autofunction:: scenario_runner_py.load_scenario
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [load_scenario]
+   :end-before: .. end-api: [load_scenario]
 
-.. autoclass:: scenario_runner_py.ScenarioJsonFactory
-   :members:
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [ScenarioJsonFactory]
+   :end-before: .. end-api: [ScenarioJsonFactory]
 
-.. autoclass:: scenario_runner_py.Scenario
-   :members:
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [Scenario]
+   :end-before: .. end-api: [Scenario]
 
 Scenario builder
 ~~~~~~~~~~~~~~~~
 
-.. autoclass:: scenario_runner_py.ScenarioBuilder
-   :members:
-   :exclude-members: add_buffer, add_image, add_tensor
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [ScenarioBuilder]
+   :end-before: .. end-api: [ScenarioBuilder]
 
 Resource creation
 ^^^^^^^^^^^^^^^^^
@@ -98,8 +102,9 @@ Resource creation
 The resource methods accept either a resource description object or convenience
 arguments. Both forms return the corresponding typed ID.
 
-.. pybind-overloads:: ScenarioBuilder
-   :methods: add_buffer, add_image, add_tensor
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [resource_creation]
+   :end-before: .. end-api: [resource_creation]
 
 Python resource identifiers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -156,99 +161,202 @@ scenario.
      - A memory barrier
      - :py:meth:`~scenario_runner_py.ScenarioBuilder.add_memory_barrier`
 
-.. automodule:: scenario_runner_py
-   :members: BufferId, ImageId, TensorId, ShaderId, RawDataId, VgfId, GraphConstantResourceId, MemoryGroupId, ImageBarrierId, BufferBarrierId, TensorBarrierId, MemoryBarrierId
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [BufferId]
+   :end-before: .. end-api: [BufferId]
+
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [ImageId]
+   :end-before: .. end-api: [ImageId]
+
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [TensorId]
+   :end-before: .. end-api: [TensorId]
+
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [ShaderId]
+   :end-before: .. end-api: [ShaderId]
+
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [RawDataId]
+   :end-before: .. end-api: [RawDataId]
+
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [VgfId]
+   :end-before: .. end-api: [VgfId]
+
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [GraphConstantResourceId]
+   :end-before: .. end-api: [GraphConstantResourceId]
+
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [MemoryGroupId]
+   :end-before: .. end-api: [MemoryGroupId]
+
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [ImageBarrierId]
+   :end-before: .. end-api: [ImageBarrierId]
+
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [BufferBarrierId]
+   :end-before: .. end-api: [BufferBarrierId]
+
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [TensorBarrierId]
+   :end-before: .. end-api: [TensorBarrierId]
+
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [MemoryBarrierId]
+   :end-before: .. end-api: [MemoryBarrierId]
 
 Resource descriptions
 ~~~~~~~~~~~~~~~~~~~~~
 
 The following classes have default constructors and writable attributes.
-The convenience overloads on :py:class:`ScenarioBuilder` avoid constructing
+The convenience overloads on :py:class:`scenario_runner_py.ScenarioBuilder` avoid constructing
 the buffer, image, and tensor descriptions directly.
 
-.. autoclass:: scenario_runner_py.BufferInfo
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [BufferInfo]
+   :end-before: .. end-api: [BufferInfo]
 
-.. autoclass:: scenario_runner_py.ImageInfo
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [ImageInfo]
+   :end-before: .. end-api: [ImageInfo]
 
-.. autoclass:: scenario_runner_py.TensorInfo
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [TensorInfo]
+   :end-before: .. end-api: [TensorInfo]
 
-.. autoclass:: scenario_runner_py.SamplerSettings
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [SamplerSettings]
+   :end-before: .. end-api: [SamplerSettings]
 
-.. autoclass:: scenario_runner_py.RawDataInfo
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [RawDataInfo]
+   :end-before: .. end-api: [RawDataInfo]
 
-.. autoclass:: scenario_runner_py.ShaderInfo
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [ShaderInfo]
+   :end-before: .. end-api: [ShaderInfo]
 
-.. autoclass:: scenario_runner_py.VgfInfo
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [VgfInfo]
+   :end-before: .. end-api: [VgfInfo]
 
-.. autoclass:: scenario_runner_py.GraphConstantInfo
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [GraphConstantInfo]
+   :end-before: .. end-api: [GraphConstantInfo]
 
-.. autoclass:: scenario_runner_py.SpecializationConstant
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [SpecializationConstant]
+   :end-before: .. end-api: [SpecializationConstant]
 
 Use :py:meth:`~scenario_runner_py.SpecializationConstant.from_int32`,
 :py:meth:`~scenario_runner_py.SpecializationConstant.from_uint32`, or
 :py:meth:`~scenario_runner_py.SpecializationConstant.from_float32` to construct
 a value.
 
-.. automethod:: scenario_runner_py.SpecializationConstant.from_int32
-
-.. automethod:: scenario_runner_py.SpecializationConstant.from_uint32
-
-.. automethod:: scenario_runner_py.SpecializationConstant.from_float32
-
-.. autoclass:: scenario_runner_py.SpecializationConstantMap
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [SpecializationConstantMap]
+   :end-before: .. end-api: [SpecializationConstantMap]
 
 Python bindings and commands
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: scenario_runner_py.TypedBinding
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [TypedBinding]
+   :end-before: .. end-api: [TypedBinding]
 
-.. autoclass:: scenario_runner_py.ComputeDispatch
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [ComputeDispatch]
+   :end-before: .. end-api: [ComputeDispatch]
 
-.. autoclass:: scenario_runner_py.DispatchComputeData
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [DispatchComputeData]
+   :end-before: .. end-api: [DispatchComputeData]
 
-.. autoclass:: scenario_runner_py.FragmentAttachment
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [FragmentAttachment]
+   :end-before: .. end-api: [FragmentAttachment]
 
-.. autoclass:: scenario_runner_py.Extent2D
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [Extent2D]
+   :end-before: .. end-api: [Extent2D]
 
-.. autoclass:: scenario_runner_py.DispatchFragmentData
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [DispatchFragmentData]
+   :end-before: .. end-api: [DispatchFragmentData]
 
-.. autoclass:: scenario_runner_py.PushConstantMap
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [PushConstantMap]
+   :end-before: .. end-api: [PushConstantMap]
 
-.. autoclass:: scenario_runner_py.ShaderSubstitution
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [ShaderSubstitution]
+   :end-before: .. end-api: [ShaderSubstitution]
 
-.. autoclass:: scenario_runner_py.ExternalDataGraphBinary
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [ExternalDataGraphBinary]
+   :end-before: .. end-api: [ExternalDataGraphBinary]
 
-.. autoclass:: scenario_runner_py.DispatchVgfData
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [DispatchVgfData]
+   :end-before: .. end-api: [DispatchVgfData]
 
-.. autoclass:: scenario_runner_py.DispatchDataGraphBinaryData
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [DispatchDataGraphBinaryData]
+   :end-before: .. end-api: [DispatchDataGraphBinaryData]
 
-.. autoclass:: scenario_runner_py.DispatchDataGraphData
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [DispatchDataGraphData]
+   :end-before: .. end-api: [DispatchDataGraphData]
 
-.. autoclass:: scenario_runner_py.DispatchOpticalFlowData
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [DispatchOpticalFlowData]
+   :end-before: .. end-api: [DispatchOpticalFlowData]
 
-.. autoclass:: scenario_runner_py.PipelineBarrierData
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [PipelineBarrierData]
+   :end-before: .. end-api: [PipelineBarrierData]
 
-.. autoclass:: scenario_runner_py.FrameBoundaryData
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [FrameBoundaryData]
+   :end-before: .. end-api: [FrameBoundaryData]
 
 Python barriers
 ~~~~~~~~~~~~~~~
 
-.. autoclass:: scenario_runner_py.BaseBarrierInfo
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [BaseBarrierInfo]
+   :end-before: .. end-api: [BaseBarrierInfo]
 
-.. autoclass:: scenario_runner_py.SubresourceRange
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [SubresourceRange]
+   :end-before: .. end-api: [SubresourceRange]
 
-.. autoclass:: scenario_runner_py.ImageBarrierInfo
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [ImageBarrierInfo]
+   :end-before: .. end-api: [ImageBarrierInfo]
 
-.. autoclass:: scenario_runner_py.BufferBarrierInfo
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [BufferBarrierInfo]
+   :end-before: .. end-api: [BufferBarrierInfo]
 
-.. autoclass:: scenario_runner_py.TensorBarrierInfo
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [TensorBarrierInfo]
+   :end-before: .. end-api: [TensorBarrierInfo]
 
-.. autoclass:: scenario_runner_py.MemoryBarrierInfo
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [MemoryBarrierInfo]
+   :end-before: .. end-api: [MemoryBarrierInfo]
 
 Python runtime options
 ~~~~~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: scenario_runner_py.ScenarioOptions
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [ScenarioOptions]
+   :end-before: .. end-api: [ScenarioOptions]
 
 Supported resource formats
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -263,6 +371,8 @@ Vulkan® device must support each format for its requested resource usage.
 Enumerations
 ~~~~~~~~~~~~
 
-The following table is generated from the exported Python enumerations.
+The following reference is generated from the exported Python enumerations.
 
-.. py-enum-table::
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [enums]
+   :end-before: .. end-api: [enums]
