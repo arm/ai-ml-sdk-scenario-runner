@@ -3,9 +3,9 @@
   "spdxVersion": "SPDX-2.3",
   "name": "ai-ml-sdk-scenario-runner",
   "dataLicense": "CC0-1.0",
-  "documentNamespace": "https://spdx.org/spdxdocs/ai-ml-sdk-scenario-runner-b75eb3e6e0a6076af076",
+  "documentNamespace": "https://spdx.org/spdxdocs/ai-ml-sdk-scenario-runner-a8e2002cb0071e2c6f1f",
   "creationInfo": {
-    "created": "2026-10-14T09:04:43Z",
+    "created": "2026-10-23T15:05:59Z",
     "creators": [
       "Organization: Arm Limited",
       "Tool: mlsdk-source-sbom-generator"
@@ -122,14 +122,14 @@
       "comment": "Runtime requirement applies when python_version < '3.14'."
     },
     {
-      "SPDXID": "SPDXRef-python-numpy-2.4.6",
+      "SPDXID": "SPDXRef-python-numpy-2.5.4",
       "name": "numpy",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
       "copyrightText": "NOASSERTION",
-      "versionInfo": "2.4.6",
+      "versionInfo": "2.5.4",
       "comment": "Runtime requirement applies when python_version >= '3.14'."
     },
     {
@@ -252,7 +252,7 @@
     {
       "spdxElementId": "SPDXRef-component-scenario-runner",
       "relationshipType": "DEPENDS_ON",
-      "relatedSpdxElement": "SPDXRef-python-numpy-2.4.6"
+      "relatedSpdxElement": "SPDXRef-python-numpy-2.5.4"
     },
     {
       "spdxElementId": "SPDXRef-component-scenario-runner",
