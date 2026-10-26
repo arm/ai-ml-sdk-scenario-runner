@@ -33,6 +33,7 @@ struct OptionalExtensions {
     bool descriptor_indexing = false;
     bool pipeline_robustness = false;
     bool portability_subset = false;
+    bool data_graph = false;
     bool data_graph_binaries = false;
 };
 

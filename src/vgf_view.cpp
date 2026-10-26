@@ -10,6 +10,7 @@
 
 #include "vgf/vulkan_helpers.generated.hpp"
 
+#include <algorithm>
 #include <numeric>
 #include <optional>
 #include <string_view>
@@ -310,6 +311,17 @@ std::string VgfView::getSegmentName(uint32_t segmentIndex) const {
     return "segment_" + std::to_string(segmentIndex);
 }
 
+bool VgfView::hasTensorIntermediates() const {
+    for (uint32_t resourceIndex = 0; resourceIndex < resourceTableDecoder->size(); ++resourceIndex) {
+        if (resourceTableDecoder->getCategory(resourceIndex) == vgflib::ResourceCategory::INTERMEDIATE &&
+            resourceTableDecoder->getDescriptorType(resourceIndex).value_or(DESCRIPTOR_TYPE_UNKNOWN) ==
+                DESCRIPTOR_TYPE_TENSOR_ARM) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool VgfView::hasSPVModule(uint32_t segmentIndex) const {
     uint32_t moduleIndex = sequenceTableDecoder->getSegmentModuleIndex(segmentIndex);
     return moduleTableDecoder->hasSPIRVCode(moduleIndex);
@@ -431,6 +443,14 @@ VgfView::DescriptorBindingMrtMap VgfView::getSegmentMrtIndexes(uint32_t segmentI
         mrtIndexes[{binding.set, binding.id}] = binding.resourceIndex;
     }
     return mrtIndexes;
+}
+
+bool VgfView::hasImageBindings(uint32_t segmentIndex) const {
+    const auto bindings = getBindings(segmentIndex);
+    return std::any_of(bindings.begin(), bindings.end(), [](const auto &binding) {
+        return binding.descriptorType == vk::DescriptorType::eCombinedImageSampler ||
+               binding.descriptorType == vk::DescriptorType::eStorageImage;
+    });
 }
 
 std::optional<uint32_t> VgfView::getModelInterfaceMrtIndex(uint32_t bindingId) const {

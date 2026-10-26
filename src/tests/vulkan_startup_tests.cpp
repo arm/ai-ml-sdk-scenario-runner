@@ -128,6 +128,12 @@ TEST(VulkanStartUp, RunShader) { // cppcheck-suppress syntaxError
     runShader({});
 }
 
+TEST(VulkanStartUp, RunShaderWithoutDataGraphOrTensorExtensions) { // cppcheck-suppress syntaxError
+    ScenarioOptions scenarioOptions;
+    scenarioOptions.disabledExtensions = {VK_ARM_DATA_GRAPH_EXTENSION_NAME, VK_ARM_TENSORS_EXTENSION_NAME};
+    runShader(scenarioOptions);
+}
+
 TEST(VulkanStartUp, RunShaderWithRobustnessFeatures) { // cppcheck-suppress syntaxError
     ScenarioOptions scenarioOptions;
     scenarioOptions.enableRobustnessFeatures = true;
