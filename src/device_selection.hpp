@@ -15,34 +15,31 @@
 namespace mlsdk::scenariorunner::detail {
 
 enum class DeviceCapability : uint32_t {
-    DataGraph = 0x01,
-    ShaderTensorAccess = 0x80,
-    Tensors = 0x82,                              // Includes ShaderTensorAccess.
-    DataGraphShaderModules = 0x05,               // Includes DataGraph.
-    DataGraphBinaries = 0x09,                    // Includes DataGraph.
-    DataGraphOpticalFlow = 0x11,                 // Includes DataGraph.
-    DataGraphNeuralAcceleratorStatistics = 0x21, // Includes DataGraph.
-    DynamicRendering = 0x40,
-    DataGraphImageLayouts = 0x101, // Includes DataGraph; requires only the optical-flow extension.
+    DataGraph = 1U << 0,
+    DataGraphShaderModules = 1U << 1,
+    DataGraphBinaries = 1U << 2,
+    DataGraphOpticalFlow = 1U << 3,
+    DataGraphNeuralAcceleratorStatistics = 1U << 4,
+    DataGraphImageLayouts = 1U << 5,
+    DynamicRendering = 1U << 6,
+    ShaderTensorAccess = 1U << 7,
+    Tensors = 1U << 8,
 };
 
-constexpr DeviceCapability operator|(DeviceCapability lhs, DeviceCapability rhs) noexcept {
-    return static_cast<DeviceCapability>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
-}
+using DeviceCapabilities = vk::Flags<DeviceCapability>;
 
-constexpr DeviceCapability &operator|=(DeviceCapability &lhs, DeviceCapability rhs) noexcept {
-    lhs = lhs | rhs;
-    return lhs;
+constexpr DeviceCapabilities operator|(DeviceCapability lhs, DeviceCapability rhs) noexcept {
+    return DeviceCapabilities(lhs) | rhs;
 }
 
 struct DeviceRequirements {
     vk::QueueFlags queueFlags{vk::QueueFlagBits::eCompute};
-    DeviceCapability capabilities{};
+    DeviceCapabilities capabilities;
 };
 
 struct DeviceCandidate {
     vk::PhysicalDeviceType type{vk::PhysicalDeviceType::eOther};
-    DeviceCapability capabilities{};
+    DeviceCapabilities capabilities;
     std::vector<vk::QueueFamilyProperties> queueFamilies;
     std::vector<uint32_t> opticalFlowQueueFamilyIndices;
 };
@@ -53,7 +50,9 @@ struct DeviceSelection {
 };
 
 DeviceRequirements getDeviceRequirements(const ScenarioBuildData &buildData, const ScenarioOptions &scenarioOptions);
-bool hasCapabilities(DeviceCapability available, DeviceCapability required) noexcept;
+// Expand workload dependencies without inferring any additional device support.
+DeviceRequirements expandDeviceRequirements(DeviceRequirements requirements) noexcept;
+bool hasCapabilities(DeviceCapabilities available, DeviceCapabilities required) noexcept;
 bool supportsQueueRequirements(vk::QueueFlags availableFlags, vk::QueueFlags workloadFlags);
 DeviceSelection selectDevice(const std::vector<DeviceCandidate> &candidates, const DeviceRequirements &requirements);
 

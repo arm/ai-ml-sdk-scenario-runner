@@ -78,8 +78,10 @@ detail::DeviceCandidate queryDeviceCandidate(const vk::raii::PhysicalDevice &dev
             candidate.capabilities |= detail::DeviceCapability::DataGraphShaderModules;
         }
     }
-    if (tensorsExtension && tensorFeatures.shaderTensorAccess) {
-        candidate.capabilities |= detail::DeviceCapability::ShaderTensorAccess;
+    if (tensorsExtension) {
+        if (tensorFeatures.shaderTensorAccess) {
+            candidate.capabilities |= detail::DeviceCapability::ShaderTensorAccess;
+        }
         if (tensorFeatures.tensors && tensorFeatures.tensorNonPacked) {
             candidate.capabilities |= detail::DeviceCapability::Tensors;
         }
@@ -128,10 +130,11 @@ detail::DeviceCandidate queryDeviceCandidate(const vk::raii::PhysicalDevice &dev
 }
 } // namespace
 
-Context::Context(const ScenarioOptions &scenarioOptions, const detail::DeviceRequirements &requirements)
+Context::Context(const ScenarioOptions &scenarioOptions, const detail::DeviceRequirements &requestedRequirements)
     : _gpuDebugMarkersEnabled(scenarioOptions.enableGPUDebugMarkers),
       _sessionMemoryDumpEnabled(!scenarioOptions.sessionRAMsDumpDir.empty()),
       _robustnessFeaturesEnabled(scenarioOptions.enableRobustnessFeatures) {
+    const auto requirements = detail::expandDeviceRequirements(requestedRequirements);
     // Create instance
     const vk::ApplicationInfo appInfo("Scenario-Runner", 1, nullptr, 0, VK_API_VERSION_1_3);
 
