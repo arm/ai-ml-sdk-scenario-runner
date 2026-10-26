@@ -1,0 +1,80 @@
+{
+  "module": "scenario_runner_py",
+  "classes": [
+    "ScenarioJsonFactory",
+    "Scenario",
+    "ScenarioBuilder",
+    "BufferInfo",
+    "ImageInfo",
+    "TensorInfo",
+    "SamplerSettings",
+    "RawDataInfo",
+    "ShaderInfo",
+    "VgfInfo",
+    "GraphConstantInfo",
+    "SpecializationConstant",
+    "SpecializationConstantMap",
+    "TypedBinding",
+    "ComputeDispatch",
+    "DispatchComputeData",
+    "FragmentAttachment",
+    "Extent2D",
+    "DispatchFragmentData",
+    "PushConstantMap",
+    "ShaderSubstitution",
+    "ExternalDataGraphBinary",
+    "DispatchVgfData",
+    "DispatchDataGraphBinaryData",
+    "DispatchDataGraphData",
+    "DispatchOpticalFlowData",
+    "PipelineBarrierData",
+    "FrameBoundaryData",
+    "BaseBarrierInfo",
+    "SubresourceRange",
+    "ImageBarrierInfo",
+    "BufferBarrierInfo",
+    "TensorBarrierInfo",
+    "MemoryBarrierInfo",
+    "ScenarioOptions",
+    "BufferId",
+    "ImageId",
+    "TensorId",
+    "ShaderId",
+    "RawDataId",
+    "VgfId",
+    "GraphConstantResourceId",
+    "MemoryGroupId",
+    "ImageBarrierId",
+    "BufferBarrierId",
+    "TensorBarrierId",
+    "MemoryBarrierId"
+  ],
+  "functions": [
+    "load_scenario"
+  ],
+  "enums": [
+    "AddressMode",
+    "BorderColor",
+    "DescriptorType",
+    "FilterMode",
+    "ImageLayout",
+    "MemoryAccess",
+    "NeuralAcceleratorStatisticsMode",
+    "OpticalFlowGridSize",
+    "OpticalFlowPerformanceLevel",
+    "PipelineStage",
+    "ShaderStage",
+    "ShaderType",
+    "Tiling"
+  ],
+  "excluded_exports": {
+    "Format": "Resource formats are described in the handwritten API guide."
+  },
+  "method_groups": {
+    "resource_creation": [
+      "ScenarioBuilder.add_buffer",
+      "ScenarioBuilder.add_image",
+      "ScenarioBuilder.add_tensor"
+    ]
+  }
+}
