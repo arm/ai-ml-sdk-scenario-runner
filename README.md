@@ -77,7 +77,7 @@ The build system must have:
   Windows®.
 - CMake 3.25 or later.
 - Ninja 1.8.2 or later.
-- Python 3.11 through 3.14 and `uv` 0.9.26. Runtime, test, and tooling
+- Python 3.11 or later and `uv` 0.13.4. Runtime, test, and tooling
   dependencies are declared in `pyproject.toml` and locked in `uv.lock`.
 
 The following dependencies are also needed:
