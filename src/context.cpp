@@ -468,6 +468,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, const detail::DeviceReq
 
 const vk::raii::Device &Context::device() const { return _dev; }
 
+const vk::raii::Instance &Context::instance() const { return _instance; }
+
 const vk::raii::PhysicalDevice &Context::physicalDevice() const { return _physicalDev; }
 
 uint32_t Context::familyQueueIdx() const { return _familyQueueIdx; }

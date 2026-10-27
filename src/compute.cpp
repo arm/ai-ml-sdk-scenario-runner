@@ -9,9 +9,13 @@
 #include "logging.hpp"
 #include "utils.hpp"
 
+#include "workload_execution.hpp"
+
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
+#include <stdexcept>
+#include <utility>
 
 namespace mlsdk::scenariorunner {
 
@@ -109,6 +113,18 @@ void Compute::reset() {
     _cmdBufferArray.clear();
     _cmdPool.reset(vk::CommandPoolResetFlagBits::eReleaseResources);
     _resetFence();
+}
+
+void Compute::registerWorkloadExecution(std::shared_ptr<WorkloadExecution> execution, const std::string &debugName,
+                                        ProfiledCommand profile, bool implicitBarrier) {
+    if (!execution || !execution->isPrepared()) {
+        throw std::invalid_argument("Cannot register an unprepared workload execution");
+    }
+    DebugMarker marker(this, "dispatch (" + debugName + ")");
+    _commands.emplace_back(WorkloadDispatch{std::move(execution), std::move(profile)});
+    if (implicitBarrier) {
+        _addImplicitBarriers();
+    }
 }
 
 void Compute::_setNextCommandBuffer() {
@@ -531,6 +547,8 @@ void Compute::_createCmdBuffer() {
             mlsdk::logging::info("Dispatch compute");
             auto &typedCmd = std::get<ComputeDispatch>(cmd);
             _cmdBufferArray.back().dispatch(typedCmd.gwcx, typedCmd.gwcy, typedCmd.gwcz);
+        } else if (std::holds_alternative<WorkloadDispatch>(cmd)) {
+            std::get<WorkloadDispatch>(cmd).execution->record(*_cmdBufferArray.back());
         } else if (std::holds_alternative<DataGraphDispatch>(cmd)) {
             mlsdk::logging::info("Dispatch graph");
             auto &typedCmd = std::get<DataGraphDispatch>(cmd);
@@ -686,6 +704,8 @@ RuntimeProfilingData Compute::getRuntimeProfilingData() const {
         if (std::holds_alternative<ComputeDispatch>(command)) {
             const auto &dispatch = std::get<ComputeDispatch>(command);
             profilingData.commands.push_back({"ComputeDispatch", dispatch.profileName});
+        } else if (std::holds_alternative<WorkloadDispatch>(command)) {
+            profilingData.commands.push_back(std::get<WorkloadDispatch>(command).profile);
         } else if (std::holds_alternative<DataGraphDispatch>(command)) {
             const auto &dispatch = std::get<DataGraphDispatch>(command);
             profilingData.commands.push_back({"DataGraphDispatch", dispatch.profileName});

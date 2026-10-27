@@ -40,6 +40,9 @@ set(SCENARIO_RUNNER_LIB_SOURCES
     frame_capturer.cpp
     image_formats.cpp
     png_reader.cpp
+    workload_bindings.cpp
+    workload_execution.cpp
+    workload_runtime.cpp
 )
 if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)
     list(APPEND SCENARIO_RUNNER_LIB_SOURCES hlsl_compiler.cpp)

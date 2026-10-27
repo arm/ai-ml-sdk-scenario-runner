@@ -52,6 +52,9 @@ class Context {
     /// \return Reference to the Vulkan logical device
     const vk::raii::Device &device() const;
 
+    /// Vulkan instance borrowed by the workload-lib runtime bridge.
+    const vk::raii::Instance &instance() const;
+
     /// \brief Physical device accessor
     /// \return Reference to Vulkan physical device
     const vk::raii::PhysicalDevice &physicalDevice() const;
