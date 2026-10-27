@@ -108,8 +108,22 @@ vk::QueueFlags getRequiredBarrierQueueFlags(const PipelineBarrierData &pipelineB
 
 } // namespace
 
-bool hasCapabilities(DeviceCapability available, DeviceCapability required) noexcept {
-    return (static_cast<uint32_t>(available) & static_cast<uint32_t>(required)) == static_cast<uint32_t>(required);
+bool hasCapabilities(DeviceCapabilities available, DeviceCapabilities required) noexcept {
+    return (available & required) == required;
+}
+
+DeviceRequirements expandDeviceRequirements(DeviceRequirements requirements) noexcept {
+    constexpr auto dataGraphFeatures = DeviceCapability::DataGraphShaderModules | DeviceCapability::DataGraphBinaries |
+                                       DeviceCapability::DataGraphOpticalFlow |
+                                       DeviceCapability::DataGraphNeuralAcceleratorStatistics |
+                                       DeviceCapability::DataGraphImageLayouts;
+    if (requirements.capabilities & dataGraphFeatures) {
+        requirements.capabilities |= DeviceCapability::DataGraph;
+    }
+    if (hasCapabilities(requirements.capabilities, DeviceCapability::Tensors)) {
+        requirements.capabilities |= DeviceCapability::ShaderTensorAccess;
+    }
+    return requirements;
 }
 
 bool supportsQueueRequirements(vk::QueueFlags availableFlags, vk::QueueFlags workloadFlags) {
@@ -127,7 +141,7 @@ bool supportsQueueRequirements(vk::QueueFlags availableFlags, vk::QueueFlags wor
 }
 
 DeviceRequirements getDeviceRequirements(const ScenarioBuildData &buildData, const ScenarioOptions &scenarioOptions) {
-    DeviceRequirements requirements{vk::QueueFlags{}};
+    DeviceRequirements requirements{vk::QueueFlags{}, DeviceCapabilities{}};
     const auto tensors = buildData.resources.tensors();
     if (tensors.begin() != tensors.end()) {
         requirements.capabilities |= DeviceCapability::Tensors;
@@ -219,10 +233,12 @@ DeviceRequirements getDeviceRequirements(const ScenarioBuildData &buildData, con
         requirements.capabilities |= DeviceCapability::DataGraph;
     }
 
-    return requirements;
+    return expandDeviceRequirements(requirements);
 }
 
-DeviceSelection selectDevice(const std::vector<DeviceCandidate> &candidates, const DeviceRequirements &requirements) {
+DeviceSelection selectDevice(const std::vector<DeviceCandidate> &candidates,
+                             const DeviceRequirements &requestedRequirements) {
+    const auto requirements = expandDeviceRequirements(requestedRequirements);
     if (candidates.empty()) {
         throw std::runtime_error("No Vulkan physical devices found");
     }

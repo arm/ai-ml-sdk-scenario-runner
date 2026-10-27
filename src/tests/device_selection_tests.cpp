@@ -97,10 +97,43 @@ vk::QueueFlags dataGraphQueueFlags(vk::QueueFlags additionalFlags = {}) {
     return vk::QueueFlagBits::eDataGraphARM | vk::QueueFlagBits::eTransfer | additionalFlags;
 }
 
-DeviceCandidate candidate(vk::PhysicalDeviceType type, DeviceCapability capabilities,
+DeviceCandidate candidate(vk::PhysicalDeviceType type, DeviceCapabilities capabilities,
                           std::vector<vk::QueueFamilyProperties> queueFamilies,
                           std::vector<uint32_t> opticalFlowQueueFamilyIndices = {}) {
     return {type, capabilities, std::move(queueFamilies), std::move(opticalFlowQueueFamilyIndices)};
+}
+
+constexpr DeviceCapability graphCapabilities[] = {
+    DeviceCapability::DataGraphShaderModules, DeviceCapability::DataGraphBinaries,
+    DeviceCapability::DataGraphOpticalFlow,   DeviceCapability::DataGraphNeuralAcceleratorStatistics,
+    DeviceCapability::DataGraphImageLayouts,
+};
+
+TEST(DeviceCapabilities, SupportMasksDoNotImplyDependencies) {
+    for (const auto capability : graphCapabilities) {
+        SCOPED_TRACE(static_cast<uint32_t>(capability));
+        EXPECT_FALSE(hasCapabilities(capability, DeviceCapability::DataGraph));
+        EXPECT_TRUE(hasCapabilities(capability, capability));
+    }
+    EXPECT_FALSE(hasCapabilities(DeviceCapability::Tensors, DeviceCapability::ShaderTensorAccess));
+    EXPECT_FALSE(hasCapabilities(DeviceCapability::ShaderTensorAccess, DeviceCapability::Tensors));
+    EXPECT_FALSE(hasCapabilities(DeviceCapability::DataGraph, DeviceCapability::DataGraphShaderModules));
+}
+
+TEST(DeviceRequirements, ExpandsGraphDependenciesWithoutChangingOtherRequirements) {
+    for (const auto capability : graphCapabilities) {
+        SCOPED_TRACE(static_cast<uint32_t>(capability));
+        DeviceRequirements requirements;
+        requirements.queueFlags = vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer;
+        requirements.capabilities = capability | DeviceCapability::DynamicRendering;
+
+        const auto expanded = expandDeviceRequirements(requirements);
+
+        EXPECT_EQ(expanded.capabilities, requirements.capabilities | DeviceCapability::DataGraph);
+        EXPECT_EQ(expanded.queueFlags, requirements.queueFlags);
+        EXPECT_EQ(expandDeviceRequirements(expanded).capabilities, expanded.capabilities);
+        EXPECT_EQ(requirements.capabilities, capability | DeviceCapability::DynamicRendering);
+    }
 }
 
 TEST(DeviceRequirements, DgbOnlyDoesNotRequireUnrelatedCapabilities) {
@@ -112,10 +145,11 @@ TEST(DeviceRequirements, DgbOnlyDoesNotRequireUnrelatedCapabilities) {
     const auto requirements = getDeviceRequirements(buildData, ScenarioOptions{});
 
     EXPECT_EQ(requirements.queueFlags, vk::QueueFlags{vk::QueueFlagBits::eDataGraphARM});
-    EXPECT_EQ(requirements.capabilities, DeviceCapability::DataGraphBinaries);
+    EXPECT_EQ(requirements.capabilities, DeviceCapability::DataGraph | DeviceCapability::DataGraphBinaries);
 
     const std::vector<DeviceCandidate> candidates{
-        candidate(vk::PhysicalDeviceType::eIntegratedGpu, DeviceCapability::DataGraphBinaries,
+        candidate(vk::PhysicalDeviceType::eIntegratedGpu,
+                  DeviceCapability::DataGraph | DeviceCapability::DataGraphBinaries,
                   {queueFamily(dataGraphQueueFlags())}),
     };
     EXPECT_NO_THROW(static_cast<void>(selectDevice(candidates, requirements)));
@@ -140,8 +174,9 @@ TEST(DeviceRequirements, MixedScenarioCombinesRequirements) {
     EXPECT_EQ(requirements.queueFlags, vk::QueueFlags{vk::QueueFlagBits::eDataGraphARM | vk::QueueFlagBits::eCompute |
                                                       vk::QueueFlagBits::eGraphics});
     EXPECT_EQ(requirements.capabilities,
-              DeviceCapability::DataGraphBinaries | DeviceCapability::DataGraphShaderModules |
-                  DeviceCapability::Tensors | DeviceCapability::DataGraphOpticalFlow |
+              DeviceCapability::DataGraph | DeviceCapability::DataGraphBinaries |
+                  DeviceCapability::DataGraphShaderModules | DeviceCapability::Tensors |
+                  DeviceCapability::ShaderTensorAccess | DeviceCapability::DataGraphOpticalFlow |
                   DeviceCapability::DataGraphNeuralAcceleratorStatistics | DeviceCapability::DynamicRendering);
 }
 
@@ -154,7 +189,7 @@ TEST(DeviceRequirements, VgfUsesOnlyCapabilitiesRequiredByItsContents) {
     computeBuildData.commands.emplace_back(DispatchVgfData{computeVgf});
     const auto computeRequirements = getDeviceRequirements(computeBuildData, ScenarioOptions{});
     EXPECT_EQ(computeRequirements.queueFlags, vk::QueueFlags{vk::QueueFlagBits::eCompute});
-    EXPECT_EQ(computeRequirements.capabilities, DeviceCapability{});
+    EXPECT_EQ(computeRequirements.capabilities, DeviceCapabilities{});
 
     ScenarioBuildData mixedBuildData;
     const auto mixedVgf = mixedBuildData.resources.addVgf(
@@ -166,7 +201,8 @@ TEST(DeviceRequirements, VgfUsesOnlyCapabilitiesRequiredByItsContents) {
     const auto mixedRequirements = getDeviceRequirements(mixedBuildData, ScenarioOptions{});
     EXPECT_EQ(mixedRequirements.queueFlags,
               vk::QueueFlags{vk::QueueFlagBits::eDataGraphARM | vk::QueueFlagBits::eCompute});
-    EXPECT_EQ(mixedRequirements.capabilities, DeviceCapability::DataGraphShaderModules | DeviceCapability::Tensors);
+    EXPECT_EQ(mixedRequirements.capabilities, DeviceCapability::DataGraph | DeviceCapability::DataGraphShaderModules |
+                                                  DeviceCapability::Tensors | DeviceCapability::ShaderTensorAccess);
 }
 
 TEST(DeviceSelection, RejectsUnsupportedPreferredDevices) {
@@ -175,12 +211,15 @@ TEST(DeviceSelection, RejectsUnsupportedPreferredDevices) {
     requirements.capabilities = DeviceCapability::DataGraphBinaries | DeviceCapability::DataGraphOpticalFlow;
 
     const std::vector<DeviceCandidate> candidates{
-        candidate(vk::PhysicalDeviceType::eDiscreteGpu, DeviceCapability::DataGraphBinaries,
+        candidate(vk::PhysicalDeviceType::eDiscreteGpu,
+                  DeviceCapability::DataGraph | DeviceCapability::DataGraphBinaries,
                   {queueFamily(dataGraphQueueFlags())}),
-        candidate(vk::PhysicalDeviceType::eIntegratedGpu, DeviceCapability::DataGraphOpticalFlow,
+        candidate(vk::PhysicalDeviceType::eIntegratedGpu,
+                  DeviceCapability::DataGraph | DeviceCapability::DataGraphOpticalFlow,
                   {queueFamily(dataGraphQueueFlags())}),
         candidate(vk::PhysicalDeviceType::eCpu,
-                  DeviceCapability::DataGraphBinaries | DeviceCapability::DataGraphOpticalFlow,
+                  DeviceCapability::DataGraph | DeviceCapability::DataGraphBinaries |
+                      DeviceCapability::DataGraphOpticalFlow,
                   {queueFamily(dataGraphQueueFlags())}, {0}),
     };
 
@@ -196,7 +235,8 @@ TEST(DeviceSelection, SelectsQueueFamilySupportingOpticalFlow) {
     requirements.capabilities = DeviceCapability::DataGraphOpticalFlow;
 
     const std::vector<DeviceCandidate> candidates{
-        candidate(vk::PhysicalDeviceType::eDiscreteGpu, DeviceCapability::DataGraphOpticalFlow,
+        candidate(vk::PhysicalDeviceType::eDiscreteGpu,
+                  DeviceCapability::DataGraph | DeviceCapability::DataGraphOpticalFlow,
                   {queueFamily(dataGraphQueueFlags()), queueFamily(dataGraphQueueFlags())}, {1}),
     };
 
@@ -212,11 +252,13 @@ TEST(DeviceSelection, RejectsZeroCountAndSplitQueueFamilies) {
     requirements.capabilities = DeviceCapability::DataGraphBinaries;
 
     const std::vector<DeviceCandidate> candidates{
-        candidate(vk::PhysicalDeviceType::eDiscreteGpu, DeviceCapability::DataGraphBinaries,
+        candidate(vk::PhysicalDeviceType::eDiscreteGpu,
+                  DeviceCapability::DataGraph | DeviceCapability::DataGraphBinaries,
                   {queueFamily(dataGraphQueueFlags(vk::QueueFlagBits::eCompute), 0)}),
-        candidate(vk::PhysicalDeviceType::eIntegratedGpu, DeviceCapability::DataGraphBinaries,
+        candidate(vk::PhysicalDeviceType::eIntegratedGpu,
+                  DeviceCapability::DataGraph | DeviceCapability::DataGraphBinaries,
                   {queueFamily(dataGraphQueueFlags()), queueFamily(vk::QueueFlagBits::eCompute)}),
-        candidate(vk::PhysicalDeviceType::eCpu, DeviceCapability::DataGraphBinaries,
+        candidate(vk::PhysicalDeviceType::eCpu, DeviceCapability::DataGraph | DeviceCapability::DataGraphBinaries,
                   {queueFamily(dataGraphQueueFlags(vk::QueueFlagBits::eCompute))}),
     };
 
@@ -242,9 +284,10 @@ TEST(DeviceSelection, ReportsClearReasonWhenNoDeviceIsSuitable) {
     }
 
     try {
-        static_cast<void>(selectDevice({candidate(vk::PhysicalDeviceType::eCpu, DeviceCapability::DataGraphBinaries,
-                                                  {queueFamily(dataGraphQueueFlags(), 0)})},
-                                       requirements));
+        static_cast<void>(selectDevice(
+            {candidate(vk::PhysicalDeviceType::eCpu, DeviceCapability::DataGraph | DeviceCapability::DataGraphBinaries,
+                       {queueFamily(dataGraphQueueFlags(), 0)})},
+            requirements));
         FAIL() << "Expected device selection to fail";
     } catch (const std::runtime_error &error) {
         const std::string message = error.what();
