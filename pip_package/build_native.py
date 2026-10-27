@@ -78,6 +78,7 @@ def _configure_and_build(extension_output_path, install_dir=None, package_versio
         f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{build_type.upper()}={setuptools_build_dir}",
         f"-DVULKAN_HEADERS_PATH={_env_path('VULKAN_HEADERS_PATH', DEPENDENCY_DIR / 'Vulkan-Headers')}",
         f"-DML_SDK_VGF_LIB_PATH={_env_path('ML_SDK_VGF_LIB_PATH', ROOT_DIR / '..' / 'vgf-lib')}",
+        f"-DML_SDK_WORKLOAD_LIB_PATH={_env_path('ML_SDK_WORKLOAD_LIB_PATH', ROOT_DIR / '..' / 'workload-lib')}",
         f"-DJSON_PATH={_env_path('JSON_PATH', DEPENDENCY_DIR / 'json')}",
         f"-DFLATBUFFERS_PATH={_env_path('FLATBUFFERS_PATH', DEPENDENCY_DIR / 'flatbuffers')}",
         f"-DSPIRV_TOOLS_PATH={_env_path('SPIRV_TOOLS_PATH', DEPENDENCY_DIR / 'SPIRV-Tools')}",

@@ -42,6 +42,15 @@
       "copyrightText": "NOASSERTION"
     },
     {
+      "SPDXID": "SPDXRef-component-workload-lib",
+      "name": "arm/ai-ml-workload-library-for-vulkan",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION"
+    },
+    {
       "SPDXID": "SPDXRef-directxshadercompiler",
       "name": "microsoft/DirectXShaderCompiler",
       "downloadLocation": "NOASSERTION",
@@ -208,6 +217,11 @@
       "spdxElementId": "SPDXRef-component-scenario-runner",
       "relationshipType": "DEPENDS_ON",
       "relatedSpdxElement": "SPDXRef-component-vgf-lib"
+    },
+    {
+      "spdxElementId": "SPDXRef-component-scenario-runner",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-component-workload-lib"
     },
     {
       "spdxElementId": "SPDXRef-component-scenario-runner",
