@@ -177,7 +177,11 @@ def test_fail_on_pipeline_cache_miss_triggers_for_all_pipeline_types(
     assert "ERROR: Pipeline cache miss for pipeline:" in (captured.out + captured.err)
 
 
-def test_pass_on_empty_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd):
+@pytest.mark.parametrize("empty_cache_file", [False, True], ids=["missing", "empty"])
+@pytest.mark.parametrize("fail_on_miss", [False, True])
+def test_pass_on_missing_or_empty_pipeline_cache(
+    sdk_tools, resources_helper, numpy_helper, capfd, empty_cache_file, fail_on_miss
+):
     scenario, replacements = _setup_compute_pipeline_cache_miss(
         sdk_tools, resources_helper, numpy_helper
     )
@@ -186,25 +190,30 @@ def test_pass_on_empty_pipeline_cache(sdk_tools, resources_helper, numpy_helper,
         f"{scenario.replace('/', '_')}_miss_cache"
     )
     cache_path.mkdir()
+    cache_file = cache_path / f"{os.path.splitext(os.path.basename(scenario))[0]}.cache"
+    if empty_cache_file:
+        cache_file.touch()
+        assert cache_file.stat().st_size == 0
     capfd.readouterr()
 
+    options = ["--pipeline-caching", "--cache-path", cache_path]
+    if fail_on_miss:
+        options.append("--fail-on-pipeline-cache-miss")
     sdk_tools.run_scenario(
         scenario,
         replacements,
-        options=[
-            "--pipeline-caching",
-            "--fail-on-pipeline-cache-miss",
-            "--cache-path",
-            cache_path,
-            "--dry-run",
-        ],
+        options=options,
     )
 
     captured = capfd.readouterr()
+    assert (
+        "WARNING: Pipeline Cache skipped: size invalid" in captured.out
+    ) == empty_cache_file
     assert "INFO: Pipeline Cache loaded and validated." not in captured.out
     assert "ERROR: Pipeline cache miss for pipeline:" not in (
         captured.out + captured.err
     )
+    assert cache_file.stat().st_size >= PIPELINE_CACHE_HEADER_SIZE
 
 
 def test_enable_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd):
