@@ -50,6 +50,7 @@
   Preserved the object paths used by ordinary source and coverage builds.
 - Fixed HLSL backend linking on Darwin and enabled the HLSL option for native
   and wheel builds on Darwin.
+- Raised the minimum supported Python version from 3.10 to 3.11.
 
 ## Version 0.11.0 – *Public APIs, Python Bindings & Profiling*
 
