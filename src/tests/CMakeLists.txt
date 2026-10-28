@@ -8,6 +8,7 @@ include(CTest)
 
 add_executable(ScenarioRunnerTests
   buffer_tests.cpp
+  data_graph_binary_tests.cpp
   dds_reader_tests.cpp
   device_selection_tests.cpp
   guid_tests.cpp

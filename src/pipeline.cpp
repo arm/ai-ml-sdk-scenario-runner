@@ -422,27 +422,9 @@ Pipeline::Pipeline(const CommonArguments &args, const ExternalDataGraphBinary &b
                    vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode)
     : _type{PipelineType::GraphCompute}, _debugName(args.debugName) {
     const auto &binary = dataManager.getRawData(binaryData.binary).mapping();
-    constexpr size_t headerSize = 16;
-    if (binary.size() < headerSize) {
-        throw std::runtime_error("Data graph binary header is truncated");
-    }
+    validateDataGraphBinaryHeader(static_cast<const uint8_t *>(binary.ptr()), binary.size());
     if (reinterpret_cast<std::uintptr_t>(binary.ptr()) % args.ctx.dataGraphPipelineBinaryDataAlignment() != 0) {
         throw std::runtime_error("Data graph binary mapping does not satisfy the device-required alignment");
-    }
-    const auto *bytes = static_cast<const uint8_t *>(binary.ptr());
-    const auto readLittleEndian = [](const uint8_t *data, size_t count) {
-        uint64_t value = 0;
-        for (size_t index = 0; index < count; ++index) {
-            value |= static_cast<uint64_t>(data[index]) << (index * 8);
-        }
-        return value;
-    };
-    // The little-endian magic word appears as FF DD 22 11 in the file.
-    if (readLittleEndian(bytes, 4) != 0x1122DDFF) {
-        throw std::runtime_error("Data graph binary header has an invalid magic value");
-    }
-    if (readLittleEndian(bytes + 8, 8) != binary.size() - headerSize) {
-        throw std::runtime_error("Data graph binary payload size does not match its header");
     }
 
     createDescriptorSetLayouts(args.ctx, args.bindings);
@@ -801,5 +783,30 @@ bool Pipeline::hasGraphPipelineProperty(const vk::raii::Device &device,
 }
 
 const std::string &Pipeline::debugName() const { return _debugName; }
+
+void validateDataGraphBinaryHeader(const uint8_t *bytes, std::size_t size) {
+    constexpr std::size_t headerSize = 16;
+    if (size < headerSize) {
+        throw std::runtime_error("Data graph binary header is truncated");
+    }
+    if (bytes == nullptr) {
+        throw std::runtime_error("Data graph binary data is null");
+    }
+
+    const auto readLittleEndian = [](const uint8_t *data, std::size_t count) {
+        uint64_t value = 0;
+        for (std::size_t index = 0; index < count; ++index) {
+            value |= static_cast<uint64_t>(data[index]) << (index * 8);
+        }
+        return value;
+    };
+    // The little-endian magic word appears as FF DD 22 11 in the file.
+    if (readLittleEndian(bytes, 4) != 0x1122DDFF) {
+        throw std::runtime_error("Data graph binary header has an invalid magic value");
+    }
+    if (readLittleEndian(bytes + 8, 8) != size - headerSize) {
+        throw std::runtime_error("Data graph binary payload size does not match its header");
+    }
+}
 
 } // namespace mlsdk::scenariorunner
