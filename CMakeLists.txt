@@ -96,6 +96,7 @@ endif()
 include(argparse)
 include(json)
 include(vgf-lib)
+include(workload-lib)
 include(vulkan-headers)
 include(spirv-headers)
 include(spirv-tools)
@@ -172,6 +173,7 @@ set(SCENARIO_RUNNER_VERSION_DEPS
         SPIRV-Headers
         SPIRV-Tools
         VGF
+        MLWorkloadLibraryForVulkan
         VulkanHeaders
         stb_image
         stb_image_write

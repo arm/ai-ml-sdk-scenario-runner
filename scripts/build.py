@@ -89,6 +89,7 @@ class Builder:
         )
         self.vulkan_headers_path = absolute(args.vulkan_headers_path)
         self.vgf_lib_path = absolute(args.vgf_lib_path)
+        self.workload_lib_path = absolute(args.workload_lib_path)
         self.json_path = absolute(args.json_path)
         self.gtest_path = absolute(args.gtest_path)
         self.flatbuffers_path = absolute(args.flatbuffers_path)
@@ -249,6 +250,7 @@ class Builder:
             f"-DCMAKE_BUILD_TYPE={self.build_type}",
             f"-DVULKAN_HEADERS_PATH={self.vulkan_headers_path}",
             f"-DML_SDK_VGF_LIB_PATH={self.vgf_lib_path}",
+            f"-DML_SDK_WORKLOAD_LIB_PATH={self.workload_lib_path}",
             f"-DJSON_PATH={self.json_path}",
             f"-DFLATBUFFERS_PATH={self.flatbuffers_path}",
             f"-DSPIRV_TOOLS_PATH={self.spirv_tools_path}",
@@ -576,6 +578,7 @@ class Builder:
                         build_env["RenderDoc_ROOT"] = self.renderdoc_path
                 build_env["VULKAN_HEADERS_PATH"] = self.vulkan_headers_path
                 build_env["ML_SDK_VGF_LIB_PATH"] = self.vgf_lib_path
+                build_env["ML_SDK_WORKLOAD_LIB_PATH"] = self.workload_lib_path
                 build_env["JSON_PATH"] = self.json_path
                 build_env["FLATBUFFERS_PATH"] = self.flatbuffers_path
                 build_env["SPIRV_TOOLS_PATH"] = self.spirv_tools_path
@@ -745,6 +748,14 @@ def parse_arguments(argv=None):
         "--vgf-lib-path",
         help="Path to the ai-ml-sdk-vgf-library repo. Default: %(default)s",
         default=f"{SCENARIO_RUNNER_DIR / '..' / 'vgf-lib'}",
+    )
+    parser.add_argument(
+        "--workload-lib-path",
+        help=(
+            "Path to the ai-ml-workload-library-for-vulkan repo. "
+            "Default: %(default)s"
+        ),
+        default=f"{SCENARIO_RUNNER_DIR / '..' / 'workload-lib'}",
     )
     parser.add_argument(
         "--glslang-path",

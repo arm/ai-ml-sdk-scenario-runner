@@ -27,10 +27,12 @@ def test_build_native_limits_build_and_install_to_wheel_payload(
             extension.touch()
 
     monkeypatch.setattr(build_native.subprocess, "run", run)
-
     build_native.build_native(extension)
 
     configure_command = commands[0]
+    assert any(
+        arg.startswith("-DML_SDK_WORKLOAD_LIB_PATH=") for arg in configure_command
+    )
     assert configure_command[configure_command.index("-B") + 1] == str(
         build_native.ROOT_DIR
         / "build"

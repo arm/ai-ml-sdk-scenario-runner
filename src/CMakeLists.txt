@@ -59,6 +59,7 @@ function(srlib_configure_target target_name)
             SPIRV-Tools-static
             VGF::vgf
             VGF::vgf-utils
+            MLWorkloadLibraryForVulkan::mlworkloadlib
             Vulkan::Headers
             ${CMAKE_DL_LIBS}
         PRIVATE
