@@ -51,6 +51,8 @@
 - Fixed HLSL backend linking on Darwin and enabled the HLSL option for native
   and wheel builds on Darwin.
 - Raised the minimum supported Python version from 3.10 to 3.11.
+- Added CPython 3.15 to the wheel build targets and removed the package
+  Python version upper bound.
 
 ## Version 0.11.0 – *Public APIs, Python Bindings & Profiling*
 
