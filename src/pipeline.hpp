@@ -12,6 +12,8 @@
 
 #include "vgf-utils/memory_map.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -196,5 +198,7 @@ std::vector<T> Pipeline::getGraphPipelinePropertyData(const vk::raii::Device &de
 
     return propData;
 }
+
+void validateDataGraphBinaryHeader(const uint8_t *bytes, std::size_t size);
 
 } // namespace mlsdk::scenariorunner
