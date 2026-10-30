@@ -157,8 +157,8 @@ DeviceRequirements getDeviceRequirements(const ScenarioBuildData &buildData, con
                            requirements.queueFlags |= vk::QueueFlagBits::eGraphics;
                            requirements.capabilities |= DeviceCapability::DynamicRendering;
                        },
-                       [&](const DispatchVgfData &dispatch) {
-                           const auto &vgf = buildData.resources.get(dispatch.vgf);
+                       [&](const DispatchVgfData &dispatchVgf) {
+                           const auto &vgf = buildData.resources.get(dispatchVgf.vgf);
                            if (!vgf.src) {
                                throw std::runtime_error("VGF source missing: " + vgf.debugName);
                            }
@@ -166,10 +166,14 @@ DeviceRequirements getDeviceRequirements(const ScenarioBuildData &buildData, con
                                switch (vgf.src->getSegmentType(segmentIndex)) {
                                case ModuleType::GRAPH:
                                    requirements.queueFlags |= vk::QueueFlagBits::eDataGraphARM;
-                                   requirements.capabilities |=
-                                       DeviceCapability::DataGraphShaderModules | DeviceCapability::ShaderTensorAccess;
-                                   if (vgf.src->hasImageBindings(segmentIndex)) {
-                                       requirements.capabilities |= DeviceCapability::DataGraphImageLayouts;
+                                   if (dispatchVgf.dataGraphBinaries.count(segmentIndex) != 0) {
+                                       requirements.capabilities |= DeviceCapability::DataGraphBinaries;
+                                   } else {
+                                       requirements.capabilities |= DeviceCapability::DataGraphShaderModules |
+                                                                    DeviceCapability::ShaderTensorAccess;
+                                       if (vgf.src->hasImageBindings(segmentIndex)) {
+                                           requirements.capabilities |= DeviceCapability::DataGraphImageLayouts;
+                                       }
                                    }
                                    break;
                                case ModuleType::SHADER:

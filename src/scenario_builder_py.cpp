@@ -494,6 +494,7 @@ void bindCommands(py::module_ &m) {
         .def_readwrite("bindings", &DispatchVgfData::bindings)
         .def_readwrite("push_constants", &DispatchVgfData::pushConstants)
         .def_readwrite("shader_substitutions", &DispatchVgfData::shaderSubstitutions)
+        .def_readwrite("data_graph_binaries", &DispatchVgfData::dataGraphBinaries)
         .def_readwrite("implicit_barrier", &DispatchVgfData::implicitBarrier);
     auto dispatchDataGraphBinaryData = py::class_<DispatchDataGraphBinaryData>(
         m, "DispatchDataGraphBinaryData", "Describe a standalone precompiled graph dispatch.");
@@ -588,6 +589,7 @@ void bindCommands(py::module_ &m) {
                                                         {"bindings", "list[TypedBinding]"},
                                                         {"push_constants", "list[PushConstantMap]"},
                                                         {"shader_substitutions", "list[ShaderSubstitution]"},
+                                                        {"data_graph_binaries", "dict[int, ExternalDataGraphBinary]"},
                                                         {"implicit_barrier", "bool"}});
     setAttributeAnnotations(m.attr("DispatchOpticalFlowData"), {{"debug_name", "str"},
                                                                 {"search_image", "TypedBinding"},

@@ -110,6 +110,22 @@ bool resolveVgfDispatchShapes(ScenarioSpec &scenarioSpec, const DispatchVgfDesc 
     // Resolve each SPIR-V graph segment from its concrete interface shapes.
     bool shaped = false;
     for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
+        if (dispatchVgf.dataGraphBinaries.count(segmentIndex) != 0) {
+            for (const auto &entry : vgfView.getSegmentMrtIndexes(segmentIndex)) {
+                const auto mrtIndex = entry.second;
+                const auto shape = vgfView.getTensorShape(mrtIndex);
+                if (!isConcreteShape(shape)) {
+                    throw std::runtime_error("Shape inference cannot inspect VGF binary segment " +
+                                             std::to_string(segmentIndex));
+                }
+                if (const auto tensor = externalTensorsByMrt.find(mrtIndex);
+                    tensor != externalTensorsByMrt.end() && !isConcreteShape(tensor->second->dims)) {
+                    tensor->second->dims.assign(shape.begin(), shape.end());
+                    shaped = true;
+                }
+            }
+            continue;
+        }
         if (vgfView.getSegmentType(segmentIndex) != ModuleType::GRAPH || !vgfView.hasSPVModule(segmentIndex)) {
             continue;
         }

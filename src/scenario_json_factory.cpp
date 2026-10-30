@@ -622,6 +622,9 @@ struct CommandDataFactory {
         for (const auto &substitution : dispatchVgf.shaderSubstitutions) {
             data.shaderSubstitutions.push_back({getShaderId(substitution.shaderRef), substitution.target});
         }
+        for (const auto &[segmentIndex, externalBinary] : dispatchVgf.dataGraphBinaries) {
+            data.dataGraphBinaries.emplace(segmentIndex, createData(externalBinary));
+        }
         data.implicitBarrier = dispatchVgf.implicitBarrier;
         return data;
     }

@@ -1127,6 +1127,66 @@ TEST(JsonParser, DispatchVgf) {
     ASSERT_TRUE(desc.bindings[0].resourceRef.isValid());
 }
 
+TEST(JsonParser, DispatchVgfDataGraphBinaries) {
+    const auto jsonInput = R"(
+    {
+        "bindings": [],
+        "graph_ref": "graph",
+        "data_graph_binaries": [
+            {
+                "segment_id": 0,
+                "binary_ref": "shared_binary"
+            },
+            {
+                "segment_id": 2,
+                "binary_ref": "shared_binary",
+                "pipeline_identifier": [17, 34],
+                "use_application_storage": true
+            },
+            {
+                "segment_id": 4,
+                "binary_ref": "other_binary"
+            }
+        ]
+    }
+    )"_json;
+    const auto desc = MakeFromJSON<DispatchVgfDesc>(jsonInput);
+
+    ASSERT_EQ(desc.dataGraphBinaries.size(), 3);
+    EXPECT_EQ(desc.dataGraphBinaries.at(0).binaryRef, Guid("shared_binary"));
+    EXPECT_FALSE(desc.dataGraphBinaries.at(0).pipelineIdentifier.has_value());
+    EXPECT_EQ(desc.dataGraphBinaries.at(2).binaryRef, Guid("shared_binary"));
+    EXPECT_EQ(desc.dataGraphBinaries.at(2).pipelineIdentifier, (std::vector<uint8_t>{17, 34}));
+    EXPECT_TRUE(desc.dataGraphBinaries.at(2).useApplicationStorage);
+    EXPECT_EQ(desc.dataGraphBinaries.at(4).binaryRef, Guid("other_binary"));
+}
+
+TEST(JsonParser, DispatchVgfRejectsDuplicateBinarySegmentIds) {
+    const auto jsonInput = R"(
+    {
+        "bindings": [],
+        "graph_ref": "graph",
+        "data_graph_binaries": [
+            {"segment_id": 0, "binary_ref": "first"},
+            {"segment_id": 0, "binary_ref": "second"}
+        ]
+    }
+    )"_json;
+    EXPECT_THROW(MakeFromJSON<DispatchVgfDesc>(jsonInput), std::runtime_error);
+}
+
+TEST(JsonParser, DispatchVgfAcceptsEmptyDataGraphBinaries) {
+    const auto jsonInput = R"(
+    {
+        "bindings": [],
+        "graph_ref": "graph",
+        "data_graph_binaries": []
+    }
+    )"_json;
+    const auto desc = MakeFromJSON<DispatchVgfDesc>(jsonInput);
+    EXPECT_TRUE(desc.dataGraphBinaries.empty());
+}
+
 TEST(JsonParser, DispatchDataGraphBinary) {
     const std::string jsonInput =
         R""(

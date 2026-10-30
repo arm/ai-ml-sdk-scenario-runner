@@ -1,0 +1,31 @@
+{
+    "commands": [
+        {
+            "dispatch_vgf": {
+                "bindings": [],
+                "graph_ref": "model_vgf",
+                "data_graph_binaries": [
+                    {
+                        "segment_id": 0,
+                        "binary_ref": "shared_binary"
+                    },
+                    {
+                        "segment_id": 2,
+                        "binary_ref": "shared_binary",
+                        "pipeline_identifier": [17, 34],
+                        "use_application_storage": true
+                    },
+                    {
+                        "segment_id": 4,
+                        "binary_ref": "other_binary"
+                    }
+                ]
+            }
+        }
+    ],
+    "resources": [
+        {"graph": {"uid": "model_vgf", "src": "model.vgf"}},
+        {"raw_data": {"uid": "shared_binary", "src": "shared.dgb"}},
+        {"raw_data": {"uid": "other_binary", "src": "other.dgb"}}
+    ]
+}

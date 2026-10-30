@@ -7,6 +7,7 @@
 
 #include "types.hpp"
 
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -140,6 +141,8 @@ struct DispatchVgfData {
     std::vector<ResolvedPushConstantMap> pushConstants;
     /// @brief Shader replacements applied to the graph.
     std::vector<ResolvedShaderSubstitution> shaderSubstitutions;
+    /// @brief VGF model-sequence indices and their external binary inputs.
+    std::map<uint32_t, ExternalDataGraphBinary> dataGraphBinaries;
     /// @brief Insert implicit synchronization around the dispatch.
     bool implicitBarrier{true};
 };

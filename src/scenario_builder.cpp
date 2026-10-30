@@ -186,6 +186,9 @@ void ScenarioBuilderImpl::addDispatchVgf(DispatchVgfData command) {
     for (const auto &shader : command.shaderSubstitutions) {
         requireResource(_data.resources, shader.shader, "Shader");
     }
+    for (const auto &entry : command.dataGraphBinaries) {
+        requireResource(_data.resources, entry.second.binary, "Raw data");
+    }
     _data.commands.emplace_back(std::move(command));
 }
 

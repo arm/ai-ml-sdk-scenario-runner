@@ -205,6 +205,23 @@ TEST(DeviceRequirements, VgfUsesOnlyCapabilitiesRequiredByItsContents) {
                                                   DeviceCapability::Tensors | DeviceCapability::ShaderTensorAccess);
 }
 
+TEST(DeviceRequirements, VgfBinaryGraphDoesNotRequireShaderModules) {
+    TempFolder tempFolder("device_requirements_binary_vgf");
+    ScenarioBuildData buildData;
+    const auto vgf = buildData.resources.addVgf(VgfInfo{
+        "mixed VGF",
+        createVgf(tempFolder, "mixed_binary.vgf", {vgflib::ModuleType::GRAPH, vgflib::ModuleType::COMPUTE}, false),
+        0,
+        {}});
+    DispatchVgfData dispatch{vgf};
+    dispatch.dataGraphBinaries.emplace(0, ExternalDataGraphBinary{RawDataId{0}});
+    buildData.commands.emplace_back(std::move(dispatch));
+
+    const auto requirements = getDeviceRequirements(buildData, ScenarioOptions{});
+    EXPECT_EQ(requirements.queueFlags, vk::QueueFlags{vk::QueueFlagBits::eDataGraphARM | vk::QueueFlagBits::eCompute});
+    EXPECT_EQ(requirements.capabilities, DeviceCapability::DataGraph | DeviceCapability::DataGraphBinaries);
+}
+
 TEST(DeviceSelection, RejectsUnsupportedPreferredDevices) {
     DeviceRequirements requirements;
     requirements.queueFlags = vk::QueueFlagBits::eDataGraphARM;

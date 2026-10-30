@@ -19,6 +19,8 @@
 
 namespace mlsdk::scenariorunner {
 
+struct ExternalDataGraphBinary;
+
 struct NeuralStatisticsMemoryInfo {
     uint32_t sessionMemoryIndex;
     vk::DeviceSize size;
@@ -44,9 +46,8 @@ class Pipeline {
     Pipeline(const CommonArguments &args, uint32_t segmentIndex, const VgfView &vgfView, const DataManager &dataManager,
              bool enableNeuralStatistics, vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
 
-    /// \brief Create a data graph pipeline from a binary and optional opaque identifier.
-    Pipeline(const CommonArguments &args, const MemoryMap &binary,
-             const std::optional<std::vector<uint8_t>> &identifier, bool useApplicationStorage,
+    /// \brief Create a data graph pipeline from a selected external binary.
+    Pipeline(const CommonArguments &args, const ExternalDataGraphBinary &binary, const DataManager &dataManager,
              bool enableNeuralStatistics, vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
 
     // Create DataGraph pipeline directly from SPIR-V module + constants (no VGF)

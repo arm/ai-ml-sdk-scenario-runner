@@ -164,6 +164,7 @@ graph_constant_path = resources_path / "graph_constant"
 
         # dispatch_vgf
         (Ok(), dispatch_vgf_path/"reference.json"),
+        (Ok(), dispatch_vgf_path/"vgf_data_graph_binary.json"),
         (UnexpectedProperty("this_is_an_invalid_property"), dispatch_vgf_path/"invalid_property.json"),
         (RequiredProperty("bindings"), dispatch_vgf_path/"missing_bindings.json"),
         (RequiredProperty("graph_ref"), dispatch_vgf_path/"missing_graph_ref.json",),

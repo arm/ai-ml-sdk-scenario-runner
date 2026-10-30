@@ -29,6 +29,7 @@
 #include "utils.hpp"
 
 #include <algorithm>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -76,7 +77,8 @@ class ScenarioImpl final : public Scenario {
     void createFragmentPipeline(const DispatchFragmentData &dispatchFragment, uint32_t &nQueries);
     void createOpticalFlowPipeline(const DispatchOpticalFlowData &dispatchOpticalFlow, uint32_t &nQueries);
     void createPipeline(uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
-                        const VgfView &vgfView, const DispatchVgfData &dispatchVgf, uint32_t &nQueries);
+                        const VgfView &vgfView, const DispatchVgfData &dispatchVgf,
+                        const ExternalDataGraphBinary *binaryData, uint32_t &nQueries);
     void initializeResourceData();
     void setupVgfResources();
     void setupResources();
@@ -144,6 +146,23 @@ void validateDataGraphBindings(const std::vector<TypedBinding> &bindings) {
             continue;
         }
         throw std::runtime_error("DataGraph bindings must reference tensors or images");
+    }
+}
+
+void validateVgfBinaryDispatch(const VgfView &vgfView, const DispatchVgfData &dispatchVgf,
+                               bool failOnPipelineCacheMiss) {
+    for (const auto &entry : dispatchVgf.dataGraphBinaries) {
+        const auto segmentIndex = entry.first;
+        if (segmentIndex >= vgfView.getNumSegments()) {
+            throw std::runtime_error("VGF binary segment index is out of range: " + std::to_string(segmentIndex));
+        }
+        if (vgfView.getSegmentType(segmentIndex) != ModuleType::GRAPH) {
+            throw std::runtime_error("VGF binary segment must select a graph: " + std::to_string(segmentIndex));
+        }
+    }
+    if (!dispatchVgf.dataGraphBinaries.empty() && failOnPipelineCacheMiss) {
+        throw std::runtime_error("dispatch_vgf binary segments cannot be used with --fail-on-pipeline-cache-miss: "
+                                 "binary pipelines ignore Vulkan pipeline caches");
     }
 }
 
@@ -819,13 +838,18 @@ void ScenarioImpl::createFragmentPipeline(const DispatchFragmentData &dispatchFr
 
 void ScenarioImpl::createVgfPipeline(const DispatchVgfData &dispatchVgf, uint32_t &nQueries) {
     const VgfView &vgfView = _dataManager.getVgfView(dispatchVgf.vgf);
+    validateVgfBinaryDispatch(vgfView, dispatchVgf, _opts.failOnPipelineCacheMiss);
+
     for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
         const auto &intermediates = _vgfResourceCreationResults.at(dispatchVgf.vgf).intermediateResources;
         const auto &sequenceBindings =
             vgfView.resolveBindings(segmentIndex, _dataManager, dispatchVgf.bindings, intermediates);
         auto moduleName = vgfView.getModuleName(segmentIndex);
         PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + moduleName, "Pipeline Setup");
-        createPipeline(segmentIndex, sequenceBindings, vgfView, dispatchVgf, nQueries);
+        const auto binaryForSegment = dispatchVgf.dataGraphBinaries.find(segmentIndex);
+        const auto *binaryData =
+            binaryForSegment == dispatchVgf.dataGraphBinaries.end() ? nullptr : &binaryForSegment->second;
+        createPipeline(segmentIndex, sequenceBindings, vgfView, dispatchVgf, binaryData, nQueries);
     }
 }
 
@@ -844,9 +868,8 @@ void ScenarioImpl::createDataGraphBinaryPipeline(const DispatchDataGraphBinaryDa
     PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + binary.debugName(), "Pipeline Setup");
     const Compute::PipelineCreateArguments args{dispatchDataGraphBinary.debugName, dispatchDataGraphBinary.bindings,
                                                 nullptr};
-    _compute.createPipeline(args, binary.mapping(), dispatchDataGraphBinary.binaryData.pipelineIdentifier,
-                            dispatchDataGraphBinary.binaryData.useApplicationStorage,
-                            _opts.shouldDumpNeuralStatistics(), _opts.neuralStatisticsMode);
+    _compute.createPipeline(args, dispatchDataGraphBinary.binaryData, _dataManager, _opts.shouldDumpNeuralStatistics(),
+                            _opts.neuralStatisticsMode);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
     _compute.registerPipelineFenced(_dataManager, dispatchDataGraphBinary.bindings, nullptr, 0,
                                     dispatchDataGraphBinary.implicitBarrier);
@@ -923,13 +946,20 @@ void ScenarioImpl::createOpticalFlowPipeline(const DispatchOpticalFlowData &disp
 }
 
 void ScenarioImpl::createPipeline(const uint32_t segmentIndex, const std::vector<TypedBinding> &sequenceBindings,
-                                  const VgfView &vgfView, const DispatchVgfData &dispatchVgf, uint32_t &nQueries) {
+                                  const VgfView &vgfView, const DispatchVgfData &dispatchVgf,
+                                  const ExternalDataGraphBinary *binaryData, uint32_t &nQueries) {
     const auto profileName = dispatchVgf.debugName + '/' + vgfView.getSegmentName(segmentIndex);
-    const Compute::PipelineCreateArguments args{profileName, sequenceBindings, _pipelineCache};
+    const Compute::PipelineCreateArguments args{
+        profileName, sequenceBindings, binaryData == nullptr ? _pipelineCache : std::shared_ptr<PipelineCache>{}};
     switch (vgfView.getSegmentType(segmentIndex)) {
     case ModuleType::GRAPH: {
-        _compute.createPipeline(args, segmentIndex, vgfView, _dataManager, _opts.shouldDumpNeuralStatistics(),
-                                _opts.neuralStatisticsMode);
+        if (binaryData != nullptr) {
+            _compute.createPipeline(args, *binaryData, _dataManager, _opts.shouldDumpNeuralStatistics(),
+                                    _opts.neuralStatisticsMode);
+        } else {
+            _compute.createPipeline(args, segmentIndex, vgfView, _dataManager, _opts.shouldDumpNeuralStatistics(),
+                                    _opts.neuralStatisticsMode);
+        }
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
         _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchVgf.implicitBarrier);
         _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);

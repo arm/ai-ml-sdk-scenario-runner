@@ -305,7 +305,8 @@ raw_data
 
 The ``raw_data`` represents some data in host memory that is fed to the
 dispatches via means other than standard resource binding mechanisms for
-example, push constant or specialization constants.
+example, push constants, specialization constants, or a data-graph pipeline
+binary.
 
 .. code-block::
 
@@ -546,6 +547,7 @@ ML extensions for Vulkan®.
 
   dispatch_vgf: {
       graph_ref: string, // reference to the graph resource
+      data_graph_binaries: [class data_graph_binary](default=), // optional external binary selection by VGF segment
       push_constants: [class push_constant_map](default=), // mappings between push constants data and the target shader node.
       bindings: [class binding] // array of bindings mapping a resource reference to a descriptor set and id. These bindings describe the inputs and outputs to the graph.
       implicit_barrier:boolean(default=true) // inclusion of implicit memory barrier
@@ -557,7 +559,14 @@ ML extensions for Vulkan®.
       shader_target: string, // name of the shader node in the graph to apply the push constants to
   }
 
-The ``shader_substitutions`` field uses the same :ref:`shader_substitutions structure <shader_substitutions>` structure as graph resources.
+  data_graph_binary: {
+      segment_id: integer, // unique zero-based graph-segment index in the VGF model sequence
+      binary_ref: string, // raw_data resource containing the binary
+      pipeline_identifier: [integer](default=), // optional producer-supplied byte selector
+      use_application_storage: boolean(default=false) // keep mapped bytes until pipeline destruction
+  }
+
+The ``shader_substitutions`` field uses the same :ref:`shader_substitutions structure <shader_substitutions>` as graph resources.
 
 dispatch_data_graph
 """""""""""""""""""
@@ -587,23 +596,23 @@ a precompiled :ref:`raw_data` resource.
 .. code-block::
 
   dispatch_data_graph_binary: {
-      binary_ref: string, // reference to the raw_data resource containing the binary
+      binary_ref: string, // raw_data resource containing the binary
       bindings: [class binding], // resource-to-descriptor set/id mappings
-      pipeline_identifier: [integer], // optional opaque pipeline selector
-      use_application_storage: boolean(default=false), // allow use of mapped binary storage
+      pipeline_identifier: [integer](default=), // optional producer-supplied byte selector
+      use_application_storage: boolean(default=false), // keep mapped bytes until pipeline destruction
       implicit_barrier:boolean(default=true) // inclusion of implicit memory barrier
   }
 
 For a multi-pipeline binary, supply the producer's ``pipeline_identifier`` as
-byte values (0-255). It may be omitted for a single-pipeline binary. This
-command requires ``VK_ARM_data_graph_binaries``.
+byte values (0-255). It may be omitted for a single-pipeline binary.
 
-Binary-backed pipelines do not use Vulkan® pipeline caches. ``--pipeline-caching``
-still applies to other dispatches in the scenario, but
-``--fail-on-pipeline-cache-miss`` is not supported with this command.
-
-With ``use_application_storage: true``, the mapped data must remain unchanged
-until the pipeline is destroyed.
+For both binary-backed dispatch forms, ``VK_ARM_data_graph_binaries`` is
+required. Scenario Runner treats binary payloads as opaque and passes no
+separate graph or specialization constants. Binary-backed pipelines do not use
+Vulkan® pipeline caches, so ``--fail-on-pipeline-cache-miss`` is unsupported;
+``--pipeline-caching`` still applies to other pipelines. With
+``use_application_storage: true``, the mapped binary must remain unchanged
+until its pipeline is destroyed.
 
 dispatch_optical_flow
 """""""""""""""""""""

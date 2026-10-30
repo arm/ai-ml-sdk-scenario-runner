@@ -13,6 +13,9 @@
   `--disable-extension`.
 - Added experimental standalone data-graph-binary dispatch from a file-backed
   binary resource with an optional pipeline selector.
+- Added experimental per-segment raw-data binary references for VGF graph
+  segments, retaining shader-backed graph and compute segments in the same
+  dispatch.
 
 ### Bug Fixes
 
