@@ -482,6 +482,17 @@ void VgfView::setTensorShape(uint32_t mrtIndex, std::vector<int64_t> shape) {
     resolvedMrtShapes[mrtIndex] = std::move(shape);
 }
 
+std::optional<uint32_t> VgfView::resolveExternalBinding(const DataManager &dataManager,
+                                                        const TypedBinding &binding) const {
+    const auto lookup = findModelInterfaceResource(modelInterface, binding.id);
+    if (!lookup) {
+        return std::nullopt;
+    }
+    const DataManagerResourceViewer viewer(dataManager, binding.resource);
+    validateResource(viewer, lookup->mrtIndex, lookup->isOutput ? "output" : "input", lookup->slotIndex);
+    return lookup->mrtIndex;
+}
+
 std::vector<TypedBinding>
 VgfView::resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
                          const std::vector<TypedBinding> &externalBindings,
@@ -489,15 +500,9 @@ VgfView::resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
     // Add model inputs and outputs to the MRT-index mapping created for intermediate resources.
     auto resolvedResources = intermediates;
     for (const auto &externalBinding : externalBindings) {
-        const auto interfaceLookup = findModelInterfaceResource(modelInterface, externalBinding.id);
-        if (!interfaceLookup.has_value()) {
-            continue;
+        if (const auto index = resolveExternalBinding(dataManager, externalBinding)) {
+            resolvedResources.insert_or_assign(*index, externalBinding.resource);
         }
-
-        const DataManagerResourceViewer resourceViewer(dataManager, externalBinding.resource);
-        const std::string_view direction = interfaceLookup->isOutput ? "output" : "input";
-        validateResource(resourceViewer, interfaceLookup->mrtIndex, direction, interfaceLookup->slotIndex);
-        resolvedResources.insert_or_assign(interfaceLookup->mrtIndex, externalBinding.resource);
     }
 
     // Resolve each segment descriptor binding's MRT index to its typed runtime resource ID.

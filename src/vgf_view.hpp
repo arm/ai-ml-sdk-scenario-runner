@@ -22,7 +22,7 @@
 
 namespace mlsdk::workloadlib {
 class Workload;
-}
+} // namespace mlsdk::workloadlib
 
 namespace mlsdk::scenariorunner {
 
@@ -46,6 +46,8 @@ class VgfView {
     /// Import the original mapped VGF. This view must outlive the workload.
     /// Resolved shape/module overlays require workload-lib override support.
     workloadlib::Workload createWorkload() const;
+
+    const vgfutils::ModelInterface &getModelInterface() const { return modelInterface; }
 
     size_t getNumSegments() const;
     ModuleType getSegmentType(uint32_t segmentIndex) const;
@@ -74,6 +76,9 @@ class VgfView {
     int64_t getConstantSparsityDimension(uint32_t constantIndex) const;
     vgflib::DataView<int64_t> getConstantShape(uint32_t constantIndex) const;
     vgflib::DataView<uint8_t> getConstantData(uint32_t constantIndex) const;
+
+    /// Validate an external binding and return its model resource index, if present.
+    std::optional<uint32_t> resolveExternalBinding(const DataManager &dataManager, const TypedBinding &binding) const;
 
     std::vector<TypedBinding>
     resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,

@@ -36,6 +36,8 @@ set(SCENARIO_RUNNER_LIB_SOURCES
     shape_inference.cpp
     tensor.cpp
     utils.cpp
+    vgf_binding_map.cpp
+    vgf_bindings.cpp
     vgf_view.cpp
     frame_capturer.cpp
     image_formats.cpp
