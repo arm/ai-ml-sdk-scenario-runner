@@ -16,6 +16,7 @@ DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT = 6
 DESCRIPTOR_TYPE_TENSOR_ARM = 1000460000
 VK_FORMAT_R8_UINT = 13
 VK_FORMAT_R8_SINT = 14
+VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM = 1000460002
 pretendVulkanHeaderVersion = 123
 
 pytestmark = pytest.mark.vgf_graph
@@ -495,3 +496,64 @@ def test_maxpool_conv2d_parallel_vgf(sdk_tools, resources_helper, numpy_helper):
     )
 
     sdk_tools.run_scenario("test_vgf_graph/maxpool_conv2d.json")
+
+
+def test_block_scaled_vgf(sdk_tools, resources_helper):
+    encoder = vgf.CreateEncoder(pretendVulkanHeaderVersion)
+    blockScaledInput = encoder.AddInputResource(
+        DESCRIPTOR_TYPE_TENSOR_ARM,
+        VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM,
+        [2, 32],
+        [],
+    )
+    blockScaledOutput = encoder.AddOutputResource(
+        DESCRIPTOR_TYPE_TENSOR_ARM,
+        VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM,
+        [2, 32],
+        [],
+    )
+    encoder.AddScaledTensorConfig(blockScaledInput, [16], vgf.ScaleFormat.E8M0)
+    encoder.AddScaledTensorConfig(blockScaledOutput, [32], vgf.ScaleFormat.E8M0)
+    blockScaledInputBinding = encoder.AddBindingSlot(0, blockScaledInput)
+    blockScaledOutputBinding = encoder.AddBindingSlot(1, blockScaledOutput)
+    encoder.AddModelSequenceInputsOutputs(
+        [blockScaledInputBinding],
+        ["blockScaledInput"],
+        [blockScaledOutputBinding],
+        ["blockScaledOutput"],
+    )
+    encoder.Finish()
+
+    vgfStream = io.FileIO(resources_helper.get_testenv_path("graph.vgf"), mode="wb")
+    assert encoder.WriteTo(vgfStream)
+    vgfStream.close()
+
+    vgfStream = io.FileIO(resources_helper.get_testenv_path("graph.vgf"), mode="rb")
+    buffer = memoryview(vgfStream.read())
+    assert buffer.nbytes >= vgf.HeaderSize()
+
+    headerDecoder = vgf.CreateHeaderDecoder(buffer, vgf.HeaderSize(), buffer.nbytes)
+    assert headerDecoder is not None
+
+    resourceDecoder = vgf.CreateModelResourceTableDecoder(
+        buffer[headerDecoder.GetModelResourceTableOffset() :],
+        headerDecoder.GetModelResourceTableSize(),
+    )
+    assert resourceDecoder is not None
+    for resource, blockShape in ((blockScaledInput, [16]), (blockScaledOutput, [32])):
+        config = resourceDecoder.getScaledTensorConfigHandle(resource.reference)
+        assert config is not None
+        assert (
+            list(resourceDecoder.getScaledTensorConfigBlockShape(config)) == blockShape
+        )
+        assert (
+            resourceDecoder.getScaledTensorConfigScaleFormat(config)
+            == vgf.ScaleFormat.E8M0
+        )
+    vgfStream.close()
+
+    with pytest.raises(subprocess.CalledProcessError) as exc_info:
+        sdk_tools.run_scenario("test_vgf_graph/block_scaled_tensor.json")
+    assert "Tensor block_scaling is not supported: blockScaledInput" in (
+        exc_info.value.stderr or ""
+    )

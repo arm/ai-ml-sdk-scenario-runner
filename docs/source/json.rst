@@ -216,6 +216,12 @@ The ``tensor`` resources have the following properties:
       dst:path(default=""), // optional path to the NumPy file to write contents to (post execution of commands)
       memory_group, // optional memory group to share memory object between resources; when used, offset must be aligned to Vulkan® tensor memory alignment
       tiling:enum = (OPTIMAL|LINEAR), // optional "Tiling" arrangement info of the tensor resource
+      block_scaling: { // optional block-scaled tensor metadata
+          block_shape:[int], // nonempty array of positive block dimensions
+          format:"E8M0", // scale format
+          src:path, // scale .npy file for an input tensor
+          dst:path, // scale .npy file for an output tensor
+      },
   }
 
 Supported formats for tensors are limited to a subset of the single channel
@@ -232,6 +238,34 @@ types defined in the VkFormat enum. Currently supported formats are:
    For BFloat16 and the Float8 encodings, the Scenario Runner preserves
    the tensor payload bytes when reading and writing NumPy files instead of
    converting them to native NumPy floating-point scalar types.
+
+Experimental block-scaled tensor schema
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A block-scaled tensor uses one scenario resource. When files are used, values
+and scales have separate ``.npy`` files. Use ``src`` for input values and
+``block_scaling.src`` for input scales. Use the matching ``dst`` fields for an
+output. Both paths must be nonempty. A tensor with neither pair of paths
+represents an intermediate.
+``block_shape`` and the E8M0 scale ``format`` are required even for an
+intermediate. For example:
+
+.. code-block:: json
+
+   {
+     "tensor": {
+       "uid": "input_0_ref",
+       "dims": [2, 32],
+       "format": "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM",
+       "shader_access": "readonly",
+       "src": "input-0.npy",
+       "block_scaling": {
+         "block_shape": [32],
+         "format": "E8M0",
+         "src": "input-0_scale.npy"
+       }
+     }
+   }
 
 To allow for memory aliasing, the following object is needed in each resource:
 .. code-block::
