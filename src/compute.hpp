@@ -23,6 +23,7 @@ namespace mlsdk::scenariorunner {
 
 struct PipelineBarrierData;
 struct FrameBoundaryData;
+class WorkloadExecution;
 
 /// \brief Image attachment used by a graphics dispatch
 struct GraphicsDispatchAttachment {
@@ -56,6 +57,14 @@ class Compute {
 
     /// \brief Reset and setup resources
     void reset();
+
+    /// Register a prepared workload in scenario order. SR retains submission,
+    /// timestamps, debug labels and the optional trailing implicit barrier.
+    /// The execution remains owned across command-buffer resets and repeats.
+    /// Register timestamps around this call, as for legacy dispatches. Profile
+    /// describes the whole command; executable-level VGF profiling is separate.
+    void registerWorkloadExecution(std::shared_ptr<WorkloadExecution> execution, const std::string &debugName,
+                                   ProfiledCommand profile, bool implicitBarrier);
 
     struct PipelineCreateArguments {
         const std::string &debugName;
@@ -218,14 +227,19 @@ class Compute {
 
     struct PopDebugMarker {};
 
+    struct WorkloadDispatch {
+        std::shared_ptr<WorkloadExecution> execution;
+        ProfiledCommand profile;
+    };
+
     struct GraphicsDispatch {
         GraphicsDispatchInfo info;
         std::string profileName;
     };
 
-    using Command =
-        std::variant<BindDescriptorSet, BindPipeline, ComputeDispatch, DataGraphDispatch, GraphicsDispatch,
-                     MemoryBarrier, PushConstants, WriteTimestamp, FrameBoundary, PushDebugMarker, PopDebugMarker>;
+    using Command = std::variant<BindDescriptorSet, BindPipeline, ComputeDispatch, DataGraphDispatch, GraphicsDispatch,
+                                 MemoryBarrier, PushConstants, WriteTimestamp, FrameBoundary, PushDebugMarker,
+                                 PopDebugMarker, WorkloadDispatch>;
 
     struct DebugMarker;
 

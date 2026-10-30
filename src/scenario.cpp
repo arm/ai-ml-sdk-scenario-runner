@@ -28,6 +28,8 @@
 #include "scenario_build_data.hpp"
 #include "utils.hpp"
 
+#include "workload_runtime.hpp"
+
 #include <algorithm>
 #include <memory>
 #include <stdexcept>
@@ -85,6 +87,7 @@ class ScenarioImpl final : public Scenario {
     void createRuntimeResources();
     void createRuntimeBarriers();
     void setupRuntimeCommands();
+    std::shared_ptr<WorkloadRuntime> workloadRuntime();
     void saveProfilingData(int iteration, int repeatCount, bool dryRun);
     void saveResults(bool dryRun);
     void resetForNextRun();
@@ -104,6 +107,8 @@ class ScenarioImpl final : public Scenario {
     std::vector<detail::ResourceOutput> _outputs;
     std::vector<detail::ScenarioCommand> _commands;
     std::shared_ptr<PipelineCache> _pipelineCache;
+    // Compute owns executions; destroy them before the bridge and SR resources.
+    std::shared_ptr<WorkloadRuntime> _workloadRuntime;
     Compute _compute;
     std::vector<PerformanceCounter> _perfCounters;
     GroupManager _groupManager;
@@ -584,6 +589,13 @@ void ScenarioImpl::setupResources() {
     for (const auto &entry : _resources.buffers()) {
         _dataManager.getBufferMut(entry.id).allocateMemory(_ctx);
     }
+}
+
+std::shared_ptr<WorkloadRuntime> ScenarioImpl::workloadRuntime() {
+    if (!_workloadRuntime) {
+        _workloadRuntime = std::make_shared<WorkloadRuntime>(_ctx);
+    }
+    return _workloadRuntime;
 }
 
 void ScenarioImpl::setupRuntimeCommands() {

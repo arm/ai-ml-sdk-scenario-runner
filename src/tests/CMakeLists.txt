@@ -29,6 +29,7 @@ add_executable(ScenarioRunnerTests
   tensor_tests.cpp
   vgf_view_tests.cpp
   vulkan_startup_tests.cpp
+  workload_execution_tests.cpp
 )
 target_link_libraries(ScenarioRunnerTests PRIVATE
   GTest::gtest_main

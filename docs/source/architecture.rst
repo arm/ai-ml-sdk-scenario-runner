@@ -105,3 +105,40 @@ GLSL Compiler
 ^^^^^^^^^^^^^^
 The ``GLSL Compiler`` object is utility module that uses ``glslang`` to compile
 GLSL shaders into SPIR-V™.
+
+Workload Library integration
+----------------------------
+
+Three internal classes provide a common foundation for command migrations:
+
+- ``WorkloadRuntime`` wraps the scenario's existing Vulkan® context and queue.
+  ``ScenarioImpl::workloadRuntime()`` creates it lazily.
+- ``WorkloadExecution`` owns a workload, session and prepared binding snapshot.
+  A factory constructs the immovable workload directly inside the owner.
+  The execution keeps the runtime alive and records into SR's command buffer.
+- ``WorkloadBindings`` binds existing buffers, tensors, image views and samplers
+  from ``DataManager``. SR retains resource ownership and image layout tracking.
+
+``Compute::registerWorkloadExecution()`` places the execution in scenario order
+alongside existing commands, barriers and frame boundaries. SR handles
+submission, synchronization and repeats. Adapters register surrounding timestamps
+and supply the profiling type and name. SR also retains the optional trailing
+implicit barrier: workload-lib's internal barriers only connect executables
+within a workload.
+
+A feature adapter constructs the workload and ``WorkloadExecution``, sets
+session inputs and tiling, then calls ``session().configure()``. It creates a
+binding set, binds resources and push data, calls ``prepare()`` once and
+registers the execution with ``Compute``. Compute adapters can initially use
+the compiled SPIR-V™ in ``ShaderInfo::src`` for all input languages.
+
+Adapters map each ``TypedBinding`` to an explicit workload ``ResourceView``;
+VGF public resource indices differ from standalone descriptor locations. Image
+requirements must match SR's view range and established layout. Supply backing
+memory information, including alias offsets, when workload requirements demand
+it. The original SR context and bound resources must outlive executions and
+GPU completion.
+
+Feature-specific adapters, graph diagnostics and executable-level VGF profiling
+remain part of their respective migrations. Dependency wiring and cache policy
+are handled separately.
