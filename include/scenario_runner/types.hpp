@@ -227,7 +227,7 @@ struct TypedBinding {
     uint32_t id{};
     /// Buffer, image, or tensor bound to the descriptor.
     MemoryResourceId resource;
-    /// Image mip level to bind, or no value for the base level.
+    /// Image mip level to bind; omitting it binds the full mip chain.
     std::optional<uint32_t> lod;
     /// Descriptor type used for this binding.
     vk::DescriptorType vkDescriptorType{};
