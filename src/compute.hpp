@@ -66,6 +66,12 @@ class Compute {
     void registerWorkloadExecution(std::shared_ptr<WorkloadExecution> execution, const std::string &debugName,
                                    ProfiledCommand profile, bool implicitBarrier);
 
+    /// Record one prepared VGF workload, profiling its executables in workload
+    /// order. Reserves two queries per executable in the scenario query pool.
+    /// The adapter must configure workload-internal barrier settings separately.
+    void registerVgfExecution(std::shared_ptr<WorkloadExecution> execution, const std::string &debugName,
+                              uint32_t &nQueries, bool implicitBarrier);
+
     struct PipelineCreateArguments {
         const std::string &debugName;
         const std::vector<TypedBinding> &bindings;
@@ -232,6 +238,13 @@ class Compute {
         ProfiledCommand profile;
     };
 
+    struct VgfDispatch {
+        std::shared_ptr<WorkloadExecution> execution;
+        std::vector<ProfiledCommand> profiles;
+        uint32_t firstQuery;
+        bool implicitBarrier;
+    };
+
     struct GraphicsDispatch {
         GraphicsDispatchInfo info;
         std::string profileName;
@@ -239,7 +252,7 @@ class Compute {
 
     using Command = std::variant<BindDescriptorSet, BindPipeline, ComputeDispatch, DataGraphDispatch, GraphicsDispatch,
                                  MemoryBarrier, PushConstants, WriteTimestamp, FrameBoundary, PushDebugMarker,
-                                 PopDebugMarker, WorkloadDispatch>;
+                                 PopDebugMarker, WorkloadDispatch, VgfDispatch>;
 
     struct DebugMarker;
 
@@ -307,5 +320,13 @@ class Compute {
     vk::PipelineBindPoint _getBindPoint(BindPoint bindPoint);
 
     void _createCmdBuffer();
+
+    void _writeTimestamp(const vk::raii::CommandBuffer &commandBuffer, vk::PipelineStageFlagBits2 stage,
+                         uint32_t query);
+
+    void _beginDebugLabel(const vk::raii::CommandBuffer &commandBuffer, const std::string &name);
+    void _endDebugLabel(const vk::raii::CommandBuffer &commandBuffer);
+
+    void _recordVgf(const VgfDispatch &dispatch, const vk::raii::CommandBuffer &commandBuffer);
 };
 } // namespace mlsdk::scenariorunner

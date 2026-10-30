@@ -10,9 +10,13 @@
 
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 namespace mlsdk::scenariorunner {
+
+class VgfView;
 
 /// Owns one migrated command's workload, session and prepared binding snapshot.
 /// Adapters configure session-specific inputs before configure(), then bind and
@@ -30,6 +34,16 @@ class WorkloadExecution {
           _session(requireRuntime(_runtime).context(), _workload, options) {}
     ~WorkloadExecution() = default;
 
+    /// Import one VGF dispatch, retaining the mapped bytes until the workload
+    /// and session have been destroyed. The returned session is unconfigured.
+    static std::shared_ptr<WorkloadExecution> fromVgf(std::shared_ptr<WorkloadRuntime> runtime,
+                                                      std::shared_ptr<const VgfView> source,
+                                                      workloadlib::SessionOptions options = {});
+
+    /// A module target can identify multiple segments. Return stable views in
+    /// dispatch order rather than treating module names as executable indices.
+    std::vector<workloadlib::ExecutableView> executableTargets(std::string_view moduleName) const;
+
     // Keep a stable address: prepared executions borrow the session.
     WorkloadExecution(const WorkloadExecution &) = delete;
     WorkloadExecution &operator=(const WorkloadExecution &) = delete;
@@ -43,13 +57,14 @@ class WorkloadExecution {
     /// Freezes the bindings for all subsequent recordings. Replacing a prepared
     /// snapshot could invalidate command buffers, so it requires a new owner.
     void prepare(const workloadlib::BindingSet &bindings);
-    void record(vk::CommandBuffer commandBuffer);
+    void record(vk::CommandBuffer commandBuffer, const workloadlib::RecordOptions &options = {});
 
   private:
     static WorkloadRuntime &requireRuntime(const std::shared_ptr<WorkloadRuntime> &owner);
 
     // Declaration order is intentional: borrowed objects are destroyed last.
     std::shared_ptr<WorkloadRuntime> _runtime;
+    std::shared_ptr<const VgfView> _vgfSource;
     workloadlib::Workload _workload;
     workloadlib::Session _session;
     std::optional<workloadlib::PreparedExecution> _prepared;

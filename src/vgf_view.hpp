@@ -19,6 +19,10 @@
 #include <utility>
 #include <vector>
 
+namespace mlsdk::workloadlib {
+class Workload;
+}
+
 namespace mlsdk::scenariorunner {
 
 class DataManager;
@@ -37,6 +41,10 @@ class VgfView {
     using DescriptorBindingMrtMap = std::map<DescriptorBinding, uint32_t>;
 
     static VgfView createVgfView(std::string vgfFile);
+
+    /// Import the original mapped VGF. This view must outlive the workload.
+    /// Resolved shape/module overlays require workload-lib override support.
+    workloadlib::Workload createWorkload() const;
 
     size_t getNumSegments() const;
     ModuleType getSegmentType(uint32_t segmentIndex) const;

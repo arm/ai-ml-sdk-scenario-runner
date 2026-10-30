@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <stdexcept>
 #include <utility>
 
@@ -125,6 +126,26 @@ void Compute::registerWorkloadExecution(std::shared_ptr<WorkloadExecution> execu
     if (implicitBarrier) {
         _addImplicitBarriers();
     }
+}
+
+void Compute::registerVgfExecution(std::shared_ptr<WorkloadExecution> execution, const std::string &debugName,
+                                   uint32_t &nQueries, bool implicitBarrier) {
+    if (!execution || !execution->isPrepared()) {
+        throw std::invalid_argument("Cannot register an unprepared VGF execution");
+    }
+    const auto count = execution->workload().executableCount();
+    if (count > (std::numeric_limits<uint32_t>::max() - nQueries) / 2) {
+        throw std::overflow_error("Too many VGF profiling queries");
+    }
+    std::vector<ProfiledCommand> profiles;
+    profiles.reserve(count);
+    for (const auto executable : execution->workload().executables()) {
+        std::string type =
+            executable.type() == workloadlib::ExecutableKind::Graph ? "DataGraphDispatch" : "ComputeDispatch";
+        profiles.push_back({std::move(type), debugName + '/' + std::string(executable.name())});
+    }
+    _commands.emplace_back(VgfDispatch{std::move(execution), std::move(profiles), nQueries, implicitBarrier});
+    nQueries += 2 * count;
 }
 
 void Compute::_setNextCommandBuffer() {
@@ -549,6 +570,8 @@ void Compute::_createCmdBuffer() {
             _cmdBufferArray.back().dispatch(typedCmd.gwcx, typedCmd.gwcy, typedCmd.gwcz);
         } else if (std::holds_alternative<WorkloadDispatch>(cmd)) {
             std::get<WorkloadDispatch>(cmd).execution->record(*_cmdBufferArray.back());
+        } else if (std::holds_alternative<VgfDispatch>(cmd)) {
+            _recordVgf(std::get<VgfDispatch>(cmd), _cmdBufferArray.back());
         } else if (std::holds_alternative<DataGraphDispatch>(cmd)) {
             mlsdk::logging::info("Dispatch graph");
             auto &typedCmd = std::get<DataGraphDispatch>(cmd);
@@ -619,10 +642,8 @@ void Compute::_createCmdBuffer() {
             _cmdBufferArray.back().pushConstants<char>(typedCmd.pipelineLayout, typedCmd.stages, 0,
                                                        vk::ArrayProxy(typedCmd.size, typedCmd.pushConstantData));
         } else if (std::holds_alternative<WriteTimestamp>(cmd)) {
-            if (*_queryPool) {
-                const auto &typedCmd = std::get<WriteTimestamp>(cmd);
-                _cmdBufferArray.back().writeTimestamp2(typedCmd.flag, *_queryPool, typedCmd.query);
-            }
+            const auto &typedCmd = std::get<WriteTimestamp>(cmd);
+            _writeTimestamp(_cmdBufferArray.back(), typedCmd.flag, typedCmd.query);
         } else if (std::holds_alternative<FrameBoundary>(cmd)) {
             auto &typeCmd = std::get<FrameBoundary>(cmd);
             _cmdBufferArray.back().end();
@@ -636,15 +657,61 @@ void Compute::_createCmdBuffer() {
             _setNextCommandBuffer();
             _beginCommandBuffer();
         } else if (std::holds_alternative<PushDebugMarker>(cmd)) {
-            _cmdBufferArray.back().beginDebugUtilsLabelEXT(
-                vk::DebugUtilsLabelEXT{_debugMarkerNames[std::get<PushDebugMarker>(cmd).nameIdx].c_str()});
+            _beginDebugLabel(_cmdBufferArray.back(), _debugMarkerNames[std::get<PushDebugMarker>(cmd).nameIdx]);
         } else if (std::holds_alternative<PopDebugMarker>(cmd)) {
-            _cmdBufferArray.back().endDebugUtilsLabelEXT();
+            _endDebugLabel(_cmdBufferArray.back());
         } else {
             throw std::runtime_error("Unsupported compute command");
         }
     }
     _cmdBufferArray.back().end();
+}
+
+void Compute::_writeTimestamp(const vk::raii::CommandBuffer &commandBuffer, vk::PipelineStageFlagBits2 stage,
+                              uint32_t query) {
+    if (*_queryPool) {
+        commandBuffer.writeTimestamp2(stage, *_queryPool, query);
+    }
+}
+
+void Compute::_beginDebugLabel(const vk::raii::CommandBuffer &commandBuffer, const std::string &name) {
+    if (_ctx.gpuDebugMarkersEnabled()) {
+        commandBuffer.beginDebugUtilsLabelEXT(vk::DebugUtilsLabelEXT(name.c_str()));
+    }
+}
+
+void Compute::_endDebugLabel(const vk::raii::CommandBuffer &commandBuffer) {
+    if (_ctx.gpuDebugMarkersEnabled()) {
+        commandBuffer.endDebugUtilsLabelEXT();
+    }
+}
+
+void Compute::_recordVgf(const VgfDispatch &dispatch, const vk::raii::CommandBuffer &commandBuffer) {
+    workloadlib::RecordOptions options;
+    options.executableHook = [&](const workloadlib::ExecutableRecordContext &record) {
+        const auto index = record.executable.index();
+        const auto &profile = dispatch.profiles.at(index);
+        const auto stage = record.executable.type() == workloadlib::ExecutableKind::Graph
+                               ? vk::PipelineStageFlagBits2::eDataGraphARM
+                               : vk::PipelineStageFlagBits2::eComputeShader;
+        const auto query = dispatch.firstQuery + (2 * index);
+        if (record.phase == workloadlib::ExecutableRecordPhase::Before) {
+            _beginDebugLabel(commandBuffer, profile.name);
+            _writeTimestamp(commandBuffer, stage, query);
+        } else {
+            // Retain SR's broad post-segment dependency, including the final
+            // segment's boundary with a following non-VGF command.
+            if (dispatch.implicitBarrier) {
+                const auto access = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite;
+                const vk::MemoryBarrier2 barrier(vk::PipelineStageFlagBits2::eAllCommands, access,
+                                                 vk::PipelineStageFlagBits2::eAllCommands, access);
+                commandBuffer.pipelineBarrier2(vk::DependencyInfo({}, barrier));
+            }
+            _writeTimestamp(commandBuffer, stage, query + 1);
+            _endDebugLabel(commandBuffer);
+        }
+    };
+    dispatch.execution->record(*commandBuffer, options);
 }
 
 void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters, int iteration) {
@@ -706,6 +773,9 @@ RuntimeProfilingData Compute::getRuntimeProfilingData() const {
             profilingData.commands.push_back({"ComputeDispatch", dispatch.profileName});
         } else if (std::holds_alternative<WorkloadDispatch>(command)) {
             profilingData.commands.push_back(std::get<WorkloadDispatch>(command).profile);
+        } else if (std::holds_alternative<VgfDispatch>(command)) {
+            const auto &profiles = std::get<VgfDispatch>(command).profiles;
+            profilingData.commands.insert(profilingData.commands.end(), profiles.begin(), profiles.end());
         } else if (std::holds_alternative<DataGraphDispatch>(command)) {
             const auto &dispatch = std::get<DataGraphDispatch>(command);
             profilingData.commands.push_back({"DataGraphDispatch", dispatch.profileName});
