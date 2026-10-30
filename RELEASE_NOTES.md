@@ -19,6 +19,8 @@
 
 ### Bug Fixes
 
+- Fixed loading of zero-byte pipeline cache files to warn and create a fresh
+  cache instead of failing to memory map the empty file.
 - Fixed initialization of empty mipmapped images on devices without image-blit
   support for their format, and added capability checks when generating missing
   mip levels. Automatic tiling selection preserves support for later partial

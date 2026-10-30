@@ -52,11 +52,10 @@ PipelineCache::PipelineCache(const Context &ctx, const std::filesystem::path &pi
         mlsdk::logging::info("Pipeline Cache cleared");
     } else if (std::filesystem::exists(pipelineCachePath)) {
         // Use cache file, if existing
-        auto cacheData = std::make_unique<MemoryMap>(pipelineCachePath.string());
-
-        if (cacheData->size() == 0) {
+        if (std::filesystem::file_size(pipelineCachePath) == 0) {
             mlsdk::logging::warning("Pipeline Cache skipped: size invalid");
         } else {
+            auto cacheData = std::make_unique<MemoryMap>(pipelineCachePath.string());
             auto props = ctx.physicalDevice().getProperties();
             if (!isValidPipelineCache(cacheData->ptr(), cacheData->size(), props.vendorID, props.deviceID)) {
                 mlsdk::logging::warning("Pipeline Cache skipped: failed to validate.");
