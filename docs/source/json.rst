@@ -506,7 +506,7 @@ a single ``push_constant`` buffer for the compute stage only.
       set: int, // descriptor set id
       id: int, // descriptor id in the set
       resource_ref: string // named reference to the resource to bind
-      lod: int(default=0) // Optional. Level of details index. In case of an Image resource with mipmaps could be used to bind specific level of details.
+      lod: int // Optional. Bind only this image mip level; when omitted, bind the full mip chain.
       descriptor_type:enum(default=VK_DESCRIPTOR_TYPE_AUTO) = (VK_DESCRIPTOR_TYPE_AUTO|VK_DESCRIPTOR_TYPE_STORAGE_IMAGE), // descriptor type for the resource in current dispatch. Needed only when descriptor type cannot be correctly inferred
   }
 
