@@ -67,8 +67,15 @@ def test_maxpool(sdk_tools, resources_helper, numpy_helper):
     # Generate input tensor
     numpy_helper.generate([1, 16, 16, 16], dtype=np.int8, filename="maxpoolInput.npy")
 
+    # Both dispatch paths must retain memory profiling when standalone graphs migrate.
+    vgf_profiling_path = resources_helper.get_testenv_path("maxpool_vgf_memory.json")
+    spv_profiling_path = resources_helper.get_testenv_path("maxpool_spv_memory.json")
+
     # Run VGF-backed scenario and capture result
-    sdk_tools.run_scenario("test_data_graph/maxpool.json")
+    sdk_tools.run_scenario(
+        "test_data_graph/maxpool.json",
+        options=["--profiling-dump-path", vgf_profiling_path.as_posix()],
+    )
     vgf_result = numpy_helper.load("maxpoolOutput.npy")
 
     # Run SPV-only scenario and capture result
@@ -80,11 +87,19 @@ def test_maxpool(sdk_tools, resources_helper, numpy_helper):
                 resources_helper.get_testenv_path("maxpoolOutput_spv.npy").as_posix()
             ),
         },
+        options=["--profiling-dump-path", spv_profiling_path.as_posix()],
     )
     spv_result = numpy_helper.load("maxpoolOutput_spv.npy")
 
-    # Compare results
+    # Compare results and the complete session memory requirement.
     assert np.array_equal(vgf_result, spv_result)
+    vgf_memory = json.loads(vgf_profiling_path.read_text())["Memory Usage"]
+    spv_memory = json.loads(spv_profiling_path.read_text())["Memory Usage"]
+    assert len(vgf_memory) == len(spv_memory) == 1
+    assert (
+        vgf_memory[0]["Session memory [bytes]"]
+        == spv_memory[0]["Session memory [bytes]"]
+    )
 
 
 def test_conv2d_spv(sdk_tools, resources_helper, numpy_helper):

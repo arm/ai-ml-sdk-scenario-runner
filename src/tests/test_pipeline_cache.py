@@ -177,14 +177,23 @@ def test_fail_on_pipeline_cache_miss_triggers_for_all_pipeline_types(
     assert "ERROR: Pipeline cache miss for pipeline:" in (captured.out + captured.err)
 
 
+@pytest.mark.parametrize(
+    "setup",
+    [_setup_compute_pipeline_cache_miss, _setup_graph_pipeline_cache_miss],
+    ids=["compute", "graph_compute"],
+)
 @pytest.mark.parametrize("empty_cache_file", [False, True], ids=["missing", "empty"])
 @pytest.mark.parametrize("fail_on_miss", [False, True])
 def test_pass_on_missing_or_empty_pipeline_cache(
-    sdk_tools, resources_helper, numpy_helper, capfd, empty_cache_file, fail_on_miss
+    sdk_tools,
+    resources_helper,
+    numpy_helper,
+    capfd,
+    empty_cache_file,
+    fail_on_miss,
+    setup,
 ):
-    scenario, replacements = _setup_compute_pipeline_cache_miss(
-        sdk_tools, resources_helper, numpy_helper
-    )
+    scenario, replacements = setup(sdk_tools, resources_helper, numpy_helper)
 
     cache_path = resources_helper.get_testenv_path(
         f"{scenario.replace('/', '_')}_miss_cache"
@@ -295,10 +304,25 @@ def test_enable_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd)
     assert len(cache_data_third) > 0
 
 
-def test_pipeline_cache_hit(sdk_tools, resources_helper, numpy_helper, capfd):
-    scenario, replacements = _setup_compute_pipeline_cache_miss(
-        sdk_tools, resources_helper, numpy_helper
-    )
+@pytest.mark.parametrize(
+    "setup",
+    [
+        pytest.param(_setup_compute_pipeline_cache_miss, id="compute"),
+        # Graph emulation reports creation validity, but never application cache hits.
+        pytest.param(
+            _setup_graph_pipeline_cache_miss,
+            id="graph_compute",
+            marks=pytest.mark.emulation_layer_incompatible,
+        ),
+    ],
+)
+def test_pipeline_cache_hit(
+    sdk_tools, resources_helper, numpy_helper, capfd, setup, monkeypatch
+):
+    # CI may enable graph emulation without passing --emulation-layer to pytest.
+    # Keep its unsupported-cache warning visible for the runtime check below.
+    monkeypatch.setenv("VMEL_GRAPH_SEVERITY", "warning")
+    scenario, replacements = setup(sdk_tools, resources_helper, numpy_helper)
     cache_path = resources_helper.get_testenv_path(
         f"{scenario.replace('/', '_')}_hit_cache"
     )
@@ -306,6 +330,13 @@ def test_pipeline_cache_hit(sdk_tools, resources_helper, numpy_helper, capfd):
 
     options = ["--pipeline-caching", "--cache-path", cache_path, "--dry-run"]
     sdk_tools.run_scenario(scenario, replacements, options=options)
+    warmup = capfd.readouterr()
+    if (
+        setup is _setup_graph_pipeline_cache_miss
+        and "Using an externally provided pipeline cache is not supported"
+        in (warmup.out + warmup.err)
+    ):
+        pytest.skip("Graph emulation does not support application pipeline caches")
 
     cache_files = list(cache_path.glob("*.cache"))
     assert len(cache_files) == 1

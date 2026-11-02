@@ -6,14 +6,13 @@
 
 #include "scenario_runner/command_types.hpp"
 
+#include "graph_dump.hpp"
 #include "logging.hpp"
 #include "utils.hpp"
 
 #include "workload_execution.hpp"
 
 #include <algorithm>
-#include <fstream>
-#include <iomanip>
 #include <limits>
 #include <stdexcept>
 #include <utility>
@@ -843,10 +842,9 @@ void Compute::dumpNeuralDebugDatabase(const std::filesystem::path &neuralDebugDa
 
         auto dumpPath = neuralDebugDatabaseDumpDir /
                         ("Graph_Pipeline_" + std::to_string(graphPipelineIdx++) + "_Debug_Database.bin");
-        std::ofstream dumpFile(dumpPath, std::ios::out | std::ios::binary);
-        dumpFile.write(debugDatabaseData.data(), std::streamsize(debugDatabaseData.size()));
-        dumpFile.close();
-        mlsdk::logging::info("Graph debug database stored");
+        if (writeGraphBinaryDump(dumpPath, debugDatabaseData.data(), debugDatabaseData.size())) {
+            mlsdk::logging::info("Graph debug database stored");
+        }
     }
 }
 
@@ -886,10 +884,9 @@ void Compute::dumpNeuralStatistics(const std::filesystem::path &neuralStatistics
             "Graph_Pipeline_" + std::to_string(graphPipelineIdx++) + "_Statistics_" + statisticsModeSuffix + ".bin";
         auto dumpPath = neuralStatisticsDumpDir / statisticsFileName;
 
-        std::ofstream dumpFile(dumpPath, std::ios::out | std::ios::binary);
-        dumpFile.write(statisticsData.data(), std::streamsize(statisticsData.size()));
-        dumpFile.close();
-        mlsdk::logging::info("Neural statistics saved to \"" + statisticsFileName + "\"");
+        if (writeGraphBinaryDump(dumpPath, statisticsData.data(), statisticsData.size())) {
+            mlsdk::logging::info("Neural statistics saved to \"" + statisticsFileName + "\"");
+        }
     }
 }
 
@@ -930,10 +927,10 @@ void Compute::dumpGraphProfilingData(const std::filesystem::path &graphProfiling
 
         const std::string fileName = "EmulationLayerPipeline_" + graphPipelineIdxStr + ".json";
 
-        std::ofstream dumpFile(graphProfilingDumpDir / fileName);
-        dumpFile.write(graphProfilingData.data(), std::streamsize(graphProfilingData.size()));
-        dumpFile.close();
-        logging::info("Graph profiling data saved to \"" + fileName + "\"");
+        if (writeGraphBinaryDump(graphProfilingDumpDir / fileName, graphProfilingData.data(),
+                                 graphProfilingData.size())) {
+            logging::info("Graph profiling data saved to \"" + fileName + "\"");
+        }
     }
 }
 
@@ -943,31 +940,20 @@ void Compute::sessionRAMsDump(const std::filesystem::path &sessionRAMsDumpDir) c
         const auto &sessionMemory = pipeline.sessionMemory();
         const auto &sessionMemoryDataSizes = pipeline.sessionMemoryDataSizes();
 
+        bool allStored = true;
         for (size_t i = 0; i < sessionMemory.size(); i++) {
             const std::string sessionRAMFileName =
                 "Graph_Pipeline_" + std::to_string(graphPipelineIdx++) + "_Session_RAM_" + std::to_string(i) + ".txt";
-            std::ofstream fs;
-            fs.open(sessionRAMsDumpDir / sessionRAMFileName);
-
             const vk::raii::DeviceMemory &deviceMemory = sessionMemory.at(i);
             uint64_t dataSize = sessionMemoryDataSizes.at(i);
 
             auto *dst = reinterpret_cast<unsigned char *>(deviceMemory.mapMemory(0, vk::WholeSize));
-
-            fs << std::hex << std::uppercase;
-            fs.fill('0');
-
-            for (size_t j = 0; j < dataSize; j++) {
-                if ((j % 16) == 0) {
-                    fs << std::endl << std::setw(8) << j << ":   ";
-                }
-                fs << std::setw(2) << static_cast<unsigned>(dst[j]) << " ";
-            }
-
+            allStored = writeGraphSessionRAMDump(sessionRAMsDumpDir / sessionRAMFileName, dst, dataSize) && allStored;
             deviceMemory.unmapMemory();
-            fs.close();
         }
-        mlsdk::logging::info("Session RAM dump stored");
+        if (allStored) {
+            mlsdk::logging::info("Session RAM dump stored");
+        }
     }
 }
 
