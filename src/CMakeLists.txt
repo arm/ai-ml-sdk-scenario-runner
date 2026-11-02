@@ -41,6 +41,7 @@ set(SCENARIO_RUNNER_LIB_SOURCES
     image_formats.cpp
     png_reader.cpp
     workload_bindings.cpp
+    workload_compute.cpp
     workload_execution.cpp
     workload_runtime.cpp
 )
