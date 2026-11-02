@@ -237,6 +237,31 @@ For more command line options, consult the program help:
 python3 $SDK_PATH/sw/scenario-runner/scripts/build.py --help
 ```
 
+### Building documentation independently
+
+Documentation can be built without configuring or compiling the native project.
+Install CMake 3.25 or newer, Ninja, Doxygen 1.9.1 or newer, and the locked Python
+tooling dependencies, then run these commands from the repository root:
+
+```bash
+uv sync --locked --no-install-project --no-default-groups --group tooling
+uv run --no-sync cmake -S docs -B build-docs -G Ninja
+cmake --build build-docs
+```
+
+Open `build-docs/docs/out/index.html` to view the documentation. The default
+build includes `scenario_runner_doc`; the named `scenario_runner_doxy_doc` and
+`scenario_runner_sphx_doc` targets are also available. Documentation uses the
+checked-in API and CLI help inputs and requires no native Python extension.
+
+The tooling environment must be available during configuration so CMake can
+find `sphinx-build`. An activated environment or tools already on `PATH` also
+allows plain `cmake` configuration. CMake caches the tool paths for the build.
+
+The existing `scripts/build.py --doc` path still configures and builds native
+code alongside documentation. Use separate build directories for native and
+standalone documentation projects; their CMake caches are not interchangeable.
+
 ## Code coverage
 
 Sync the locked test and tooling dependencies, then run the C++ and Python unit

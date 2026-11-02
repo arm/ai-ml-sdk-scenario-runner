@@ -1,19 +1,38 @@
 #
-# SPDX-FileCopyrightText: Copyright 2023-2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
+# SPDX-FileCopyrightText: Copyright 2023-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
-find_package(Sphinx)
-if(NOT SPHINX_FOUND)
-    message("Sphinx is not available. Cannot generate documentation.")
-    unset(SPHINX_EXECUTABLE CACHE)
-    return()
+
+set(SPHINX_BLD_DIR "${SCENARIO_RUNNER_DOCS_DIR}/out")
+set(SPHINX_INDEX_HTML "${SPHINX_BLD_DIR}/index.html")
+set(SPHINX_STAMP "${SCENARIO_RUNNER_DOCS_DIR}/sphinx.stamp")
+set(DOXYGEN_XML_GEN "${DOXYGEN_OUTPUT_DIR}/xml")
+
+if(SCENARIO_RUNNER_DOCS_STANDALONE)
+    set(SCENARIO_RUNNER_SPHINX_COMMAND "${SPHINX_EXECUTABLE}")
+else()
+    set(SCENARIO_RUNNER_SPHINX_COMMAND "${CMAKE_COMMAND}" -E env
+        "PYTHONPATH=$<TARGET_FILE_DIR:scenario_runner_py>" "${SPHINX_EXECUTABLE}")
 endif()
 
-set(SCEN_RUN_DOCS_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/docs/source)
-set(SPHINX_SRC_DIR ${CMAKE_CURRENT_BINARY_DIR}/docs/in)
-set(SPHINX_BLD_DIR ${CMAKE_CURRENT_BINARY_DIR}/docs/out)
-set(SPHINX_INDEX_HTML ${SPHINX_BLD_DIR}/index.html)
-set(DOXYGEN_XML_GEN ${CMAKE_CURRENT_BINARY_DIR}/docs/doxygen/xml)
-set(SPHINX_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/docs/generated)
+add_custom_command(
+    OUTPUT "${SPHINX_STAMP}"
+    BYPRODUCTS "${SPHINX_INDEX_HTML}"
+    DEPENDS ${DOC_STAGED_FILES} "${DOC_STAGED_MANIFEST}"
+        "${DOXYGEN_STAMP}" "${DOXYGEN_INDEX_XML}"
+    COMMAND "${CMAKE_COMMAND}" -E rm -rf "${SPHINX_BLD_DIR}"
+    COMMAND ${SCENARIO_RUNNER_SPHINX_COMMAND} -b html -W
+        "-Dbreathe_projects.ScenarioRunner=${DOXYGEN_XML_GEN}"
+        "${SPHINX_SRC_DIR}" "${SPHINX_BLD_DIR}"
+    COMMAND "${CMAKE_COMMAND}" -E touch "${SPHINX_STAMP}"
+    WORKING_DIRECTORY "${SCENARIO_RUNNER_DOCS_BINARY_DIR}"
+    COMMENT "Generating API documentation with Sphinx"
+    VERBATIM)
 
-add_custom_target(scenario_runner_sphx_doc DEPENDS ${SPHINX_INDEX_HTML} scenario_runner_doxy_doc)
+if(SCENARIO_RUNNER_DOCS_STANDALONE)
+    add_custom_target(scenario_runner_sphx_doc
+        DEPENDS "${SPHINX_STAMP}" "${SPHINX_INDEX_HTML}" scenario_runner_doxy_doc)
+else()
+    add_custom_target(scenario_runner_sphx_doc
+        DEPENDS "${SPHINX_STAMP}" "${SPHINX_INDEX_HTML}" scenario_runner_doxy_doc scenario_runner_py)
+endif()
