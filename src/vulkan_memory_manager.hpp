@@ -10,7 +10,6 @@
 #include "utils.hpp"
 
 #include <algorithm>
-#include <limits>
 
 namespace mlsdk::scenariorunner {
 
@@ -44,10 +43,6 @@ class ResourceMemoryManager {
         const vk::MemoryRequirements memReqs = _stagingBuffer.getMemoryRequirements();
         const auto memoryFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
         const uint32_t memTypeIndex = findMemoryIdx(ctx, memReqs.memoryTypeBits, memoryFlags);
-        if (memTypeIndex == std::numeric_limits<uint32_t>::max()) {
-            throw std::runtime_error("Cannot find a memory type with the required properties");
-        }
-
         const vk::MemoryAllocateInfo memAllocInfo(memReqs.size, memTypeIndex);
         _stagingBufferDeviceMemory = vk::raii::DeviceMemory(ctx.device(), memAllocInfo);
         _stagingBuffer.bindMemory(*_stagingBufferDeviceMemory, 0);

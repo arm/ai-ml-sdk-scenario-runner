@@ -79,7 +79,8 @@ uint64_t totalElementsFromShape(const std::vector<int64_t> &shape);
  * @param[in] ctx Internal runner context
  * @param[in] memTypeBits Memory type flag bits
  * @param[in] required   Required memory properties
- * @return The index of the memory type if succeeds else UINT32_MAX on failure
+ * @return The index of a matching memory type
+ * @throws std::runtime_error if no memory type matches the required properties
  */
 uint32_t findMemoryIdx(const Context &ctx, uint32_t memTypeBits, vk::MemoryPropertyFlags required);
 
