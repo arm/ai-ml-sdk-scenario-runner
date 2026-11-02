@@ -5,24 +5,15 @@
 #include "workload_execution.hpp"
 
 #include <stdexcept>
-#include <utility>
 
 namespace mlsdk::scenariorunner {
-namespace {
 
-WorkloadRuntime &requireRuntime(const std::shared_ptr<WorkloadRuntime> &owner) {
+WorkloadRuntime &WorkloadExecution::requireRuntime(const std::shared_ptr<WorkloadRuntime> &owner) {
     if (!owner) {
         throw std::invalid_argument("WorkloadExecution requires a runtime");
     }
     return *owner;
 }
-
-} // namespace
-
-WorkloadExecution::WorkloadExecution(std::shared_ptr<WorkloadRuntime> runtime, const WorkloadFactory &createWorkload,
-                                     workloadlib::SessionOptions options)
-    : _runtime(std::move(runtime)), _workload(createWorkload()),
-      _session(requireRuntime(_runtime).context(), _workload, options) {}
 
 void WorkloadExecution::prepare(const workloadlib::BindingSet &bindings) {
     if (isPrepared()) {

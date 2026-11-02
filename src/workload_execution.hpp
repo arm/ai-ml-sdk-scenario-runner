@@ -8,9 +8,9 @@
 
 #include "mlworkloadlib/session.hpp"
 
-#include <functional>
 #include <memory>
 #include <optional>
+#include <utility>
 
 namespace mlsdk::scenariorunner {
 
@@ -20,11 +20,14 @@ namespace mlsdk::scenariorunner {
 /// Bound SR resources must outlive this object and GPU completion.
 class WorkloadExecution {
   public:
-    using WorkloadFactory = std::function<workloadlib::Workload()>;
-
     /// Construct the immovable workload directly in its final location.
-    WorkloadExecution(std::shared_ptr<WorkloadRuntime> runtime, const WorkloadFactory &createWorkload,
-                      workloadlib::SessionOptions options = {});
+    /// Invoke the factory directly: older Android libc++ versions reject
+    /// std::function factories with an immovable return type.
+    template <typename WorkloadFactory>
+    WorkloadExecution(std::shared_ptr<WorkloadRuntime> runtime, WorkloadFactory &&createWorkload,
+                      workloadlib::SessionOptions options = {})
+        : _runtime(std::move(runtime)), _workload(std::forward<WorkloadFactory>(createWorkload)()),
+          _session(requireRuntime(_runtime).context(), _workload, options) {}
     ~WorkloadExecution() = default;
 
     // Keep a stable address: prepared executions borrow the session.
@@ -43,6 +46,8 @@ class WorkloadExecution {
     void record(vk::CommandBuffer commandBuffer);
 
   private:
+    static WorkloadRuntime &requireRuntime(const std::shared_ptr<WorkloadRuntime> &owner);
+
     // Declaration order is intentional: borrowed objects are destroyed last.
     std::shared_ptr<WorkloadRuntime> _runtime;
     workloadlib::Workload _workload;
