@@ -94,8 +94,8 @@ class ScenarioImpl final : public Scenario {
     bool hasAliasedOptimalTensors() const;
     void handleAliasedLayoutTransitions();
     const ShaderInfo &getShader(ShaderId id) const;
-    const ShaderInfo &getSubstitutionShader(const std::vector<ResolvedShaderSubstitution> &shaderSubstitutions,
-                                            const std::string &moduleName) const;
+    const ShaderInfo *findSubstitutionShader(const std::vector<ResolvedShaderSubstitution> &shaderSubstitutions,
+                                             const std::string &moduleName) const;
 
     ScenarioOptions _opts;
     Context _ctx;
@@ -372,15 +372,15 @@ TensorData ScenarioImpl::download(TensorId id) const {
 
 const ShaderInfo &ScenarioImpl::getShader(ShaderId id) const { return _resources.get(id); }
 
-const ShaderInfo &
-ScenarioImpl::getSubstitutionShader(const std::vector<ResolvedShaderSubstitution> &shaderSubstitutions,
-                                    const std::string &moduleName) const {
+const ShaderInfo *
+ScenarioImpl::findSubstitutionShader(const std::vector<ResolvedShaderSubstitution> &shaderSubstitutions,
+                                     const std::string &moduleName) const {
     for (const auto &shaderSub : shaderSubstitutions) {
         if (shaderSub.target == moduleName) {
-            return getShader(shaderSub.shader);
+            return &getShader(shaderSub.shader);
         }
     }
-    throw std::runtime_error("Could not perform shader substitution");
+    return nullptr;
 }
 
 void ScenarioImpl::run() { run(1, false); }
@@ -984,8 +984,8 @@ void ScenarioImpl::createPipeline(const uint32_t segmentIndex, const std::vector
         bool hasGLSLModule = vgfView.hasGLSLModule(segmentIndex);
         bool hasHLSLModule = vgfView.hasHLSLModule(segmentIndex);
 
-        if (!dispatchVgf.shaderSubstitutions.empty()) {
-            ShaderInfo shaderInfo = getSubstitutionShader(dispatchVgf.shaderSubstitutions, moduleName);
+        if (const auto *substitution = findSubstitutionShader(dispatchVgf.shaderSubstitutions, moduleName)) {
+            ShaderInfo shaderInfo = *substitution;
             applyGraphResourceShaderMetadata(shaderInfo, vgfInfo, moduleName);
             _compute.createPipeline(args, shaderInfo);
             if (hasSPVModule || hasGLSLModule || hasHLSLModule) {
@@ -1021,7 +1021,8 @@ void ScenarioImpl::createPipeline(const uint32_t segmentIndex, const std::vector
                 throw std::runtime_error("HLSL shaders are not supported on this platform.");
 #endif
             } else {
-                throw std::runtime_error("No shader module present and no shader substituion defined.");
+                throw std::runtime_error("No shader code present and no shader substitution defined for module '" +
+                                         moduleName + "'.");
             }
         }
 
