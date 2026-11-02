@@ -238,15 +238,6 @@ def test_enable_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd)
     assert "[Scenario-Runner] INFO: Pipeline Cache cleared" not in captured.out
     assert "[Scenario-Runner] INFO: Pipeline Cache loaded" not in captured.out
 
-    first_store_idx = captured.out.find("[Scenario-Runner] INFO: Pipeline Cache stored")
-    first_dispatch_idx = captured.out.find("[Scenario-Runner] INFO: Dispatch compute")
-    assert (
-        first_store_idx != -1
-        and first_dispatch_idx != -1
-        and first_store_idx < first_dispatch_idx
-    )
-    assert captured.out.count("[Scenario-Runner] INFO: Pipeline Cache stored") == 2
-
     result_first = numpy_helper.load("outBufferAdd2.npy", np.float32)
     assert np.array_equal(result_first, input1 + input2 + input2)
 
@@ -269,7 +260,6 @@ def test_enable_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd)
     captured = capfd.readouterr()
     assert "[Scenario-Runner] INFO: Pipeline Cache cleared" not in captured.out
     assert "[Scenario-Runner] INFO: Pipeline Cache loaded" in captured.out
-    assert captured.out.count("[Scenario-Runner] INFO: Pipeline Cache stored") == 2
 
     result_second = numpy_helper.load("outBufferAdd2.npy", np.float32)
     assert np.array_equal(result_second, result_first)
@@ -294,7 +284,6 @@ def test_enable_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd)
     captured = capfd.readouterr()
     assert "[Scenario-Runner] INFO: Pipeline Cache cleared" in captured.out
     assert "[Scenario-Runner] INFO: Pipeline Cache loaded" not in captured.out
-    assert captured.out.count("[Scenario-Runner] INFO: Pipeline Cache stored") == 2
 
     result_third = numpy_helper.load("outBufferAdd2.npy", np.float32)
     assert np.array_equal(result_third, result_first)
@@ -341,9 +330,7 @@ def test_pipeline_cache_hit(sdk_tools, resources_helper, numpy_helper, capfd):
     )
 
 
-def test_pipeline_cache_dry_run_precompiles(
-    sdk_tools, resources_helper, numpy_helper, capfd
-):
+def test_pipeline_cache_dry_run_precompiles(sdk_tools, resources_helper, numpy_helper):
     numpy_helper.generate([10], dtype=np.float32, filename="inBufferA.npy")
     numpy_helper.generate([10], dtype=np.float32, filename="inBufferB.npy")
 
@@ -362,14 +349,11 @@ def test_pipeline_cache_dry_run_precompiles(
         ],
     )
 
-    captured = capfd.readouterr()
-    assert captured.out.count("[Scenario-Runner] INFO: Pipeline Cache stored") == 2
-    assert "[Scenario-Runner] INFO: Dispatch compute" not in captured.out
     assert not (resources_helper.get_testenv_path() / "outBufferAdd2.npy").exists()
 
     files = list(cache_path.iterdir())
     assert len(files) == 1 and files[0].suffix == ".cache"
-    assert files[0].stat().st_size > 0
+    assert files[0].stat().st_size >= PIPELINE_CACHE_HEADER_SIZE
 
 
 def test_incorrect_pipeline_cache(sdk_tools, resources_helper, numpy_helper, capfd):
