@@ -18,7 +18,6 @@
 #include <cctype>
 #include <filesystem>
 #include <fstream>
-#include <limits>
 #include <memory>
 #include <numeric>
 
@@ -267,7 +266,8 @@ uint32_t findMemoryIdx(const Context &ctx, uint32_t memTypeBits, vk::MemoryPrope
         }
     }
 
-    return std::numeric_limits<uint32_t>::max();
+    throw std::runtime_error("No Vulkan memory type matches the required properties " + vk::to_string(required) +
+                             " (memoryTypeBits=" + std::to_string(memTypeBits) + ")");
 }
 
 std::string lowercaseExtension(const std::string &path) {
