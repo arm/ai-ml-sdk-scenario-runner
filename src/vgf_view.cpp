@@ -337,6 +337,11 @@ bool VgfView::hasHLSLModule(uint32_t segmentIndex) const {
     return moduleTableDecoder->hasHLSLCode(moduleIndex);
 }
 
+bool VgfView::isExternalDataGraphBinary(uint32_t segmentIndex) const {
+    const auto moduleIndex = sequenceTableDecoder->getSegmentModuleIndex(segmentIndex);
+    return moduleTableDecoder->isExternalDataGraphBinary(moduleIndex);
+}
+
 std::string VgfView::getModuleName(uint32_t segmentIndex) const {
     uint32_t moduleIndex = sequenceTableDecoder->getSegmentModuleIndex(segmentIndex);
     return std::string(moduleTableDecoder->getModuleName(moduleIndex));

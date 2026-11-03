@@ -315,3 +315,22 @@ TEST(VgfView, ResolveBindingsReportsTensorFormatMismatchWithJsonLine) {
     EXPECT_NE(message.find("scenario tensor 'outputTensor'"), std::string::npos);
     EXPECT_NE(message.find("has format R16Uint"), std::string::npos);
 }
+
+TEST(VgfView, DistinguishesExternalBinaryGraphModule) {
+    TempFolder tempFolder("vgf_view");
+    auto encoder = vgflib::CreateEncoder(123);
+    const auto binary = encoder->DeclareExternalDataGraphBinaryModule("binary_graph");
+    const auto shader = encoder->AddModule(vgflib::ModuleType::GRAPH, "shader_graph", "main");
+    encoder->AddSegmentInfo(binary, "binary_segment");
+    encoder->AddSegmentInfo(shader, "shader_segment");
+    encoder->Finish();
+
+    const auto path = tempFolder.relative("binary_marker.vgf");
+    std::ofstream output(path, std::ios::binary);
+    ASSERT_TRUE(encoder->WriteTo(output));
+    output.close();
+
+    const auto view = VgfView::createVgfView(path.string());
+    EXPECT_TRUE(view.isExternalDataGraphBinary(0));
+    EXPECT_FALSE(view.isExternalDataGraphBinary(1));
+}

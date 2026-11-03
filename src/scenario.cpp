@@ -156,6 +156,12 @@ void validateDataGraphBindings(const std::vector<TypedBinding> &bindings) {
 
 void validateVgfBinaryDispatch(const VgfView &vgfView, const DispatchVgfData &dispatchVgf,
                                bool failOnPipelineCacheMiss) {
+    for (uint32_t segmentIndex = 0; segmentIndex < vgfView.getNumSegments(); ++segmentIndex) {
+        if (vgfView.isExternalDataGraphBinary(segmentIndex) && dispatchVgf.dataGraphBinaries.count(segmentIndex) == 0) {
+            throw std::runtime_error("VGF external data-graph binary segment requires a binary selection: " +
+                                     std::to_string(segmentIndex));
+        }
+    }
     for (const auto &entry : dispatchVgf.dataGraphBinaries) {
         const auto segmentIndex = entry.first;
         if (segmentIndex >= vgfView.getNumSegments()) {
