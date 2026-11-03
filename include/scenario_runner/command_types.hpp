@@ -139,7 +139,7 @@ struct DispatchVgfData {
     std::vector<TypedBinding> bindings;
     /// @brief Push-constant data associated with graph shaders.
     std::vector<ResolvedPushConstantMap> pushConstants;
-    /// @brief Shader replacements applied to the graph.
+    /// @brief Shader replacements matched by module name; unmatched modules use embedded code.
     std::vector<ResolvedShaderSubstitution> shaderSubstitutions;
     /// @brief VGF model-sequence indices and their external binary inputs.
     std::map<uint32_t, ExternalDataGraphBinary> dataGraphBinaries;

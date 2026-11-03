@@ -19,6 +19,8 @@
 
 ### Bug Fixes
 
+- Fixed VGF shader substitutions to match individual modules, allowing
+  embedded shaders and substituted shaders in the same dispatch.
 - Fixed loading of zero-byte pipeline cache files to warn and create a fresh
   cache instead of failing to memory map the empty file.
 - Fixed initialization of empty mipmapped images on devices without image-blit

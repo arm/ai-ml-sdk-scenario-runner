@@ -568,6 +568,10 @@ ML extensions for Vulkan®.
 
 The ``shader_substitutions`` field uses the same :ref:`shader_substitutions structure <shader_substitutions>` as graph resources.
 
+Substitutions are matched to individual shader modules by name. A matching substitution
+replaces that module, even if it has embedded code. Modules without a matching
+substitution use their embedded code.
+
 dispatch_data_graph
 """""""""""""""""""
 
