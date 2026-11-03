@@ -320,6 +320,23 @@ Install the published package:
 pip install ai-ml-sdk-scenario-runner
 ```
 
+The package installs the `scenario_runner` command:
+
+```bash
+scenario_runner --help
+scenario_runner --scenario scenario.json
+```
+
+This command forwards its arguments to the bundled native `scenario-runner`
+executable and returns its exit code.
+
+Wheels with Python bindings support standard CPython builds only; free-threaded
+builds such as `cp314t` are not currently supported. Use a standard CPython
+environment, or use the native release archive if you only need the CLI.
+On an unsupported interpreter, pip may select an older compatible release.
+Specify the required version, for example
+`python -m pip install ai-ml-sdk-scenario-runner==0.11.0`, to prevent this fallback.
+
 ## Python bindings
 
 Python bindings are available through the `scenario_runner` package:
