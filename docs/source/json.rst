@@ -566,6 +566,9 @@ ML extensions for Vulkan®.
       use_application_storage: boolean(default=false) // keep mapped bytes until pipeline destruction
   }
 
+A VGF graph module marked for an external data-graph binary requires a matching
+``data_graph_binaries`` entry. Other graph modules may also use an external binary.
+
 The ``shader_substitutions`` field uses the same :ref:`shader_substitutions structure <shader_substitutions>` as graph resources.
 
 Substitutions are matched to individual shader modules by name. A matching substitution

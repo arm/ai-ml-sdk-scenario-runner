@@ -47,6 +47,7 @@ class VgfView {
     bool hasSPVModule(uint32_t segmentIndex) const;
     bool hasGLSLModule(uint32_t segmentIndex) const;
     bool hasHLSLModule(uint32_t segmentIndex) const;
+    bool isExternalDataGraphBinary(uint32_t segmentIndex) const;
     std::string getModuleName(uint32_t segmentIndex) const;
     std::string getModuleEntryPoint(uint32_t segmentIndex) const;
     vgflib::DataView<uint32_t> getSPVModuleCode(uint32_t segmentIndex) const;
