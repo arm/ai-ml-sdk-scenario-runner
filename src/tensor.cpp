@@ -28,7 +28,9 @@ constexpr vk::TensorTilingARM convertTiling(const Tiling tiling) {
 Tensor::Tensor(TensorInfo tensorInfo)
     : _debugName(std::move(tensorInfo.debugName)), _shape(std::move(tensorInfo.shape)), _dataType(tensorInfo.format),
       _tiling(convertTiling(tensorInfo.tiling)), _memoryOffset(tensorInfo.memoryOffset),
-      _descriptorBufferCaptureReplay(tensorInfo.descriptorBufferCaptureReplay) {}
+      _descriptorBufferCaptureReplay(tensorInfo.descriptorBufferCaptureReplay) {
+    rejectUnsupportedMXFPFormats(_dataType);
+}
 
 void Tensor::setup(const Context &ctx, std::shared_ptr<ResourceMemoryManager> memoryManager) {
     _memoryManager = std::move(memoryManager);

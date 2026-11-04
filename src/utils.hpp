@@ -28,6 +28,13 @@ inline constexpr uint64_t WAIT_FOR_FENCE_TIMEOUT = std::numeric_limits<uint64_t>
  */
 uint32_t numComponentsFromVkFormat(vk::Format format);
 
+/** Reject value encodings that the tensor runtime cannot size or transfer yet.
+ *
+ *  @param[in] format vk::Format enum value.
+ *  @throws std::runtime_error if runtime support is not implemented.
+ */
+void rejectUnsupportedMXFPFormats(vk::Format format);
+
 /** Size in bytes of a given vk::format data type.
  *
  *  @param[in] format vk::format enum value.

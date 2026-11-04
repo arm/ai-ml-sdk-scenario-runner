@@ -55,6 +55,44 @@ std::vector<std::byte> sequence(size_t size, uint8_t first = 0) {
 }
 } // namespace
 
+TEST(TensorFormatSupport, RejectsMicroscalingRuntimeBeforeAllocation) {
+    for (const auto *name :
+         {"VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT6E2M3_ARM",
+          "VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT6E3M2_ARM",
+          "VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT4E2M1_ARM", "VK_FORMAT_R8_SFLOAT_FPENCODING_MXINT8_ARM"}) {
+        SCOPED_TRACE(name);
+        TensorInfo info{};
+        info.debugName = "unsupported_tensor";
+        info.shape = {64};
+        info.format = getVkFormatFromString(name);
+
+        try {
+            const Tensor tensor{info};
+            FAIL() << "Expected tensor construction to reject an unsupported runtime encoding";
+        } catch (const std::runtime_error &error) {
+            EXPECT_EQ(std::string(error.what()),
+                      std::string("Tensor runtime support is not implemented for format: ") + name);
+        }
+        EXPECT_THROW(elementSizeFromVkFormat(info.format), std::runtime_error);
+        EXPECT_THROW(getDTypeFromVkFormat(info.format), std::runtime_error);
+    }
+}
+
+TEST(TensorFormatSupport, AcceptsOrdinaryFp8Runtime) {
+    for (const auto *name :
+         {"VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM", "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E5M2_ARM"}) {
+        SCOPED_TRACE(name);
+        TensorInfo info{};
+        info.debugName = "fp8_tensor";
+        info.shape = {64};
+        info.format = getVkFormatFromString(name);
+
+        EXPECT_NO_THROW(Tensor{info});
+        EXPECT_EQ(elementSizeFromVkFormat(info.format), 1);
+        EXPECT_NO_THROW(getDTypeFromVkFormat(info.format));
+    }
+}
+
 TEST(TensorInMemoryTransfer, UploadThrowsOnShapeMismatch) {
     ScenarioOptions opts{};
     Context ctx{opts, tensorRequirements()};
