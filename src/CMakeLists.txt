@@ -14,34 +14,35 @@ set(SCENARIO_RUNNER_LIB_SOURCES
     compute.cpp
     context.cpp
     data_manager.cpp
-    device_selection.cpp
     dds_reader.cpp
+    device_selection.cpp
+    frame_capturer.cpp
     glsl_compiler.cpp
     group_manager.cpp
     image.cpp
+    image_formats.cpp
     iresource.cpp
     json_reader.cpp
-    scenario_json_factory.cpp
     json_writer.cpp
     logging.cpp
     optical_flow_utils.cpp
-    pipeline_cache.cpp
     pipeline.cpp
+    pipeline_cache.cpp
+    png_reader.cpp
     raw_data.cpp
     resource_desc.cpp
     resource_manager.cpp
     scenario.cpp
     scenario_builder.cpp
     scenario_desc.cpp
+    scenario_json_factory.cpp
     shape_inference.cpp
     tensor.cpp
     utils.cpp
     vgf_binding_map.cpp
     vgf_bindings.cpp
+    vgf_configuration.cpp
     vgf_view.cpp
-    frame_capturer.cpp
-    image_formats.cpp
-    png_reader.cpp
     workload_bindings.cpp
     workload_compute.cpp
     workload_execution.cpp

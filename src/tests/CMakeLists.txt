@@ -11,8 +11,8 @@ add_executable(ScenarioRunnerTests
   data_graph_binary_tests.cpp
   dds_reader_tests.cpp
   device_selection_tests.cpp
-  guid_tests.cpp
   group_manager_tests.cpp
+  guid_tests.cpp
   image_formats_tests.cpp
   image_tests.cpp
   iresource_tests.cpp
@@ -22,12 +22,14 @@ add_executable(ScenarioRunnerTests
   perf_counter_tests.cpp
   png_reader_tests.cpp
   public_api_tests.cpp
-  raw_data_tests.cpp
   queue_selection_tests.cpp
+  raw_data_tests.cpp
   resource_manager_tests.cpp
   scenario_tests.cpp
   tensor_tests.cpp
   vgf_binding_map_tests.cpp
+  vgf_configuration_integration_tests.cpp
+  vgf_configuration_tests.cpp
   vgf_view_tests.cpp
   vgf_workload_tests.cpp
   vulkan_startup_tests.cpp
