@@ -1,7 +1,7 @@
 Neural accelerator statistics
 -----------------------------
 
-Scenario Runner supports ``VK_ARM_data_graph_neural_accelerator_statistics`` for data graph pipelines. When this extension and its ``dataGraphNeuralAcceleratorStatistics`` feature are available, Scenario Runner can request neural accelerator debug database and statistics output from graph pipelines.
+Scenario Runner supports ``VK_ARM_data_graph_neural_accelerator_statistics`` for data graph pipelines. When this extension is available and enabled, Scenario Runner can request neural accelerator debug database and statistics output from graph pipelines.
 
 Use ``--neural-debug-database-dump-dir`` to dump the neural accelerator debug database for graph pipelines that expose one. Use ``--neural-statistics-dump-dir`` to enable neural accelerator statistics collection and dump the resulting statistics memory after execution. ``--neural-statistics-mode`` selects the statistics mode, using ``0`` for ``VK_NEURAL_ACCELERATOR_STATISTICS_MODE_STATISTICS_0_ARM`` and ``1`` for ``VK_NEURAL_ACCELERATOR_STATISTICS_MODE_STATISTICS_1_ARM``.
 

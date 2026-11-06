@@ -61,8 +61,7 @@ detail::DeviceCandidate queryDeviceCandidate(const vk::raii::PhysicalDevice &dev
     const auto features =
         device.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features,
                             vk::PhysicalDeviceDataGraphFeaturesARM, vk::PhysicalDeviceTensorFeaturesARM,
-                            vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM,
-                            vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM
+                            vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM
 #ifdef VK_ARM_data_graph_binaries
                             ,
                             vk::PhysicalDeviceDataGraphBinariesFeaturesARM
@@ -92,10 +91,9 @@ detail::DeviceCandidate queryDeviceCandidate(const vk::raii::PhysicalDevice &dev
             candidate.capabilities |= detail::DeviceCapability::DataGraphOpticalFlow;
         }
     }
+    // Some drivers misreport the statistics feature. Trust the extension and warn when enabling the feature.
     if (detail::hasCapabilities(candidate.capabilities, detail::DeviceCapability::DataGraph) &&
-        neuralAcceleratorStatisticsExtension &&
-        features.template get<vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM>()
-            .dataGraphNeuralAcceleratorStatistics) {
+        neuralAcceleratorStatisticsExtension) {
         candidate.capabilities |= detail::DeviceCapability::DataGraphNeuralAcceleratorStatistics;
     }
     if (features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering) {
@@ -242,7 +240,8 @@ Context::Context(const ScenarioOptions &scenarioOptions, const detail::DeviceReq
             .getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features,
                           vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceShaderBfloat16FeaturesKHR,
                           vk::PhysicalDeviceShaderFloat8FeaturesEXT, vk::PhysicalDeviceRobustness2FeaturesKHR,
-                          vk::PhysicalDeviceDescriptorIndexingFeatures, vk::PhysicalDevicePipelineRobustnessFeatures>();
+                          vk::PhysicalDeviceDescriptorIndexingFeatures, vk::PhysicalDevicePipelineRobustnessFeatures,
+                          vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM>();
 
     const auto &availableCoreFeatures = availableFeatures.template get<vk::PhysicalDeviceFeatures2>().features;
     const auto &[available11Features, available12Features, availableBfloat16, availableFloat8] =
@@ -336,6 +335,13 @@ Context::Context(const ScenarioOptions &scenarioOptions, const detail::DeviceReq
 
     vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM dataGraphNeuralAcceleratorStatisticsFeat{};
     if (_optionals.neural_accelerator_statistics) {
+        if (!availableFeatures.template get<vk::PhysicalDeviceDataGraphNeuralAcceleratorStatisticsFeaturesARM>()
+                 .dataGraphNeuralAcceleratorStatistics) {
+            mlsdk::logging::warning(
+                "VK_ARM_data_graph_neural_accelerator_statistics is present, but "
+                "dataGraphNeuralAcceleratorStatistics is not advertised. "
+                "Enabling neural accelerator dumps anyway to work around a known driver reporting bug.");
+        }
         dataGraphNeuralAcceleratorStatisticsFeat.dataGraphNeuralAcceleratorStatistics = true;
         dataGraphNeuralAcceleratorStatisticsFeat.pNext = featureChain;
         featureChain = &dataGraphNeuralAcceleratorStatisticsFeat;
