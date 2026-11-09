@@ -30,6 +30,7 @@ add_executable(ScenarioRunnerTests
   vgf_view_tests.cpp
   vgf_workload_tests.cpp
   vulkan_startup_tests.cpp
+  workload_compute_tests.cpp
   workload_execution_tests.cpp
 )
 target_link_libraries(ScenarioRunnerTests PRIVATE
