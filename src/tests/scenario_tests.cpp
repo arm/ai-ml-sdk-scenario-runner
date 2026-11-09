@@ -275,7 +275,7 @@ TEST(Scenario, SupportsRepeatedUploadRunDownload) {
     EXPECT_EQ(api->download(bufferId).data, secondPayload);
 }
 
-TEST(Scenario, ExecutesCommandWithDifferentInputsAcrossRuns) {
+TEST(Scenario, ExecutesChainedComputeCommandsWithDifferentInputsAcrossRuns) {
     constexpr std::string_view shaderSource = R"(
         #version 450
         layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
@@ -309,17 +309,24 @@ TEST(Scenario, ExecutesCommandWithDifferentInputsAcrossRuns) {
     dispatch.computeDispatch.profileName = dispatch.debugName;
     builder->addDispatchCompute(std::move(dispatch));
 
+    DispatchComputeData secondDispatch{shaderId};
+    secondDispatch.debugName = "increment again";
+    secondDispatch.bindings = {{0, 0, outputId, std::nullopt, vk::DescriptorType::eStorageBuffer},
+                               {0, 1, outputId, std::nullopt, vk::DescriptorType::eStorageBuffer}};
+    secondDispatch.computeDispatch = {4, 1, 1, secondDispatch.debugName};
+    builder->addDispatchCompute(std::move(secondDispatch));
+
     std::unique_ptr<Scenario> api = builder->build(ScenarioOptions{});
 
     const auto firstInput = asBytes(std::vector<uint32_t>{1, 2, 3, 4});
     api->upload(inputId, {firstInput.data(), firstInput.size()});
     api->run();
-    EXPECT_EQ(api->download(outputId).data, asBytes(std::vector<uint32_t>{2, 3, 4, 5}));
+    EXPECT_EQ(api->download(outputId).data, asBytes(std::vector<uint32_t>{3, 4, 5, 6}));
 
     const auto secondInput = asBytes(std::vector<uint32_t>{10, 20, 30, 40});
     api->upload(inputId, {secondInput.data(), secondInput.size()});
     api->run();
-    EXPECT_EQ(api->download(outputId).data, asBytes(std::vector<uint32_t>{11, 21, 31, 41}));
+    EXPECT_EQ(api->download(outputId).data, asBytes(std::vector<uint32_t>{12, 22, 32, 42}));
 }
 
 TEST(Scenario, RejectsUnknownTypedIds) {
