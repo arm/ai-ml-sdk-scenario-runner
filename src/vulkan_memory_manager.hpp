@@ -50,6 +50,19 @@ class ResourceMemoryManager {
         _initalized = true;
     }
 
+    /// Merge size and compatible memory types before allocation.
+    void mergeMemoryRequirements(const vk::MemoryRequirements &requirements) {
+        if (_initalized) {
+            throw std::logic_error("Memory requirements must be merged before allocation");
+        }
+        const auto types = _memType & requirements.memoryTypeBits;
+        if (types == 0) {
+            throw std::invalid_argument("Memory requirements have no compatible memory type");
+        }
+        _memSize = std::max(_memSize, requirements.size);
+        _memType = types;
+    }
+
     void updateMemSize(vk::DeviceSize newSize) { _memSize = std::max(newSize, _memSize); }
 
     void updateSubResourceOffset(vk::DeviceSize offset) { _subRecOffset = offset; }

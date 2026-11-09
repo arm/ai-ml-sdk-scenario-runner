@@ -43,6 +43,7 @@ set(SCENARIO_RUNNER_LIB_SOURCES
     vgf_binding_map.cpp
     vgf_bindings.cpp
     vgf_configuration.cpp
+    vgf_memory_plan.cpp
     vgf_view.cpp
     workload_bindings.cpp
     workload_compute.cpp

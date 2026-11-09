@@ -13,9 +13,20 @@
 #include "vgf-utils/numpy.hpp"
 #include "vulkan/vulkan_raii.hpp"
 #include <limits>
+#include <stdexcept>
 #include <string>
+#include <type_traits>
 
 namespace mlsdk::scenariorunner {
+
+/// Add unsigned integers, rejecting wraparound.
+template <typename T> constexpr T checkedAdd(T first, T second) {
+    static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>, "checkedAdd requires unsigned integers");
+    if (second > std::numeric_limits<T>::max() - first) {
+        throw std::overflow_error("Unsigned addition overflows");
+    }
+    return static_cast<T>(first + second);
+}
 
 inline constexpr uint64_t WAIT_FOR_FENCE_TIMEOUT = std::numeric_limits<uint64_t>::max();
 

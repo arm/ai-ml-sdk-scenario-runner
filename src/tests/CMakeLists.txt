@@ -31,6 +31,7 @@ add_executable(ScenarioRunnerTests
   vgf_binding_map_tests.cpp
   vgf_configuration_integration_tests.cpp
   vgf_configuration_tests.cpp
+  vgf_memory_plan_tests.cpp
   vgf_view_tests.cpp
   vgf_workload_tests.cpp
   vulkan_startup_tests.cpp

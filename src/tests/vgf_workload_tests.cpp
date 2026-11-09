@@ -9,6 +9,7 @@
 #include "device_selection.hpp"
 #include "glsl_compiler.hpp"
 #include "vgf_bindings.hpp"
+#include "vgf_memory_plan.hpp"
 #include "vgf_view.hpp"
 #include "workload_execution.hpp"
 
@@ -22,6 +23,7 @@
 #include <cstring>
 #include <fstream>
 #include <memory>
+#include <numeric>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -307,6 +309,83 @@ TEST(VgfWorkload, QueriesEveryAliasPeerBeforeAllocatingAndBindsBackingMemory) {
         return mlsdk::workloadlib::BoundMemoryInfo{*backing->getDeviceMemory(), 0, backing->getMemSize()};
     });
     EXPECT_NO_THROW(execution->prepare(bindings));
+}
+
+TEST(VgfWorkload, RecordsAliasPeersAtCallerSelectedOffsets) {
+    TempFolder folder("vgf_alias_offsets");
+    Context context{ScenarioOptions{}, detail::DeviceRequirements{}};
+    const auto source = makeTwoSegmentVgf(folder, false, 17);
+    auto execution = WorkloadExecution::fromVgf(std::make_shared<WorkloadRuntime>(context), source);
+    execution->session().configure();
+
+    // Choose a nonzero region base compatible with both external and internal buffers.
+    const vk::raii::Buffer probe(context.device(), vk::BufferCreateInfo({}, sizeof(int32_t),
+                                                                        vk::BufferUsageFlagBits::eStorageBuffer |
+                                                                            vk::BufferUsageFlagBits::eTransferSrc |
+                                                                            vk::BufferUsageFlagBits::eTransferDst));
+    auto base = probe.getMemoryRequirements().alignment;
+    const auto inputResource = execution->workload().resource(0);
+    for (uint32_t i = 0; i < inputResource.aliasPeerCount(); ++i) {
+        base = std::lcm(base,
+                        execution->session().aliasPeerMemoryRequirements(inputResource.aliasPeer(i)).memory.alignment);
+    }
+    DataManager resources;
+    const BufferId input{0};
+    const BufferId output{1};
+    resources.createBuffer(input, BufferInfo{"input", sizeof(int32_t), base});
+    resources.createBuffer(output, BufferInfo{"output", sizeof(int32_t)});
+    auto backing = std::make_shared<ResourceMemoryManager>();
+    backing->markShared();
+    resources.getBufferMut(input).setup(context, backing);
+    resources.getBufferMut(output).setup(context);
+    const auto descriptor = vk::DescriptorType::eStorageBuffer;
+    const VgfBindings adapter(*source, execution->workload(), resources,
+                              {{0, 17, input, std::nullopt, descriptor}, {0, 29, output, std::nullopt, descriptor}});
+    std::vector<VgfBindings::AliasPeerPlacement> placements;
+    VgfMemoryPlan plan;
+    // Buffer setup has already collected the external allocation requirements.
+    auto nextOffset = base;
+    for (const auto &entry : adapter.aliasMemoryRequirements(execution->session())) {
+        ASSERT_FALSE(entry.requirements.requiresDedicatedAllocation);
+        const auto alignment = entry.requirements.memory.alignment;
+        nextOffset = ((nextOffset + alignment - 1) / alignment) * alignment;
+        placements.push_back({entry.peer, nextOffset});
+        plan.addAliasPeer(entry.requirements, base, nextOffset);
+        nextOffset += entry.requirements.memory.size;
+    }
+    ASSERT_EQ(placements.size(), 2u);
+    plan.apply(*backing);
+    resources.getBufferMut(input).allocateMemory(context);
+    resources.getBufferMut(output).allocateMemory(context);
+    EXPECT_THROW(plan.apply(*backing), std::logic_error);
+    const VgfBindings::MemoryResolver memory = [&](MemoryResourceId resource) {
+        EXPECT_EQ(resource, MemoryResourceId(input));
+        return plan.backingRegion(*backing, base);
+    };
+
+    // Keep placement validation in WL rather than duplicating Vulkan rules in SR.
+    auto invalid = execution->session().createBindingSet();
+    auto outside = placements;
+    outside[0].byteOffset = backing->getMemSize();
+    adapter.bind(invalid, memory, outside);
+    EXPECT_THROW(execution->session().prepare(invalid), std::runtime_error);
+    auto bindings = execution->session().createBindingSet();
+    adapter.bind(bindings, memory, placements);
+    execution->prepare(bindings);
+    Compute compute(context);
+    uint32_t queries = 0;
+    compute.registerVgfExecution(execution, "alias offsets", queries, true);
+    for (const int32_t value : {3, 7}) {
+        resources.getBufferMut(input).fill(context, &value, sizeof(value));
+        compute.submitAndWaitOnFence();
+        for (const auto id : {input, output}) {
+            const auto result = resources.getBuffer(id).download(context);
+            int32_t actual = 0;
+            ASSERT_EQ(result.data.size(), sizeof(actual));
+            std::memcpy(&actual, result.data.data(), sizeof(actual));
+            EXPECT_EQ(actual, id == input ? value : (value + 1) * 2);
+        }
+    }
 }
 
 TEST(VgfWorkload, AppliesExternalTensorAndImageTilingsBeforeConfiguration) {
