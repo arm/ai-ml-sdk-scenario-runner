@@ -220,18 +220,6 @@ DeviceRequirements getDeviceRequirements(const ScenarioBuildData &buildData, con
         }
     }
 
-    // Image layout transitions during construction also contribute to queue selection.
-    for (const auto &initialization : buildData.initializations) {
-        const auto *imageInitialization = std::get_if<ImageInitialization>(&initialization);
-        if (imageInitialization == nullptr) {
-            continue;
-        }
-        if (!imageInitialization->data.has_value() && buildData.groupManager.isAliased(imageInitialization->id)) {
-            // initializeResourceData calls Image::transitionLayout, whose barriers use both shader stages.
-            requirements.queueFlags |= vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eGraphics;
-        }
-    }
-
     // Treat graph-stage barriers as data-graph workloads for device selection.
     if ((requirements.queueFlags & vk::QueueFlagBits::eDataGraphARM) != vk::QueueFlags{}) {
         requirements.capabilities |= DeviceCapability::DataGraph;

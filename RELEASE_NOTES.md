@@ -19,6 +19,8 @@
 
 ### Bug Fixes
 
+- Fixed some VGF intermediate images not being intialised correctly, resulting
+  in UNDEFINED layout when used.
 - Fixed VGF shader substitutions to match individual modules, allowing
   embedded shaders and substituted shaders in the same dispatch.
 - Fixed loading of zero-byte pipeline cache files to warn and create a fresh
