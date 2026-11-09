@@ -8,6 +8,7 @@
 #include "iresource.hpp"
 #include "utils.hpp"
 
+#include "mlworkloadlib/workload.hpp"
 #include "vgf/vulkan_helpers.generated.hpp"
 
 #include <algorithm>
@@ -16,6 +17,17 @@
 #include <string_view>
 
 namespace mlsdk::scenariorunner {
+
+workloadlib::Workload VgfView::createWorkload() const {
+    // Importing the original bytes would silently discard SR's resolved shape
+    // and SPIR-V overlays. Do not enable that route until overrides can be
+    // transferred through the public workload-lib API.
+    if (!resolvedMrtShapes.empty() || !shapedSpirvModules.empty()) {
+        throw std::runtime_error("VGF shape inference requires workload-lib resource and module overrides");
+    }
+    return workloadlib::Workload::fromVGF(mapped->ptr(), mapped->size());
+}
+
 namespace {
 std::string_view categoryToSuffix(vgflib::ResourceCategory category) {
     switch (category) {
