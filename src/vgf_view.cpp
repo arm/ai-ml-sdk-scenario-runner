@@ -12,6 +12,7 @@
 #include "vgf/vulkan_helpers.generated.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <numeric>
 #include <optional>
 #include <string_view>
@@ -25,7 +26,7 @@ workloadlib::Workload VgfView::createWorkload() const {
     if (!resolvedMrtShapes.empty() || !shapedSpirvModules.empty()) {
         throw std::runtime_error("VGF shape inference requires workload-lib resource and module overrides");
     }
-    return workloadlib::Workload::fromVGF(mapped->ptr(), mapped->size());
+    return workloadlib::Workload::fromVGF({static_cast<const std::byte *>(mapped->ptr()), mapped->size()});
 }
 
 namespace {
