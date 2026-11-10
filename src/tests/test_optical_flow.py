@@ -3,6 +3,8 @@
 # SPDX-FileCopyrightText: Copyright 2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 # SPDX-License-Identifier: Apache-2.0
 #
+import json
+import re
 import subprocess
 import sys
 
@@ -30,7 +32,7 @@ def _assert_outputs(resources_helper):
 @pytest.mark.skipif(
     sys.platform == "darwin", reason="Optical flow is not supported on Darwin"
 )
-def test_optical_flow_png(sdk_tools, resources_helper, numpy_helper):
+def test_optical_flow_png(sdk_tools, resources_helper, numpy_helper, capfd, request):
     width, height = 64, 64
     out_w, out_h = 16, 16
 
@@ -44,7 +46,26 @@ def test_optical_flow_png(sdk_tools, resources_helper, numpy_helper):
 
     _generate_hint_motion_vectors(numpy_helper, out_h, out_w)
 
-    sdk_tools.run_scenario("test_optical_flow/optical_flow_png.json")
+    profiling_path = resources_helper.get_testenv_path("profiling.json")
+    capfd.readouterr()
+    sdk_tools.run_scenario(
+        "test_optical_flow/optical_flow_png.json",
+        options=["--log-level", "info", "--profiling-dump-path", profiling_path],
+    )
+    captured = capfd.readouterr()
+    allocation_sizes = [
+        int(size)
+        for size in re.findall(
+            r"Datagraph pipeline session memory requirement: (\d+)", captured.out
+        )
+    ]
+    if request.config.getoption("--emulation-layer"):
+        # Emulation exposes transient and cache allocations for optical flow.
+        assert sum(size > 0 for size in allocation_sizes) >= 2
+    profiling_data = json.loads(profiling_path.read_text(encoding="utf-8"))
+    memory_usages = profiling_data["Memory Usage"]
+    assert len(memory_usages) == 1
+    assert memory_usages[0]["Session memory [bytes]"] == sum(allocation_sizes)
     _assert_outputs(resources_helper)
 
 

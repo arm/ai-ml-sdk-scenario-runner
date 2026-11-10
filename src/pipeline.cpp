@@ -17,6 +17,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <numeric>
 #include <utility>
 
 namespace mlsdk::scenariorunner {
@@ -603,6 +604,10 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIn
                            neuralStatisticsMode);
 }
 
+uint64_t Pipeline::getDataGraphPipelineMemoryRequirement() const {
+    return std::accumulate(_sessionMemoryDataSizes.begin(), _sessionMemoryDataSizes.end(), uint64_t{0});
+}
+
 void Pipeline::initSession(const Context &ctx, bool enableNeuralStatistics,
                            vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
     // Create session for the pipeline
@@ -629,45 +634,46 @@ void Pipeline::initSession(const Context &ctx, bool enableNeuralStatistics,
             continue;
         }
 
-        vk::DataGraphPipelineSessionMemoryRequirementsInfoARM memoryRequirementsInfo(*_session, bindPointReq.bindPoint);
-        VkMemoryRequirements2 memoryReqs =
-            ctx.device().getDataGraphPipelineSessionMemoryRequirementsARM(memoryRequirementsInfo);
+        for (uint32_t objectIndex = 0; objectIndex < bindPointReq.numObjects; ++objectIndex) {
+            vk::DataGraphPipelineSessionMemoryRequirementsInfoARM memoryRequirementsInfo(
+                *_session, bindPointReq.bindPoint, objectIndex);
+            const VkMemoryRequirements2 memoryReqs =
+                ctx.device().getDataGraphPipelineSessionMemoryRequirementsARM(memoryRequirementsInfo);
 
-        _dataGraphPipelineMemoryRequirement = memoryReqs.memoryRequirements.size;
+            mlsdk::logging::info("Datagraph pipeline session memory requirement: " +
+                                 std::to_string(memoryReqs.memoryRequirements.size));
 
-        mlsdk::logging::info("Datagraph pipeline session memory requirement: " +
-                             std::to_string(_dataGraphPipelineMemoryRequirement));
-
-        //  Allocate memory for the session
-        if (memoryReqs.memoryRequirements.size > 0) {
-            const bool isNeuralStatisticsBindPoint =
-                bindPointReq.bindPoint == vk::DataGraphPipelineSessionBindPointARM::eNeuralAcceleratorStatistics;
-            vk::MemoryPropertyFlags memoryFlags;
-            if (ctx.sessionMemoryDumpEnabled()) {
-                mlsdk::logging::warning("Enabling session memory dumping is known to cause issues on certain GPUs.");
-                memoryFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
-            } else if (enableNeuralStatistics && isNeuralStatisticsBindPoint) {
-                memoryFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
-            } else {
-                memoryFlags = vk::MemoryPropertyFlagBits::eDeviceLocal;
-            }
-            auto memoryTypeIdx = findMemoryIdx(ctx, memoryReqs.memoryRequirements.memoryTypeBits, memoryFlags);
-
-            vk::MemoryAllocateInfo allocateInfo(memoryReqs.memoryRequirements.size, memoryTypeIdx);
-            _sessionMemory.emplace_back(ctx.device(), allocateInfo);
-            _sessionMemoryDataSizes.push_back(memoryReqs.memoryRequirements.size);
-
-            if (isNeuralStatisticsBindPoint) {
-                if (_neuralStatisticsMemoryInfo.has_value()) {
-                    throw std::runtime_error("More than one bind point for Neural Statistics");
+            //  Allocate memory for the session
+            if (memoryReqs.memoryRequirements.size > 0) {
+                const bool isNeuralStatisticsBindPoint =
+                    bindPointReq.bindPoint == vk::DataGraphPipelineSessionBindPointARM::eNeuralAcceleratorStatistics;
+                vk::MemoryPropertyFlags memoryFlags;
+                if (ctx.sessionMemoryDumpEnabled()) {
+                    mlsdk::logging::warning(
+                        "Enabling session memory dumping is known to cause issues on certain GPUs.");
+                    memoryFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+                } else if (enableNeuralStatistics && isNeuralStatisticsBindPoint) {
+                    memoryFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+                } else {
+                    memoryFlags = vk::MemoryPropertyFlagBits::eDeviceLocal;
                 }
-                _neuralStatisticsMemoryInfo = {static_cast<uint32_t>(_sessionMemory.size() - 1),
-                                               memoryReqs.memoryRequirements.size};
-            }
+                auto memoryTypeIdx = findMemoryIdx(ctx, memoryReqs.memoryRequirements.memoryTypeBits, memoryFlags);
 
-            // Bind memory to session
-            uint32_t resourceIndex = 0;
-            bindInfos.emplace_back(*_session, bindPointReq.bindPoint, resourceIndex, *_sessionMemory.back());
+                vk::MemoryAllocateInfo allocateInfo(memoryReqs.memoryRequirements.size, memoryTypeIdx);
+                _sessionMemory.emplace_back(ctx.device(), allocateInfo);
+                _sessionMemoryDataSizes.push_back(memoryReqs.memoryRequirements.size);
+
+                if (isNeuralStatisticsBindPoint) {
+                    if (_neuralStatisticsMemoryInfo.has_value()) {
+                        throw std::runtime_error("More than one bind point for Neural Statistics");
+                    }
+                    _neuralStatisticsMemoryInfo = {static_cast<uint32_t>(_sessionMemory.size() - 1),
+                                                   memoryReqs.memoryRequirements.size};
+                }
+
+                // Bind memory to session
+                bindInfos.emplace_back(*_session, bindPointReq.bindPoint, objectIndex, *_sessionMemory.back());
+            }
         }
     }
 

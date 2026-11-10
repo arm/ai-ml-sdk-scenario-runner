@@ -52,6 +52,7 @@ class WorkloadExecution {
 
     const workloadlib::Workload &workload() const { return _workload; }
     workloadlib::Session &session() { return _session; }
+    const workloadlib::Session &session() const { return _session; }
     bool isPrepared() const { return _prepared.has_value(); }
 
     /// Freezes the bindings for all subsequent recordings. Replacing a prepared

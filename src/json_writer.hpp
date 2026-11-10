@@ -21,6 +21,8 @@ struct ProfiledCommand {
 
 struct ProfiledMemoryUsage {
     std::string commandName;
+    /// Sum of graph-session allocation sizes, including neural statistics.
+    /// Excludes bound resources and workload intermediates; independent of repeats.
     uint64_t sessionMemoryBytes{};
 };
 
