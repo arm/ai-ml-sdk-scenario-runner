@@ -12,6 +12,8 @@ Usage
 
 .. include:: neural_statistics.inc
 
+.. _scenario-usage-memory-aliasing:
+
 Resource memory aliasing
 ------------------------
 

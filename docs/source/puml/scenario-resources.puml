@@ -1,0 +1,21 @@
+@startuml
+<style>
+root {
+ FontName sans-serif
+ FontSize 13
+ Shadowing 0
+}
+</style>
+rectangle "ResourceManager\n<size:11><color:#666666>buffer definitions</color></size>" as definitions
+rectangle "Buffer A\n<size:11><color:#666666>offset 0</color></size>" as a
+rectangle "Buffer B\n<size:11><color:#666666>offset K</color></size>" as b
+rectangle "Shared memory manager\n<size:11><color:#666666>retained by group and wrappers</color></size>" as manager
+rectangle "Device memory\n<size:11><color:#666666>maximum covered end</color></size>" as memory
+rectangle "Host-visible staging\n<size:11><color:#666666>transfer storage</color></size>" as staging
+definitions ..> a : describes
+definitions ..> b : describes
+a --> manager : shared owner
+b --> manager : shared owner
+manager *-- memory : owns
+manager *-- staging : owns
+@enduml

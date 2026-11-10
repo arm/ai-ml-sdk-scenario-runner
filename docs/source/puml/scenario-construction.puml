@@ -1,0 +1,35 @@
+@startuml
+<style>
+root {
+  FontName sans-serif
+  FontSize 13
+  Shadowing 0
+}
+</style>
+hide footbox
+actor "Caller" as app
+participant "JSON factory" as factory
+participant "Builder" as builder
+participant "Scenario" as scenario
+alt JSON description
+  app -> factory : make(...)
+  factory -> builder : resources, then\ncommands
+  factory -> builder : build(options)
+else C++ / Python construction
+  app -> builder : resources, then\ncommands
+  app -> builder : build(options)
+end
+builder -> scenario : consume definition
+scenario -> scenario : create context/resources\ninitialize inputs\nprepare pipelines/commands
+scenario --> app : ready Scenario
+opt Replace inputs
+  app -> scenario : upload(id, data)
+end
+app -> scenario : run()
+scenario -> scenario : record / submit / wait\nsave results
+scenario --> app : return
+opt Retrieve outputs
+  app -> scenario : download(id)
+  scenario --> app : owning data
+end
+@enduml

@@ -1,0 +1,32 @@
+@startuml
+<style>
+root {
+  FontName sans-serif
+  FontSize 13
+  Shadowing 0
+}
+</style>
+top to bottom direction
+rectangle "ScenarioImpl\n<size:11><color:#666666>orchestration</color></size>" as scenario
+together {
+  rectangle "ResourceManager\n<size:11><color:#666666>definitions</color></size>" as definitions
+  rectangle "DataManager\n<size:11><color:#666666>runtime resources</color></size>" as resources
+  rectangle "GroupManager\n<size:11><color:#666666>allocation groups</color></size>" as groups
+}
+rectangle "Context\n<size:11><color:#666666>device and queues</color></size>" as context
+rectangle "Compute\n<size:11><color:#666666>commands and</color></size>\n<size:11><color:#666666>submission</color></size>" as compute
+rectangle "Pipeline objects\n<size:11><color:#666666>pipelines and</color></size>\n<size:11><color:#666666>graph sessions</color></size>" as pipelines
+scenario *-- context
+scenario *-- definitions
+scenario *-- resources
+scenario *-- groups
+scenario *-- compute
+compute *-- pipelines
+definitions -[hidden]right-> resources
+resources -[hidden]down-> groups
+compute ..> context : uses
+legend bottom
+  Diamonds denote owned members or state.
+  The dotted arrow denotes a borrowed context.
+endlegend
+@enduml

@@ -1,3 +1,5 @@
+.. _scenario-usage-neural-statistics:
+
 Neural accelerator statistics
 -----------------------------
 

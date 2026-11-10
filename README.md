@@ -239,7 +239,8 @@ python3 $SDK_PATH/sw/scenario-runner/scripts/build.py --help
 
 Documentation can be built without configuring or compiling the native project.
 Install CMake 3.25 or newer, Ninja, Doxygen 1.9.1 or newer, and the locked Python
-tooling dependencies, then run these commands from the repository root:
+tooling dependencies, plus PlantUML, a compatible Java runtime and Graphviz.
+Then run these commands from the repository root:
 
 ```bash
 uv sync --locked --no-install-project --no-default-groups --group tooling
