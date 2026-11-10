@@ -34,7 +34,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 #############################################################################
 # Options
 #############################################################################
-option(SCENARIO_RUNNER_BUILD_DOCS "Build project documentation" OFF)
 option(SCENARIO_RUNNER_BUILD_PYLIB "Build Scenario Runner Python bindings" OFF)
 option(SCENARIO_RUNNER_BUILD_SHARED "Build Scenario Runner as a shared library" OFF)
 option(SCENARIO_RUNNER_BUILD_TESTS "Build Scenario Runner unit tests" OFF)
@@ -76,11 +75,6 @@ if(SCENARIO_RUNNER_ENABLE_FUZZER)
     # Ensure native fuzz builds load the shared compiler options even when no
     # CMake toolchain file is specified.
     include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchain/gnu_compiler_options.cmake")
-endif()
-
-if(ML_SDK_BUILD_DOCS OR SCENARIO_RUNNER_BUILD_DOCS)
-    # Sphinx autodoc imports scenario_runner_py to generate the Python API reference.
-    set(SCENARIO_RUNNER_BUILD_PYLIB ON CACHE BOOL "Build Scenario Runner Python bindings" FORCE)
 endif()
 
 # Handle build type, set default as Release
@@ -219,11 +213,6 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/scenariorunner
     COMPONENT ${SCENARIO_RUNNER_INSTALL_COMPONENT}
 )
-
-if(ML_SDK_BUILD_DOCS OR SCENARIO_RUNNER_BUILD_DOCS)
-    include(docs/docs.cmake)
-endif()
-unset(SCENARIO_RUNNER_BUILD_DOCS CACHE)
 
 if(SCENARIO_RUNNER_ENABLE_RDOC)
     add_custom_command(TARGET scenario-runner

@@ -213,16 +213,14 @@ unsupported and the Vulkan® device does not require it, disable it with:
 ```
 
 To enable and run tests, use the `--test` flag. To lint the tests, use the
-`--lint` flag. To enable tests and documentation building python dependencies
-must be installed:
+`--lint` flag. To enable tests, the Python dependencies must be installed:
 
 ```bash
 uv sync --locked --no-install-project --no-default-groups --group test --group tooling
 ```
 
 Run build commands with `uv run --no-sync python scripts/build.py` to use the
-locked environment. To build documentation, pass `--doc`; Doxygen must also be
-installed on your machine.
+locked environment.
 
 You can install the build artifacts for this project into a specified location.
 To install the build artifacts, pass the `--install` option with the required
@@ -258,9 +256,8 @@ The tooling environment must be available during configuration so CMake can
 find `sphinx-build`. An activated environment or tools already on `PATH` also
 allows plain `cmake` configuration. CMake caches the tool paths for the build.
 
-The existing `scripts/build.py --doc` path still configures and builds native
-code alongside documentation. Use separate build directories for native and
-standalone documentation projects; their CMake caches are not interchangeable.
+Use a dedicated documentation build directory, separate from native build
+directories. The native build wrapper no longer builds documentation.
 
 ## Code coverage
 

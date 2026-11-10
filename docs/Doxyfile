@@ -91,12 +91,7 @@ WARN_FORMAT            = "$file:$line: $text"
 WARN_LOGFILE           =
 INPUT                  = "@DOXYGEN_INPUT_DIR@/include/scenario_runner"
 INPUT_ENCODING         = UTF-8
-FILE_PATTERNS          = *.c \
-                         *.cpp \
-                         *.h \
-                         *.hpp \
-                         *.md \
-                         *.dox
+FILE_PATTERNS          = *.hpp
 RECURSIVE              = NO
 EXCLUDE                =
 EXCLUDE_SYMLINKS       = NO

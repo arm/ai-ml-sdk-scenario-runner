@@ -3,30 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# Shared by the native project and the standalone documentation project.
+# Standalone documentation project.
 get_filename_component(SCENARIO_RUNNER_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 set(SCENARIO_RUNNER_DOCS_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 set(SCENARIO_RUNNER_DOCS_DIR "${SCENARIO_RUNNER_DOCS_BINARY_DIR}/docs")
 list(APPEND CMAKE_MODULE_PATH "${SCENARIO_RUNNER_REPO_ROOT}/cmake")
 
-if(SCENARIO_RUNNER_DOCS_STANDALONE)
-    find_package(Doxygen 1.9.1 REQUIRED)
-    find_package(Sphinx REQUIRED)
-else()
-    find_package(Doxygen)
-    find_package(Sphinx)
-    if(NOT DOXYGEN_FOUND OR NOT SPHINX_FOUND)
-        message(STATUS "Doxygen or Sphinx is not available. Cannot generate documentation.")
-        return()
-    endif()
-    if(CMAKE_CROSSCOMPILING)
-        message(WARNING "Cannot build the documentation when cross-compiling. Skipping.")
-        return()
-    endif()
-    if(NOT TARGET scenario_runner_py)
-        message(FATAL_ERROR "Python API documentation requires SCENARIO_RUNNER_BUILD_PYLIB.")
-    endif()
-endif()
+find_package(Doxygen 1.9.1 REQUIRED)
+find_package(Sphinx REQUIRED)
 
 set(SPHINX_SRC_DIR_IN "${SCENARIO_RUNNER_REPO_ROOT}/docs/source")
 set(SPHINX_SRC_DIR "${SCENARIO_RUNNER_DOCS_DIR}/in")
@@ -63,12 +47,7 @@ endforeach()
 
 # Doxygen reads checked-in top-level public inputs directly (RECURSIVE=NO).
 file(GLOB DOC_DOXYGEN_FILES CONFIGURE_DEPENDS LIST_DIRECTORIES false
-    "${SCENARIO_RUNNER_REPO_ROOT}/include/scenario_runner/*.c"
-    "${SCENARIO_RUNNER_REPO_ROOT}/include/scenario_runner/*.cpp"
-    "${SCENARIO_RUNNER_REPO_ROOT}/include/scenario_runner/*.h"
-    "${SCENARIO_RUNNER_REPO_ROOT}/include/scenario_runner/*.hpp"
-    "${SCENARIO_RUNNER_REPO_ROOT}/include/scenario_runner/*.md"
-    "${SCENARIO_RUNNER_REPO_ROOT}/include/scenario_runner/*.dox")
+    "${SCENARIO_RUNNER_REPO_ROOT}/include/scenario_runner/*.hpp")
 
 set(DOC_STAGED_MANIFEST "${SCENARIO_RUNNER_DOCS_DIR}/staged-files.txt")
 if(EXISTS "${DOC_STAGED_MANIFEST}")
