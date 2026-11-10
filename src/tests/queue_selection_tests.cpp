@@ -117,7 +117,7 @@ TEST(QueueSelection, MultiMipImageRequiresGraphicsCapability) {
     EXPECT_TRUE(detail::supportsQueueRequirements(vk::QueueFlagBits::eGraphics, requiredFlags));
 }
 
-TEST(QueueSelection, AliasedImageLayoutTransitionRequiresGraphicsAndCompute) {
+TEST(QueueSelection, AliasedImageLayoutTransitionDoesNotRequireGraphicsOrCompute) {
     detail::ScenarioBuildData buildData;
     ImageInfo imageInfo{};
     imageInfo.debugName = "image";
@@ -136,15 +136,14 @@ TEST(QueueSelection, AliasedImageLayoutTransitionRequiresGraphicsAndCompute) {
     buildData.groupManager.addResourceToGroup(group, image);
     buildData.groupManager.addResourceToGroup(group, buffer);
 
-    // Without initial data, an aliased image instead records a shader-stage layout transition.
+    // Layout-only initialization uses AllCommands barriers, so transfer support is sufficient.
     const auto requiredFlags = getRequiredQueueFlags(buildData);
-    EXPECT_FALSE(detail::supportsQueueRequirements(vk::QueueFlagBits::eTransfer, requiredFlags));
-    EXPECT_FALSE(
-        detail::supportsQueueRequirements(vk::QueueFlagBits::eTransfer | vk::QueueFlagBits::eCompute, requiredFlags));
-    EXPECT_FALSE(
-        detail::supportsQueueRequirements(vk::QueueFlagBits::eTransfer | vk::QueueFlagBits::eGraphics, requiredFlags));
-    EXPECT_TRUE(
-        detail::supportsQueueRequirements(vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute, requiredFlags));
+    EXPECT_EQ(requiredFlags, vk::QueueFlags{});
+    EXPECT_TRUE(detail::supportsQueueRequirements(vk::QueueFlagBits::eTransfer, requiredFlags));
+    EXPECT_TRUE(detail::supportsQueueRequirements(vk::QueueFlagBits::eCompute, requiredFlags));
+    EXPECT_TRUE(detail::supportsQueueRequirements(vk::QueueFlagBits::eGraphics, requiredFlags));
+    EXPECT_TRUE(detail::supportsQueueRequirements(vk::QueueFlagBits::eDataGraphARM | vk::QueueFlagBits::eTransfer,
+                                                  requiredFlags));
 
     // Supplying initial data takes the upload path even when the image is aliased.
     auto &initialization = std::get<detail::ImageInitialization>(buildData.initializations.front());

@@ -347,11 +347,10 @@ void Image::addTransitionLayoutCommand(vk::raii::CommandBuffer &cmdBuf, vk::Imag
         return; // No transition needed
     }
 
-    vk::PipelineStageFlagBits2 srcStage = vk::PipelineStageFlagBits2::eComputeShader;
-    vk::AccessFlagBits2 srcAccess = vk::AccessFlagBits2::eShaderWrite;
-    vk::PipelineStageFlags2 dstStage =
-        vk::PipelineStageFlagBits2::eFragmentShader | vk::PipelineStageFlagBits2::eComputeShader;
-    vk::AccessFlagBits2 dstAccess = vk::AccessFlagBits2::eShaderRead;
+    constexpr auto srcStage = vk::PipelineStageFlagBits2::eAllCommands;
+    constexpr auto srcAccess = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite;
+    constexpr auto dstStage = vk::PipelineStageFlagBits2::eAllCommands;
+    constexpr auto dstAccess = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite;
 
     vk::MemoryBarrier2 memoryBarrier{srcStage, srcAccess, dstStage, dstAccess};
     vk::ImageMemoryBarrier2 imageBarrier{

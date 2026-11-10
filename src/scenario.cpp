@@ -513,6 +513,15 @@ void ScenarioImpl::initializeResourceData() {
     for (const auto &initialization : _initializations) {
         std::visit(initialize, initialization);
     }
+
+    // VGF intermediates and builder images may have no initialization data.
+    // Establish their layout before pipeline creation and descriptor updates.
+    for (const auto &entry : _resources.images()) {
+        auto &image = _dataManager.getImageMut(entry.id);
+        if (image.getImageLayout() == vk::ImageLayout::eUndefined) {
+            image.transitionLayout(_ctx, vk::ImageLayout::eGeneral);
+        }
+    }
 }
 
 void ScenarioImpl::setupVgfResources() {
