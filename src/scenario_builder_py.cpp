@@ -3,19 +3,25 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "scenario_runner/resource_data.hpp"
 #include "scenario_runner/scenario_builder.hpp"
 
 #include "scenario_builder_impl.hpp"
 
+#include <pybind11/numpy.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <initializer_list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace py = pybind11;
 
@@ -128,7 +134,11 @@ void bindEnums(py::module_ &m) {
         .value("D32SfloatS8Uint", vk::Format::eD32SfloatS8Uint)
         .value("R16Bfloat16Arm", vk::Format::eR16SfloatFpencodingBfloat16ARM)
         .value("R8Float8E4M3Arm", vk::Format::eR8SfloatFpencodingFloat8E4M3ARM)
-        .value("R8Float8E5M2Arm", vk::Format::eR8SfloatFpencodingFloat8E5M2ARM);
+        .value("R8Float8E5M2Arm", vk::Format::eR8SfloatFpencodingFloat8E5M2ARM)
+#ifdef VK_ARM_tensors2
+        .value("R8Float8UnsignedE8M0Arm", vk::Format::eR8UfloatFpencodingFloat8Unsignede8M0ARM)
+#endif
+        ;
 
     py::enum_<vk::DescriptorType>(m, "DescriptorType")
         .value("StorageBuffer", vk::DescriptorType::eStorageBuffer)
@@ -214,6 +224,13 @@ void bindResourceInfo(py::module_ &m) {
         .def(py::init<>())
         .def_readwrite("debug_name", &RawDataInfo::debugName)
         .def_readwrite("src", &RawDataInfo::src);
+
+#ifdef VK_ARM_tensors2
+    py::class_<BlockScalingInfo>(m, "BlockScalingInfo")
+        .def(py::init<>())
+        .def_readwrite("block_shape", &BlockScalingInfo::blockShape)
+        .def_readwrite("format", &BlockScalingInfo::format);
+#endif
 
     py::class_<TensorInfo>(m, "TensorInfo")
         .def(py::init<>())
@@ -323,6 +340,9 @@ void bindResourceInfo(py::module_ &m) {
 
     setAttributeAnnotations(m.attr("BufferInfo"), {{"debug_name", "str"}, {"size", "int"}, {"memory_offset", "int"}});
     setAttributeAnnotations(m.attr("RawDataInfo"), {{"debug_name", "str"}, {"src", "str"}});
+#ifdef VK_ARM_tensors2
+    setAttributeAnnotations(m.attr("BlockScalingInfo"), {{"block_shape", "list[int]"}, {"format", "Format"}});
+#endif
     setAttributeAnnotations(m.attr("TensorInfo"), {{"debug_name", "str"},
                                                    {"shape", "list[int]"},
                                                    {"format", "Format"},
@@ -369,6 +389,52 @@ void bindResourceInfo(py::module_ &m) {
     setAttributeAnnotations(
         m.attr("GraphConstantInfo"),
         {{"format", "Format"}, {"dims", "list[int]"}, {"data", "list[int]"}, {"debug_name", "str"}});
+}
+
+py::array copyToArray(const std::vector<std::byte> &data) {
+    py::array_t<uint8_t> array(static_cast<py::ssize_t>(data.size()));
+    if (!data.empty()) {
+        std::memcpy(array.mutable_data(), data.data(), data.size());
+    }
+    return array;
+}
+
+std::vector<std::byte> copyFromArray(const py::array &array) {
+    if ((array.flags() & py::array::c_style) == 0) {
+        throw py::value_error("Tensor data requires a C-contiguous NumPy array");
+    }
+    std::vector<std::byte> data(static_cast<size_t>(array.nbytes()));
+    if (!data.empty()) {
+        std::memcpy(data.data(), array.data(), data.size());
+    }
+    return data;
+}
+
+void bindTensorData(py::module_ &m) {
+    auto tensorData = py::class_<TensorData>(m, "TensorData", "Own raw host tensor data and metadata.")
+                          .def(py::init<>())
+                          .def_property(
+                              "data", [](const TensorData &data) { return copyToArray(data.data); },
+                              [](TensorData &data, const py::array &array) { data.data = copyFromArray(array); },
+                              "Raw value bytes. Reading and assignment copy the bytes.")
+                          .def_readwrite("shape", &TensorData::shape)
+                          .def_readwrite("format", &TensorData::format);
+#ifdef VK_ARM_tensors2
+    tensorData
+        .def_property(
+            "scales", [](const TensorData &data) { return copyToArray(data.scales); },
+            [](TensorData &data, const py::array &array) { data.scales = copyFromArray(array); },
+            "Raw scale bytes. Reading and assignment copy the bytes.")
+        .def_readwrite("block_scaling", &TensorData::blockScaling);
+#endif
+    setAttributeAnnotations(tensorData, {
+#ifdef VK_ARM_tensors2
+                                            {"scales", "numpy.ndarray"},
+                                            {"block_scaling", "BlockScalingInfo | None"},
+#endif
+                                            {"data", "numpy.ndarray"},
+                                            {"shape", "list[int]"},
+                                            {"format", "Format | None"}});
 }
 
 void bindBarriers(py::module_ &m) {
@@ -656,8 +722,18 @@ void bindBuilder(py::module_ &m) {
             [](ScenarioBuilder &builder, const std::vector<int64_t> &shape, vk::Format format,
                const std::string &debugName, int64_t sparsityDimension, bool descriptorBufferCaptureReplay,
                Tiling tiling, uint64_t memoryOffset) {
-                return builder.addTensor(TensorInfo{debugName, shape, format, sparsityDimension,
-                                                    descriptorBufferCaptureReplay, tiling, memoryOffset});
+                return builder.addTensor(TensorInfo{
+                    debugName,
+                    shape,
+                    format,
+                    sparsityDimension,
+                    descriptorBufferCaptureReplay,
+                    tiling,
+                    memoryOffset,
+#ifdef VK_ARM_tensors2
+                    std::nullopt,
+#endif
+                });
             },
             "Register a tensor and return its ID.", py::arg("shape"), py::arg("format"), py::kw_only(),
             py::arg("debug_name") = "", py::arg("sparsity_dimension") = -1,
@@ -716,6 +792,7 @@ void pyInitScenarioBuilder(py::module_ &m) {
     bindResourceIds(m);
     bindEnums(m);
     bindResourceInfo(m);
+    bindTensorData(m);
     bindBarriers(m);
     bindCommands(m);
     bindBuilder(m);

@@ -8,6 +8,71 @@ import numpy as np
 import pytest
 
 
+def test_tensor_data_defaults_and_metadata(sr):
+    tensor = sr.TensorData()
+
+    assert isinstance(tensor.data, np.ndarray)
+    assert tensor.data.dtype == np.uint8
+    assert tensor.data.shape == (0,)
+    assert tensor.shape == []
+    assert tensor.format is None
+
+    tensor.shape = [2, 32]
+    tensor.format = sr.Format.R8Float8E4M3Arm
+    assert tensor.shape == [2, 32]
+    assert tensor.format == sr.Format.R8Float8E4M3Arm
+
+    tensor.format = None
+    assert tensor.format is None
+
+
+@pytest.mark.parametrize("property_name", ["data", "scales"])
+@pytest.mark.parametrize("dtype", [np.uint8, np.uint16, np.float32])
+def test_tensor_data_copies_raw_array_bytes(sr, property_name, dtype):
+    tensor = sr.TensorData()
+    if property_name == "scales" and not hasattr(tensor, "scales"):
+        pytest.skip("Block scaling requires bindings built with VK_ARM_tensors2")
+    source = np.arange(6, dtype=dtype).reshape(2, 3)
+    expected = source.view(np.uint8).reshape(-1).copy()
+
+    setattr(tensor, property_name, source)
+    source.fill(0)
+    copied = getattr(tensor, property_name)
+    assert copied.dtype == np.uint8
+    assert copied.shape == (expected.size,)
+    np.testing.assert_array_equal(copied, expected)
+
+    round_trip = sr.TensorData()
+    setattr(round_trip, property_name, copied)
+    copied.fill(255)
+    np.testing.assert_array_equal(getattr(tensor, property_name), expected)
+    np.testing.assert_array_equal(getattr(round_trip, property_name), expected)
+
+
+def test_tensor_data_block_scaling_metadata(sr):
+    if not hasattr(sr, "BlockScalingInfo"):
+        pytest.skip("Block scaling requires bindings built with VK_ARM_tensors2")
+    tensor = sr.TensorData()
+    assert isinstance(tensor.scales, np.ndarray)
+    assert tensor.scales.dtype == np.uint8
+    assert tensor.scales.shape == (0,)
+    assert tensor.block_scaling is None
+
+    block_scaling = sr.BlockScalingInfo()
+    assert block_scaling.block_shape == []
+    assert block_scaling.format == sr.Format.R8Float8UnsignedE8M0Arm
+    block_scaling.block_shape = [1, 32]
+    block_scaling.format = sr.Format.R16Sfloat
+    tensor.block_scaling = block_scaling
+
+    assert isinstance(tensor.block_scaling, sr.BlockScalingInfo)
+    assert tensor.block_scaling.block_shape == [1, 32]
+    assert tensor.block_scaling.format == sr.Format.R16Sfloat
+
+    tensor.block_scaling = None
+    assert tensor.block_scaling is None
+
+
 def test_python_scenario_and_builder_types(sr):
     builder = sr.ScenarioBuilder()
     options = sr.ScenarioOptions()
