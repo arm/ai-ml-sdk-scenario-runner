@@ -25,6 +25,7 @@ extensions = [
     "sphinx_rtd_theme",
     "sphinx.ext.autosectionlabel",
     "myst_parser",
+    "sphinxcontrib.plantuml",
 ]
 
 # Disable superfluous warnings
@@ -43,3 +44,5 @@ breathe_domain_by_extension = {"h": "c"}
 html_theme = "sphinx_rtd_theme"
 
 tags.add("WITH_BASE_MD")
+
+plantuml_output_format = "svg_img"

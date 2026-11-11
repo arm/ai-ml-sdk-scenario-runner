@@ -67,6 +67,7 @@ tooling = [
     "pre-commit==4.7.0",
     "setuptools==84.2.1",
     "sphinx==8.2.3",
+    "sphinxcontrib.plantuml==0.31",
     "sphinx_rtd_theme==3.1.0",
     "wheel==0.48.0",
 ]

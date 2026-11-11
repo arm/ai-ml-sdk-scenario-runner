@@ -1,0 +1,29 @@
+@startuml
+<style>
+root {
+ FontName sans-serif
+ FontSize 13
+ Shadowing 0
+}
+</style>
+start
+:VGF dispatch and retained view;
+repeat
+ :Read next segment in sequence order;
+ :Resolve model-resource indices\nto SR resource IDs;
+ note right
+  External interface bindings
+  and internal resource mapping
+ end note
+ :Emit segment descriptor bindings;
+ if (Module kind?) then (graph)
+  :Graph module or selected binary;
+  :Create graph pipeline/session;
+ else (compute)
+  :Select substitution or embedded code;
+  :Create compute pipeline;
+ endif
+ :Register dispatch with Compute;
+repeat while (More segments?) is (yes) not (no)
+stop
+@enduml

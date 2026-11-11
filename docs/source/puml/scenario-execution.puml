@@ -1,0 +1,40 @@
+@startuml
+!option svgTitle "Scenario recording, Vulkan® submission and results"
+<style>
+root {
+ FontName sans-serif
+ FontSize 13
+ Shadowing 0
+}
+</style>
+hide footbox
+participant Application as App
+participant Scenario
+participant Compute
+participant "Queue/device\n<size:11><color:#666666>Vulkan®</color></size>" as VK
+App -> Scenario : run(repeatCount,\ndryRun)
+loop each iteration
+ opt if previously run
+  Scenario -> Compute : reset pool / fence
+  Scenario -> Scenario : reset selected\nlayout tracking
+ end
+ opt non-dry execution
+  Scenario -> Compute : record / submit / wait
+  Compute -> Compute : record ordered\ndispatches / barriers
+  note over Compute, VK
+   Frame boundaries may submit
+and wait during recording
+  end note
+  Compute -> VK : submit final buffer
+  Compute -> VK : wait for fence
+  VK --> Compute : complete
+ end
+ Scenario -> Scenario : collect profiling
+end
+Scenario -> Scenario : save cache
+opt non-dry results
+ Scenario -> Scenario : store outputs / dumps
+end
+Scenario -> Scenario : save CPU counters
+Scenario --> App : return
+@enduml
