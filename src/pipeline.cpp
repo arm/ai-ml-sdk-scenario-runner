@@ -123,17 +123,6 @@ std::vector<std::vector<TypedBinding>> splitOutSets(const std::vector<TypedBindi
 
 namespace {
 
-vk::TensorTilingARM convertImageTiling(const vk::ImageTiling tiling) {
-    switch (tiling) {
-    case vk::ImageTiling::eLinear:
-        return vk::TensorTilingARM::eLinear;
-    case vk::ImageTiling::eOptimal:
-        return vk::TensorTilingARM::eOptimal;
-    default:
-        throw std::runtime_error("Unsupported image tiling for graph pipeline resource");
-    }
-}
-
 void makeResourceInfos(const std::vector<TypedBinding> &bindings, const DataManager &dataManager,
                        std::vector<vk::TensorDescriptionARM> &tensorDescriptions,
                        std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
@@ -158,12 +147,8 @@ void makeResourceInfos(const std::vector<TypedBinding> &bindings, const DataMana
 
         if (const auto *imageId = std::get_if<ImageId>(&binding.resource)) {
             const auto &image = dataManager.getImage(*imageId);
-            const auto &shape = image.shape();
 
-            tensorDescriptions.emplace_back(convertImageTiling(image.tiling()), image.dataType(),
-                                            static_cast<uint32_t>(shape.size()), shape.data(), nullptr,
-                                            vk::TensorUsageFlagBitsARM::eDataGraph);
-            imageLayouts.emplace_back(image.getImageLayout(), &tensorDescriptions.back());
+            imageLayouts.emplace_back(image.getImageLayout());
             resourceInfos.emplace_back(static_cast<uint32_t>(binding.set), static_cast<uint32_t>(binding.id), 0,
                                        &imageLayouts.back());
             continue;
