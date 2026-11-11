@@ -9,6 +9,7 @@
 #include "scenario_desc.hpp"
 
 #include <array>
+#include <filesystem>
 #include <limits>
 #include <string_view>
 #include <utility>
@@ -754,6 +755,21 @@ void from_json(const json &j, GraphConstantDesc &graphConstant) {
 }
 
 /**
+ * @brief De-serialize TensorBlockScalingDesc from JSON.
+ *
+ * @param j
+ * @param tensor
+ */
+void from_json(const json &j, TensorBlockScalingDesc &tensor) {
+    tensor.info.blockShape = j.at("block_shape"sv).get<std::vector<uint32_t>>();
+    if (j.at("format"sv).get<std::string>() != "E8M0") {
+        throw std::runtime_error("Tensor scale format must be E8M0");
+    }
+    parseOptionalFieldAs<std::string>(j, "src", tensor.src);
+    parseOptionalFieldAs<std::string>(j, "dst", tensor.dst);
+}
+
+/**
  * @brief De-serialize TensorDesc from JSON.
  *
  * @param j
@@ -761,10 +777,6 @@ void from_json(const json &j, GraphConstantDesc &graphConstant) {
  */
 void from_json(const json &j, TensorDesc &tensor) {
     parseResourceDescGuid(j, tensor);
-    if (j.contains("block_scaling"sv)) {
-        throw std::runtime_error("Tensor block_scaling is not supported: " + tensor.guidStr);
-    }
-
     tensor.dims = parseOptionalTensorDims(j);
     tensor.format = j.at("format"sv).get<std::string>();
     tensor.shaderAccess = j.at("shader_access"sv).get<ShaderAccessType>();
@@ -781,6 +793,27 @@ void from_json(const json &j, TensorDesc &tensor) {
     parseOptionalFieldAs<Tiling>(j, "tiling", tensor.tiling);
     if (tensor.tiling.has_value() && tensor.tiling.value() == Tiling::Unknown) {
         throw std::runtime_error("Unknown tiling value");
+    }
+    parseOptionalFieldAs<TensorBlockScalingDesc>(j, "block_scaling", tensor.blockScaling);
+    if (tensor.blockScaling) {
+        const auto &desc = *tensor.blockScaling;
+        if (tensor.src.has_value() != desc.src.has_value()) {
+            throw std::runtime_error("Tensor src and block_scaling.src must be specified together: " + tensor.guidStr);
+        }
+        if (tensor.dst.has_value() != desc.dst.has_value()) {
+            throw std::runtime_error("Tensor dst and block_scaling.dst must be specified together: " + tensor.guidStr);
+        }
+        if (tensor.src && tensor.dst) {
+            throw std::runtime_error("Block-scaled tensor cannot specify both src and dst: " + tensor.guidStr);
+        }
+        for (const auto &[values, scales] : {std::pair{tensor.src, desc.src}, std::pair{tensor.dst, desc.dst}}) {
+            if (values && (values->empty() || scales->empty() ||
+                           std::filesystem::path(*values).lexically_normal() ==
+                               std::filesystem::path(*scales).lexically_normal())) {
+                throw std::runtime_error("Tensor value and scale paths must be nonempty and distinct: " +
+                                         tensor.guidStr);
+            }
+        }
     }
 }
 

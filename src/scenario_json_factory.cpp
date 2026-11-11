@@ -11,6 +11,7 @@
 #include "scenario_builder_impl.hpp"
 #include "scenario_desc.hpp"
 #include "shape_inference.hpp"
+#include "tensor.hpp"
 #include "utils.hpp"
 
 #include "vgf-utils/memory_map.hpp"
@@ -83,25 +84,6 @@ BufferData loadBufferData(const BufferDesc &desc) {
     bufferData.data.resize(parsedData.size());
     std::memcpy(bufferData.data.data(), parsedData.ptr, parsedData.size());
     return bufferData;
-}
-
-TensorData loadTensorData(const TensorDesc &desc) {
-    TensorData tensorData;
-    tensorData.shape = desc.dims;
-
-    if (!desc.src.has_value()) {
-        const auto format = getVkFormatFromString(desc.format);
-        const auto expectedSize = elementSizeFromVkFormat(format) * totalElementsFromShape(desc.dims);
-        tensorData.data.resize(expectedSize, std::byte{0});
-        return tensorData;
-    }
-
-    MemoryMap mapped(desc.src.value());
-    const auto parsedData = vgfutils::numpy::parse(mapped);
-    tensorData.data.resize(parsedData.size());
-    std::memcpy(tensorData.data.data(), parsedData.ptr, parsedData.size());
-    tensorData.shape = parsedData.shape;
-    return tensorData;
 }
 
 ImageData loadImageData(const ImageDesc &desc, const ImageInfo &info) {
@@ -323,6 +305,10 @@ struct ResourceInfoFactory {
             info.tiling = tensor.tiling.value();
         }
         info.descriptorBufferCaptureReplay = descriptorBufferCaptureReplay;
+
+        if (tensor.blockScaling) {
+            info.blockScaling = tensor.blockScaling->info;
+        }
 
         return info;
     }

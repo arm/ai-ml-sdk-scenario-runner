@@ -5,9 +5,13 @@
 
 #include "tensor.hpp"
 #include "logging.hpp"
+#include "resource_desc.hpp"
 #include "utils.hpp"
 #include "vulkan_debug_utils.hpp"
 
+#include "vgf-utils/memory_map.hpp"
+
+#include <cstring>
 #include <utility>
 
 namespace mlsdk::scenariorunner {
@@ -21,6 +25,55 @@ constexpr vk::TensorTilingARM convertTiling(const Tiling tiling) {
     default:
         throw std::runtime_error("Unknown tiling");
     }
+}
+
+std::vector<int64_t> tensorScaleShape(const std::vector<int64_t> &shape, const BlockScalingInfo &scaling) {
+    auto result = shape;
+    if (scaling.blockShape.size() > shape.size()) {
+        throw std::runtime_error("Block rank exceeds tensor rank");
+    }
+    const auto offset = shape.size() - scaling.blockShape.size();
+    for (size_t i = 0; i < scaling.blockShape.size(); ++i) {
+        const auto block = scaling.blockShape[i];
+        if (block == 0 || result[offset + i] % block != 0) {
+            throw std::runtime_error("Tensor dimensions must be divisible by positive block dimensions");
+        }
+        result[offset + i] /= block;
+    }
+    return result;
+}
+
+TensorData readTensorFile(const std::filesystem::path &path, vk::Format format) {
+    const MemoryMap mapped(path.string());
+    if (mapped.size() < 10) {
+        throw std::runtime_error("Truncated tensor NumPy header");
+    }
+    const auto *bytes = static_cast<const unsigned char *>(mapped.ptr());
+    const size_t prefixSize = bytes[6] == 1 ? 10 : 12;
+    if (mapped.size() < prefixSize) {
+        throw std::runtime_error("Truncated tensor NumPy header");
+    }
+    uint32_t headerLength = 0;
+    if (bytes[6] == 1) {
+        uint16_t length = 0;
+        std::memcpy(&length, bytes + 8, sizeof(length));
+        headerLength = length;
+    } else {
+        std::memcpy(&headerLength, bytes + 8, sizeof(headerLength));
+    }
+    if (headerLength > mapped.size() - prefixSize) {
+        throw std::runtime_error("Truncated tensor NumPy header");
+    }
+    const auto parsed = vgfutils::numpy::parse(mapped);
+    const auto expectedSize = elementSizeFromVkFormat(format) * totalElementsFromShape(parsed.shape);
+    if (mapped.size() - prefixSize - headerLength != expectedSize || parsed.size() != expectedSize) {
+        throw std::runtime_error("Tensor NumPy payload length does not match the tensor");
+    }
+    TensorData tensorData;
+    tensorData.shape = parsed.shape;
+    tensorData.data.resize(parsed.size());
+    std::memcpy(tensorData.data.data(), parsed.ptr, tensorData.data.size());
+    return tensorData;
 }
 
 } // namespace
@@ -246,11 +299,92 @@ std::vector<std::byte> Tensor::getTensorData(const Context &ctx) const {
 
 void Tensor::store(const Context &ctx, const std::string &filename) const {
     const auto tensorData = download(ctx);
-    const vgfutils::numpy::DataPtr dataPtr(reinterpret_cast<const char *>(tensorData.data.data()),
-                                           _rankConverted ? std::vector<int64_t>(0) : _shape,
-                                           getDTypeFromVkFormat(dataType()));
-    vgfutils::numpy::write(filename, dataPtr);
+    writeTensorFiles(tensorData, filename);
 }
 
 const std::string &Tensor::debugName() const { return _debugName; }
+
+TensorData loadTensorData(const TensorDesc &desc) {
+    const auto format = getVkFormatFromString(desc.format);
+    const std::optional<std::filesystem::path> values{desc.src};
+    const std::optional<std::filesystem::path> scales{desc.blockScaling ? desc.blockScaling->src : std::nullopt};
+    const auto scaling = desc.blockScaling ? std::optional{desc.blockScaling->info} : std::nullopt;
+    if (scales.has_value() != (scaling.has_value() && values.has_value())) {
+        throw std::runtime_error("Block-scaled tensors require both value and scale input paths");
+    }
+    if (values && (values->empty() ||
+                   (scales && (scales->empty() || values->lexically_normal() == scales->lexically_normal())))) {
+        throw std::runtime_error("Tensor input paths must be nonempty and distinct");
+    }
+    if (scaling && scaling->format != E8M0_FORMAT) {
+        throw std::runtime_error("Tensor scale format must be E8M0");
+    }
+    TensorData result;
+    if (values) {
+        result = readTensorFile(*values, format);
+        if ((!desc.dims.empty() || scaling) && result.shape != desc.dims) {
+            throw std::runtime_error("Tensor value NumPy shape does not match the tensor");
+        }
+    } else {
+        result.shape = desc.dims;
+        const auto expectedSize = elementSizeFromVkFormat(format) * totalElementsFromShape(desc.dims);
+        result.data.resize(expectedSize, std::byte{0});
+    }
+    result.format = format;
+    result.blockScaling = scaling;
+    if (scaling) {
+        if (format != vk::Format::eR8SfloatFpencodingFloat8E4M3ARM &&
+            format != vk::Format::eR8SfloatFpencodingFloat8E5M2ARM) {
+            throw std::runtime_error("Block-scaled file I/O supports FP8 values");
+        }
+        const auto scaleShape = tensorScaleShape(desc.dims, *scaling);
+        const auto scaleSize = elementSizeFromVkFormat(scaling->format) * totalElementsFromShape(scaleShape);
+        if (scales) {
+            auto scaleData = readTensorFile(*scales, scaling->format);
+            if (scaleData.shape != scaleShape) {
+                throw std::runtime_error("Tensor scale NumPy shape does not match its block shape");
+            }
+            result.scales = std::move(scaleData.data);
+        } else {
+            result.scales.resize(scaleSize, std::byte{0});
+        }
+    }
+    return result;
+}
+
+void writeTensorFiles(const TensorData &data, const std::filesystem::path &values,
+                      const std::optional<std::filesystem::path> &scales) {
+    if (data.blockScaling.has_value() != scales.has_value()) {
+        throw std::runtime_error("Block-scaled tensors require both value and scale output paths");
+    }
+    if (values.empty() || (scales && (scales->empty() || values.lexically_normal() == scales->lexically_normal()))) {
+        throw std::runtime_error("Tensor output paths must be nonempty and distinct");
+    }
+    const auto dtype = getDTypeFromVkFormat(data.format.value());
+    const vgfutils::numpy::DataPtr valuePayload{reinterpret_cast<const char *>(data.data.data()), data.shape, dtype};
+    if (valuePayload.size() != data.data.size()) {
+        throw std::runtime_error("Tensor value payload length does not match its shape and format");
+    }
+    std::optional<vgfutils::numpy::DataPtr> scalePayload;
+    if (data.blockScaling) {
+        if (data.blockScaling->format != E8M0_FORMAT) {
+            throw std::runtime_error("Tensor scale format must be E8M0");
+        }
+        if (data.format != vk::Format::eR8SfloatFpencodingFloat8E4M3ARM &&
+            data.format != vk::Format::eR8SfloatFpencodingFloat8E5M2ARM) {
+            throw std::runtime_error("Block-scaled file I/O supports FP8 values");
+        }
+        scalePayload.emplace(reinterpret_cast<const char *>(data.scales.data()),
+                             tensorScaleShape(data.shape, *data.blockScaling),
+                             getDTypeFromVkFormat(data.blockScaling->format));
+        if (scalePayload->size() != data.scales.size()) {
+            throw std::runtime_error("Tensor scale payload length does not match its block shape");
+        }
+    }
+    vgfutils::numpy::write(values.string(), valuePayload);
+    if (scalePayload) {
+        vgfutils::numpy::write(scales->string(), *scalePayload);
+    }
+}
+
 } // namespace mlsdk::scenariorunner

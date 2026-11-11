@@ -109,6 +109,16 @@ struct RawDataDesc : ResourceDesc {
 };
 
 /**
+ * @brief TensorBlockScalingDesc describes a tensor's block scaling.
+ *
+ */
+struct TensorBlockScalingDesc {
+    BlockScalingInfo info;
+    std::optional<std::string> src;
+    std::optional<std::string> dst;
+};
+
+/**
  * @brief TensorDesc describes a Tensor.
  *
  */
@@ -121,6 +131,7 @@ struct TensorDesc : ResourceDesc {
     std::string format;
     std::optional<Tiling> tiling;
     std::optional<MemoryGroup> memoryGroup;
+    std::optional<TensorBlockScalingDesc> blockScaling;
 };
 
 /**
