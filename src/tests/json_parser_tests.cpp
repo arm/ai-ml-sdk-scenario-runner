@@ -9,10 +9,12 @@
 #include "json_reader.hpp"
 #include "resource_desc.hpp"
 #include "scenario_desc.hpp"
+#include "utils.hpp"
 
 #include <cstdint>
 #include <filesystem>
 #include <string_view>
+#include <utility>
 
 /**
  * @brief Test the JSON parser.
@@ -1552,6 +1554,44 @@ TEST(JsonParser, TensorResource) {
     ASSERT_TRUE(desc.shaderAccess == ShaderAccessType::ReadOnly);
     ASSERT_TRUE(desc.tiling.has_value());
     ASSERT_TRUE(desc.tiling.value() == Tiling::Optimal);
+}
+
+TEST(JsonParser, TensorResourceFormatNames) {
+    auto jsonInput = R"({
+        "tensor": {
+            "uid": "tensor",
+            "dims": [64],
+            "shader_access": "readonly"
+        }
+    })"_json;
+    const std::pair<const char *, vk::Format> formats[] = {
+        {"VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT6E2M3_ARM", static_cast<vk::Format>(1000729000)},
+        {"VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT6E3M2_ARM", static_cast<vk::Format>(1000729001)},
+        {"VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT4E2M1_ARM", static_cast<vk::Format>(1000729002)},
+        {"VK_FORMAT_R8_SFLOAT_FPENCODING_MXINT8_ARM", static_cast<vk::Format>(1000729004)},
+        {"VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM", vk::Format::eR8SfloatFpencodingFloat8E4M3ARM},
+        {"VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E5M2_ARM", vk::Format::eR8SfloatFpencodingFloat8E5M2ARM},
+    };
+    for (const auto &[name, format] : formats) {
+        SCOPED_TRACE(name);
+        jsonInput["tensor"]["format"] = name;
+        const auto desc = MakeFromJSON<TensorDesc>(jsonInput["tensor"]);
+        EXPECT_EQ(desc.format, name);
+        EXPECT_EQ(getVkFormatFromString(desc.format), format);
+    }
+    EXPECT_EQ(getVkFormatFromString("VK_FORMAT_R8_SINT"), vk::Format::eR8Sint);
+    for (const auto *name :
+         {"VK_FORMAT_R6_SFLOAT_FPENCODING_FLOAT6E2M3_ARM", "VK_FORMAT_R6_SFLOAT_FPENCODING_FLOAT6E3M2_ARM",
+          "VK_FORMAT_R4_SFLOAT_FPENCODING_FLOAT4E2M1_ARM"}) {
+        SCOPED_TRACE(name);
+        EXPECT_THROW(getVkFormatFromString(name), std::runtime_error);
+    }
+    try {
+        getVkFormatFromString("VK_FORMAT_UNKNOWN");
+        FAIL() << "Expected an unknown VkFormat error";
+    } catch (const std::runtime_error &error) {
+        EXPECT_EQ(std::string(error.what()), "Unknown VkFormat: VK_FORMAT_UNKNOWN");
+    }
 }
 
 TEST(JsonParser, TensorResourceMissingDims) {

@@ -16,6 +16,7 @@
 - Added experimental per-segment raw-data binary references for VGF graph
   segments, retaining shader-backed graph and compute segments in the same
   dispatch.
+- Added experimental scenario JSON parsing for FP4, FP6, and MXINT8 tensor format names.
 
 ### Bug Fixes
 

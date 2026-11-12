@@ -267,6 +267,19 @@ intermediate. For example:
      }
    }
 
+Ordinary tensors accept the FP8 value formats
+``VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM`` and
+``VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E5M2_ARM``.
+
+The parser also recognizes the following value-format names:
+``VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT6E2M3_ARM``,
+``VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT6E3M2_ARM``,
+``VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT4E2M1_ARM``, and
+``VK_FORMAT_R8_SFLOAT_FPENCODING_MXINT8_ARM``.
+
+Runtime tensor creation, payload sizing, and NumPy I/O for these four formats
+are not implemented and report an unsupported-runtime error.
+
 To allow for memory aliasing, the following object is needed in each resource:
 .. code-block::
 

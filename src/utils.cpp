@@ -30,7 +30,21 @@ bool isPow2(uint32_t value) { return ((value & (~(value - 1))) == value); }
 
 } // namespace
 
+void rejectUnsupportedMXFPFormats(vk::Format format) {
+    switch (static_cast<int32_t>(format)) {
+    case 1000729000: // OCPMXFP FLOAT6E2M3
+    case 1000729001: // OCPMXFP FLOAT6E3M2
+    case 1000729002: // OCPMXFP FLOAT4E2M1
+    case 1000729004: // MXINT8
+        throw std::runtime_error("Tensor runtime support is not implemented for format: " +
+                                 vgflib::FormatTypeToName(vgflib::ToFormatType(format)));
+    default:
+        return;
+    }
+}
+
 uint32_t elementSizeFromVkFormat(vk::Format format) {
+    rejectUnsupportedMXFPFormats(format);
 
     uint32_t value = vk::blockSize(format);
 
@@ -212,6 +226,12 @@ vk::Format getVkFormatFromString(const std::string &format) {
     if (format == "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E5M2_ARM") {
         return vk::Format::eR8SfloatFpencodingFloat8E5M2ARM;
     }
+    if (format == "VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT6E2M3_ARM" ||
+        format == "VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT6E3M2_ARM" ||
+        format == "VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT4E2M1_ARM" ||
+        format == "VK_FORMAT_R8_SFLOAT_FPENCODING_MXINT8_ARM") {
+        return vgflib::ToRaiiFormat(vgflib::NameToFormatType(format));
+    }
     throw std::runtime_error("Unknown VkFormat: " + format);
 }
 
@@ -224,6 +244,7 @@ vk::ImageAspectFlags getImageAspectMaskForVkFormat(vk::Format format) {
 }
 
 vgfutils::numpy::DType getDTypeFromVkFormat(vk::Format format) {
+    rejectUnsupportedMXFPFormats(format);
     if (numComponentsFromVkFormat(format) != 1) {
         throw std::runtime_error("More than 1 components from VkFormat: " +
                                  vgflib::FormatTypeToName(vgflib::ToFormatType(format)));
