@@ -9,6 +9,7 @@
 #include "iresource.hpp"
 
 #include "vgf-utils/memory_map.hpp"
+#include "vgf-utils/model_interface.hpp"
 #include "vgf/decoder.hpp"
 
 #include <map>
@@ -100,13 +101,14 @@ class VgfView {
     std::unique_ptr<vgflib::ModelSequenceTableDecoder> sequenceTableDecoder;
     std::unique_ptr<vgflib::ModelResourceTableDecoder> resourceTableDecoder;
     std::unique_ptr<vgflib::ConstantDecoder> constantTableDecoder;
+    vgfutils::ModelInterface modelInterface;
     std::map<uint32_t, std::vector<int64_t>> resolvedMrtShapes;
     std::map<uint32_t, std::vector<uint32_t>> shapedSpirvModules;
 
     VgfView(std::string vgfFileName, std::unique_ptr<MemoryMap> mapped,
             std::unique_ptr<vgflib::ModuleTableDecoder> moduleTableDecoder,
-            std::unique_ptr<vgflib::ModelSequenceTableDecoder> sequenceTableDecoder,
-            std::unique_ptr<vgflib::ModelResourceTableDecoder> resourceTableDecoder,
+            std::unique_ptr<vgflib::ModelSequenceTableDecoder> sequenceDecoder,
+            std::unique_ptr<vgflib::ModelResourceTableDecoder> resourceDecoder,
             std::unique_ptr<vgflib::ConstantDecoder> constantTableDecoder);
 };
 } // namespace mlsdk::scenariorunner

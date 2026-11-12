@@ -123,33 +123,27 @@ struct ModelInterfaceLookup {
     uint32_t slotIndex;
 };
 
-std::optional<ModelInterfaceLookup> findModelInterfaceResource(const vgflib::ModelSequenceTableDecoder &decoder,
+std::optional<ModelInterfaceLookup> findModelInterfaceResource(const vgfutils::ModelInterface &modelInterface,
                                                                uint32_t bindingId) {
-    const auto findInHandle = [&](vgflib::BindingSlotArrayHandle handle) -> std::optional<uint32_t> {
-        for (uint32_t slot = 0; slot < decoder.getBindingsSize(handle); ++slot) {
-            if (decoder.getBindingSlotBinding(handle, slot) == bindingId) {
-                return slot;
+    const auto findInBindings = [&](const std::vector<vgfutils::ModelInterfaceEntry> &bindings,
+                                    bool isOutput) -> std::optional<ModelInterfaceLookup> {
+        for (const auto &entry : bindings) {
+            const auto &binding = entry.bindingSlot;
+            if (binding.mBinding == bindingId) {
+                return ModelInterfaceLookup{binding.mMrtIndex, isOutput, binding.mIndex};
             }
         }
         return std::nullopt;
     };
 
-    const auto *inputHandle = decoder.getModelSequenceInputBindingSlotsHandle();
-    if (const auto slot = findInHandle(inputHandle)) {
-        const auto slotIndex = *slot;
-        return ModelInterfaceLookup{decoder.getBindingSlotMrtIndex(inputHandle, slotIndex), false, slotIndex};
+    if (const auto input = findInBindings(modelInterface.inputs, false)) {
+        return input;
     }
-    const auto *outputHandle = decoder.getModelSequenceOutputBindingSlotsHandle();
-    if (const auto slot = findInHandle(outputHandle)) {
-        const auto slotIndex = *slot;
-        return ModelInterfaceLookup{decoder.getBindingSlotMrtIndex(outputHandle, slotIndex), true, slotIndex};
-    }
-    return std::nullopt;
+    return findInBindings(modelInterface.outputs, true);
 }
 
-std::optional<uint32_t> findModelInterfaceMrtIndex(const vgflib::ModelSequenceTableDecoder &decoder,
-                                                   uint32_t bindingId) {
-    const auto result = findModelInterfaceResource(decoder, bindingId);
+std::optional<uint32_t> findModelInterfaceMrtIndex(const vgfutils::ModelInterface &modelInterface, uint32_t bindingId) {
+    const auto result = findModelInterfaceResource(modelInterface, bindingId);
     return result ? std::optional<uint32_t>{result->mrtIndex} : std::nullopt;
 }
 
@@ -248,12 +242,13 @@ void applyVgfSamplerConfigIfPresent(const vgflib::ModelResourceTableDecoder &dec
 
 VgfView::VgfView(std::string vgfFileName, std::unique_ptr<MemoryMap> mapped,
                  std::unique_ptr<vgflib::ModuleTableDecoder> moduleTableDecoder,
-                 std::unique_ptr<vgflib::ModelSequenceTableDecoder> sequenceTableDecoder,
-                 std::unique_ptr<vgflib::ModelResourceTableDecoder> resourceTableDecoder,
+                 std::unique_ptr<vgflib::ModelSequenceTableDecoder> sequenceDecoder,
+                 std::unique_ptr<vgflib::ModelResourceTableDecoder> resourceDecoder,
                  std::unique_ptr<vgflib::ConstantDecoder> constantTableDecoder)
     : _vgfFileName(std::move(vgfFileName)), mapped(std::move(mapped)),
-      moduleTableDecoder(std::move(moduleTableDecoder)), sequenceTableDecoder(std::move(sequenceTableDecoder)),
-      resourceTableDecoder(std::move(resourceTableDecoder)), constantTableDecoder(std::move(constantTableDecoder)) {}
+      moduleTableDecoder(std::move(moduleTableDecoder)), sequenceTableDecoder(std::move(sequenceDecoder)),
+      resourceTableDecoder(std::move(resourceDecoder)), constantTableDecoder(std::move(constantTableDecoder)),
+      modelInterface(vgfutils::parseModelInterface(*sequenceTableDecoder, *resourceTableDecoder)) {}
 
 VgfView VgfView::createVgfView(std::string vgfFile) {
 
@@ -472,7 +467,7 @@ bool VgfView::hasImageBindings(uint32_t segmentIndex) const {
 }
 
 std::optional<uint32_t> VgfView::getModelInterfaceMrtIndex(uint32_t bindingId) const {
-    return findModelInterfaceMrtIndex(*sequenceTableDecoder, bindingId);
+    return findModelInterfaceMrtIndex(modelInterface, bindingId);
 }
 
 vgflib::DataView<int64_t> VgfView::getTensorShape(uint32_t mrtIndex) const {
@@ -494,7 +489,7 @@ VgfView::resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
     // Add model inputs and outputs to the MRT-index mapping created for intermediate resources.
     auto resolvedResources = intermediates;
     for (const auto &externalBinding : externalBindings) {
-        const auto interfaceLookup = findModelInterfaceResource(*sequenceTableDecoder, externalBinding.id);
+        const auto interfaceLookup = findModelInterfaceResource(modelInterface, externalBinding.id);
         if (!interfaceLookup.has_value()) {
             continue;
         }
@@ -520,7 +515,7 @@ VgfView::resolveBindings(uint32_t segmentIndex, const DataManager &dataManager,
 }
 
 std::optional<uint32_t> VgfView::getModelResourceAliasGroup(uint32_t bindingId) const {
-    const auto resourceIndex = findModelInterfaceMrtIndex(*sequenceTableDecoder, bindingId);
+    const auto resourceIndex = findModelInterfaceMrtIndex(modelInterface, bindingId);
     if (!resourceIndex.has_value()) {
         throw std::runtime_error("No model interface resource found for binding ID " + std::to_string(bindingId));
     }
