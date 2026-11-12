@@ -28,6 +28,7 @@
 #include "scenario_build_data.hpp"
 #include "utils.hpp"
 
+#include "workload_compute.hpp"
 #include "workload_runtime.hpp"
 
 #include <algorithm>
@@ -122,6 +123,16 @@ template <typename... Functions> struct Overloaded : Functions... {
 };
 
 template <typename... Functions> Overloaded(Functions...) -> Overloaded<Functions...>;
+
+bool wasApplicationPipelineCacheHit(const workloadlib::PipelineCreationReport &report) {
+    const auto requiredFlags = vk::PipelineCreationFeedbackFlagBits::eValid |
+                               vk::PipelineCreationFeedbackFlagBits::eApplicationPipelineCacheHit;
+    const auto cacheHit = [requiredFlags](const vk::PipelineCreationFeedback &feedback) {
+        return (feedback.flags & requiredFlags) == requiredFlags;
+    };
+    return cacheHit(report.pipelineFeedback) ||
+           std::any_of(report.stageFeedbacks.begin(), report.stageFeedbacks.end(), cacheHit);
+}
 
 std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<GraphConstantResourceId> &constantIds,
                                                      const ResourceManager &resources) {
@@ -773,20 +784,41 @@ void ScenarioImpl::handleAliasedLayoutTransitions() {
 }
 
 void ScenarioImpl::createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries) {
-    // Create Compute shader pipeline
     const auto &shaderInfo = getShader(dispatchCompute.shader);
-    if (shaderInfo.stage != ShaderStage::Compute && shaderInfo.stage != ShaderStage::Unknown) {
-        throw std::runtime_error("DispatchCompute requires a compute shader stage, given: " +
-                                 std::to_string(static_cast<int>(shaderInfo.stage)));
+    workloadlib::SessionOptions options;
+    if (_pipelineCache) {
+        options.pipelineCache = _pipelineCache->get();
+        options.failOnCompileRequired = _pipelineCache->failOnCacheMiss();
+        options.collectPipelineCreationFeedback = true;
     }
-    const Compute::PipelineCreateArguments args{dispatchCompute.debugName, dispatchCompute.bindings, _pipelineCache};
+    if (_ctx.robustnessFeaturesEnabled() && _ctx._optionals.pipeline_robustness) {
+        workloadlib::PipelineRobustnessOptions robustness;
+        robustness.storageBuffers = vk::PipelineRobustnessBufferBehavior::eRobustBufferAccess;
+        robustness.uniformBuffers = vk::PipelineRobustnessBufferBehavior::eRobustBufferAccess;
+        options.pipelineRobustness = robustness;
+    }
 
     PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + shaderInfo.debugName, "Pipeline Setup");
-    _compute.createPipeline(args, shaderInfo);
+    std::shared_ptr<WorkloadExecution> execution;
+    try {
+        execution = prepareComputeExecution(workloadRuntime(), _dataManager, shaderInfo, dispatchCompute, options);
+    } catch (const vk::SystemError &error) {
+        if (options.failOnCompileRequired &&
+            error.code() == vk::make_error_code(vk::Result::ePipelineCompileRequired)) {
+            throw std::runtime_error("Pipeline cache miss for pipeline: " + shaderInfo.debugName);
+        }
+        throw;
+    }
+    if (options.failOnCompileRequired) {
+        const auto report = execution->session().pipelineCreationReport(execution->workload().executable(0));
+        if (!report || !wasApplicationPipelineCacheHit(*report)) {
+            throw std::runtime_error("Pipeline cache miss for pipeline: " + shaderInfo.debugName);
+        }
+    }
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
-    const auto [pushConstantData, pushConstantSize] = getPushConstantData(dispatchCompute.pushData, _dataManager);
-    _compute.registerPipelineFenced(_dataManager, dispatchCompute.bindings, pushConstantData, pushConstantSize,
-                                    dispatchCompute.implicitBarrier, dispatchCompute.computeDispatch);
+    _compute.registerWorkloadExecution(std::move(execution), dispatchCompute.debugName,
+                                       {"ComputeDispatch", dispatchCompute.computeDispatch.profileName},
+                                       dispatchCompute.implicitBarrier);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
     mlsdk::logging::debug("Shader Pipeline: " + shaderInfo.debugName + " created");
 }
