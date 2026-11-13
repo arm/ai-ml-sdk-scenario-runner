@@ -22,6 +22,20 @@ namespace mlsdk::scenariorunner {
 
 namespace {
 
+void appendWorkloadMemoryUsage(MemoryProfilingData &data, const workloadlib::Session &session,
+                               workloadlib::ExecutableView executable, const ProfiledCommand &profile) {
+    if (executable.type() != workloadlib::ExecutableKind::Graph) {
+        return;
+    }
+    const auto executableIndex = executable.index();
+    uint64_t total = 0;
+    const auto count = session.dataGraphSessionMemoryCount(executableIndex);
+    for (uint32_t memoryIndex = 0; memoryIndex < count; ++memoryIndex) {
+        total += session.dataGraphSessionMemory(executableIndex, memoryIndex).size;
+    }
+    data.usages.push_back({profile.name, total});
+}
+
 // Keep in sync with the value defined in emulation-layer
 constexpr vk::DataGraphPipelinePropertyARM graphProfilingProperty =
     static_cast<vk::DataGraphPipelinePropertyARM>(0x7ffffffe);
@@ -792,6 +806,22 @@ MemoryProfilingData Compute::getMemoryProfilingData() const {
     for (const auto &pipeline : _pipelines) {
         if (pipeline.isDataGraphPipeline()) {
             profilingData.usages.push_back({pipeline.debugName(), pipeline.getDataGraphPipelineMemoryRequirement()});
+        }
+    }
+
+    for (const auto &command : _commands) {
+        if (const auto *dispatch = std::get_if<WorkloadDispatch>(&command)) {
+            const auto &execution = *(dispatch->execution);
+            const auto &session = execution.session();
+            for (const auto executable : execution.workload().executables()) {
+                appendWorkloadMemoryUsage(profilingData, session, executable, dispatch->profile);
+            }
+        } else if (const auto *vgf = std::get_if<VgfDispatch>(&command)) {
+            const auto &execution = *(vgf->execution);
+            const auto &session = execution.session();
+            for (const auto executable : execution.workload().executables()) {
+                appendWorkloadMemoryUsage(profilingData, session, executable, vgf->profiles.at(executable.index()));
+            }
         }
     }
     return profilingData;

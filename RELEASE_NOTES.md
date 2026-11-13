@@ -45,6 +45,8 @@
 - Corrected `dispatch_optical_flow` image connections: `template_image` is now
   Vulkan® INPUT and `search_image` is REFERENCE. Output and hint vectors use
   template-to-search displacement in input-image pixels.
+- Fixed graph session memory profiling to report the total size of all session
+  allocations.
 
 ### Build, Packaging & Dependencies
 

@@ -12,6 +12,17 @@ Usage
 
 .. include:: neural_statistics.inc
 
+Profiling memory usage
+----------------------
+
+With ``--profiling-dump-path``, each graph executable has a ``Memory Usage``
+entry. ``Session memory [bytes]`` is the sum of its session allocation sizes
+across all bind points and objects, including neural-statistics allocations
+when enabled. It excludes bound scenario resources and workload intermediate
+resources. Repeating execution does not multiply this value. For VGF executions,
+entries use the same dispatch/segment names as runtime profiling and follow
+segment order, omitting compute segments.
+
 .. _scenario-usage-memory-aliasing:
 
 Resource memory aliasing
