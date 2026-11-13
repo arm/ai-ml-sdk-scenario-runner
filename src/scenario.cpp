@@ -30,6 +30,7 @@
 #include "vgf_configuration.hpp"
 
 #include "workload_compute.hpp"
+#include "workload_data_graph.hpp"
 #include "workload_runtime.hpp"
 
 #include <algorithm>
@@ -133,18 +134,6 @@ bool wasApplicationPipelineCacheHit(const workloadlib::PipelineCreationReport &r
     };
     return cacheHit(report.pipelineFeedback) ||
            std::any_of(report.stageFeedbacks.begin(), report.stageFeedbacks.end(), cacheHit);
-}
-
-std::vector<GraphConstantInfo> collectGraphConstants(const std::vector<GraphConstantResourceId> &constantIds,
-                                                     const ResourceManager &resources) {
-    std::vector<GraphConstantInfo> constants;
-    constants.reserve(constantIds.size());
-
-    for (const auto id : constantIds) {
-        constants.emplace_back(resources.get(id));
-    }
-
-    return constants;
 }
 
 void validateDataGraphBindings(const std::vector<TypedBinding> &bindings) {
@@ -916,27 +905,39 @@ void ScenarioImpl::createDataGraphBinaryPipeline(const DispatchDataGraphBinaryDa
 
 void ScenarioImpl::createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries) {
     const auto &shaderInfo = getShader(dispatchDataGraph.graphShader);
-    if (shaderInfo.shaderType != ShaderType::SPIR_V) {
-        throw std::runtime_error("Shader resource used to create Graph Pipeline must be of type SPIR-V");
-    }
-
-    if (!shaderInfo.src || shaderInfo.src->empty()) {
-        throw std::runtime_error("Shader resource missing src: " + shaderInfo.debugName);
-    }
-
-    // Validate the bindings
-    const auto &sequenceBindings = dispatchDataGraph.bindings;
-    validateDataGraphBindings(sequenceBindings);
-
-    const auto graphConstants = collectGraphConstants(dispatchDataGraph.graphConstants, _resources);
-
-    // Create pipeline and record DataGraph dispatch
     PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + shaderInfo.debugName, "Pipeline Setup");
-    const Compute::PipelineCreateArguments args{dispatchDataGraph.debugName, sequenceBindings, _pipelineCache};
-    _compute.createPipeline(args, shaderInfo, _dataManager, graphConstants, _opts.shouldDumpNeuralStatistics(),
-                            _opts.neuralStatisticsMode);
+    workloadlib::SessionOptions options;
+    if (_pipelineCache) {
+        options.pipelineCache = _pipelineCache->get();
+        options.failOnCompileRequired = _pipelineCache->failOnCacheMiss();
+        options.collectPipelineCreationFeedback = true;
+    }
+    if (_opts.shouldDumpNeuralStatistics()) {
+        options.neuralStatistics = workloadlib::NeuralStatisticsOptions{_opts.neuralStatisticsMode};
+    }
+    if (!_opts.sessionRAMsDumpDir.empty()) {
+        options.requireHostVisibleSessionMemory();
+    }
+    std::shared_ptr<WorkloadExecution> execution;
+    try {
+        execution = prepareStandaloneDataGraph(workloadRuntime(), dispatchDataGraph, _resources, _dataManager, options);
+    } catch (const vk::SystemError &error) {
+        if (options.failOnCompileRequired &&
+            error.code() == vk::make_error_code(vk::Result::ePipelineCompileRequired)) {
+            throw std::runtime_error("Pipeline cache miss for pipeline: " + shaderInfo.debugName);
+        }
+        throw;
+    }
+    if (options.failOnCompileRequired) {
+        const auto report = execution->session().pipelineCreationReport(execution->workload().executable(0));
+        if (!report || !wasApplicationPipelineCacheHit(*report)) {
+            throw std::runtime_error("Pipeline cache miss for pipeline: " + shaderInfo.debugName);
+        }
+    }
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
-    _compute.registerPipelineFenced(_dataManager, sequenceBindings, nullptr, 0, dispatchDataGraph.implicitBarrier);
+    _compute.registerWorkloadExecution(std::move(execution), dispatchDataGraph.debugName,
+                                       {"DataGraphDispatch", dispatchDataGraph.debugName},
+                                       dispatchDataGraph.implicitBarrier);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
     mlsdk::logging::debug("Graph Pipeline: " + shaderInfo.debugName + " created");
 }

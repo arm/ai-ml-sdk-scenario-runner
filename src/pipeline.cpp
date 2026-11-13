@@ -339,39 +339,6 @@ Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, co
     computePipelineCommon(args.ctx, shaderInfo, args.pipelineCache);
 }
 
-// Create DataGraph pipeline directly from SPIR-V module + constants (no VGF)
-Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, const DataManager &dataManager,
-                   const std::vector<GraphConstantInfo> &constants, bool enableNeuralStatistics,
-                   vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode)
-    : _type(PipelineType::GraphCompute), _debugName(args.debugName) {
-
-    // Descriptor sets and pipeline layout
-    createDescriptorSetLayouts(args.ctx, args.bindings);
-    _pipelineLayout = createPipelineLayout(args.ctx, _descriptorSetLayouts);
-
-    // Setup tensor resource infos (bound resources)
-    std::vector<vk::TensorDescriptionARM> tensorDescriptions;
-    std::vector<vk::DataGraphPipelineResourceInfoImageLayoutARM> imageLayouts;
-    std::vector<vk::DataGraphPipelineResourceInfoARM> resourceInfos;
-    makeResourceInfos(args.bindings, dataManager, tensorDescriptions, resourceInfos, imageLayouts);
-
-    // Setup graph constant infos
-    std::vector<vk::TensorDescriptionARM> constantTensorDescriptions;
-    constantTensorDescriptions.reserve(constants.size());
-    std::vector<vk::DataGraphPipelineConstantARM> constantInfos;
-    constantInfos.reserve(constants.size());
-
-    for (const auto &constant : constants) {
-        constantTensorDescriptions.emplace_back(vk::TensorTilingARM::eLinear, constant.format,
-                                                static_cast<uint32_t>(constant.dims.size()), constant.dims.data(),
-                                                nullptr, vk::TensorUsageFlagBitsARM::eDataGraph);
-        constantInfos.emplace_back(static_cast<uint32_t>(constantInfos.size()), constant.data.data(),
-                                   &constantTensorDescriptions.back());
-    }
-    graphComputePipelineCommon(args.ctx, shaderInfo, resourceInfos, constantInfos, args.pipelineCache,
-                               enableNeuralStatistics, neuralStatisticsMode);
-}
-
 Pipeline::Pipeline(const CommonArguments &args, const ShaderInfo &vertexShaderInfo,
                    const ShaderInfo &fragmentShaderInfo, const std::vector<vk::Format> &colorAttachmentFormats)
     : _type{PipelineType::Graphics}, _shader{createShaderModule(args.ctx, vertexShaderInfo)},
@@ -536,19 +503,6 @@ Pipeline::Pipeline(const CommonArguments &args, const DataManager &dataManager, 
     trySetVkRaiiObjectDebugName(args.ctx, _pipeline, _debugName);
 
     initSession(args.ctx);
-}
-
-void Pipeline::graphComputePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
-                                          const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
-                                          const std::vector<vk::DataGraphPipelineConstantARM> &constantInfos,
-                                          const std::shared_ptr<PipelineCache> &pipelineCache,
-                                          bool enableNeuralStatistics,
-                                          vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
-    _shader = createShaderModule(ctx, shaderInfo);
-    trySetVkRaiiObjectDebugName(ctx, _shader, _debugName + " shader");
-
-    buildDataGraphPipeline(ctx, shaderInfo.entry, resourceInfos, constantInfos, pipelineCache, enableNeuralStatistics,
-                           neuralStatisticsMode);
 }
 
 void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIndex, const VgfView &vgfView,

@@ -48,6 +48,7 @@ set(SCENARIO_RUNNER_LIB_SOURCES
     workload_compute.cpp
     workload_data_graph.cpp
     workload_execution.cpp
+    workload_graph_diagnostics.cpp
     workload_runtime.cpp
 )
 if(SCENARIO_RUNNER_ENABLE_HLSL_SUPPORT)

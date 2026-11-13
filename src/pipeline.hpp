@@ -52,11 +52,6 @@ class Pipeline {
     Pipeline(const CommonArguments &args, const ExternalDataGraphBinary &binary, const DataManager &dataManager,
              bool enableNeuralStatistics, vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
 
-    // Create DataGraph pipeline directly from SPIR-V module + constants (no VGF)
-    Pipeline(const CommonArguments &args, const ShaderInfo &shaderInfo, const DataManager &dataManager,
-             const std::vector<GraphConstantInfo> &constants, bool enableNeuralStatistics,
-             vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
-
     Pipeline(const CommonArguments &args, const ShaderInfo &vertexShaderInfo, const ShaderInfo &fragmentShaderInfo,
              const std::vector<vk::Format> &colorAttachmentFormats);
 
@@ -141,13 +136,6 @@ class Pipeline {
                                     const std::shared_ptr<PipelineCache> &pipelineCache,
                                     const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
                                     bool enableNeuralStatistics,
-                                    vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
-
-    // Helper to build a Datagraph pipeline that has been dispatched through SPIR-V
-    void graphComputePipelineCommon(const Context &ctx, const ShaderInfo &shaderInfo,
-                                    const std::vector<vk::DataGraphPipelineResourceInfoARM> &resourceInfos,
-                                    const std::vector<vk::DataGraphPipelineConstantARM> &constantInfos,
-                                    const std::shared_ptr<PipelineCache> &pipelineCache, bool enableNeuralStatistics,
                                     vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
 
     // Helper to build a DataGraph pipeline once shader module, entry, resources and constants are prepared

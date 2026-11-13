@@ -11,6 +11,7 @@
 #include "utils.hpp"
 
 #include "workload_execution.hpp"
+#include "workload_graph_diagnostics.hpp"
 
 #include <algorithm>
 #include <limits>
@@ -278,14 +279,6 @@ void Compute::createPipeline(const PipelineCreateArguments &args, const External
                              vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
     const Pipeline::CommonArguments commonArgs{_ctx, args.debugName, args.bindings, args.pipelineCache};
     (void)_pipelines.emplace_back(commonArgs, binary, dataManager, enableNeuralStatistics, neuralStatisticsMode);
-}
-
-void Compute::createPipeline(const PipelineCreateArguments &args, const ShaderInfo &shaderInfo,
-                             const DataManager &dataManager, const std::vector<GraphConstantInfo> &constants,
-                             bool enableNeuralStatistics, vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) {
-    const Pipeline::CommonArguments commonArgs{_ctx, args.debugName, args.bindings, args.pipelineCache};
-    (void)_pipelines.emplace_back(commonArgs, shaderInfo, dataManager, constants, enableNeuralStatistics,
-                                  neuralStatisticsMode);
 }
 
 void Compute::createPipeline(const PipelineCreateArguments &args, const ShaderInfo &vertexShaderInfo,
@@ -800,6 +793,28 @@ RuntimeProfilingData Compute::getRuntimeProfilingData() const {
     return profilingData;
 }
 
+template <typename LegacyCallback, typename WorkloadCallback>
+void Compute::_forEachGraphPipeline(LegacyCallback legacy, WorkloadCallback workload) const {
+    for (const auto &command : _commands) {
+        if (const auto *nativeDispatch = std::get_if<DataGraphDispatch>(&command)) {
+            const auto pipeline = std::find_if(_pipelines.begin(), _pipelines.end(), [&](const auto &entry) {
+                return entry.isDataGraphPipeline() && entry.session() == nativeDispatch->session;
+            });
+            if (pipeline != _pipelines.end()) {
+                legacy(*pipeline);
+            }
+        } else if (const auto *workloadDispatch = std::get_if<WorkloadDispatch>(&command)) {
+            const auto &execution = *workloadDispatch->execution;
+            // Dump standalone graphs; multi-executable workloads need their
+            // own executable-to-dump mapping when they migrate.
+            if (execution.workload().executableCount() == 1 &&
+                execution.workload().executable(0).type() == workloadlib::ExecutableKind::Graph) {
+                workload(execution);
+            }
+        }
+    }
+}
+
 MemoryProfilingData Compute::getMemoryProfilingData() const {
     MemoryProfilingData profilingData;
     for (const auto &pipeline : _pipelines) {
@@ -828,133 +843,148 @@ MemoryProfilingData Compute::getMemoryProfilingData() const {
 
 void Compute::dumpNeuralDebugDatabase(const std::filesystem::path &neuralDebugDatabaseDumpDir) const {
     uint32_t graphPipelineIdx = 0;
-    for (const auto &pipeline : _pipelines) {
-        if (!pipeline.isDataGraphPipeline()) {
-            continue;
-        }
+    _forEachGraphPipeline(
+        [&](const Pipeline &pipeline) {
+            auto debugDatabaseData = pipeline.getGraphPipelinePropertyData<char>(
+                _ctx.device(), vk::DataGraphPipelinePropertyARM::eNeuralAcceleratorDebugDatabase);
 
-        auto debugDatabaseData = pipeline.getGraphPipelinePropertyData<char>(
-            _ctx.device(), vk::DataGraphPipelinePropertyARM::eNeuralAcceleratorDebugDatabase);
+            if (debugDatabaseData.empty()) {
+                return;
+            }
 
-        if (debugDatabaseData.empty()) {
-            continue;
-        }
-
-        auto dumpPath = neuralDebugDatabaseDumpDir /
-                        ("Graph_Pipeline_" + std::to_string(graphPipelineIdx++) + "_Debug_Database.bin");
-        if (writeGraphBinaryDump(dumpPath, debugDatabaseData.data(), debugDatabaseData.size())) {
-            mlsdk::logging::info("Graph debug database stored");
-        }
-    }
+            auto dumpPath = neuralDebugDatabaseDumpDir /
+                            ("Graph_Pipeline_" + std::to_string(graphPipelineIdx++) + "_Debug_Database.bin");
+            if (writeGraphBinaryDump(dumpPath, debugDatabaseData.data(), debugDatabaseData.size())) {
+                mlsdk::logging::info("Graph debug database stored");
+            }
+        },
+        [&](const WorkloadExecution &execution) {
+            const auto path = neuralDebugDatabaseDumpDir /
+                              ("Graph_Pipeline_" + std::to_string(graphPipelineIdx) + "_Debug_Database.bin");
+            if (dumpWorkloadGraphDebugDatabase(execution.session(), path)) {
+                ++graphPipelineIdx;
+            }
+        });
 }
 
 void Compute::dumpNeuralStatistics(const std::filesystem::path &neuralStatisticsDumpDir,
                                    vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode) const {
     uint32_t graphPipelineIdx = 0;
-    for (const auto &pipeline : _pipelines) {
-        if (!pipeline.isDataGraphPipeline()) {
-            continue;
-        }
+    _forEachGraphPipeline(
+        [&](const Pipeline &pipeline) {
+            if (pipeline
+                    .getGraphPipelinePropertyData<uint32_t>(
+                        _ctx.device(), vk::DataGraphPipelinePropertyARM::eNeuralAcceleratorStatisticsInfo)
+                    .empty()) {
+                return;
+            }
 
-        if (pipeline
-                .getGraphPipelinePropertyData<uint32_t>(
-                    _ctx.device(), vk::DataGraphPipelinePropertyARM::eNeuralAcceleratorStatisticsInfo)
-                .empty()) {
-            continue;
-        }
+            const auto &neuralStatisticsMemoryInfo = pipeline.neuralStatisticsMemoryInfo();
+            if (!neuralStatisticsMemoryInfo.has_value()) {
+                mlsdk::logging::warning(
+                    "Expected one session memory instance for Neural Statistics per pipeline, but found none. "
+                    "Neural Statistics file will not be saved.");
+                return;
+            }
 
-        const auto &neuralStatisticsMemoryInfo = pipeline.neuralStatisticsMemoryInfo();
-        if (!neuralStatisticsMemoryInfo.has_value()) {
-            mlsdk::logging::warning(
-                "Expected one session memory instance for Neural Statistics per pipeline, but found none. "
-                "Neural Statistics file will not be saved.");
-            continue;
-        }
+            const auto [sessionMemoryIndex, size] = neuralStatisticsMemoryInfo.value();
+            const auto &memory = pipeline.sessionMemory()[sessionMemoryIndex];
+            auto *pData = static_cast<char *>(memory.mapMemory(0, size));
+            const std::vector<char> statisticsData(pData, pData + size);
+            memory.unmapMemory();
 
-        const auto [sessionMemoryIndex, size] = neuralStatisticsMemoryInfo.value();
-        const auto &memory = pipeline.sessionMemory()[sessionMemoryIndex];
-        auto *pData = static_cast<char *>(memory.mapMemory(0, size));
-        const std::vector<char> statisticsData(pData, pData + size);
-        memory.unmapMemory();
+            char statisticsModeSuffix =
+                neuralStatisticsMode == vk::NeuralAcceleratorStatisticsModeARM::eStatistics0 ? '0' : '1';
 
-        char statisticsModeSuffix =
-            neuralStatisticsMode == vk::NeuralAcceleratorStatisticsModeARM::eStatistics0 ? '0' : '1';
+            const std::string statisticsFileName =
+                "Graph_Pipeline_" + std::to_string(graphPipelineIdx++) + "_Statistics_" + statisticsModeSuffix + ".bin";
+            auto dumpPath = neuralStatisticsDumpDir / statisticsFileName;
 
-        const std::string statisticsFileName =
-            "Graph_Pipeline_" + std::to_string(graphPipelineIdx++) + "_Statistics_" + statisticsModeSuffix + ".bin";
-        auto dumpPath = neuralStatisticsDumpDir / statisticsFileName;
-
-        if (writeGraphBinaryDump(dumpPath, statisticsData.data(), statisticsData.size())) {
-            mlsdk::logging::info("Neural statistics saved to \"" + statisticsFileName + "\"");
-        }
-    }
+            if (writeGraphBinaryDump(dumpPath, statisticsData.data(), statisticsData.size())) {
+                mlsdk::logging::info("Neural statistics saved to \"" + statisticsFileName + "\"");
+            }
+        },
+        [&](const WorkloadExecution &execution) {
+            const char mode = neuralStatisticsMode == vk::NeuralAcceleratorStatisticsModeARM::eStatistics0 ? '0' : '1';
+            const auto path = neuralStatisticsDumpDir /
+                              ("Graph_Pipeline_" + std::to_string(graphPipelineIdx) + "_Statistics_" + mode + ".bin");
+            if (dumpWorkloadGraphStatistics(execution.session(), _ctx.device(), path)) {
+                ++graphPipelineIdx;
+            }
+        });
 }
 
 void Compute::dumpGraphProfilingData(const std::filesystem::path &graphProfilingDumpDir) const {
     uint32_t graphPipelineIdx = 0;
-    for (const auto &pipeline : _pipelines) {
-        if (!pipeline.isDataGraphPipeline()) {
-            continue;
-        }
-
-        const auto graphPipelineIdxStr = std::to_string(graphPipelineIdx++);
-        try {
-            if (!pipeline.hasGraphPipelineProperty(_ctx.device(), graphProfilingProperty)) {
-                logging::warning("Skipping graph profiling dump for graph pipeline " + graphPipelineIdxStr +
-                                 ": property 0x7ffffffe is not available");
-                continue;
+    _forEachGraphPipeline(
+        [&](const Pipeline &pipeline) {
+            const auto graphPipelineIdxStr = std::to_string(graphPipelineIdx++);
+            try {
+                if (!pipeline.hasGraphPipelineProperty(_ctx.device(), graphProfilingProperty)) {
+                    logging::warning("Skipping graph profiling dump for graph pipeline " + graphPipelineIdxStr +
+                                     ": property 0x7ffffffe is not available");
+                    return;
+                }
+            } catch (const std::exception &err) {
+                logging::warning("Failed querying available graph properties for pipeline " + graphPipelineIdxStr +
+                                 ": " + err.what());
+                return;
             }
-        } catch (const std::exception &err) {
-            logging::warning("Failed querying available graph properties for pipeline " + graphPipelineIdxStr + ": " +
-                             err.what());
-            continue;
-        }
 
-        std::vector<char> graphProfilingData;
-        try {
-            graphProfilingData = pipeline.getGraphPipelinePropertyData<char>(_ctx.device(), graphProfilingProperty);
-        } catch (const std::exception &err) {
-            logging::warning("Skipping graph profiling dump for graph pipeline " + graphPipelineIdxStr +
-                             ": failed to query property data: " + err.what());
-            continue;
-        }
+            std::vector<char> graphProfilingData;
+            try {
+                graphProfilingData = pipeline.getGraphPipelinePropertyData<char>(_ctx.device(), graphProfilingProperty);
+            } catch (const std::exception &err) {
+                logging::warning("Skipping graph profiling dump for graph pipeline " + graphPipelineIdxStr +
+                                 ": failed to query property data: " + err.what());
+                return;
+            }
 
-        if (graphProfilingData.empty()) {
-            logging::warning("Skipping graph profiling dump for graph pipeline " + graphPipelineIdxStr +
-                             ": property data is empty");
-            continue;
-        }
+            if (graphProfilingData.empty()) {
+                logging::warning("Skipping graph profiling dump for graph pipeline " + graphPipelineIdxStr +
+                                 ": property data is empty");
+                return;
+            }
 
-        const std::string fileName = "EmulationLayerPipeline_" + graphPipelineIdxStr + ".json";
+            const std::string fileName = "EmulationLayerPipeline_" + graphPipelineIdxStr + ".json";
 
-        if (writeGraphBinaryDump(graphProfilingDumpDir / fileName, graphProfilingData.data(),
-                                 graphProfilingData.size())) {
-            logging::info("Graph profiling data saved to \"" + fileName + "\"");
-        }
-    }
+            if (writeGraphBinaryDump(graphProfilingDumpDir / fileName, graphProfilingData.data(),
+                                     graphProfilingData.size())) {
+                logging::info("Graph profiling data saved to \"" + fileName + "\"");
+            }
+        },
+        [&](const WorkloadExecution &execution) {
+            dumpWorkloadGraphProfiling(execution.session(), graphProfilingDumpDir, graphPipelineIdx++);
+        });
 }
 
 void Compute::sessionRAMsDump(const std::filesystem::path &sessionRAMsDumpDir) const {
     uint32_t graphPipelineIdx = 0;
-    for (const auto &pipeline : _pipelines) {
-        const auto &sessionMemory = pipeline.sessionMemory();
-        const auto &sessionMemoryDataSizes = pipeline.sessionMemoryDataSizes();
+    _forEachGraphPipeline(
+        [&](const Pipeline &pipeline) {
+            const auto &sessionMemory = pipeline.sessionMemory();
+            const auto &sessionMemoryDataSizes = pipeline.sessionMemoryDataSizes();
 
-        bool allStored = true;
-        for (size_t i = 0; i < sessionMemory.size(); i++) {
-            const std::string sessionRAMFileName =
-                "Graph_Pipeline_" + std::to_string(graphPipelineIdx++) + "_Session_RAM_" + std::to_string(i) + ".txt";
-            const vk::raii::DeviceMemory &deviceMemory = sessionMemory.at(i);
-            uint64_t dataSize = sessionMemoryDataSizes.at(i);
+            bool allStored = true;
+            for (size_t i = 0; i < sessionMemory.size(); i++) {
+                const std::string sessionRAMFileName = "Graph_Pipeline_" + std::to_string(graphPipelineIdx++) +
+                                                       "_Session_RAM_" + std::to_string(i) + ".txt";
+                const vk::raii::DeviceMemory &deviceMemory = sessionMemory.at(i);
+                uint64_t dataSize = sessionMemoryDataSizes.at(i);
 
-            auto *dst = reinterpret_cast<unsigned char *>(deviceMemory.mapMemory(0, vk::WholeSize));
-            allStored = writeGraphSessionRAMDump(sessionRAMsDumpDir / sessionRAMFileName, dst, dataSize) && allStored;
-            deviceMemory.unmapMemory();
-        }
-        if (allStored) {
-            mlsdk::logging::info("Session RAM dump stored");
-        }
-    }
+                auto *dst = reinterpret_cast<unsigned char *>(deviceMemory.mapMemory(0, vk::WholeSize));
+
+                allStored =
+                    writeGraphSessionRAMDump(sessionRAMsDumpDir / sessionRAMFileName, dst, dataSize) && allStored;
+                deviceMemory.unmapMemory();
+            }
+            if (allStored) {
+                mlsdk::logging::info("Session RAM dump stored");
+            }
+        },
+        [&](const WorkloadExecution &execution) {
+            dumpWorkloadGraphSessionRAMs(execution.session(), _ctx.device(), sessionRAMsDumpDir, graphPipelineIdx);
+        });
 }
 
 } // namespace mlsdk::scenariorunner
