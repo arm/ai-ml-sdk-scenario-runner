@@ -6,6 +6,8 @@
 
 ### Features
 
+- Added experimental submission of VGF MXFP/E8M0 graph constants through
+  `VK_ARM_tensors2`, with values and scales retained in one constant payload.
 - Added schema validation for block-scaled tensor resources with separate value
   and scale NumPy files. Scenario Runner reports an explicit error until scale
   loading and execution support lands.

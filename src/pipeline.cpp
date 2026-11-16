@@ -19,12 +19,114 @@
 #include <limits>
 #include <numeric>
 #include <utility>
+#include <vulkan/vulkan_format_traits.hpp>
 
 namespace mlsdk::scenariorunner {
 
 namespace {
 using SpecConstantValue = decltype(SpecializationConstant::value);
 constexpr auto specConstValueSize = sizeof(SpecConstantValue);
+
+#ifdef VK_ARM_tensors2
+class ScaledConstantDescription {
+  public:
+    ScaledConstantDescription(vk::Format format, const vgflib::DataView<int64_t> &shape,
+                              const vgflib::DataView<int64_t> &strides, const VgfView::ScaledConstantConfig &config,
+                              size_t dataSize);
+
+    const vk::BlockScaledTensorDescriptionARM &getDescription() const { return description; }
+
+  private:
+    std::vector<int64_t> scaleShape;
+    std::vector<int64_t> scaleStrides;
+    std::array<vk::TensorDescriptionARM, 2> planes;
+    vk::BlockScaledTensorDescriptionARM description;
+};
+
+ScaledConstantDescription::ScaledConstantDescription(vk::Format format, const vgflib::DataView<int64_t> &shape,
+                                                     const vgflib::DataView<int64_t> &strides,
+                                                     const VgfView::ScaledConstantConfig &config, size_t dataSize) {
+    constexpr uint32_t ocpMicroscalingBlockSize = 32;
+    if (config.blockShape.size() != 1 || config.blockShape[0] != ocpMicroscalingBlockSize ||
+        config.scaleFormat != vgflib::ScaleFormat::E8M0) {
+        throw std::runtime_error("Scaled graph constants require 32-value blocks and E8M0 scales");
+    }
+    const auto blockSize = config.blockShape[0];
+    switch (format) {
+    case vk::Format::eR8SfloatFpencodingFloat8E4M3ARM:
+    case vk::Format::eR8SfloatFpencodingFloat8E5M2ARM:
+    case vk::Format::eR8SfloatFpencodingMxint8ARM:
+    case vk::Format::eOcpmxfp32SfloatBlockFpencodingFloat6E2M3ARM:
+    case vk::Format::eOcpmxfp32SfloatBlockFpencodingFloat6E3M2ARM:
+    case vk::Format::eOcpmxfp32SfloatBlockFpencodingFloat4E2M1ARM:
+        break;
+    default:
+        throw std::runtime_error("Unsupported scaled graph constant value format");
+    }
+    if (shape.empty() || *(shape.end() - 1) % blockSize != 0) {
+        throw std::runtime_error("Scaled graph constant dimensions must be divisible by the block shape");
+    }
+    const auto valueStorageBytes = vk::blockSize(format);
+    const auto valueBlockExtent = vk::blockExtent(format)[0];
+    const auto valueBlockBytes = static_cast<size_t>(blockSize) * valueStorageBytes / valueBlockExtent;
+    size_t blockCount = 1;
+    for (size_t i = 0; i < shape.size(); ++i) {
+        const auto dimension = shape.data()[i];
+        if (dimension <= 0) {
+            throw std::runtime_error("Scaled graph constant payload does not match its shape");
+        }
+        const auto extent = static_cast<uint64_t>(dimension) / (i + 1 == shape.size() ? blockSize : 1);
+        if (extent > dataSize / blockCount) {
+            throw std::runtime_error("Scaled graph constant payload does not match its shape");
+        }
+        blockCount *= static_cast<size_t>(extent);
+    }
+    if (blockCount > dataSize / valueBlockBytes) {
+        throw std::runtime_error("Scaled graph constant payload does not match its shape");
+    }
+    size_t valueSize = blockCount * valueBlockBytes;
+    if (!strides.empty()) {
+        if (strides.size() != shape.size() || *(strides.end() - 1) != valueStorageBytes) {
+            throw std::runtime_error("Scaled graph constant strides must match the shape rank and storage block size");
+        }
+        valueSize = valueStorageBytes;
+        scaleStrides.resize(strides.size(), 1);
+        for (size_t i = shape.size(); i != 0; --i) {
+            const auto stride = strides.data()[i - 1];
+            const auto dimension =
+                static_cast<size_t>(shape.data()[i - 1] / (i == shape.size() ? valueBlockExtent : 1));
+            if (stride <= 0 || static_cast<uint64_t>(stride) < valueSize ||
+                static_cast<uint64_t>(stride) > dataSize / dimension) {
+                throw std::runtime_error("Scaled graph constant strides overlap or exceed the payload");
+            }
+            valueSize = static_cast<size_t>(stride) * dimension;
+            if (i < shape.size()) {
+                if (stride % static_cast<int64_t>(valueBlockBytes) != 0) {
+                    throw std::runtime_error("Scaled graph constant strides must align to whole blocks");
+                }
+                scaleStrides[i - 1] = stride / static_cast<int64_t>(valueBlockBytes);
+            }
+        }
+    }
+    if (valueSize % valueBlockBytes != 0 || dataSize - valueSize != valueSize / valueBlockBytes) {
+        throw std::runtime_error("Scaled graph constant payload must contain values followed by scales");
+    }
+
+    scaleShape.assign(shape.begin(), shape.end());
+    scaleShape.back() /= blockSize;
+    planes[0] = vk::TensorDescriptionARM(vk::TensorTilingARM::eLinear, format, static_cast<uint32_t>(shape.size()),
+                                         shape.begin(), strides.empty() ? nullptr : strides.begin(),
+                                         vk::TensorUsageFlagBitsARM::eDataGraph);
+    planes[1] = vk::TensorDescriptionARM(
+        vk::TensorTilingARM::eLinear, vk::Format::eR8UfloatFpencodingFloat8Unsignede8M0ARM,
+        static_cast<uint32_t>(scaleShape.size()), scaleShape.data(),
+        scaleStrides.empty() ? nullptr : scaleStrides.data(), vk::TensorUsageFlagBitsARM::eDataGraph);
+    static constexpr std::array planeTypes{vk::TensorPlaneARM::eValues, vk::TensorPlaneARM::eScales};
+    description =
+        vk::BlockScaledTensorDescriptionARM(vk::TensorBlockScalingSchemeARM::ePlanarOcpMicroscaling,
+                                            static_cast<uint32_t>(planes.size()), planeTypes.data(), planes.data());
+}
+#endif
 
 template <typename T, typename U> inline void insertAfter(T *current, U *next) {
     next->pNext = current->pNext;
@@ -520,6 +622,10 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIn
 
     std::vector<vk::DataGraphPipelineConstantTensorSemiStructuredSparsityInfoARM> sparsityInfos;
     sparsityInfos.reserve(constantBindings.size());
+#ifdef VK_ARM_tensors2
+    std::vector<ScaledConstantDescription> scaledDescriptions;
+    scaledDescriptions.reserve(constantBindings.size());
+#endif
 
     for (const auto &[graphConstantId, constantIndex] : constantBindings) {
         void *pNext = nullptr;
@@ -530,6 +636,23 @@ void Pipeline::graphComputePipelineCommon(const Context &ctx, uint32_t segmentIn
         int64_t sparsityDimension = vgfView.getConstantSparsityDimension(constantIndex);
         if (sparsityDimension == vgflib::CONSTANT_INVALID_SPARSITY_DIMENSION) {
             throw std::runtime_error("Invalid constant metadata at index " + std::to_string(constantIndex));
+        }
+
+        if (const auto config = vgfView.getConstantScaledTensorConfig(constantIndex); config.has_value()) {
+#ifdef VK_ARM_tensors2
+            if (!ctx._optionals.tensor_block_scaled) {
+                throw std::runtime_error("Scaled graph constants require the tensorBlockScaled device feature");
+            }
+            if (sparsityDimension >= 0) {
+                throw std::runtime_error("Scaled graph constants cannot use sparse metadata");
+            }
+            const auto &scaled = scaledDescriptions.emplace_back(
+                vkFormat, shape, vgfView.getConstantStrides(constantIndex), *config, constantData.size());
+            constantInfos.emplace_back(graphConstantId, constantData.begin(), &scaled.getDescription());
+            continue;
+#else
+            throw std::runtime_error("Scaled graph constants require VK_ARM_tensors2 headers");
+#endif
         }
 
         if (sparsityDimension >= 0) {

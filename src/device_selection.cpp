@@ -120,7 +120,7 @@ DeviceRequirements expandDeviceRequirements(DeviceRequirements requirements) noe
     if (requirements.capabilities & dataGraphFeatures) {
         requirements.capabilities |= DeviceCapability::DataGraph;
     }
-    if (hasCapabilities(requirements.capabilities, DeviceCapability::Tensors)) {
+    if (requirements.capabilities & (DeviceCapability::Tensors | DeviceCapability::TensorBlockScaled)) {
         requirements.capabilities |= DeviceCapability::ShaderTensorAccess;
     }
     return requirements;
@@ -173,6 +173,12 @@ DeviceRequirements getDeviceRequirements(const ScenarioBuildData &buildData, con
                                                                     DeviceCapability::ShaderTensorAccess;
                                        if (vgf.src->hasImageBindings(segmentIndex)) {
                                            requirements.capabilities |= DeviceCapability::DataGraphImageLayouts;
+                                       }
+                                       for (const auto &binding : vgf.src->getSegmentConstantBindings(segmentIndex)) {
+                                           if (vgf.src->getConstantScaledTensorConfig(binding.constantIndex)) {
+                                               requirements.capabilities |= DeviceCapability::TensorBlockScaled;
+                                               break;
+                                           }
                                        }
                                    }
                                    break;
