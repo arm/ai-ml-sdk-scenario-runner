@@ -48,10 +48,12 @@ struct TensorData {
     std::vector<int64_t> shape;
     /// @brief Tensor element format when available.
     std::optional<vk::Format> format{std::nullopt};
+#ifdef VK_ARM_tensors2
     /// @brief Optional metadata for the separate shared-scale payload.
     std::optional<BlockScalingInfo> blockScaling{std::nullopt};
     /// @brief Encoded shared scales, empty for an ordinary tensor.
-    std::vector<std::byte> scales{};
+    std::vector<std::byte> scales;
+#endif
 };
 
 /// @brief Non-owning bytes and optional metadata used to upload an image.

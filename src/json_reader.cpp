@@ -754,6 +754,7 @@ void from_json(const json &j, GraphConstantDesc &graphConstant) {
     graphConstant.format = j.at("format"sv).get<std::string>();
 }
 
+#ifdef VK_ARM_tensors2
 /**
  * @brief De-serialize TensorBlockScalingDesc from JSON.
  *
@@ -768,6 +769,7 @@ void from_json(const json &j, TensorBlockScalingDesc &tensor) {
     parseOptionalFieldAs<std::string>(j, "src", tensor.src);
     parseOptionalFieldAs<std::string>(j, "dst", tensor.dst);
 }
+#endif
 
 /**
  * @brief De-serialize TensorDesc from JSON.
@@ -794,6 +796,7 @@ void from_json(const json &j, TensorDesc &tensor) {
     if (tensor.tiling.has_value() && tensor.tiling.value() == Tiling::Unknown) {
         throw std::runtime_error("Unknown tiling value");
     }
+#ifdef VK_ARM_tensors2
     parseOptionalFieldAs<TensorBlockScalingDesc>(j, "block_scaling", tensor.blockScaling);
     if (tensor.blockScaling) {
         const auto &desc = *tensor.blockScaling;
@@ -815,6 +818,11 @@ void from_json(const json &j, TensorDesc &tensor) {
             }
         }
     }
+#else
+    if (j.contains("block_scaling"sv)) {
+        throw std::runtime_error("Tensor block_scaling is not supported: " + tensor.guidStr);
+    }
+#endif
 }
 
 /**

@@ -120,18 +120,13 @@ struct RawDataInfo {
     std::string src;
 };
 
-/// E8M0 scale format for host I/O, including with Vulkan headers predating VK_ARM_tensors2.
 #ifdef VK_ARM_tensors2
-inline constexpr vk::Format E8M0_FORMAT = vk::Format::eR8UfloatFpencodingFloat8Unsignede8M0ARM;
-#else
-inline constexpr vk::Format E8M0_FORMAT = static_cast<vk::Format>(1000729003);
-#endif
-
 /// @brief Metadata describing the shared scales of a block-scaled tensor.
 struct BlockScalingInfo {
     std::vector<uint32_t> blockShape;
-    vk::Format format{E8M0_FORMAT};
+    vk::Format format{vk::Format::eR8UfloatFpencodingFloat8Unsignede8M0ARM};
 };
+#endif
 
 /// \brief Structure that describes N-dimensional data
 ///
@@ -153,8 +148,10 @@ struct TensorInfo {
     Tiling tiling{Tiling::Linear};
     /// Byte offset within an aliased memory allocation.
     uint64_t memoryOffset{};
+#ifdef VK_ARM_tensors2
     /// Optional shared-scale metadata for host tensor file I/O.
-    std::optional<BlockScalingInfo> blockScaling{};
+    std::optional<BlockScalingInfo> blockScaling;
+#endif
 };
 
 /// @brief Structure that describes the sampler of an image

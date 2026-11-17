@@ -23,14 +23,7 @@
 
 namespace mlsdk::scenariorunner {
 
-uint32_t numComponentsFromVkFormat(vk::Format format) {
-#ifndef VK_ARM_tensors2
-    if (format == E8M0_FORMAT) {
-        return 1;
-    }
-#endif
-    return vk::componentCount(format);
-}
+uint32_t numComponentsFromVkFormat(vk::Format format) { return vk::componentCount(format); }
 
 namespace {
 bool isPow2(uint32_t value) { return ((value & (~(value - 1))) == value); }
@@ -53,11 +46,6 @@ void rejectUnsupportedMXFPFormats(vk::Format format) {
 uint32_t elementSizeFromVkFormat(vk::Format format) {
     rejectUnsupportedMXFPFormats(format);
 
-#ifndef VK_ARM_tensors2
-    if (format == E8M0_FORMAT) {
-        return 1;
-    }
-#endif
     uint32_t value = vk::blockSize(format);
 
     if (isPow2(value)) {
@@ -265,9 +253,14 @@ vgfutils::numpy::DType getDTypeFromVkFormat(vk::Format format) {
     if (format == vk::Format::eR16SfloatFpencodingBfloat16ARM) {
         return {'V', 2};
     }
-    if (format == vk::Format::eR8SfloatFpencodingFloat8E4M3ARM || format == E8M0_FORMAT) {
+    if (format == vk::Format::eR8SfloatFpencodingFloat8E4M3ARM) {
         return {'V', 1, '<'};
     }
+#ifdef VK_ARM_tensors2
+    if (format == vk::Format::eR8UfloatFpencodingFloat8Unsignede8M0ARM) {
+        return {'V', 1, '<'};
+    }
+#endif
     if (format == vk::Format::eR8SfloatFpencodingFloat8E5M2ARM) {
         return {'u', 1};
     }

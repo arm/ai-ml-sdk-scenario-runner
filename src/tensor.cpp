@@ -27,6 +27,7 @@ constexpr vk::TensorTilingARM convertTiling(const Tiling tiling) {
     }
 }
 
+#ifdef VK_ARM_tensors2
 std::vector<int64_t> tensorScaleShape(const std::vector<int64_t> &shape, const BlockScalingInfo &scaling) {
     auto result = shape;
     if (scaling.blockShape.size() > shape.size()) {
@@ -42,6 +43,7 @@ std::vector<int64_t> tensorScaleShape(const std::vector<int64_t> &shape, const B
     }
     return result;
 }
+#endif
 
 TensorData readTensorFile(const std::filesystem::path &path, vk::Format format) {
     const MemoryMap mapped(path.string());
@@ -307,22 +309,27 @@ const std::string &Tensor::debugName() const { return _debugName; }
 TensorData loadTensorData(const TensorDesc &desc) {
     const auto format = getVkFormatFromString(desc.format);
     const std::optional<std::filesystem::path> values{desc.src};
-    const std::optional<std::filesystem::path> scales{desc.blockScaling ? desc.blockScaling->src : std::nullopt};
+    std::optional<std::filesystem::path> scales;
+    bool checkShape = !desc.dims.empty();
+#ifdef VK_ARM_tensors2
+    scales = desc.blockScaling ? desc.blockScaling->src : std::nullopt;
     const auto scaling = desc.blockScaling ? std::optional{desc.blockScaling->info} : std::nullopt;
     if (scales.has_value() != (scaling.has_value() && values.has_value())) {
         throw std::runtime_error("Block-scaled tensors require both value and scale input paths");
     }
+    if (scaling && scaling->format != vk::Format::eR8UfloatFpencodingFloat8Unsignede8M0ARM) {
+        throw std::runtime_error("Tensor scale format must be E8M0");
+    }
+    checkShape = checkShape || scaling.has_value();
+#endif
     if (values && (values->empty() ||
                    (scales && (scales->empty() || values->lexically_normal() == scales->lexically_normal())))) {
         throw std::runtime_error("Tensor input paths must be nonempty and distinct");
     }
-    if (scaling && scaling->format != E8M0_FORMAT) {
-        throw std::runtime_error("Tensor scale format must be E8M0");
-    }
     TensorData result;
     if (values) {
         result = readTensorFile(*values, format);
-        if ((!desc.dims.empty() || scaling) && result.shape != desc.dims) {
+        if (checkShape && result.shape != desc.dims) {
             throw std::runtime_error("Tensor value NumPy shape does not match the tensor");
         }
     } else {
@@ -331,6 +338,7 @@ TensorData loadTensorData(const TensorDesc &desc) {
         result.data.resize(expectedSize, std::byte{0});
     }
     result.format = format;
+#ifdef VK_ARM_tensors2
     result.blockScaling = scaling;
     if (scaling) {
         if (format != vk::Format::eR8SfloatFpencodingFloat8E4M3ARM &&
@@ -349,14 +357,12 @@ TensorData loadTensorData(const TensorDesc &desc) {
             result.scales.resize(scaleSize, std::byte{0});
         }
     }
+#endif
     return result;
 }
 
 void writeTensorFiles(const TensorData &data, const std::filesystem::path &values,
                       const std::optional<std::filesystem::path> &scales) {
-    if (data.blockScaling.has_value() != scales.has_value()) {
-        throw std::runtime_error("Block-scaled tensors require both value and scale output paths");
-    }
     if (values.empty() || (scales && (scales->empty() || values.lexically_normal() == scales->lexically_normal()))) {
         throw std::runtime_error("Tensor output paths must be nonempty and distinct");
     }
@@ -366,8 +372,12 @@ void writeTensorFiles(const TensorData &data, const std::filesystem::path &value
         throw std::runtime_error("Tensor value payload length does not match its shape and format");
     }
     std::optional<vgfutils::numpy::DataPtr> scalePayload;
+#ifdef VK_ARM_tensors2
+    if (data.blockScaling.has_value() != scales.has_value()) {
+        throw std::runtime_error("Block-scaled tensors require both value and scale output paths");
+    }
     if (data.blockScaling) {
-        if (data.blockScaling->format != E8M0_FORMAT) {
+        if (data.blockScaling->format != vk::Format::eR8UfloatFpencodingFloat8Unsignede8M0ARM) {
             throw std::runtime_error("Tensor scale format must be E8M0");
         }
         if (data.format != vk::Format::eR8SfloatFpencodingFloat8E4M3ARM &&
@@ -381,6 +391,11 @@ void writeTensorFiles(const TensorData &data, const std::filesystem::path &value
             throw std::runtime_error("Tensor scale payload length does not match its block shape");
         }
     }
+#else
+    if (scales) {
+        throw std::runtime_error("Block-scaled file I/O requires VK_ARM_tensors2 headers");
+    }
+#endif
     vgfutils::numpy::write(values.string(), valuePayload);
     if (scalePayload) {
         vgfutils::numpy::write(scales->string(), *scalePayload);

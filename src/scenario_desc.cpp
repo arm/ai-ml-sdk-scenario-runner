@@ -49,6 +49,7 @@ void ScenarioSpec::addResource(std::unique_ptr<ResourceDesc> resource) {
         auto resolvedPath = _outputDir / std::filesystem::path(resource->dst.value());
         resource->dst = resolvedPath.string();
     }
+#ifdef VK_ARM_tensors2
     if (resource->resourceType == ResourceType::Tensor) {
         auto &tensor = static_cast<TensorDesc &>(*resource);
         if (tensor.blockScaling) {
@@ -60,6 +61,7 @@ void ScenarioSpec::addResource(std::unique_ptr<ResourceDesc> resource) {
             }
         }
     }
+#endif
 
     resources.emplace_back(std::move(resource));
 }
