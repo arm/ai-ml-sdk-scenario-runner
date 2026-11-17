@@ -34,7 +34,6 @@
 
 using namespace mlsdk::scenariorunner;
 using namespace nlohmann::json_literals;
-namespace vgfutils = mlsdk::vgfutils;
 
 namespace {
 const std::string jsonData =
@@ -1606,7 +1605,9 @@ TEST(JsonParser, TensorResourceFormatNames) {
     }
 }
 
+#ifdef VK_ARM_tensors2
 TEST(JsonParser, BlockScaledFilesRoundtripWithoutVulkan) {
+    namespace vgfutils = mlsdk::vgfutils;
     TempFolder folder{"parsed_tensor_io"};
     const auto inputs = folder.relative("inputs");
     const auto outputs = folder.relative("outputs");
@@ -1653,7 +1654,7 @@ TEST(JsonParser, BlockScaledFilesRoundtripWithoutVulkan) {
         EXPECT_EQ(loaded.data, values);
         EXPECT_EQ(loaded.scales, scales);
         ASSERT_TRUE(loaded.blockScaling);
-        EXPECT_EQ(loaded.blockScaling->format, E8M0_FORMAT);
+        EXPECT_EQ(loaded.blockScaling->format, vk::Format::eR8UfloatFpencodingFloat8Unsignede8M0ARM);
         writeTensorFiles(loaded, *output.dst, *output.blockScaling->dst);
         for (const auto isScale : {false, true}) {
             const MemoryMap mapped{isScale ? *output.blockScaling->dst : *output.dst};
@@ -1681,6 +1682,19 @@ TEST(JsonParser, BlockScaledFilesRoundtripWithoutVulkan) {
         }
     }
 }
+#else
+TEST(JsonParser, BlockScaledTensorRequiresTensors2Headers) {
+    const auto tensor = R"({
+        "uid": "input",
+        "dims": [2, 32],
+        "format": "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM",
+        "shader_access": "readonly",
+        "src": "values.npy",
+        "block_scaling": {"block_shape": [32], "format": "E8M0", "src": "scales.npy"}
+    })"_json;
+    EXPECT_THROW(MakeFromJSON<TensorDesc>(tensor), std::runtime_error);
+}
+#endif
 
 TEST(JsonParser, TensorResourceMissingDims) {
 

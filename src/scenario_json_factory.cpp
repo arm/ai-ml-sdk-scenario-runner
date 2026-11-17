@@ -306,9 +306,11 @@ struct ResourceInfoFactory {
         }
         info.descriptorBufferCaptureReplay = descriptorBufferCaptureReplay;
 
+#ifdef VK_ARM_tensors2
         if (tensor.blockScaling) {
             info.blockScaling = tensor.blockScaling->info;
         }
+#endif
 
         return info;
     }

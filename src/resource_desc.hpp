@@ -108,6 +108,7 @@ struct RawDataDesc : ResourceDesc {
     RawDataDesc(Guid guid, const std::string &guidStr, std::string src);
 };
 
+#ifdef VK_ARM_tensors2
 /**
  * @brief TensorBlockScalingDesc describes a tensor's block scaling.
  *
@@ -117,6 +118,7 @@ struct TensorBlockScalingDesc {
     std::optional<std::string> src;
     std::optional<std::string> dst;
 };
+#endif
 
 /**
  * @brief TensorDesc describes a Tensor.
@@ -131,7 +133,9 @@ struct TensorDesc : ResourceDesc {
     std::string format;
     std::optional<Tiling> tiling;
     std::optional<MemoryGroup> memoryGroup;
+#ifdef VK_ARM_tensors2
     std::optional<TensorBlockScalingDesc> blockScaling;
+#endif
 };
 
 /**
