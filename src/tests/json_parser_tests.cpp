@@ -5,16 +5,27 @@
 
 #include <gtest/gtest.h>
 
+#include "scenario_runner/resource_data.hpp"
+
 #include "guid.hpp"
 #include "json_reader.hpp"
 #include "resource_desc.hpp"
 #include "scenario_desc.hpp"
+#include "tensor.hpp"
 #include "utils.hpp"
 
+#include "vgf-utils/memory_map.hpp"
+#include "vgf-utils/numpy.hpp"
+#include "vgf-utils/temp_folder.hpp"
+
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
+#include <stdexcept>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 /**
  * @brief Test the JSON parser.
@@ -23,6 +34,7 @@
 
 using namespace mlsdk::scenariorunner;
 using namespace nlohmann::json_literals;
+namespace vgfutils = mlsdk::vgfutils;
 
 namespace {
 const std::string jsonData =
@@ -1591,6 +1603,82 @@ TEST(JsonParser, TensorResourceFormatNames) {
         FAIL() << "Expected an unknown VkFormat error";
     } catch (const std::runtime_error &error) {
         EXPECT_EQ(std::string(error.what()), "Unknown VkFormat: VK_FORMAT_UNKNOWN");
+    }
+}
+
+TEST(JsonParser, BlockScaledFilesRoundtripWithoutVulkan) {
+    TempFolder folder{"parsed_tensor_io"};
+    const auto inputs = folder.relative("inputs");
+    const auto outputs = folder.relative("outputs");
+    std::filesystem::create_directory(inputs);
+    std::filesystem::create_directory(outputs);
+    std::vector<std::byte> values(64);
+    for (size_t i = 0; i < values.size(); ++i) {
+        values[i] = static_cast<std::byte>(i * 37);
+    }
+    values[3] = std::byte{0xff};
+    const std::vector<std::byte> scales{std::byte{0x7e}, std::byte{0x81}};
+    auto scenario = R"({"commands": [], "resources": [
+        {"tensor": {"uid": "input", "dims": [2, 32], "shader_access": "readonly", "src": "values.npy",
+            "block_scaling": {"block_shape": [32], "format": "E8M0", "src": "scales.npy"}}},
+        {"tensor": {"uid": "output", "dims": [2, 32], "shader_access": "writeonly", "dst": "values.npy",
+            "block_scaling": {"block_shape": [32], "format": "E8M0", "dst": "scales.npy"}}}
+    ]})"_json;
+    for (const auto kind : {'V', 'u'}) {
+        SCOPED_TRACE(kind);
+        const auto byteorder = kind == 'V' ? '<' : '|';
+        for (auto &resource : scenario["resources"]) {
+            resource["tensor"]["format"] = kind == 'V' ? "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM"
+                                                       : "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E5M2_ARM";
+        }
+        auto inputAndOutput = scenario["resources"][0]["tensor"];
+        inputAndOutput["dst"] = "output_values.npy";
+        inputAndOutput["block_scaling"]["dst"] = "output_scales.npy";
+        EXPECT_THROW(MakeFromJSON<TensorDesc>(inputAndOutput), std::runtime_error);
+
+        ScenarioSpec spec{scenario.dump(), inputs, outputs};
+        const auto &input = static_cast<const TensorDesc &>(*spec.resources[0]);
+        const auto &output = static_cast<const TensorDesc &>(*spec.resources[1]);
+        EXPECT_EQ(input.src, (inputs / "values.npy").string());
+        EXPECT_EQ(input.blockScaling->src, (inputs / "scales.npy").string());
+        EXPECT_EQ(output.dst, (outputs / "values.npy").string());
+        EXPECT_EQ(output.blockScaling->dst, (outputs / "scales.npy").string());
+        vgfutils::numpy::write(
+            *input.src,
+            vgfutils::numpy::DataPtr{reinterpret_cast<const char *>(values.data()), {2, 32}, {kind, 1, byteorder}});
+        vgfutils::numpy::write(
+            *input.blockScaling->src,
+            vgfutils::numpy::DataPtr{reinterpret_cast<const char *>(scales.data()), {2, 1}, {'V', 1, '<'}});
+        const auto loaded = loadTensorData(input);
+        EXPECT_EQ(loaded.data, values);
+        EXPECT_EQ(loaded.scales, scales);
+        ASSERT_TRUE(loaded.blockScaling);
+        EXPECT_EQ(loaded.blockScaling->format, E8M0_FORMAT);
+        writeTensorFiles(loaded, *output.dst, *output.blockScaling->dst);
+        for (const auto isScale : {false, true}) {
+            const MemoryMap mapped{isScale ? *output.blockScaling->dst : *output.dst};
+            const auto saved = vgfutils::numpy::parse(mapped);
+            const auto &bytes = isScale ? scales : values;
+            EXPECT_EQ(saved.dtype.byteorder, isScale ? '<' : byteorder);
+            EXPECT_EQ(saved.dtype.kind, isScale ? 'V' : kind);
+            EXPECT_EQ(saved.dtype.itemsize, 1);
+            ASSERT_EQ(saved.size(), bytes.size());
+            EXPECT_EQ(std::memcmp(saved.ptr, bytes.data(), bytes.size()), 0);
+        }
+        for (const auto isScale : {false, true}) {
+            SCOPED_TRACE(isScale ? "scales" : "values");
+            const auto &path = isScale ? *input.blockScaling->src : *input.src;
+            const auto &bytes = isScale ? scales : values;
+            const auto shape = isScale ? std::vector<int64_t>{1, 2} : std::vector<int64_t>{32, 2};
+            const auto dtype =
+                isScale ? vgfutils::numpy::DType{'V', 1, '<'} : vgfutils::numpy::DType{kind, 1, byteorder};
+            // Preserve the payload length while changing its logical shape.
+            vgfutils::numpy::write(
+                path, vgfutils::numpy::DataPtr{reinterpret_cast<const char *>(bytes.data()), shape, dtype});
+            EXPECT_THROW(loadTensorData(input), std::runtime_error);
+            std::filesystem::copy_file(isScale ? *output.blockScaling->dst : *output.dst, path,
+                                       std::filesystem::copy_options::overwrite_existing);
+        }
     }
 }
 

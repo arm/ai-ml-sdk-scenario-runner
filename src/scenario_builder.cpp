@@ -52,10 +52,16 @@ ImageId ScenarioBuilderImpl::addImage(ImageInfo &&info) {
                        static_cast<ImageId (ResourceManager::*)(ImageInfo &&)>(&ResourceManager::addImage));
 }
 TensorId ScenarioBuilderImpl::addTensor(const TensorInfo &info) {
+    if (info.blockScaling) {
+        throw std::runtime_error("Tensor block_scaling is not supported: " + info.debugName);
+    }
     return addResource(_data, _built, info,
                        static_cast<TensorId (ResourceManager::*)(const TensorInfo &)>(&ResourceManager::addTensor));
 }
 TensorId ScenarioBuilderImpl::addTensor(TensorInfo &&info) {
+    if (info.blockScaling) {
+        throw std::runtime_error("Tensor block_scaling is not supported: " + info.debugName);
+    }
     return addResource(_data, _built, std::move(info),
                        static_cast<TensorId (ResourceManager::*)(TensorInfo &&)>(&ResourceManager::addTensor));
 }

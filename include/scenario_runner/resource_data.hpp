@@ -40,7 +40,7 @@ struct TensorDataView {
     std::optional<vk::Format> format{std::nullopt};
 };
 
-/// @brief Owning tensor contents and metadata returned by Scenario::download().
+/// @brief Owning tensor contents and metadata for downloads and host file I/O.
 struct TensorData {
     /// @brief Downloaded bytes in tightly packed tensor order.
     std::vector<std::byte> data;
@@ -48,6 +48,10 @@ struct TensorData {
     std::vector<int64_t> shape;
     /// @brief Tensor element format when available.
     std::optional<vk::Format> format{std::nullopt};
+    /// @brief Optional metadata for the separate shared-scale payload.
+    std::optional<BlockScalingInfo> blockScaling{std::nullopt};
+    /// @brief Encoded shared scales, empty for an ordinary tensor.
+    std::vector<std::byte> scales{};
 };
 
 /// @brief Non-owning bytes and optional metadata used to upload an image.

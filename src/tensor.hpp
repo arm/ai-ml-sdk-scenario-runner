@@ -11,7 +11,18 @@
 #include "context.hpp"
 #include "vulkan_memory_manager.hpp"
 
+#include <filesystem>
+
 namespace mlsdk::scenariorunner {
+
+struct TensorDesc;
+
+/// @brief Read tensor NumPy files using the source paths and metadata from TensorDesc.
+TensorData loadTensorData(const TensorDesc &desc);
+
+/// @brief Write ordinary or paired value/scale NumPy files.
+void writeTensorFiles(const TensorData &data, const std::filesystem::path &values,
+                      const std::optional<std::filesystem::path> &scales = std::nullopt);
 
 class Tensor {
   public:

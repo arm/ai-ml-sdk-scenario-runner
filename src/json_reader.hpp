@@ -77,6 +77,9 @@ void from_json(const json &j, RawDataDesc &rawData);
 // Function to de-serialize GraphConstantDesc from JSON
 void from_json(const json &j, GraphConstantDesc &graphConstant);
 
+// Function to de-serialize TensorBlockScalingDesc from JSON
+void from_json(const json &j, TensorBlockScalingDesc &tensor);
+
 // Function to de-serialize TensorDesc from JSON
 void from_json(const json &j, TensorDesc &tensor);
 

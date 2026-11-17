@@ -49,6 +49,17 @@ void ScenarioSpec::addResource(std::unique_ptr<ResourceDesc> resource) {
         auto resolvedPath = _outputDir / std::filesystem::path(resource->dst.value());
         resource->dst = resolvedPath.string();
     }
+    if (resource->resourceType == ResourceType::Tensor) {
+        auto &tensor = static_cast<TensorDesc &>(*resource);
+        if (tensor.blockScaling) {
+            if (tensor.blockScaling->src) {
+                tensor.blockScaling->src = (_workDir / std::filesystem::path(*tensor.blockScaling->src)).string();
+            }
+            if (tensor.blockScaling->dst) {
+                tensor.blockScaling->dst = (_outputDir / std::filesystem::path(*tensor.blockScaling->dst)).string();
+            }
+        }
+    }
 
     resources.emplace_back(std::move(resource));
 }
