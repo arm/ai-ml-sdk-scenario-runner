@@ -357,6 +357,31 @@
 
 .. end-api: [ImageInfo]
 
+.. begin-api: [BlockScalingInfo]
+
+.. py:class:: BlockScalingInfo()
+   :module: scenario_runner_py
+
+
+   .. py:property:: BlockScalingInfo.block_shape
+      :module: scenario_runner_py
+
+      :type: list[int]
+
+
+      Writable.
+
+
+   .. py:property:: BlockScalingInfo.format
+      :module: scenario_runner_py
+
+      :type: Format
+
+
+      Writable.
+
+.. end-api: [BlockScalingInfo]
+
 .. begin-api: [TensorInfo]
 
 .. py:class:: TensorInfo()
@@ -426,6 +451,64 @@
       Writable.
 
 .. end-api: [TensorInfo]
+
+.. begin-api: [TensorData]
+
+.. py:class:: TensorData()
+   :module: scenario_runner_py
+
+   Own raw host tensor data and metadata.
+
+
+   .. py:property:: TensorData.block_scaling
+      :module: scenario_runner_py
+
+      :type: BlockScalingInfo | None
+
+
+      Writable.
+
+
+   .. py:property:: TensorData.data
+      :module: scenario_runner_py
+
+      :type: numpy.ndarray
+
+      Raw value bytes. Reading and assignment copy the bytes.
+
+
+      Writable.
+
+
+   .. py:property:: TensorData.format
+      :module: scenario_runner_py
+
+      :type: Format | None
+
+
+      Writable.
+
+
+   .. py:property:: TensorData.scales
+      :module: scenario_runner_py
+
+      :type: numpy.ndarray
+
+      Raw scale bytes. Reading and assignment copy the bytes.
+
+
+      Writable.
+
+
+   .. py:property:: TensorData.shape
+      :module: scenario_runner_py
+
+      :type: list[int]
+
+
+      Writable.
+
+.. end-api: [TensorData]
 
 .. begin-api: [SamplerSettings]
 

@@ -18,6 +18,8 @@
   dispatch.
 - Added experimental scenario JSON parsing for FP4, FP6, and MXINT8 tensor format names.
 - Added experimental support for I/O of FP8 micro-scaled tensors
+- Added experimental Python `TensorData` with separate host value and scale payloads, and
+  block-scale metadata through `TensorData.block_scaling` and `BlockScalingInfo`.
 
 ### Bug Fixes
 

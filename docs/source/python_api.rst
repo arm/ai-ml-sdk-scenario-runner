@@ -89,6 +89,30 @@ Scenario creation and execution
    :start-after: .. begin-api: [Scenario]
    :end-before: .. end-api: [Scenario]
 
+Host tensor data
+~~~~~~~~~~~~~~~~
+
+``TensorData`` owns a value payload together with its shape and format. It can
+be constructed without a Vulkan® device. The ``data`` property exposes a raw
+byte array; reading or assigning it copies the bytes.
+
+Builds using Vulkan® headers that define ``VK_ARM_tensors2`` also expose
+``TensorData.scales``, ``TensorData.block_scaling``, ``BlockScalingInfo``, and
+``Format.R8Float8UnsignedE8M0Arm``.
+
+``TensorData.block_scaling`` accepts ``BlockScalingInfo`` metadata, whose
+``format`` uses ``Format.R8Float8UnsignedE8M0Arm`` for the shared-scale encoding.
+This metadata describes host data; creating block-scaled tensor resources with
+``ScenarioBuilder`` remains unsupported.
+
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [TensorData]
+   :end-before: .. end-api: [TensorData]
+
+.. include:: _python_api/api.rst.inc
+   :start-after: .. begin-api: [BlockScalingInfo]
+   :end-before: .. end-api: [BlockScalingInfo]
+
 Scenario builder
 ~~~~~~~~~~~~~~~~
 

@@ -6,7 +6,9 @@
     "ScenarioBuilder",
     "BufferInfo",
     "ImageInfo",
+    "BlockScalingInfo",
     "TensorInfo",
+    "TensorData",
     "SamplerSettings",
     "RawDataInfo",
     "ShaderInfo",
@@ -69,6 +71,13 @@
   ],
   "excluded_exports": {
     "Format": "Resource formats are described in the handwritten API guide."
+  },
+  "guards": {
+    "Format.R8Float8UnsignedE8M0Arm": [
+      "BlockScalingInfo",
+      "TensorData.block_scaling",
+      "TensorData.scales"
+    ]
   },
   "method_groups": {
     "resource_creation": [
