@@ -212,7 +212,7 @@ VkDescriptorType vgfDescriptorType(VgfResourceKind kind) {
     }
     std::abort();
 }
-
+// test change
 std::string writeVgfRecipe(VgfResourceKind kind, vk::Format format, const std::vector<int64_t> &inputShape,
                            const std::vector<int64_t> &outputShape, const std::array<uint32_t, 3> &dispatchShape,
                            size_t index) {
