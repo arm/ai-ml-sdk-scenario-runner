@@ -795,6 +795,13 @@ RuntimeProfilingData Compute::getRuntimeProfilingData() const {
 
 template <typename LegacyCallback, typename WorkloadCallback>
 void Compute::_forEachGraphPipeline(LegacyCallback legacy, WorkloadCallback workload) const {
+    const auto visitWorkload = [&](const WorkloadExecution &execution) {
+        for (const auto executable : execution.workload().executables()) {
+            if (executable.type() == workloadlib::ExecutableKind::Graph) {
+                workload(execution, executable.index());
+            }
+        }
+    };
     for (const auto &command : _commands) {
         if (const auto *nativeDispatch = std::get_if<DataGraphDispatch>(&command)) {
             const auto pipeline = std::find_if(_pipelines.begin(), _pipelines.end(), [&](const auto &entry) {
@@ -804,13 +811,9 @@ void Compute::_forEachGraphPipeline(LegacyCallback legacy, WorkloadCallback work
                 legacy(*pipeline);
             }
         } else if (const auto *workloadDispatch = std::get_if<WorkloadDispatch>(&command)) {
-            const auto &execution = *workloadDispatch->execution;
-            // Dump standalone graphs; multi-executable workloads need their
-            // own executable-to-dump mapping when they migrate.
-            if (execution.workload().executableCount() == 1 &&
-                execution.workload().executable(0).type() == workloadlib::ExecutableKind::Graph) {
-                workload(execution);
-            }
+            visitWorkload(*workloadDispatch->execution);
+        } else if (const auto *vgfDispatch = std::get_if<VgfDispatch>(&command)) {
+            visitWorkload(*vgfDispatch->execution);
         }
     }
 }
@@ -858,10 +861,10 @@ void Compute::dumpNeuralDebugDatabase(const std::filesystem::path &neuralDebugDa
                 mlsdk::logging::info("Graph debug database stored");
             }
         },
-        [&](const WorkloadExecution &execution) {
+        [&](const WorkloadExecution &execution, uint32_t executableIndex) {
             const auto path = neuralDebugDatabaseDumpDir /
                               ("Graph_Pipeline_" + std::to_string(graphPipelineIdx) + "_Debug_Database.bin");
-            if (dumpWorkloadGraphDebugDatabase(execution.session(), path)) {
+            if (dumpWorkloadGraphDebugDatabase(execution.session(), executableIndex, path)) {
                 ++graphPipelineIdx;
             }
         });
@@ -904,11 +907,11 @@ void Compute::dumpNeuralStatistics(const std::filesystem::path &neuralStatistics
                 mlsdk::logging::info("Neural statistics saved to \"" + statisticsFileName + "\"");
             }
         },
-        [&](const WorkloadExecution &execution) {
+        [&](const WorkloadExecution &execution, uint32_t executableIndex) {
             const char mode = neuralStatisticsMode == vk::NeuralAcceleratorStatisticsModeARM::eStatistics0 ? '0' : '1';
             const auto path = neuralStatisticsDumpDir /
                               ("Graph_Pipeline_" + std::to_string(graphPipelineIdx) + "_Statistics_" + mode + ".bin");
-            if (dumpWorkloadGraphStatistics(execution.session(), _ctx.device(), path)) {
+            if (dumpWorkloadGraphStatistics(execution.session(), executableIndex, _ctx.device(), path)) {
                 ++graphPipelineIdx;
             }
         });
@@ -953,8 +956,8 @@ void Compute::dumpGraphProfilingData(const std::filesystem::path &graphProfiling
                 logging::info("Graph profiling data saved to \"" + fileName + "\"");
             }
         },
-        [&](const WorkloadExecution &execution) {
-            dumpWorkloadGraphProfiling(execution.session(), graphProfilingDumpDir, graphPipelineIdx++);
+        [&](const WorkloadExecution &execution, uint32_t executableIndex) {
+            dumpWorkloadGraphProfiling(execution.session(), executableIndex, graphProfilingDumpDir, graphPipelineIdx++);
         });
 }
 
@@ -982,8 +985,9 @@ void Compute::sessionRAMsDump(const std::filesystem::path &sessionRAMsDumpDir) c
                 mlsdk::logging::info("Session RAM dump stored");
             }
         },
-        [&](const WorkloadExecution &execution) {
-            dumpWorkloadGraphSessionRAMs(execution.session(), _ctx.device(), sessionRAMsDumpDir, graphPipelineIdx);
+        [&](const WorkloadExecution &execution, uint32_t executableIndex) {
+            dumpWorkloadGraphSessionRAMs(execution.session(), executableIndex, _ctx.device(), sessionRAMsDumpDir,
+                                         graphPipelineIdx);
         });
 }
 

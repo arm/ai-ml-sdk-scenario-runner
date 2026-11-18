@@ -324,7 +324,7 @@ class Compute {
 
     void _recordVgf(const VgfDispatch &dispatch, const vk::raii::CommandBuffer &commandBuffer);
 
-    // Visit native and standalone WL graphs for dumps in command order.
+    // Visit native pipelines and graph executables in WL dispatches in command order.
     template <typename LegacyCallback, typename WorkloadCallback>
     void _forEachGraphPipeline(LegacyCallback legacy, WorkloadCallback workload) const;
 };
