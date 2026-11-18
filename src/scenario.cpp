@@ -27,6 +27,7 @@
 #include "resource_manager.hpp"
 #include "scenario_build_data.hpp"
 #include "utils.hpp"
+#include "vgf_configuration.hpp"
 
 #include "workload_compute.hpp"
 #include "workload_runtime.hpp"
@@ -186,29 +187,6 @@ void validateVgfBinaryDispatch(const VgfView &vgfView, const DispatchVgfData &di
         throw std::runtime_error("dispatch_vgf binary segments cannot be used with --fail-on-pipeline-cache-miss: "
                                  "binary pipelines ignore Vulkan pipeline caches");
     }
-}
-
-void applyGraphResourceShaderMetadata(ShaderInfo &shaderInfo, const VgfInfo &vgf, const std::string &moduleName) {
-    if (vgf.pushConstantsSize > 0) {
-        shaderInfo.pushConstantsSize = vgf.pushConstantsSize;
-    }
-
-    for (const auto &specializationConstantMap : vgf.specializationConstantMaps) {
-        if (specializationConstantMap.shaderTarget == moduleName) {
-            shaderInfo.specializationConstants = specializationConstantMap.specializationConstants;
-            return;
-        }
-    }
-}
-
-std::optional<RawDataId> getGraphPushData(const std::vector<ResolvedPushConstantMap> &pushConstants,
-                                          const std::string &moduleName) {
-    for (const auto &pushConstant : pushConstants) {
-        if (pushConstant.shaderTarget == moduleName) {
-            return pushConstant.pushData;
-        }
-    }
-    return std::nullopt;
 }
 
 class Creator final : public IResourceCreator {
