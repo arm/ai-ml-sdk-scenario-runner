@@ -32,6 +32,9 @@ function(add_scenario_fuzzer target)
         -fno-sanitize-recover=undefined
         -fno-omit-frame-pointer
         -fno-sanitize=leak
+        # Workload Library is built without RTTI, which is incompatible with
+        # UBSan vptr checks on shared standard-library types.
+        -fno-sanitize=vptr
     )
     target_link_options(${target} PRIVATE
         -fsanitize=fuzzer,address,undefined
