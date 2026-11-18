@@ -27,6 +27,7 @@ add_executable(ScenarioRunnerTests
   resource_manager_tests.cpp
   scenario_tests.cpp
   tensor_tests.cpp
+  vgf_binding_map_tests.cpp
   vgf_view_tests.cpp
   vgf_workload_tests.cpp
   vulkan_startup_tests.cpp
