@@ -99,11 +99,6 @@ class Compute {
     void createPipeline(const PipelineCreateArguments &args, const ShaderInfo &vertexShaderInfo,
                         const ShaderInfo &fragmentShaderInfo, const std::vector<vk::Format> &colorAttachmentFormats);
 
-    /// \brief Create a DataGraph pipeline through SPIR-V dispatch
-    void createPipeline(const PipelineCreateArguments &args, const ShaderInfo &shaderInfo,
-                        const DataManager &dataManager, const std::vector<GraphConstantInfo> &constants,
-                        bool enableNeuralStatistics, vk::NeuralAcceleratorStatisticsModeARM neuralStatisticsMode);
-
     /// \brief Create an optical flow data graph pipeline.
     ///
     /// This builds a VkDataGraphPipelineOpticalFlow using image resources from the DataManager
@@ -328,5 +323,9 @@ class Compute {
     void _endDebugLabel(const vk::raii::CommandBuffer &commandBuffer);
 
     void _recordVgf(const VgfDispatch &dispatch, const vk::raii::CommandBuffer &commandBuffer);
+
+    // Visit native and standalone WL graphs for dumps in command order.
+    template <typename LegacyCallback, typename WorkloadCallback>
+    void _forEachGraphPipeline(LegacyCallback legacy, WorkloadCallback workload) const;
 };
 } // namespace mlsdk::scenariorunner
