@@ -8,8 +8,15 @@
 #include "compute.hpp"
 #include "data_manager.hpp"
 #include "device_selection.hpp"
+#include "glsl_compiler.hpp"
 #include "resource_manager.hpp"
+#include "utils.hpp"
 #include "workload_data_graph.hpp"
+#include "workload_graph_diagnostics.hpp"
+
+#include "vgf-utils/temp_folder.hpp"
+#include "vgf/encoder.hpp"
+#include "vgf/vulkan_helpers.generated.hpp"
 
 #include <gtest/gtest.h>
 #include <spirv-tools/libspirv.hpp>
@@ -21,6 +28,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -175,6 +183,135 @@ TEST_F(WorkloadDataGraph, ReportsSessionMemoryForStandaloneAndVgfDispatches) {
     EXPECT_EQ(memory.usages[0].sessionMemoryBytes, expectedBytes);
     EXPECT_EQ(memory.usages[1].commandName, "vgf/" + std::string(execution->workload().executable(0).name()));
     EXPECT_EQ(memory.usages[1].sessionMemoryBytes, expectedBytes);
+}
+
+TEST_F(WorkloadDataGraph, DumpsVgfGraphExecutablesInCommandOrder) {
+    TempFolder folder("vgf_graph_dumps");
+    const auto input = addTensor({1, 16, 16, 16}, vk::Format::eR8Sint);
+    const auto output = addTensor({1, 8, 8, 16}, vk::Format::eR8Sint);
+    auto dispatch = addGraph("test_vgf_graph/maxpool.spvasm");
+    dispatch.bindings = {{0, 7, output, {}, vk::DescriptorType::eTensorARM},
+                         {2, 3, input, {}, vk::DescriptorType::eTensorARM}};
+    mlsdk::workloadlib::SessionOptions options;
+    options.requireHostVisibleSessionMemory();
+    const auto standalone = prepareStandaloneDataGraph(runtime, dispatch, resources, data, options);
+
+    namespace vgf = mlsdk::vgflib;
+    auto encoder = vgf::CreateEncoder(VK_HEADER_VERSION);
+    const auto code = GlslCompiler::get().compile("#version 450\nlayout(local_size_x=1) in; layout(set=0,binding=0) "
+                                                  "buffer Scratch { uint value; }; void main() { value=1; }",
+                                                  ShaderStage::Compute);
+    ASSERT_FALSE(code.second.empty()) << code.first;
+    const auto computeModule = encoder->AddModule(vgf::ModuleType::COMPUTE, "scratch", "main", code.second);
+    const auto graph =
+        encoder->AddModule(vgf::ModuleType::GRAPH, "pool", "graph_entry", *resources.get(dispatch.graphShader).src);
+    const auto descriptor = vgf::ToDescriptorType(VK_DESCRIPTOR_TYPE_TENSOR_ARM);
+    const auto format = vgf::ToFormatType(VK_FORMAT_R8_SINT);
+    const auto vgfInput = encoder->AddInputResource(descriptor, format, {1, 16, 16, 16}, {});
+    const auto vgfOutput = encoder->AddOutputResource(descriptor, format, {1, 8, 8, 16}, {});
+    const auto inputSlot = encoder->AddBindingSlot(3, vgfInput);
+    const auto outputSlot = encoder->AddBindingSlot(7, vgfOutput);
+    const auto inputSet = encoder->AddDescriptorSetInfo({inputSlot}, 2);
+    const auto outputSet = encoder->AddDescriptorSetInfo({outputSlot}, 0);
+    const auto scratch = encoder->AddIntermediateResource(vgf::ToDescriptorType(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
+                                                          vgf::ToFormatType(VK_FORMAT_R32_UINT), {1}, {});
+    const auto scratchSlot = encoder->AddBindingSlot(0, scratch);
+    const auto scratchSet = encoder->AddDescriptorSetInfo({scratchSlot}, 0);
+    encoder->AddModelSequenceInputsOutputs({inputSlot}, {"input"}, {outputSlot}, {"output"});
+    const std::vector<vgf::GraphConstantBindingRef> constants;
+    for (const std::string_view name : {"first", "second"}) {
+        encoder->AddSegmentInfo(computeModule, std::string(name) + " compute", {scratchSet}, {}, {scratchSlot},
+                                constants, {1, 1, 1});
+        encoder->AddSegmentInfo(graph, std::string(name) + " graph", {inputSet, outputSet}, {inputSlot}, {outputSlot},
+                                constants);
+    }
+    encoder->Finish();
+    const auto path = folder.relative("mixed.vgf");
+    {
+        std::ofstream file(path, std::ios::binary);
+        encoder->WriteTo(file);
+    }
+    const auto mixed = WorkloadExecution::fromVgf(runtime, loadVgfView(path.string()), options);
+    mixed->session().configure();
+    auto bindings = mixed->session().createBindingSet();
+    bindings.bindTensor(mixed->workload().resource(0), {data.getTensor(input).tensor()});
+    bindings.bindTensor(mixed->workload().resource(1), {data.getTensor(output).tensor()});
+    mixed->prepare(bindings);
+
+    // Mock property bytes so routing checks do not depend on hardware diagnostics
+    // or nonzero graph-session RAM allocations (the emulator may allocate none).
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+    auto &dispatcher = const_cast<vk::raii::detail::DeviceDispatcher &>(*context.device().getDispatcher());
+    const auto originalAvailable = dispatcher.vkGetDataGraphPipelineAvailablePropertiesARM;
+    const auto originalProperty = dispatcher.vkGetDataGraphPipelinePropertiesARM;
+    const ScopeExit<void()> restore([&] {
+        dispatcher.vkGetDataGraphPipelineAvailablePropertiesARM = originalAvailable;
+        dispatcher.vkGetDataGraphPipelinePropertiesARM = originalProperty;
+    });
+    static std::map<VkPipeline, std::string> payloads;
+    static std::string payload;
+    payloads.clear();
+    dispatcher.vkGetDataGraphPipelineAvailablePropertiesARM =
+        +[](VkDevice, const VkDataGraphPipelineInfoARM *info, uint32_t *count,
+            VkDataGraphPipelinePropertyARM *properties) {
+            if (!payload.empty()) {
+                payloads[info->dataGraphPipeline] = payload;
+            }
+            *count = 1;
+            if (properties) {
+                properties[0] = static_cast<VkDataGraphPipelinePropertyARM>(0x7ffffffe);
+            }
+            return VK_SUCCESS;
+        };
+    dispatcher.vkGetDataGraphPipelinePropertiesARM =
+        +[](VkDevice, const VkDataGraphPipelineInfoARM *info, uint32_t count,
+            VkDataGraphPipelinePropertyQueryResultARM *properties) {
+            const auto &value = payloads.at(info->dataGraphPipeline);
+            for (uint32_t i = 0; i < count; ++i) {
+                if (properties[i].pData) {
+                    std::memcpy(properties[i].pData, value.data(), value.size());
+                }
+                properties[i].isText = VK_TRUE;
+                properties[i].dataSize = value.size();
+            }
+            return VK_SUCCESS;
+        };
+    payload = "standalone";
+    standalone->session().dataGraphPipelineProperties(0);
+    payload = "first graph";
+    mixed->session().dataGraphPipelineProperties(1);
+    payload = "second graph";
+    mixed->session().dataGraphPipelineProperties(3);
+    payload.clear();
+    Compute compute(context);
+    compute.registerWorkloadExecution(standalone, "before", {"DataGraphDispatch", "before"}, true);
+    uint32_t queries = 0;
+    compute.registerVgfExecution(mixed, "mixed", queries, true);
+    compute.registerWorkloadExecution(standalone, "after", {"DataGraphDispatch", "after"}, true);
+    const auto directory = folder.relative("profiling");
+    ASSERT_TRUE(std::filesystem::create_directory(directory));
+    compute.dumpGraphProfilingData(directory);
+    uint32_t fileIndex = 0;
+    for (const std::string expected : {"standalone", "first graph", "second graph", "standalone"}) {
+        const auto name = "EmulationLayerPipeline_" + std::to_string(fileIndex++) + ".json";
+        std::ifstream file(directory / name, std::ios::binary);
+        ASSERT_TRUE(file) << name;
+        const std::string actual{std::istreambuf_iterator<char>(file), {}};
+        EXPECT_EQ(actual, expected);
+    }
+    EXPECT_EQ(static_cast<uint32_t>(
+                  std::distance(std::filesystem::directory_iterator(directory), std::filesystem::directory_iterator{})),
+              fileIndex);
+
+    // Property helpers must also select a graph after the initial compute segment.
+    EXPECT_NO_THROW(dumpWorkloadGraphDebugDatabase(mixed->session(), 3, folder.relative("debug.bin")));
+    EXPECT_NO_THROW(
+        dumpWorkloadGraphStatistics(mixed->session(), 1, context.device(), folder.relative("statistics.bin")));
+    const auto ramDirectory = folder.relative("ram");
+    ASSERT_TRUE(std::filesystem::create_directory(ramDirectory));
+    uint32_t ramIndex = 7;
+    dumpWorkloadGraphSessionRAMs(mixed->session(), 3, context.device(), ramDirectory, ramIndex);
+    EXPECT_EQ(ramIndex, 7 + mixed->session().dataGraphSessionMemoryCount(3));
 }
 
 TEST_F(WorkloadDataGraph, BorrowsConstantsAndRecordsRepeatedlyAfterSetupReturns) {

@@ -21,12 +21,13 @@ namespace {
 // Keep in sync with the optional property defined by emulation-layer.
 constexpr auto graphProfilingProperty = static_cast<vk::DataGraphPipelinePropertyARM>(0x7ffffffe);
 
-std::vector<uint8_t> propertyData(const workloadlib::Session &session, vk::DataGraphPipelinePropertyARM property) {
-    const auto properties = session.dataGraphPipelineProperties(0);
+std::vector<uint8_t> propertyData(const workloadlib::Session &session, uint32_t executableIndex,
+                                  vk::DataGraphPipelinePropertyARM property) {
+    const auto properties = session.dataGraphPipelineProperties(executableIndex);
     if (std::find(properties.begin(), properties.end(), property) == properties.end()) {
         return {};
     }
-    return session.dataGraphPipelineProperty(0, property).data;
+    return session.dataGraphPipelineProperty(executableIndex, property).data;
 }
 
 std::vector<uint8_t> readSessionMemory(const vk::raii::Device &device,
@@ -46,8 +47,10 @@ std::vector<uint8_t> readSessionMemory(const vk::raii::Device &device,
 
 } // namespace
 
-bool dumpWorkloadGraphDebugDatabase(const workloadlib::Session &session, const std::filesystem::path &path) {
-    const auto data = propertyData(session, vk::DataGraphPipelinePropertyARM::eNeuralAcceleratorDebugDatabase);
+bool dumpWorkloadGraphDebugDatabase(const workloadlib::Session &session, uint32_t executableIndex,
+                                    const std::filesystem::path &path) {
+    const auto data =
+        propertyData(session, executableIndex, vk::DataGraphPipelinePropertyARM::eNeuralAcceleratorDebugDatabase);
     if (data.empty()) {
         return false;
     }
@@ -57,14 +60,15 @@ bool dumpWorkloadGraphDebugDatabase(const workloadlib::Session &session, const s
     return true;
 }
 
-bool dumpWorkloadGraphStatistics(const workloadlib::Session &session, const vk::raii::Device &device,
-                                 const std::filesystem::path &path) {
-    if (propertyData(session, vk::DataGraphPipelinePropertyARM::eNeuralAcceleratorStatisticsInfo).empty()) {
+bool dumpWorkloadGraphStatistics(const workloadlib::Session &session, uint32_t executableIndex,
+                                 const vk::raii::Device &device, const std::filesystem::path &path) {
+    if (propertyData(session, executableIndex, vk::DataGraphPipelinePropertyARM::eNeuralAcceleratorStatisticsInfo)
+            .empty()) {
         return false;
     }
     std::optional<workloadlib::DataGraphSessionMemoryInfo> statistics;
-    for (uint32_t i = 0; i < session.dataGraphSessionMemoryCount(0); ++i) {
-        const auto memory = session.dataGraphSessionMemory(0, i);
+    for (uint32_t i = 0; i < session.dataGraphSessionMemoryCount(executableIndex); ++i) {
+        const auto memory = session.dataGraphSessionMemory(executableIndex, i);
         if (memory.neuralStatistics) {
             if (statistics) {
                 throw std::runtime_error("More than one session memory instance for Neural Statistics");
@@ -84,12 +88,12 @@ bool dumpWorkloadGraphStatistics(const workloadlib::Session &session, const vk::
     return true;
 }
 
-void dumpWorkloadGraphProfiling(const workloadlib::Session &session, const std::filesystem::path &directory,
-                                uint32_t graphPipelineIndex) {
+void dumpWorkloadGraphProfiling(const workloadlib::Session &session, uint32_t executableIndex,
+                                const std::filesystem::path &directory, uint32_t graphPipelineIndex) {
     const auto index = std::to_string(graphPipelineIndex);
     std::vector<uint8_t> data;
     try {
-        data = propertyData(session, graphProfilingProperty);
+        data = propertyData(session, executableIndex, graphProfilingProperty);
     } catch (const std::exception &error) {
         logging::warning("Skipping graph profiling dump for graph pipeline " + index +
                          ": failed to query property data: " + error.what());
@@ -106,11 +110,12 @@ void dumpWorkloadGraphProfiling(const workloadlib::Session &session, const std::
     }
 }
 
-void dumpWorkloadGraphSessionRAMs(const workloadlib::Session &session, const vk::raii::Device &device,
-                                  const std::filesystem::path &directory, uint32_t &graphPipelineIndex) {
+void dumpWorkloadGraphSessionRAMs(const workloadlib::Session &session, uint32_t executableIndex,
+                                  const vk::raii::Device &device, const std::filesystem::path &directory,
+                                  uint32_t &graphPipelineIndex) {
     bool allStored = true;
-    for (uint32_t i = 0; i < session.dataGraphSessionMemoryCount(0); ++i) {
-        const auto data = readSessionMemory(device, session.dataGraphSessionMemory(0, i));
+    for (uint32_t i = 0; i < session.dataGraphSessionMemoryCount(executableIndex); ++i) {
+        const auto data = readSessionMemory(device, session.dataGraphSessionMemory(executableIndex, i));
         // Preserve SR's existing dump naming, including its allocation counter.
         const auto filename =
             "Graph_Pipeline_" + std::to_string(graphPipelineIndex++) + "_Session_RAM_" + std::to_string(i) + ".txt";
