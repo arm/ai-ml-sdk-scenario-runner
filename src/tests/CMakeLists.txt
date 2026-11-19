@@ -11,6 +11,7 @@ add_executable(ScenarioRunnerTests
   data_graph_binary_tests.cpp
   dds_reader_tests.cpp
   device_selection_tests.cpp
+  graph_diagnostics_tests.cpp
   group_manager_tests.cpp
   guid_tests.cpp
   image_formats_tests.cpp
@@ -34,6 +35,7 @@ add_executable(ScenarioRunnerTests
   vgf_workload_tests.cpp
   vulkan_startup_tests.cpp
   workload_compute_tests.cpp
+  workload_data_graph_tests.cpp
   workload_execution_tests.cpp
 )
 target_link_libraries(ScenarioRunnerTests PRIVATE
@@ -45,6 +47,9 @@ target_link_libraries(ScenarioRunnerTests PRIVATE
 )
 target_include_directories(ScenarioRunnerTests PRIVATE
   ${PROJECT_SOURCE_DIR}/src
+)
+target_compile_definitions(ScenarioRunnerTests PRIVATE
+  SCENARIO_RUNNER_TEST_SPVASM_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources/spvasm"
 )
 target_compile_options(ScenarioRunnerTests PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
 scenario_runner_enable_coverage(ScenarioRunnerTests)

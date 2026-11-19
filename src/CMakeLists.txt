@@ -18,6 +18,7 @@ set(SCENARIO_RUNNER_LIB_SOURCES
     device_selection.cpp
     frame_capturer.cpp
     glsl_compiler.cpp
+    graph_dump.cpp
     group_manager.cpp
     image.cpp
     image_formats.cpp
@@ -45,6 +46,7 @@ set(SCENARIO_RUNNER_LIB_SOURCES
     vgf_view.cpp
     workload_bindings.cpp
     workload_compute.cpp
+    workload_data_graph.cpp
     workload_execution.cpp
     workload_runtime.cpp
 )
