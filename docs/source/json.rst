@@ -247,7 +247,8 @@ and scales have separate ``.npy`` files. Use ``src`` for input values and
 ``block_scaling.src`` for input scales. Use the matching ``dst`` fields for an
 output.
 ``block_shape`` and the E8M0 scale ``format`` are required even for an
-intermediate. For example:
+intermediate. Each block dimension must be positive and divide the matching
+innermost tensor dimension. For example:
 
 .. code-block:: json
 
@@ -276,11 +277,12 @@ The parser also recognizes the following value-format names:
 ``VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT4E2M1_ARM``, and
 ``VK_FORMAT_R8_SFLOAT_FPENCODING_MXINT8_ARM``.
 
-Host file I/O experimentally supports FP8 values with E8M0 scales and preserves the encoded
-bytes in separate files.
-Paired outputs use ``<V1`` for E4M3FN values and E8M0 scales, and ``|u1`` for E5M2 values,
-matching the TOSA serializer. The FP8 format is carried in the tensor metadata;
-the encoded payload bytes are preserved without numeric conversion.
+Host file I/O preserves encoded MXFP values and E8M0 scales in separate files.
+The files use ``<V1`` for E4M3FN values and E8M0 scales, and ``|u1`` for
+E5M2, MXINT8, FP4, and FP6 values. FP4 and FP6 values stay packed: two FP4
+values occupy one byte, and four FP6 values occupy three bytes. The value file's
+last dimension counts bytes; ``block_shape`` determines the scale file's shape.
+The logical tensor shape and value format stay in the resource metadata.
 This support covers parsing and standalone host file I/O only. Loading block-scaled
 tensors through ``ScenarioJsonFactory`` or ``load_scenario``, or adding them to a
 ``ScenarioBuilder``, remains unsupported until Vulkan creation and transfer are implemented.
