@@ -418,23 +418,21 @@ void bindTensorData(py::module_ &m) {
                               [](TensorData &data, const py::array &array) { data.data = copyFromArray(array); },
                               "Raw value bytes. Reading and assignment copy the bytes.")
                           .def_readwrite("shape", &TensorData::shape)
-                          .def_readwrite("format", &TensorData::format);
+                          .def_readwrite("format", &TensorData::format)
+                          .def_property(
+                              "scales", [](const TensorData &data) { return copyToArray(data.scales); },
+                              [](TensorData &data, const py::array &array) { data.scales = copyFromArray(array); },
+                              "Raw scale bytes. Reading and assignment copy the bytes.");
 #ifdef VK_ARM_tensors2
-    tensorData
-        .def_property(
-            "scales", [](const TensorData &data) { return copyToArray(data.scales); },
-            [](TensorData &data, const py::array &array) { data.scales = copyFromArray(array); },
-            "Raw scale bytes. Reading and assignment copy the bytes.")
-        .def_readwrite("block_scaling", &TensorData::blockScaling);
+    tensorData.def_readwrite("block_scaling", &TensorData::blockScaling);
 #endif
-    setAttributeAnnotations(tensorData, {
+    setAttributeAnnotations(tensorData, {{"scales", "numpy.ndarray"},
 #ifdef VK_ARM_tensors2
-                                            {"scales", "numpy.ndarray"},
-                                            {"block_scaling", "BlockScalingInfo | None"},
+                                         {"block_scaling", "BlockScalingInfo | None"},
 #endif
-                                            {"data", "numpy.ndarray"},
-                                            {"shape", "list[int]"},
-                                            {"format", "Format | None"}});
+                                         {"data", "numpy.ndarray"},
+                                         {"shape", "list[int]"},
+                                         {"format", "Format | None"}});
 }
 
 void bindBarriers(py::module_ &m) {
