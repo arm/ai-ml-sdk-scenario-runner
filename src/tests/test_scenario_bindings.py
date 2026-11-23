@@ -30,8 +30,6 @@ def test_tensor_data_defaults_and_metadata(sr):
 @pytest.mark.parametrize("dtype", [np.uint8, np.uint16, np.float32])
 def test_tensor_data_copies_raw_array_bytes(sr, property_name, dtype):
     tensor = sr.TensorData()
-    if property_name == "scales" and not hasattr(tensor, "scales"):
-        pytest.skip("Block scaling requires bindings built with VK_ARM_tensors2")
     source = np.arange(6, dtype=dtype).reshape(2, 3)
     expected = source.view(np.uint8).reshape(-1).copy()
 

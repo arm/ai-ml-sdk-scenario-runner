@@ -51,9 +51,9 @@ struct TensorData {
 #ifdef VK_ARM_tensors2
     /// @brief Optional metadata for the separate shared-scale payload.
     std::optional<BlockScalingInfo> blockScaling{std::nullopt};
+#endif
     /// @brief Encoded shared scales, empty for an ordinary tensor.
     std::vector<std::byte> scales;
-#endif
 };
 
 /// @brief Non-owning bytes and optional metadata used to upload an image.

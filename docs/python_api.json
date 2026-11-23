@@ -75,8 +75,7 @@
   "guards": {
     "Format.R8Float8UnsignedE8M0Arm": [
       "BlockScalingInfo",
-      "TensorData.block_scaling",
-      "TensorData.scales"
+      "TensorData.block_scaling"
     ]
   },
   "method_groups": {

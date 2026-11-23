@@ -92,12 +92,12 @@ Scenario creation and execution
 Host tensor data
 ~~~~~~~~~~~~~~~~
 
-``TensorData`` owns a value payload together with its shape and format. It can
-be constructed without a Vulkan® device. The ``data`` property exposes a raw
-byte array; reading or assigning it copies the bytes.
+``TensorData`` owns value and scale byte payloads together with its shape and
+format. It can be constructed without a Vulkan® device. Reading or assigning
+either ``data`` or ``scales`` copies the bytes.
 
 Builds using Vulkan® headers that define ``VK_ARM_tensors2`` also expose
-``TensorData.scales``, ``TensorData.block_scaling``, ``BlockScalingInfo``, and
+``TensorData.block_scaling``, ``BlockScalingInfo``, and
 ``Format.R8Float8UnsignedE8M0Arm``.
 
 ``TensorData.block_scaling`` accepts ``BlockScalingInfo`` metadata, whose
