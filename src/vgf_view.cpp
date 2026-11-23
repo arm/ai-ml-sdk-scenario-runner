@@ -429,6 +429,33 @@ vgflib::DataView<uint8_t> VgfView::getConstantData(uint32_t constantIndex) const
     return constantTableDecoder->getConstant(constantIndex);
 }
 
+vgflib::DataView<int64_t> VgfView::getConstantStrides(uint32_t constantIndex) const {
+    const auto mrtIndex = constantTableDecoder->getConstantMrtIndex(constantIndex);
+    if (mrtIndex == vgflib::CONSTANT_INVALID_MRT_INDEX) {
+        throw std::runtime_error("Invalid constant metadata at index " + std::to_string(constantIndex));
+    }
+    if (resourceTableDecoder->getCategory(mrtIndex) != vgflib::ResourceCategory::CONSTANT) {
+        throw std::runtime_error("Resource not marked as constant");
+    }
+    return resourceTableDecoder->getTensorStride(mrtIndex);
+}
+
+std::optional<VgfView::ScaledConstantConfig> VgfView::getConstantScaledTensorConfig(uint32_t constantIndex) const {
+    const auto mrtIndex = constantTableDecoder->getConstantMrtIndex(constantIndex);
+    if (mrtIndex == vgflib::CONSTANT_INVALID_MRT_INDEX) {
+        throw std::runtime_error("Invalid constant metadata at index " + std::to_string(constantIndex));
+    }
+    if (resourceTableDecoder->getCategory(mrtIndex) != vgflib::ResourceCategory::CONSTANT) {
+        throw std::runtime_error("Resource not marked as constant");
+    }
+    const auto *config = resourceTableDecoder->getScaledTensorConfigHandle(mrtIndex);
+    if (config == nullptr) {
+        return std::nullopt;
+    }
+    return ScaledConstantConfig{resourceTableDecoder->getScaledTensorConfigBlockShape(config),
+                                resourceTableDecoder->getScaledTensorConfigScaleFormat(config)};
+}
+
 std::vector<VgfView::VgfBinding> VgfView::getBindings(uint32_t segmentIndex) const {
     // Get segment binding infos
     std::vector<VgfBinding> bindings;
@@ -632,8 +659,10 @@ VgfResourceCreationResult VgfView::createIntermediateResources(IResourceCreator 
             case DESCRIPTOR_TYPE_TENSOR_ARM: {
                 auto format = resourceTableDecoder->getVkFormat(resourceIndex);
 
-                auto info = TensorInfo{std::move(debugName), std::vector<int64_t>(shape.begin(), shape.end()),
-                                       vk::Format(format), -1, false};
+                TensorInfo info{};
+                info.debugName = std::move(debugName);
+                info.shape.assign(shape.begin(), shape.end());
+                info.format = vk::Format(format);
 
                 // Create Scenario Runner tensor
                 addResource(creator.createTensor(std::move(info)));

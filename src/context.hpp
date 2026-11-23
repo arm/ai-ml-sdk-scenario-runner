@@ -28,6 +28,7 @@ struct OptionalExtensions {
     bool replicated_composites = false;
     bool shader_bfloat16 = false;
     bool shader_float8 = false;
+    bool tensor_block_scaled = false;
     bool optical_flow = false;
     bool robustness2 = false;
     bool descriptor_indexing = false;

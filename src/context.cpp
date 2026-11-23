@@ -85,6 +85,16 @@ detail::DeviceCandidate queryDeviceCandidate(const vk::raii::PhysicalDevice &dev
             candidate.capabilities |= detail::DeviceCapability::Tensors;
         }
     }
+#ifdef VK_ARM_tensors2
+    if (detail::hasCapabilities(candidate.capabilities, detail::DeviceCapability::ShaderTensorAccess) &&
+        hasExtension(extensions, VK_ARM_TENSORS_2_EXTENSION_NAME, scenarioOptions.disabledExtensions)) {
+        const auto supported =
+            device.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceTensors2FeaturesARM>();
+        if (supported.get<vk::PhysicalDeviceTensors2FeaturesARM>().tensorBlockScaled) {
+            candidate.capabilities |= detail::DeviceCapability::TensorBlockScaled;
+        }
+    }
+#endif
     if (detail::hasCapabilities(candidate.capabilities, detail::DeviceCapability::DataGraph) && opticalFlowExtension) {
         candidate.capabilities |= detail::DeviceCapability::DataGraphImageLayouts;
         if (features.template get<vk::PhysicalDeviceDataGraphOpticalFlowFeaturesARM>().dataGraphOpticalFlow) {
@@ -199,6 +209,10 @@ Context::Context(const ScenarioOptions &scenarioOptions, const detail::DeviceReq
         hasExtension(extensions, VK_KHR_SHADER_BFLOAT16_EXTENSION_NAME, scenarioOptions.disabledExtensions);
     _optionals.shader_float8 =
         hasExtension(extensions, VK_EXT_SHADER_FLOAT8_EXTENSION_NAME, scenarioOptions.disabledExtensions);
+    _optionals.tensor_block_scaled =
+        detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::ShaderTensorAccess) &&
+        detail::hasCapabilities(candidates[selection.deviceIndex].capabilities,
+                                detail::DeviceCapability::TensorBlockScaled);
     _optionals.optical_flow =
         detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::DataGraphOpticalFlow);
     _optionals.robustness2 =
@@ -319,6 +333,15 @@ Context::Context(const ScenarioOptions &scenarioOptions, const detail::DeviceReq
         featureChain = &tensorFeat;
     }
 
+#ifdef VK_ARM_tensors2
+    vk::PhysicalDeviceTensors2FeaturesARM tensors2Feat{};
+    if (_optionals.tensor_block_scaled) {
+        tensors2Feat.tensorBlockScaled = true;
+        tensors2Feat.pNext = featureChain;
+        featureChain = &tensors2Feat;
+    }
+#endif
+
     vk::PhysicalDeviceShaderFloat8FeaturesEXT float8Feat{};
     if (_optionals.shader_float8) {
         float8Feat.shaderFloat8 = availableFloat8.shaderFloat8;
@@ -408,6 +431,11 @@ Context::Context(const ScenarioOptions &scenarioOptions, const detail::DeviceReq
     if (detail::hasCapabilities(requirements.capabilities, detail::DeviceCapability::ShaderTensorAccess)) {
         vulkanDeviceExtensions.push_back(VK_ARM_TENSORS_EXTENSION_NAME);
     }
+#ifdef VK_ARM_tensors2
+    if (_optionals.tensor_block_scaled) {
+        vulkanDeviceExtensions.push_back(VK_ARM_TENSORS_2_EXTENSION_NAME);
+    }
+#endif
 
     if (_optionals.custom_border_color) {
         vulkanDeviceExtensions.push_back(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME);

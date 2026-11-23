@@ -30,6 +30,7 @@ namespace vgflib = mlsdk::vgflib;
 
 std::shared_ptr<const VgfView> createVgf(TempFolder &tempFolder, const std::string &filename,
                                          const std::vector<vgflib::ModuleType> &moduleTypes, bool hasTensorIntermediate,
+                                         bool hasScaledConstant = false,
                                          std::optional<int64_t> constantSparsityDimension = std::nullopt,
                                          std::optional<vk::DescriptorType> imageDescriptorType = std::nullopt,
                                          std::optional<uint32_t> imageSegmentIndex = std::nullopt) {
@@ -62,6 +63,16 @@ std::shared_ptr<const VgfView> createVgf(TempFolder &tempFolder, const std::stri
         const auto constant = encoder->AddConstant(resource, data.data(), data.size(), *constantSparsityDimension);
         // NOLINTNEXTLINE(modernize-use-emplace)
         constantBindings.push_back({0, constant});
+    }
+    if (hasScaledConstant) {
+        const auto resource =
+            encoder->AddConstantResource(vgflib::ToFormatType(VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM), {32}, {});
+        encoder->AddScaledTensorConfig(resource, {32}, vgflib::ScaleFormat::E8M0);
+        std::vector<uint8_t> data(33, 0);
+        data.back() = 0x7f;
+        const auto constant = encoder->AddConstant(resource, data.data(), data.size());
+        // NOLINTNEXTLINE(modernize-use-emplace)
+        constantBindings.push_back({1, constant});
     }
 
     encoder->AddModelSequenceInputsOutputs({}, {}, {}, {});
@@ -205,14 +216,35 @@ TEST(DeviceRequirements, VgfUsesOnlyCapabilitiesRequiredByItsContents) {
                                                   DeviceCapability::Tensors | DeviceCapability::ShaderTensorAccess);
 }
 
+TEST(DeviceRequirements, ScaledGraphConstantSelectsCompatibleDevice) {
+    TempFolder tempFolder("device_requirements_scaled_constant");
+    ScenarioBuildData buildData;
+    const auto vgf = buildData.resources.addVgf(
+        VgfInfo{"scaled VGF", createVgf(tempFolder, "scaled.vgf", {vgflib::ModuleType::GRAPH}, false, true), 0, {}});
+    buildData.commands.emplace_back(DispatchVgfData{vgf});
+
+    const auto requirements = getDeviceRequirements(buildData, ScenarioOptions{});
+    const auto baseCapabilities =
+        DeviceCapability::DataGraph | DeviceCapability::DataGraphShaderModules | DeviceCapability::ShaderTensorAccess;
+    EXPECT_EQ(requirements.capabilities, baseCapabilities | DeviceCapability::TensorBlockScaled);
+
+    const std::vector<DeviceCandidate> candidates{
+        candidate(vk::PhysicalDeviceType::eDiscreteGpu, baseCapabilities, {queueFamily(dataGraphQueueFlags())}),
+        candidate(vk::PhysicalDeviceType::eIntegratedGpu, baseCapabilities | DeviceCapability::TensorBlockScaled,
+                  {queueFamily(dataGraphQueueFlags())}),
+    };
+    EXPECT_EQ(selectDevice(candidates, requirements).deviceIndex, 1U);
+}
+
 TEST(DeviceRequirements, VgfBinaryGraphDoesNotRequireShaderModules) {
     TempFolder tempFolder("device_requirements_binary_vgf");
     ScenarioBuildData buildData;
-    const auto vgf = buildData.resources.addVgf(VgfInfo{
-        "mixed VGF",
-        createVgf(tempFolder, "mixed_binary.vgf", {vgflib::ModuleType::GRAPH, vgflib::ModuleType::COMPUTE}, false),
-        0,
-        {}});
+    const auto vgf = buildData.resources.addVgf(
+        VgfInfo{"mixed VGF",
+                createVgf(tempFolder, "mixed_binary.vgf", {vgflib::ModuleType::GRAPH, vgflib::ModuleType::COMPUTE},
+                          false, true),
+                0,
+                {}});
     DispatchVgfData dispatch{vgf};
     dispatch.dataGraphBinaries.emplace(0, ExternalDataGraphBinary{RawDataId{0}});
     buildData.commands.emplace_back(std::move(dispatch));

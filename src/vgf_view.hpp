@@ -41,6 +41,11 @@ class VgfView {
     using DescriptorBinding = std::pair<uint32_t, uint32_t>;
     using DescriptorBindingMrtMap = std::map<DescriptorBinding, uint32_t>;
 
+    struct ScaledConstantConfig {
+        vgflib::DataView<uint32_t> blockShape;
+        vgflib::ScaleFormat scaleFormat;
+    };
+
     static VgfView createVgfView(std::string vgfFile);
 
     /// Import the original mapped VGF. This view must outlive the workload.
@@ -75,7 +80,9 @@ class VgfView {
     vgflib::FormatType getConstantFormat(uint32_t constantIndex) const;
     int64_t getConstantSparsityDimension(uint32_t constantIndex) const;
     vgflib::DataView<int64_t> getConstantShape(uint32_t constantIndex) const;
+    vgflib::DataView<int64_t> getConstantStrides(uint32_t constantIndex) const;
     vgflib::DataView<uint8_t> getConstantData(uint32_t constantIndex) const;
+    std::optional<ScaledConstantConfig> getConstantScaledTensorConfig(uint32_t constantIndex) const;
 
     /// Validate an external binding and return its model resource index, if present.
     std::optional<uint32_t> resolveExternalBinding(const DataManager &dataManager, const TypedBinding &binding) const;

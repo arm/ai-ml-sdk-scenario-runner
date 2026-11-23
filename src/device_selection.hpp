@@ -24,6 +24,7 @@ enum class DeviceCapability : uint32_t {
     DynamicRendering = 1U << 6,
     ShaderTensorAccess = 1U << 7,
     Tensors = 1U << 8,
+    TensorBlockScaled = 1U << 9,
 };
 
 using DeviceCapabilities = vk::Flags<DeviceCapability>;

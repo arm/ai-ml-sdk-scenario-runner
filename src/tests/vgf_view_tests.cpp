@@ -334,3 +334,40 @@ TEST(VgfView, DistinguishesExternalBinaryGraphModule) {
     EXPECT_TRUE(view.isExternalDataGraphBinary(0));
     EXPECT_FALSE(view.isExternalDataGraphBinary(1));
 }
+
+TEST(VgfView, DecodesScaledGraphConstant) {
+    TempFolder tempFolder("vgf_view");
+    std::vector<uint8_t> payload(64, 0x38);
+    payload.insert(payload.end(), {0x7f, 0x80}); // Two E8M0 scales: 1 and 2.
+    const float bias = 0;
+    auto encoder = vgflib::CreateEncoder(123);
+    const auto module = encoder->AddModule(vgflib::ModuleType::GRAPH, "graph", "main");
+    const auto weightsResource =
+        encoder->AddConstantResource(VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM, {2, 32}, {});
+    encoder->AddScaledTensorConfig(weightsResource, {32}, vgflib::ScaleFormat::E8M0);
+    const auto weights = encoder->AddConstant(weightsResource, payload.data(), payload.size());
+    const auto biasResource = encoder->AddConstantResource(VK_FORMAT_R32_SFLOAT, {1}, {});
+    const auto biasConstant = encoder->AddConstant(biasResource, &bias, sizeof(bias));
+    encoder->AddSegmentInfo(module, "graph", {}, {}, {},
+                            std::vector<vgflib::GraphConstantBindingRef>{{17, weights}, {3, biasConstant}});
+    encoder->Finish();
+    const auto path = tempFolder.relative("scaled_constant.vgf");
+    std::ofstream output(path, std::ios::binary);
+    ASSERT_TRUE(encoder->WriteTo(output));
+    output.close();
+
+    const auto view = VgfView::createVgfView(path.string());
+    const auto bindings = view.getSegmentConstantBindings(0);
+    ASSERT_EQ(bindings.size(), 2u);
+    EXPECT_EQ(bindings[0].graphConstantId, 17u);
+    EXPECT_EQ(bindings[0].constantIndex, weights.reference);
+    EXPECT_EQ(bindings[1].graphConstantId, 3u);
+    const auto config = view.getConstantScaledTensorConfig(weights.reference);
+    ASSERT_TRUE(config);
+    ASSERT_EQ(config->blockShape.size(), 1u);
+    EXPECT_EQ(config->blockShape[0], 32u);
+    EXPECT_EQ(config->scaleFormat, vgflib::ScaleFormat::E8M0);
+    EXPECT_EQ(view.getConstantData(weights.reference), (vgflib::DataView<uint8_t>{payload.data(), payload.size()}));
+    EXPECT_TRUE(view.getConstantStrides(weights.reference).empty());
+    EXPECT_FALSE(view.getConstantScaledTensorConfig(biasConstant.reference));
+}
