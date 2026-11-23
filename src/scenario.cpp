@@ -91,6 +91,12 @@ class ScenarioImpl final : public Scenario {
     void createRuntimeBarriers();
     void setupRuntimeCommands();
     std::shared_ptr<WorkloadRuntime> workloadRuntime();
+
+    workloadlib::SessionOptions workloadSessionOptions() const;
+
+    void checkWorkloadPipelineCache(const workloadlib::Session &session, workloadlib::ExecutableView executable,
+                                    const std::string &pipelineName) const;
+
     void saveProfilingData(int iteration, int repeatCount, bool dryRun);
     void saveResults(bool dryRun);
     void resetForNextRun();
@@ -591,6 +597,41 @@ std::shared_ptr<WorkloadRuntime> ScenarioImpl::workloadRuntime() {
     return _workloadRuntime;
 }
 
+workloadlib::SessionOptions ScenarioImpl::workloadSessionOptions() const {
+    // WL applies robustness to compute pipelines and diagnostics to graph sessions.
+    workloadlib::SessionOptions options;
+    if (_pipelineCache) {
+        options.pipelineCache = _pipelineCache->get();
+        options.failOnCompileRequired = _pipelineCache->failOnCacheMiss();
+        options.collectPipelineCreationFeedback = true;
+    }
+    if (_ctx.robustnessFeaturesEnabled() && _ctx._optionals.pipeline_robustness) {
+        workloadlib::PipelineRobustnessOptions robustness;
+        robustness.storageBuffers = vk::PipelineRobustnessBufferBehavior::eRobustBufferAccess;
+        robustness.uniformBuffers = vk::PipelineRobustnessBufferBehavior::eRobustBufferAccess;
+        options.pipelineRobustness = robustness;
+    }
+    if (_opts.shouldDumpNeuralStatistics()) {
+        options.neuralStatistics = workloadlib::NeuralStatisticsOptions{_opts.neuralStatisticsMode};
+    }
+    if (!_opts.sessionRAMsDumpDir.empty()) {
+        options.requireHostVisibleSessionMemory();
+    }
+    return options;
+}
+
+void ScenarioImpl::checkWorkloadPipelineCache(const workloadlib::Session &session,
+                                              workloadlib::ExecutableView executable,
+                                              const std::string &pipelineName) const {
+    if (!_pipelineCache || !_pipelineCache->failOnCacheMiss()) {
+        return;
+    }
+    const auto report = session.pipelineCreationReport(executable);
+    if (!report || !wasApplicationPipelineCacheHit(*report)) {
+        throw std::runtime_error("Pipeline cache miss for pipeline: " + pipelineName);
+    }
+}
+
 void ScenarioImpl::setupRuntimeCommands() {
     if (_opts.enablePipelineCaching) {
         mlsdk::logging::info("Load Pipeline Cache");
@@ -752,18 +793,7 @@ void ScenarioImpl::handleAliasedLayoutTransitions() {
 
 void ScenarioImpl::createComputePipeline(const DispatchComputeData &dispatchCompute, uint32_t &nQueries) {
     const auto &shaderInfo = getShader(dispatchCompute.shader);
-    workloadlib::SessionOptions options;
-    if (_pipelineCache) {
-        options.pipelineCache = _pipelineCache->get();
-        options.failOnCompileRequired = _pipelineCache->failOnCacheMiss();
-        options.collectPipelineCreationFeedback = true;
-    }
-    if (_ctx.robustnessFeaturesEnabled() && _ctx._optionals.pipeline_robustness) {
-        workloadlib::PipelineRobustnessOptions robustness;
-        robustness.storageBuffers = vk::PipelineRobustnessBufferBehavior::eRobustBufferAccess;
-        robustness.uniformBuffers = vk::PipelineRobustnessBufferBehavior::eRobustBufferAccess;
-        options.pipelineRobustness = robustness;
-    }
+    const auto options = workloadSessionOptions();
 
     PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + shaderInfo.debugName, "Pipeline Setup");
     std::shared_ptr<WorkloadExecution> execution;
@@ -776,12 +806,7 @@ void ScenarioImpl::createComputePipeline(const DispatchComputeData &dispatchComp
         }
         throw;
     }
-    if (options.failOnCompileRequired) {
-        const auto report = execution->session().pipelineCreationReport(execution->workload().executable(0));
-        if (!report || !wasApplicationPipelineCacheHit(*report)) {
-            throw std::runtime_error("Pipeline cache miss for pipeline: " + shaderInfo.debugName);
-        }
-    }
+    checkWorkloadPipelineCache(execution->session(), execution->workload().executable(0), shaderInfo.debugName);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eComputeShader);
     _compute.registerWorkloadExecution(std::move(execution), dispatchCompute.debugName,
                                        {"ComputeDispatch", dispatchCompute.computeDispatch.profileName},
@@ -905,19 +930,9 @@ void ScenarioImpl::createDataGraphBinaryPipeline(const DispatchDataGraphBinaryDa
 
 void ScenarioImpl::createDataGraphPipeline(const DispatchDataGraphData &dispatchDataGraph, uint32_t &nQueries) {
     const auto &shaderInfo = getShader(dispatchDataGraph.graphShader);
+    const auto options = workloadSessionOptions();
+
     PerfCounterGuard guard(_perfCounters, "Create Pipeline: " + shaderInfo.debugName, "Pipeline Setup");
-    workloadlib::SessionOptions options;
-    if (_pipelineCache) {
-        options.pipelineCache = _pipelineCache->get();
-        options.failOnCompileRequired = _pipelineCache->failOnCacheMiss();
-        options.collectPipelineCreationFeedback = true;
-    }
-    if (_opts.shouldDumpNeuralStatistics()) {
-        options.neuralStatistics = workloadlib::NeuralStatisticsOptions{_opts.neuralStatisticsMode};
-    }
-    if (!_opts.sessionRAMsDumpDir.empty()) {
-        options.requireHostVisibleSessionMemory();
-    }
     std::shared_ptr<WorkloadExecution> execution;
     try {
         execution = prepareStandaloneDataGraph(workloadRuntime(), dispatchDataGraph, _resources, _dataManager, options);
@@ -928,12 +943,7 @@ void ScenarioImpl::createDataGraphPipeline(const DispatchDataGraphData &dispatch
         }
         throw;
     }
-    if (options.failOnCompileRequired) {
-        const auto report = execution->session().pipelineCreationReport(execution->workload().executable(0));
-        if (!report || !wasApplicationPipelineCacheHit(*report)) {
-            throw std::runtime_error("Pipeline cache miss for pipeline: " + shaderInfo.debugName);
-        }
-    }
+    checkWorkloadPipelineCache(execution->session(), execution->workload().executable(0), shaderInfo.debugName);
     _compute.registerWriteTimestamp(nQueries++, vk::PipelineStageFlagBits2::eDataGraphARM);
     _compute.registerWorkloadExecution(std::move(execution), dispatchDataGraph.debugName,
                                        {"DataGraphDispatch", dispatchDataGraph.debugName},
