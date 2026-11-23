@@ -48,8 +48,13 @@ target_link_libraries(ScenarioRunnerTests PRIVATE
 target_include_directories(ScenarioRunnerTests PRIVATE
   ${PROJECT_SOURCE_DIR}/src
 )
+if(ANDROID)
+  set(SCENARIO_RUNNER_TEST_SPVASM_DIR "tests/spvasm")
+else()
+  set(SCENARIO_RUNNER_TEST_SPVASM_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources/spvasm")
+endif()
 target_compile_definitions(ScenarioRunnerTests PRIVATE
-  SCENARIO_RUNNER_TEST_SPVASM_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources/spvasm"
+  SCENARIO_RUNNER_TEST_SPVASM_DIR="${SCENARIO_RUNNER_TEST_SPVASM_DIR}"
 )
 target_compile_options(ScenarioRunnerTests PRIVATE ${ML_SDK_SCENARIO_RUNNER_COMPILE_OPTIONS})
 scenario_runner_enable_coverage(ScenarioRunnerTests)
