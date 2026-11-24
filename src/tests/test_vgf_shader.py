@@ -14,7 +14,7 @@ import vgfpy as vgf
 """Tests for VGF shader."""
 
 
-DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT = 6
+DESCRIPTOR_TYPE_STORAGE_BUFFER = 7
 DESCRIPTOR_TYPE_TENSOR_ARM = 1000460000
 VK_FORMAT_R8_SINT = 14
 VK_FORMAT_R16_UINT = 74
@@ -48,13 +48,13 @@ def _write_two_descriptor_sets_vgf(
     module0 = encoder.AddModule(vgf.ModuleType.Compute, "add_one", "main")
 
     shaderInput = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [10], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [10], []
     )
     shaderInput2 = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [10], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [10], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [10], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [10], []
     )
 
     shaderInputBinding = encoder.AddBindingSlot(INPUT0_BINDING, shaderInput)
@@ -107,10 +107,10 @@ def _write_graph_push_constants_vgf(resources_helper, vgf_filename: str) -> None
     module0 = encoder.AddModule(vgf.ModuleType.Compute, "add_push", "main")
 
     shaderInput = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R32_SFLOAT, [10], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_SFLOAT, [10], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R32_SFLOAT, [10], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_SFLOAT, [10], []
     )
 
     shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
@@ -151,7 +151,7 @@ def _write_graph_specialization_constants_vgf(
     module0 = encoder.AddModule(vgf.ModuleType.Compute, "write_spec_const", "main", spv)
 
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R32_UINT, [1], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_UINT, [1], []
     )
 
     shaderOutputBinding = encoder.AddBindingSlot(0, shaderOutput)
@@ -266,13 +266,13 @@ def test_single_spirv_shader_module_in_vgf_with_shader_substitution(
     module0 = encoder.AddModule(vgf.ModuleType.Compute, "add_one", "main")
 
     shaderInput = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [5], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [5], []
     )
     shaderInput2 = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [5], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [5], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [5], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [5], []
     )
 
     shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
@@ -333,13 +333,13 @@ def test_single_spirv_shader_module_in_vgf_without_shader_substitution(
     module0 = encoder.AddModule(vgf.ModuleType.Compute, "add_one", "main", spv)
 
     shaderInput = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [5], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [5], []
     )
     shaderInput2 = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [5], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [5], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [5], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [5], []
     )
 
     shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
@@ -403,13 +403,13 @@ def test_single_glsl_shader_module_in_vgf_with_shader_substitution(
     module0 = encoder.AddModule(vgf.ModuleType.Compute, "add_one", "main")
 
     shaderInput = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [5], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [5], []
     )
     shaderInput2 = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [5], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [5], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [5], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [5], []
     )
 
     shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
@@ -473,13 +473,13 @@ def test_single_glsl_shader_module_in_vgf_without_shader_substitution(
     )
 
     shaderInput = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [5], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [5], []
     )
     shaderInput2 = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [5], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [5], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [5], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [5], []
     )
 
     shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
@@ -544,13 +544,13 @@ def test_single_hlsl_shader_module_in_vgf_with_shader_substitution(
     module0 = encoder.AddModule(vgf.ModuleType.Compute, "add_one", "main")
 
     shaderInput = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [8], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [8], []
     )
     shaderInput2 = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [8], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [8], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [8], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [8], []
     )
 
     shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
@@ -615,13 +615,13 @@ def test_single_hlsl_shader_module_in_vgf_without_shader_substitution(
     )
 
     shaderInput = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [8], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [8], []
     )
     shaderInput2 = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [8], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [8], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [8], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [8], []
     )
 
     shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
@@ -689,13 +689,13 @@ def test_two_spirv_shader_module_in_vgf_with_shader_substitution(
     module1 = encoder.AddModule(vgf.ModuleType.Compute, "add_two", "main")
 
     shaderInput = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
     shaderIntermediate = encoder.AddIntermediateResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
 
     shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
@@ -790,7 +790,7 @@ def test_vgf_alias_group_for_internal_intermediates(
     module1 = encoder.AddModule(vgf.ModuleType.Compute, "copy_alias_tensor", "main")
 
     aliasBuffer = encoder.AddIntermediateResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [512], [], 7
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [512], [], 7
     )
     aliasTensor = encoder.AddIntermediateResource(
         DESCRIPTOR_TYPE_TENSOR_ARM, VK_FORMAT_R16_UINT, [1, 16, 16, 1], [], 7
@@ -867,13 +867,13 @@ def test_two_spirv_shader_module_in_vgf_without_shader_substitution(
     module1 = encoder.AddModule(vgf.ModuleType.Compute, "add_two", "main", spv1)
 
     shaderInput = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
     shaderIntermediate = encoder.AddIntermediateResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
 
     shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
@@ -952,13 +952,13 @@ def test_two_glsl_shader_module_in_vgf_with_shader_substitution(
     module1 = encoder.AddModule(vgf.ModuleType.Compute, "add_two", "main")
 
     shaderInput = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
     shaderIntermediate = encoder.AddIntermediateResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
 
     shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
@@ -1039,13 +1039,13 @@ def test_two_glsl_shader_module_in_vgf_without_shader_substitution(
     )
 
     shaderInput = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
     shaderIntermediate = encoder.AddIntermediateResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
 
     shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
@@ -1125,13 +1125,13 @@ def test_two_hlsl_shader_module_in_vgf_with_shader_substitution(
     module1 = encoder.AddModule(vgf.ModuleType.Compute, "add_two", "main")
 
     shaderInput = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
     shaderIntermediate = encoder.AddIntermediateResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
 
     shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
@@ -1213,13 +1213,13 @@ def test_two_hlsl_shader_module_in_vgf_without_shader_substitution(
     )
 
     shaderInput = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
     shaderIntermediate = encoder.AddIntermediateResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
 
     shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
@@ -1285,7 +1285,7 @@ def test_two_hlsl_shader_module_in_vgf_without_shader_substitution(
     "resource_type, buffer_size",
     [
         (DESCRIPTOR_TYPE_TENSOR_ARM, [5]),
-        (DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, [6]),
+        (DESCRIPTOR_TYPE_STORAGE_BUFFER, [6]),
     ],
 )
 def test_single_spirv_shader_module_in_vgf_without_shader_substitution_mismatching_resource_type_or_buffer_size(
@@ -1300,10 +1300,10 @@ def test_single_spirv_shader_module_in_vgf_without_shader_substitution_mismatchi
     module0 = encoder.AddModule(vgf.ModuleType.Compute, "add_one", "main", spv)
 
     shaderInput = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [5], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [5], []
     )
     shaderInput2 = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [5], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [5], []
     )
     shaderOutput = encoder.AddOutputResource(
         resource_type, VK_FORMAT_R8_SINT, buffer_size, []

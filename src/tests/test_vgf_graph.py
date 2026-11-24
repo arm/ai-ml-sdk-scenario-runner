@@ -12,7 +12,7 @@ import vgfpy as vgf
 
 """Tests for VGF graph."""
 
-DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT = 6
+DESCRIPTOR_TYPE_STORAGE_BUFFER = 7
 DESCRIPTOR_TYPE_TENSOR_ARM = 1000460000
 VK_FORMAT_R8_UINT = 13
 VK_FORMAT_R8_SINT = 14
@@ -110,7 +110,7 @@ def test_conv2d_vgf(sdk_tools, resources_helper, numpy_helper):
 @pytest.mark.parametrize(
     "resource_type, resource_data_type, resource_shape",
     [
-        (DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1, 16, 16, 16]),
+        (DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1, 16, 16, 16]),
         (DESCRIPTOR_TYPE_TENSOR_ARM, VK_FORMAT_R8_UINT, [1, 16, 16, 16]),
         (DESCRIPTOR_TYPE_TENSOR_ARM, VK_FORMAT_R8_SINT, [1, 8, 8, 16]),
     ],
@@ -242,10 +242,10 @@ def test_external_binding_collision_ignores_intermediate_resource(
         DESCRIPTOR_TYPE_TENSOR_ARM, VK_FORMAT_R8_SINT, [1, 8, 8, 16], []
     )
     shaderIntermediate = encoder.AddIntermediateResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
 
     conv2dInputBinding = encoder.AddBindingSlot(0, conv2dInput)
@@ -320,10 +320,10 @@ def test_external_binding_resolves_model_output_with_shader_local_binding(
     )
 
     shaderInput = encoder.AddIntermediateResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
     shaderOutput = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R8_SINT, [1024], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R8_SINT, [1024], []
     )
 
     shaderInputBinding = encoder.AddBindingSlot(0, shaderInput)
