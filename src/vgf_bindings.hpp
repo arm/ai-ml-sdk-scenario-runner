@@ -29,6 +29,10 @@ class VgfBindings {
         workloadlib::AliasPeerView peer;
         workloadlib::AliasPeerMemoryRequirements requirements;
     };
+    struct AliasPeerPlacement {
+        workloadlib::AliasPeerView peer;
+        vk::DeviceSize byteOffset;
+    };
     using MemoryResolver = std::function<workloadlib::BoundMemoryInfo(MemoryResourceId)>;
 
     VgfBindings(const VgfView &source, const workloadlib::Workload &workload, const DataManager &resources,
@@ -46,8 +50,13 @@ class VgfBindings {
     std::vector<AliasMemoryRequirement> aliasMemoryRequirements(const workloadlib::Session &session) const;
 
     /// Bind allocated objects. Alias bindings require allocation metadata from
-    /// the caller; image layout transitions remain in SR's command flow.
-    void bind(workloadlib::BindingSet &bindings, const MemoryResolver &memory = {}) const;
+    /// the caller; peer offsets are relative to the group's BoundMemoryInfo::offset.
+    /// Omitted placements leave existing offsets unchanged (zero in a new binding
+    /// set). Placements and backing regions must come from the same allocation
+    /// plan. WL validates them during prepare(). Image layout transitions remain
+    /// in SR's command flow.
+    void bind(workloadlib::BindingSet &bindings, const MemoryResolver &memory = {},
+              const std::vector<AliasPeerPlacement> &placements = {}) const;
 
   private:
     const workloadlib::Workload &_workload;

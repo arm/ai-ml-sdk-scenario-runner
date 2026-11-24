@@ -69,7 +69,8 @@ VgfBindings::aliasMemoryRequirements(const workloadlib::Session &session) const 
     return requirements;
 }
 
-void VgfBindings::bind(workloadlib::BindingSet &bindings, const MemoryResolver &memory) const {
+void VgfBindings::bind(workloadlib::BindingSet &bindings, const MemoryResolver &memory,
+                       const std::vector<AliasPeerPlacement> &placements) const {
     if (&bindings.workload() != &_workload) {
         throw std::invalid_argument("VgfBindings::bind: binding set belongs to a different workload");
     }
@@ -83,6 +84,9 @@ void VgfBindings::bind(workloadlib::BindingSet &bindings, const MemoryResolver &
             info = memory(entry.binding.resource);
         }
         adapter.bind(bindings, entry.resource, entry.binding, info);
+    }
+    for (const auto &[peer, byteOffset] : placements) {
+        bindings.setAliasPeerOffset(peer, byteOffset);
     }
 }
 
