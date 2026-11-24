@@ -12,6 +12,25 @@ Usage
 
 .. include:: neural_statistics.inc
 
+Profiling workload execution
+----------------------------
+
+For workload-lib-backed VGF execution, timestamp pairs and debug labels surround
+individual executable dispatches. Reports retain dispatch/segment names and
+segment order, including compute and graph segments. Each graph uses the data
+graph timestamp stage; each compute segment uses the compute shader stage.
+
+Workload dependency barriers precede the executable hooks. Final image-layout
+restoration and Scenario Runner's optional whole-workload barrier follow the
+last segment's end timestamp. These commands are outside the segment query
+pairs. Segment timings therefore describe stage-based dispatch intervals, not
+complete workload latency or the cost of uploads, downloads and synchronization.
+Exact values depend on device scheduling and timestamp precision.
+
+Repeated runs reuse query indices and report each iteration separately. Disabling
+timestamp profiling records no timestamp queries; graph-session memory reporting
+remains available independently.
+
 Profiling memory usage
 ----------------------
 
