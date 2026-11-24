@@ -705,19 +705,19 @@ void Compute::_recordVgf(const VgfDispatch &dispatch, const vk::raii::CommandBuf
             _beginDebugLabel(commandBuffer, profile.name);
             _writeTimestamp(commandBuffer, stage, query);
         } else {
-            // Retain SR's broad post-segment dependency, including the final
-            // segment's boundary with a following non-VGF command.
-            if (dispatch.implicitBarrier) {
-                const auto access = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite;
-                const vk::MemoryBarrier2 barrier(vk::PipelineStageFlagBits2::eAllCommands, access,
-                                                 vk::PipelineStageFlagBits2::eAllCommands, access);
-                commandBuffer.pipelineBarrier2(vk::DependencyInfo({}, barrier));
-            }
             _writeTimestamp(commandBuffer, stage, query + 1);
             _endDebugLabel(commandBuffer);
         }
     };
     dispatch.execution->record(*commandBuffer, options);
+    // Segment queries bracket dispatches only. WL dependencies and final layout
+    // restoration, followed by this optional SR boundary barrier, remain outside.
+    if (dispatch.implicitBarrier) {
+        const auto access = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite;
+        const vk::MemoryBarrier2 barrier(vk::PipelineStageFlagBits2::eAllCommands, access,
+                                         vk::PipelineStageFlagBits2::eAllCommands, access);
+        commandBuffer.pipelineBarrier2(vk::DependencyInfo({}, barrier));
+    }
 }
 
 void Compute::submitAndWaitOnFence(std::vector<PerformanceCounter> &perfCounters, int iteration) {

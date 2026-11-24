@@ -37,6 +37,7 @@
 
 namespace {
 using namespace mlsdk::scenariorunner;
+namespace wl = mlsdk::workloadlib;
 
 void replace(std::string &text, const std::string &from, const std::string &to) {
     size_t pos = 0;
@@ -114,6 +115,62 @@ class WorkloadDataGraph : public testing::Test {
         return DispatchDataGraphData(resources.addShader(graphShader(asset)));
     }
 
+    std::shared_ptr<WorkloadExecution> prepareVgf(TempFolder &folder, const std::vector<wl::ExecutableKind> &kinds) {
+        const auto input = addTensor({1, 16, 16, 16}, vk::Format::eR8Sint);
+        const auto output = addTensor({1, 8, 8, 16}, vk::Format::eR8Sint);
+        const std::vector<int8_t> values(size_t{16} * 16 * 16, 0);
+        data.getTensor(input).upload(context, {values.data(), values.size(), {1, 16, 16, 16}});
+        namespace vgf = mlsdk::vgflib;
+        auto encoder = vgf::CreateEncoder(VK_HEADER_VERSION);
+        const auto code =
+            GlslCompiler::get().compile("#version 450\nlayout(local_size_x=1) in; layout(set=0,binding=0) "
+                                        "buffer Scratch { uint value; }; void main() { value=1; }",
+                                        ShaderStage::Compute);
+        if (code.second.empty()) {
+            throw std::runtime_error(code.first);
+        }
+        const auto computeModule = encoder->AddModule(vgf::ModuleType::COMPUTE, "scratch", "main", code.second);
+        const auto graph = encoder->AddModule(vgf::ModuleType::GRAPH, "pool", "graph_entry",
+                                              *graphShader("test_vgf_graph/maxpool.spvasm").src);
+        const auto descriptor = vgf::ToDescriptorType(VK_DESCRIPTOR_TYPE_TENSOR_ARM);
+        const auto format = vgf::ToFormatType(VK_FORMAT_R8_SINT);
+        const auto vgfInput = encoder->AddInputResource(descriptor, format, {1, 16, 16, 16}, {});
+        const auto vgfOutput = encoder->AddOutputResource(descriptor, format, {1, 8, 8, 16}, {});
+        const auto inputSlot = encoder->AddBindingSlot(3, vgfInput);
+        const auto outputSlot = encoder->AddBindingSlot(7, vgfOutput);
+        const auto inputSet = encoder->AddDescriptorSetInfo({inputSlot}, 2);
+        const auto outputSet = encoder->AddDescriptorSetInfo({outputSlot}, 0);
+        const auto scratch = encoder->AddIntermediateResource(vgf::ToDescriptorType(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
+                                                              vgf::ToFormatType(VK_FORMAT_R32_UINT), {1}, {});
+        const auto scratchSlot = encoder->AddBindingSlot(0, scratch);
+        const auto scratchSet = encoder->AddDescriptorSetInfo({scratchSlot}, 0);
+        encoder->AddModelSequenceInputsOutputs({inputSlot}, {"input"}, {outputSlot}, {"output"});
+        const std::vector<vgf::GraphConstantBindingRef> constants;
+        for (uint32_t index = 0; index < kinds.size(); ++index) {
+            const auto name = "segment_" + std::to_string(index);
+            if (kinds[index] == wl::ExecutableKind::Compute) {
+                encoder->AddSegmentInfo(computeModule, name, {scratchSet}, {}, {scratchSlot}, constants, {1, 1, 1});
+            } else {
+                encoder->AddSegmentInfo(graph, name, {inputSet, outputSet}, {inputSlot}, {outputSlot}, constants);
+            }
+        }
+        encoder->Finish();
+        const auto path = folder.relative("mixed.vgf");
+        {
+            std::ofstream file(path, std::ios::binary);
+            encoder->WriteTo(file);
+        }
+        wl::SessionOptions options;
+        options.requireHostVisibleSessionMemory();
+        const auto mixed = WorkloadExecution::fromVgf(runtime, loadVgfView(path.string()), options);
+        mixed->session().configure();
+        auto bindings = mixed->session().createBindingSet();
+        bindings.bindTensor(mixed->workload().resource(0), {data.getTensor(input).tensor()});
+        bindings.bindTensor(mixed->workload().resource(1), {data.getTensor(output).tensor()});
+        mixed->prepare(bindings);
+        return mixed;
+    }
+
     GraphConstantResourceId addConstant(float value) {
         GraphConstantInfo constant{"weights", vk::Format::eR32Sfloat, {1, 3, 2, 1}};
         const std::vector<float> values(6, value);
@@ -185,6 +242,117 @@ TEST_F(WorkloadDataGraph, ReportsSessionMemoryForStandaloneAndVgfDispatches) {
     EXPECT_EQ(memory.usages[1].sessionMemoryBytes, expectedBytes);
 }
 
+TEST_F(WorkloadDataGraph, ProfilesVgfKindsWithStableQueryPairsAcrossRuns) {
+    const auto input = addTensor({1, 16, 16, 16}, vk::Format::eR8Sint);
+    const auto output = addTensor({1, 8, 8, 16}, vk::Format::eR8Sint);
+    const std::vector<int8_t> values(size_t{16} * 16 * 16, 0);
+    data.getTensor(input).upload(context, {values.data(), values.size(), {1, 16, 16, 16}});
+    auto dispatch = addGraph("test_vgf_graph/maxpool.spvasm");
+    dispatch.bindings = {{0, 7, output, {}, vk::DescriptorType::eTensorARM},
+                         {2, 3, input, {}, vk::DescriptorType::eTensorARM}};
+    const auto standalone = prepareStandaloneDataGraph(runtime, dispatch, resources, data);
+
+    // Observe public recording calls and forward them to the driver.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+    auto &dispatcher = const_cast<vk::raii::detail::DeviceDispatcher &>(*context.device().getDispatcher());
+    static PFN_vkCmdWriteTimestamp2 timestamp;
+    static PFN_vkCmdPipelineBarrier2 barrier;
+    timestamp = dispatcher.vkCmdWriteTimestamp2;
+    barrier = dispatcher.vkCmdPipelineBarrier2;
+    static std::vector<std::pair<VkPipelineStageFlags2, uint32_t>> stamps;
+    static uint32_t vgfQueryEnd;
+    static bool inSegment;
+    inSegment = false;
+    const ScopeExit<void()> restore([&] {
+        dispatcher.vkCmdWriteTimestamp2 = timestamp;
+        dispatcher.vkCmdPipelineBarrier2 = barrier;
+    });
+    dispatcher.vkCmdWriteTimestamp2 =
+        +[](VkCommandBuffer command, VkPipelineStageFlags2 stage, VkQueryPool pool, uint32_t query) {
+            stamps.emplace_back(stage, query);
+            if (query >= 2 && query < vgfQueryEnd) {
+                inSegment = query % 2 == 0;
+            }
+            timestamp(command, stage, pool, query);
+        };
+    dispatcher.vkCmdPipelineBarrier2 = +[](VkCommandBuffer command, const VkDependencyInfo *info) {
+        EXPECT_FALSE(inSegment) << "Synchronization must remain outside VGF segment query pairs";
+        barrier(command, info);
+    };
+    const std::vector<std::vector<wl::ExecutableKind>> sequences{
+        {wl::ExecutableKind::Compute},
+        {wl::ExecutableKind::Graph},
+        {wl::ExecutableKind::Compute, wl::ExecutableKind::Graph, wl::ExecutableKind::Compute,
+         wl::ExecutableKind::Graph}};
+    for (const auto &kinds : sequences) {
+        TempFolder folder("vgf_profiling");
+        const auto execution = prepareVgf(folder, kinds);
+        for (const bool enabled : {false, true}) {
+            SCOPED_TRACE(testing::Message() << "segments=" << kinds.size() << " profiling=" << enabled);
+            Compute compute(context);
+            uint32_t queries = 0;
+            const auto registerStandalone = [&](const std::string &name) {
+                compute.registerWriteTimestamp(queries++, vk::PipelineStageFlagBits2::eDataGraphARM);
+                compute.registerWorkloadExecution(standalone, name, {"DataGraphDispatch", name}, true);
+                compute.registerWriteTimestamp(queries++, vk::PipelineStageFlagBits2::eDataGraphARM);
+            };
+            registerStandalone("before");
+            compute.registerVgfExecution(execution, "vgf", queries, true);
+            vgfQueryEnd = queries;
+            registerStandalone("after");
+            ASSERT_EQ(queries, 2 * (kinds.size() + 2));
+            if (enabled) {
+                compute.setupQueryPool(queries);
+            }
+            const auto memory = compute.getMemoryProfilingData();
+            size_t graph = 1;
+            ASSERT_GE(memory.usages.size(), 2u);
+            EXPECT_EQ(memory.usages.front().commandName, "before");
+            for (uint32_t i = 0; i < kinds.size(); ++i) {
+                if (kinds[i] == wl::ExecutableKind::Graph) {
+                    ASSERT_LT(graph, memory.usages.size());
+                    EXPECT_EQ(memory.usages[graph++].commandName, "vgf/segment_" + std::to_string(i));
+                }
+            }
+            ASSERT_EQ(memory.usages.size(), graph + 1);
+            EXPECT_EQ(memory.usages.back().commandName, "after");
+            for (int iteration = 0; iteration < 2; ++iteration) {
+                stamps.clear();
+                compute.submitAndWaitOnFence();
+                EXPECT_FALSE(inSegment);
+                if (enabled) {
+                    const auto profile = compute.getRuntimeProfilingData();
+                    ASSERT_EQ(profile.commands.size(), kinds.size() + 2);
+                    ASSERT_EQ(profile.timestamps.size(), queries);
+                    ASSERT_EQ(stamps.size(), queries);
+                    EXPECT_EQ(profile.commands.front().name, "before");
+                    EXPECT_EQ(profile.commands.back().name, "after");
+                    for (uint32_t i = 0; i < queries; ++i) {
+                        EXPECT_EQ(stamps[i].second, i);
+                        const auto kind = i >= 2 && i < vgfQueryEnd ? kinds[(i - 2) / 2] : wl::ExecutableKind::Graph;
+                        const auto stage = kind == wl::ExecutableKind::Graph ? VK_PIPELINE_STAGE_2_DATA_GRAPH_BIT_ARM
+                                                                             : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+                        EXPECT_EQ(stamps[i].first, stage);
+                    }
+                    for (uint32_t i = 0; i < kinds.size(); ++i) {
+                        EXPECT_EQ(profile.commands[i + 1].name, "vgf/segment_" + std::to_string(i));
+                        EXPECT_EQ(profile.commands[i + 1].type,
+                                  kinds[i] == wl::ExecutableKind::Graph ? "DataGraphDispatch" : "ComputeDispatch");
+                    }
+                } else {
+                    EXPECT_TRUE(stamps.empty());
+                }
+                const auto repeatedMemory = compute.getMemoryProfilingData();
+                ASSERT_EQ(repeatedMemory.usages.size(), memory.usages.size());
+                for (size_t i = 0; i < memory.usages.size(); ++i) {
+                    EXPECT_EQ(repeatedMemory.usages[i].commandName, memory.usages[i].commandName);
+                    EXPECT_EQ(repeatedMemory.usages[i].sessionMemoryBytes, memory.usages[i].sessionMemoryBytes);
+                }
+            }
+        }
+    }
+}
+
 TEST_F(WorkloadDataGraph, DumpsVgfGraphExecutablesInCommandOrder) {
     TempFolder folder("vgf_graph_dumps");
     const auto input = addTensor({1, 16, 16, 16}, vk::Format::eR8Sint);
@@ -196,47 +364,8 @@ TEST_F(WorkloadDataGraph, DumpsVgfGraphExecutablesInCommandOrder) {
     options.requireHostVisibleSessionMemory();
     const auto standalone = prepareStandaloneDataGraph(runtime, dispatch, resources, data, options);
 
-    namespace vgf = mlsdk::vgflib;
-    auto encoder = vgf::CreateEncoder(VK_HEADER_VERSION);
-    const auto code = GlslCompiler::get().compile("#version 450\nlayout(local_size_x=1) in; layout(set=0,binding=0) "
-                                                  "buffer Scratch { uint value; }; void main() { value=1; }",
-                                                  ShaderStage::Compute);
-    ASSERT_FALSE(code.second.empty()) << code.first;
-    const auto computeModule = encoder->AddModule(vgf::ModuleType::COMPUTE, "scratch", "main", code.second);
-    const auto graph =
-        encoder->AddModule(vgf::ModuleType::GRAPH, "pool", "graph_entry", *resources.get(dispatch.graphShader).src);
-    const auto descriptor = vgf::ToDescriptorType(VK_DESCRIPTOR_TYPE_TENSOR_ARM);
-    const auto format = vgf::ToFormatType(VK_FORMAT_R8_SINT);
-    const auto vgfInput = encoder->AddInputResource(descriptor, format, {1, 16, 16, 16}, {});
-    const auto vgfOutput = encoder->AddOutputResource(descriptor, format, {1, 8, 8, 16}, {});
-    const auto inputSlot = encoder->AddBindingSlot(3, vgfInput);
-    const auto outputSlot = encoder->AddBindingSlot(7, vgfOutput);
-    const auto inputSet = encoder->AddDescriptorSetInfo({inputSlot}, 2);
-    const auto outputSet = encoder->AddDescriptorSetInfo({outputSlot}, 0);
-    const auto scratch = encoder->AddIntermediateResource(vgf::ToDescriptorType(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
-                                                          vgf::ToFormatType(VK_FORMAT_R32_UINT), {1}, {});
-    const auto scratchSlot = encoder->AddBindingSlot(0, scratch);
-    const auto scratchSet = encoder->AddDescriptorSetInfo({scratchSlot}, 0);
-    encoder->AddModelSequenceInputsOutputs({inputSlot}, {"input"}, {outputSlot}, {"output"});
-    const std::vector<vgf::GraphConstantBindingRef> constants;
-    for (const std::string_view name : {"first", "second"}) {
-        encoder->AddSegmentInfo(computeModule, std::string(name) + " compute", {scratchSet}, {}, {scratchSlot},
-                                constants, {1, 1, 1});
-        encoder->AddSegmentInfo(graph, std::string(name) + " graph", {inputSet, outputSet}, {inputSlot}, {outputSlot},
-                                constants);
-    }
-    encoder->Finish();
-    const auto path = folder.relative("mixed.vgf");
-    {
-        std::ofstream file(path, std::ios::binary);
-        encoder->WriteTo(file);
-    }
-    const auto mixed = WorkloadExecution::fromVgf(runtime, loadVgfView(path.string()), options);
-    mixed->session().configure();
-    auto bindings = mixed->session().createBindingSet();
-    bindings.bindTensor(mixed->workload().resource(0), {data.getTensor(input).tensor()});
-    bindings.bindTensor(mixed->workload().resource(1), {data.getTensor(output).tensor()});
-    mixed->prepare(bindings);
+    const auto mixed = prepareVgf(folder, {wl::ExecutableKind::Compute, wl::ExecutableKind::Graph,
+                                           wl::ExecutableKind::Compute, wl::ExecutableKind::Graph});
 
     // Mock property bytes so routing checks do not depend on hardware diagnostics
     // or nonzero graph-session RAM allocations (the emulator may allocate none).
