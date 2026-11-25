@@ -306,7 +306,9 @@ class Builder:
                     "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=undefined,address"
                 )
             elif system == "Windows":
-                cmake_setup_cmd.append("-DCMAKE_CXX_FLAGS=/fsanitize=address /Zi /MDd")
+                cmake_setup_cmd.append(
+                    "-DCMAKE_CXX_FLAGS=/fsanitize=address /Zi /MDd /EHsc"
+                )
                 cmake_setup_cmd.append(
                     "-DCMAKE_EXE_LINKER_FLAGS=/INFERASANLIBS /DEBUG /INCREMENTAL:NO"
                 )
