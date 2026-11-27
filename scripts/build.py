@@ -246,6 +246,8 @@ class Builder:
             "-B",
             self.build_dir,
             f"-DCMAKE_BUILD_TYPE={self.build_type}",
+            f"-DPython_EXECUTABLE={sys.executable}",
+            f"-DPython3_EXECUTABLE={sys.executable}",
             f"-DVULKAN_HEADERS_PATH={self.vulkan_headers_path}",
             f"-DML_SDK_VGF_LIB_PATH={self.vgf_lib_path}",
             f"-DML_SDK_WORKLOAD_LIB_PATH={self.workload_lib_path}",
