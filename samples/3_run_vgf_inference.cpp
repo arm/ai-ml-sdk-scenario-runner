@@ -26,7 +26,7 @@ using namespace mlsdk;
 using namespace mlsdk::scenariorunner;
 
 constexpr uint16_t VULKAN_HEADER_VERSION = 123;
-constexpr vgflib::DescriptorType STORAGE_BUFFER_DESCRIPTOR_TYPE = 6;
+constexpr vgflib::DescriptorType STORAGE_BUFFER_DESCRIPTOR_TYPE = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 constexpr vgflib::FormatType R32_UINT_FORMAT = 98;
 
 void writeIncrementVgf(const std::filesystem::path &path) {

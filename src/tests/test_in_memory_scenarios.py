@@ -19,7 +19,7 @@ def load_scenario_runner(request: pytest.FixtureRequest) -> None:
     sr = request.getfixturevalue("sr")
 
 
-DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT = 6
+DESCRIPTOR_TYPE_STORAGE_BUFFER = 7
 VK_FORMAT_R32_UINT = 98
 VULKAN_HEADER_VERSION = 123
 
@@ -69,10 +69,10 @@ def _write_increment_vgf(path):
     encoder = vgf.CreateEncoder(VULKAN_HEADER_VERSION)
     module = encoder.AddModule(vgf.ModuleType.Compute, "increment", "main")
     input_resource = encoder.AddInputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R32_UINT, [4], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_UINT, [4], []
     )
     output_resource = encoder.AddOutputResource(
-        DESCRIPTOR_TYPE_STORAGE_BUFFER_EXT, VK_FORMAT_R32_UINT, [4], []
+        DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_FORMAT_R32_UINT, [4], []
     )
     input_binding = encoder.AddBindingSlot(0, input_resource)
     output_binding = encoder.AddBindingSlot(1, output_resource)
