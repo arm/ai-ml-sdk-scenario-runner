@@ -9,8 +9,7 @@
 - Added experimental submission of VGF MXFP/E8M0 graph constants through
   `VK_ARM_tensors2`, with values and scales retained in one constant payload.
 - Added schema validation for block-scaled tensor resources with separate value
-  and scale NumPy files. Scenario Runner reports an explicit error until scale
-  loading and execution support lands.
+  and scale NumPy files. Public block-scaled tensor execution remains pending.
 - Added `VK_KHR_portability_enumeration` to the extensions accepted by
   `--disable-extension`.
 - Added experimental standalone data-graph-binary dispatch from a file-backed
@@ -19,7 +18,7 @@
   segments, retaining shader-backed graph and compute segments in the same
   dispatch.
 - Added experimental scenario JSON parsing for FP4, FP6, and MXINT8 tensor format names.
-- Added experimental support for I/O of FP8 micro-scaled tensors
+- Added experimental paired NumPy file I/O for MXFP value and E8M0 scale planes.
 - Added experimental Python `TensorData` with separate host value and scale payloads, and
   block-scale metadata through `TensorData.block_scaling` and `BlockScalingInfo`.
 

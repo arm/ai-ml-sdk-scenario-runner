@@ -11,8 +11,10 @@
 
 #include "vgf-utils/memory_map.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <utility>
+#include <vulkan/vulkan_format_traits.hpp>
 
 namespace mlsdk::scenariorunner {
 namespace {
@@ -30,8 +32,11 @@ constexpr vk::TensorTilingARM convertTiling(const Tiling tiling) {
 #ifdef VK_ARM_tensors2
 std::vector<int64_t> tensorScaleShape(const std::vector<int64_t> &shape, const BlockScalingInfo &scaling) {
     auto result = shape;
-    if (scaling.blockShape.size() > shape.size()) {
-        throw std::runtime_error("Block rank exceeds tensor rank");
+    if (scaling.blockShape.empty() || scaling.blockShape.size() > shape.size()) {
+        throw std::runtime_error("Block shape must be nonempty and fit the tensor rank");
+    }
+    if (std::any_of(result.begin(), result.end(), [](int64_t dimension) { return dimension <= 0; })) {
+        throw std::runtime_error("Block-scaled file I/O requires positive tensor dimensions");
     }
     const auto offset = shape.size() - scaling.blockShape.size();
     for (size_t i = 0; i < scaling.blockShape.size(); ++i) {
@@ -42,6 +47,39 @@ std::vector<int64_t> tensorScaleShape(const std::vector<int64_t> &shape, const B
         result[offset + i] /= block;
     }
     return result;
+}
+
+struct ScaledValueFileLayout {
+    std::vector<int64_t> shape;
+    vk::Format format;
+};
+
+ScaledValueFileLayout scaledValueFileLayout(std::vector<int64_t> shape, vk::Format format) {
+    uint32_t valuesPerGroup = 1;
+    uint32_t bytesPerGroup = 1;
+    switch (format) {
+    case vk::Format::eR8SfloatFpencodingFloat8E4M3ARM:
+    case vk::Format::eR8SfloatFpencodingFloat8E5M2ARM:
+        return {std::move(shape), format};
+    case vk::Format::eR8SfloatFpencodingMxint8ARM:
+        return {std::move(shape), vk::Format::eR8Uint};
+    case vk::Format::eOcpmxfp32SfloatBlockFpencodingFloat4E2M1ARM:
+        valuesPerGroup = 2;
+        break;
+    case vk::Format::eOcpmxfp32SfloatBlockFpencodingFloat6E2M3ARM:
+    case vk::Format::eOcpmxfp32SfloatBlockFpencodingFloat6E3M2ARM:
+        valuesPerGroup = 4;
+        bytesPerGroup = 3;
+        break;
+    default:
+        throw std::runtime_error("Unsupported block-scaled value file format");
+    }
+
+    if (shape.empty() || shape.back() <= 0 || shape.back() % valuesPerGroup != 0) {
+        throw std::runtime_error("Tensor value shape must contain whole packed value groups");
+    }
+    shape.back() = shape.back() / valuesPerGroup * bytesPerGroup;
+    return {std::move(shape), vk::Format::eR8Uint};
 }
 #endif
 
@@ -311,6 +349,8 @@ TensorData loadTensorData(const TensorDesc &desc) {
     const std::optional<std::filesystem::path> values{desc.src};
     std::optional<std::filesystem::path> scales;
     bool checkShape = !desc.dims.empty();
+    auto valueFileShape = desc.dims;
+    auto valueFileFormat = format;
 #ifdef VK_ARM_tensors2
     scales = desc.blockScaling ? desc.blockScaling->src : std::nullopt;
     const auto scaling = desc.blockScaling ? std::optional{desc.blockScaling->info} : std::nullopt;
@@ -321,6 +361,11 @@ TensorData loadTensorData(const TensorDesc &desc) {
         throw std::runtime_error("Tensor scale format must be E8M0");
     }
     checkShape = checkShape || scaling.has_value();
+    if (scaling) {
+        auto layout = scaledValueFileLayout(desc.dims, format);
+        valueFileShape = std::move(layout.shape);
+        valueFileFormat = layout.format;
+    }
 #endif
     if (values && (values->empty() ||
                    (scales && (scales->empty() || values->lexically_normal() == scales->lexically_normal())))) {
@@ -328,23 +373,24 @@ TensorData loadTensorData(const TensorDesc &desc) {
     }
     TensorData result;
     if (values) {
-        result = readTensorFile(*values, format);
-        if (checkShape && result.shape != desc.dims) {
+        result = readTensorFile(*values, valueFileFormat);
+        if (checkShape && result.shape != valueFileShape) {
             throw std::runtime_error("Tensor value NumPy shape does not match the tensor");
         }
+#ifdef VK_ARM_tensors2
+        if (scaling) {
+            result.shape = desc.dims;
+        }
+#endif
     } else {
         result.shape = desc.dims;
-        const auto expectedSize = elementSizeFromVkFormat(format) * totalElementsFromShape(desc.dims);
+        const auto expectedSize = elementSizeFromVkFormat(valueFileFormat) * totalElementsFromShape(valueFileShape);
         result.data.resize(expectedSize, std::byte{0});
     }
     result.format = format;
 #ifdef VK_ARM_tensors2
     result.blockScaling = scaling;
     if (scaling) {
-        if (format != vk::Format::eR8SfloatFpencodingFloat8E4M3ARM &&
-            format != vk::Format::eR8SfloatFpencodingFloat8E5M2ARM) {
-            throw std::runtime_error("Block-scaled file I/O supports FP8 values");
-        }
         const auto scaleShape = tensorScaleShape(desc.dims, *scaling);
         const auto scaleSize = elementSizeFromVkFormat(scaling->format) * totalElementsFromShape(scaleShape);
         if (scales) {
@@ -366,8 +412,18 @@ void writeTensorFiles(const TensorData &data, const std::filesystem::path &value
     if (values.empty() || (scales && (scales->empty() || values.lexically_normal() == scales->lexically_normal()))) {
         throw std::runtime_error("Tensor output paths must be nonempty and distinct");
     }
-    const auto dtype = getDTypeFromVkFormat(data.format.value());
-    const vgfutils::numpy::DataPtr valuePayload{reinterpret_cast<const char *>(data.data.data()), data.shape, dtype};
+    auto valueFileShape = data.shape;
+    auto valueFileFormat = data.format.value();
+#ifdef VK_ARM_tensors2
+    if (data.blockScaling) {
+        auto layout = scaledValueFileLayout(data.shape, valueFileFormat);
+        valueFileShape = std::move(layout.shape);
+        valueFileFormat = layout.format;
+    }
+#endif
+    const auto dtype = getDTypeFromVkFormat(valueFileFormat);
+    const vgfutils::numpy::DataPtr valuePayload{reinterpret_cast<const char *>(data.data.data()), valueFileShape,
+                                                dtype};
     if (valuePayload.size() != data.data.size()) {
         throw std::runtime_error("Tensor value payload length does not match its shape and format");
     }
@@ -379,10 +435,6 @@ void writeTensorFiles(const TensorData &data, const std::filesystem::path &value
     if (data.blockScaling) {
         if (data.blockScaling->format != vk::Format::eR8UfloatFpencodingFloat8Unsignede8M0ARM) {
             throw std::runtime_error("Tensor scale format must be E8M0");
-        }
-        if (data.format != vk::Format::eR8SfloatFpencodingFloat8E4M3ARM &&
-            data.format != vk::Format::eR8SfloatFpencodingFloat8E5M2ARM) {
-            throw std::runtime_error("Block-scaled file I/O supports FP8 values");
         }
         scalePayload.emplace(reinterpret_cast<const char *>(data.scales.data()),
                              tensorScaleShape(data.shape, *data.blockScaling),

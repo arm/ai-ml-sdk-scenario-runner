@@ -18,12 +18,14 @@
 #include "vgf-utils/numpy.hpp"
 #include "vgf-utils/temp_folder.hpp"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <stdexcept>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -1613,11 +1615,6 @@ TEST(JsonParser, BlockScaledFilesRoundtripWithoutVulkan) {
     const auto outputs = folder.relative("outputs");
     std::filesystem::create_directory(inputs);
     std::filesystem::create_directory(outputs);
-    std::vector<std::byte> values(64);
-    for (size_t i = 0; i < values.size(); ++i) {
-        values[i] = static_cast<std::byte>(i * 37);
-    }
-    values[3] = std::byte{0xff};
     const std::vector<std::byte> scales{std::byte{0x7e}, std::byte{0x81}};
     auto scenario = R"({"commands": [], "resources": [
         {"tensor": {"uid": "input", "dims": [2, 32], "shader_access": "readonly", "src": "values.npy",
@@ -1625,12 +1622,23 @@ TEST(JsonParser, BlockScaledFilesRoundtripWithoutVulkan) {
         {"tensor": {"uid": "output", "dims": [2, 32], "shader_access": "writeonly", "dst": "values.npy",
             "block_scaling": {"block_shape": [32], "format": "E8M0", "dst": "scales.npy"}}}
     ]})"_json;
-    for (const auto kind : {'V', 'u'}) {
-        SCOPED_TRACE(kind);
-        const auto byteorder = kind == 'V' ? '<' : '|';
+    const std::array<std::tuple<const char *, int64_t, char, char>, 6> formats{{
+        {"VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM", 32, 'V', '<'},
+        {"VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E5M2_ARM", 32, 'u', '|'},
+        {"VK_FORMAT_R8_SFLOAT_FPENCODING_MXINT8_ARM", 32, 'u', '|'},
+        {"VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT4E2M1_ARM", 16, 'u', '|'},
+        {"VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT6E2M3_ARM", 24, 'u', '|'},
+        {"VK_FORMAT_OCPMXFP_32_SFLOAT_BLOCK_FPENCODING_FLOAT6E3M2_ARM", 24, 'u', '|'},
+    }};
+    for (const auto &[name, bytesPerRow, kind, byteorder] : formats) {
+        SCOPED_TRACE(name);
+        std::vector<std::byte> values(static_cast<size_t>(2 * bytesPerRow));
+        for (size_t i = 0; i < values.size(); ++i) {
+            values[i] = static_cast<std::byte>(i * 37);
+        }
+        values[3] = std::byte{0xff};
         for (auto &resource : scenario["resources"]) {
-            resource["tensor"]["format"] = kind == 'V' ? "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM"
-                                                       : "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E5M2_ARM";
+            resource["tensor"]["format"] = name;
         }
         auto inputAndOutput = scenario["resources"][0]["tensor"];
         inputAndOutput["dst"] = "output_values.npy";
@@ -1644,14 +1652,15 @@ TEST(JsonParser, BlockScaledFilesRoundtripWithoutVulkan) {
         EXPECT_EQ(input.blockScaling->src, (inputs / "scales.npy").string());
         EXPECT_EQ(output.dst, (outputs / "values.npy").string());
         EXPECT_EQ(output.blockScaling->dst, (outputs / "scales.npy").string());
-        vgfutils::numpy::write(
-            *input.src,
-            vgfutils::numpy::DataPtr{reinterpret_cast<const char *>(values.data()), {2, 32}, {kind, 1, byteorder}});
+        vgfutils::numpy::write(*input.src, vgfutils::numpy::DataPtr{reinterpret_cast<const char *>(values.data()),
+                                                                    {2, bytesPerRow},
+                                                                    {kind, 1, byteorder}});
         vgfutils::numpy::write(
             *input.blockScaling->src,
             vgfutils::numpy::DataPtr{reinterpret_cast<const char *>(scales.data()), {2, 1}, {'V', 1, '<'}});
         const auto loaded = loadTensorData(input);
         EXPECT_EQ(loaded.data, values);
+        EXPECT_EQ(loaded.shape, (std::vector<int64_t>{2, 32}));
         EXPECT_EQ(loaded.scales, scales);
         ASSERT_TRUE(loaded.blockScaling);
         EXPECT_EQ(loaded.blockScaling->format, vk::Format::eR8UfloatFpencodingFloat8Unsignede8M0ARM);
@@ -1660,6 +1669,7 @@ TEST(JsonParser, BlockScaledFilesRoundtripWithoutVulkan) {
             const MemoryMap mapped{isScale ? *output.blockScaling->dst : *output.dst};
             const auto saved = vgfutils::numpy::parse(mapped);
             const auto &bytes = isScale ? scales : values;
+            EXPECT_EQ(saved.shape, (isScale ? std::vector<int64_t>{2, 1} : std::vector<int64_t>{2, bytesPerRow}));
             EXPECT_EQ(saved.dtype.byteorder, isScale ? '<' : byteorder);
             EXPECT_EQ(saved.dtype.kind, isScale ? 'V' : kind);
             EXPECT_EQ(saved.dtype.itemsize, 1);
@@ -1670,7 +1680,7 @@ TEST(JsonParser, BlockScaledFilesRoundtripWithoutVulkan) {
             SCOPED_TRACE(isScale ? "scales" : "values");
             const auto &path = isScale ? *input.blockScaling->src : *input.src;
             const auto &bytes = isScale ? scales : values;
-            const auto shape = isScale ? std::vector<int64_t>{1, 2} : std::vector<int64_t>{32, 2};
+            const auto shape = isScale ? std::vector<int64_t>{1, 2} : std::vector<int64_t>{bytesPerRow, 2};
             const auto dtype =
                 isScale ? vgfutils::numpy::DType{'V', 1, '<'} : vgfutils::numpy::DType{kind, 1, byteorder};
             // Preserve the payload length while changing its logical shape.
@@ -1682,6 +1692,34 @@ TEST(JsonParser, BlockScaledFilesRoundtripWithoutVulkan) {
         }
     }
 }
+
+TEST(JsonParser, BlockScaledFP8AllowsOtherBlockShapes) {
+    namespace vgfutils = mlsdk::vgfutils;
+    TempFolder folder{"scaled_fp8_block_16"};
+    TensorData data;
+    data.shape = {2, 32};
+    data.format = vk::Format::eR8SfloatFpencodingFloat8E4M3ARM;
+    data.blockScaling = BlockScalingInfo{{16}, vk::Format::eR8UfloatFpencodingFloat8Unsignede8M0ARM};
+    data.data.resize(64);
+    data.scales.resize(4);
+
+    const auto values = folder.relative("values.npy");
+    const auto scales = folder.relative("scales.npy");
+    writeTensorFiles(data, values, scales);
+
+    const MemoryMap mapped{scales.string()};
+    EXPECT_EQ(vgfutils::numpy::parse(mapped).shape, (std::vector<int64_t>{2, 2}));
+
+    TensorDesc input;
+    input.dims = data.shape;
+    input.format = "VK_FORMAT_R8_SFLOAT_FPENCODING_FLOAT8E4M3_ARM";
+    input.src = values.string();
+    input.blockScaling = TensorBlockScalingDesc{*data.blockScaling, scales.string(), std::nullopt};
+    const auto loaded = loadTensorData(input);
+    EXPECT_EQ(loaded.data, data.data);
+    EXPECT_EQ(loaded.scales, data.scales);
+}
+
 #else
 TEST(JsonParser, BlockScaledTensorRequiresTensors2Headers) {
     const auto tensor = R"({
